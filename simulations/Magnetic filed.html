@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Magnetic Core Simulation & Calculator</title>
+    <style>
+        :root {
+            --bg-color: #00c2cb;
+            --field-pink: #ff00ff;
+            --panel-bg: rgba(255, 255, 255, 0.95);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            color: #333;
+        }
+
+        .sidebar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 320px;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            z-index: 100;
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+
+        .formula-display {
+            background: #f8f9fa;
+            border-left: 5px solid var(--field-pink);
+            padding: 12px;
+            margin: 10px 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            border-radius: 4px;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .limit-settings {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 11px;
+        }
+
+        .limit-settings label {
+            display: inline-block;
+            width: 60%;
+        }
+
+        .limit-settings input {
+            width: 30%;
+            display: inline-block;
+            margin-bottom: 0;
+            padding: 2px 5px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin-bottom: 5px;
+            box-sizing: border-box;
+        }
+
+        .value-display {
+            font-weight: bold;
+            color: var(--field-pink);
+            float: right;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .btn-reverse {
+            width: 100%;
+            padding: 12px;
+            background: var(--field-pink);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 5px;
+            transition: filter 0.2s;
+        }
+
+        .btn-reverse:hover {
+            filter: brightness(1.1);
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="header">
+            <h3 style="margin:0">Electromagnet Physics</h3>
+        </div>
+
+        <div class="limit-settings">
+            <strong>Slider Max Limits</strong><br>
+            <div style="margin-top:5px">
+                <label>Max Turns (N):</label>
+                <input type="number" id="maxTurns" value="200">
+            </div>
+            <div>
+                <label>Max Current (I):</label>
+                <input type="number" id="maxCurrent" value="10">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Core Material</label>
+            <select id="materialSelect">
+                <option value="1">Air / Vacuum (μr ≈ 1)</option>
+                <option value="100">Ferrite (μr ≈ 100)</option>
+                <option value="5000" selected>Soft Iron (μr ≈ 5000)</option>
+                <option value="20000">Mu-Metal (μr ≈ 20000)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Number of Turns (N) <span class="value-display" id="valN">50</span></label>
+            <input type="range" id="inputN" min="1" max="200" value="50">
+        </div>
+
+        <div class="control-group">
+            <label>Current (I) [Amperes] <span class="value-display" id="valI">2.0</span></label>
+            <input type="range" id="inputI" min="0.1" max="10.0" step="0.1" value="2.0">
+        </div>
+
+        <div class="formula-display">
+            <strong>Field Strength (H):</strong><br>
+            H = (N × I) / L<br>
+            <div id="calcH" style="margin-top:8px; font-weight:bold; color:#d63384;">H = 16.67 A/m</div>
+        </div>
+
+        <div class="formula-display">
+            <strong>Flux Density (B):</strong><br>
+            B = μ₀ × μᵣ × H<br>
+            <div id="calcB" style="margin-top:8px; font-weight:bold; color:#0d6efd;">B = 0.105 T</div>
+        </div>
+
+        <button class="btn-reverse" id="reverseBtn">Reverse Polarity</button>
+    </div>
+
+    <div class="instructions">Drag to Rotate • Scroll to Zoom • Right Click to Pan</div>
+    <div id="container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let isReversed = false;
+        let fieldLines = [];
+        let arrows = [];
+        let labels = [];
+        let coreGroup, northHalf, southHalf, coilMesh;
+
+        const L = 0.06; 
+        const MU_0 = 4 * Math.PI * 1e-7;
+
+        const PINK = 0xff00ff;
+        const COPPER = 0xb87333;
+        const RED = 0xe63946;
+        const BLUE = 0x1d3557;
+
+        const materialSelect = document.getElementById('materialSelect');
+        const inputN = document.getElementById('inputN');
+        const inputI = document.getElementById('inputI');
+        const maxTurns = document.getElementById('maxTurns');
+        const maxCurrent = document.getElementById('maxCurrent');
+        const valN = document.getElementById('valN');
+        const valI = document.getElementById('valI');
+        const calcH = document.getElementById('calcH');
+        const calcB = document.getElementById('calcB');
+        const reverseBtn = document.getElementById('reverseBtn');
+
+        function createTextCanvas(text, color) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 128;
+            canvas.height = 128;
+            ctx.fillStyle = color;
+            ctx.font = 'bold 80px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 64, 64);
+            return canvas;
+        }
+
+        function createPoleLabel(text, xPos) {
+            const canvas = createTextCanvas(text, 'white');
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMat = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(spriteMat);
+            sprite.scale.set(2, 2, 1);
+            sprite.position.set(xPos, 1.5, 0);
+            return sprite;
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x00c2cb);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(12, 6, 12);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+            const pointLight = new THREE.PointLight(0xffffff, 0.5);
+            pointLight.position.set(10, 10, 10);
+            scene.add(pointLight);
+
+            createCoreAndCoil();
+            updateSimulation();
+            animate();
+        }
+
+        function createCoreAndCoil() {
+            if(coreGroup) scene.remove(coreGroup);
+            coreGroup = new THREE.Group();
+            
+            const coreRadius = 0.8;
+            const coreLength = 6;
+            const segments = 32;
+
+            northHalf = new THREE.Mesh(
+                new THREE.CylinderGeometry(coreRadius, coreRadius, coreLength/2, segments),
+                new THREE.MeshPhongMaterial({ color: isReversed ? BLUE : RED })
+            );
+            northHalf.rotateZ(Math.PI / 2);
+            northHalf.position.x = -coreLength/4;
+            coreGroup.add(northHalf);
+
+            southHalf = new THREE.Mesh(
+                new THREE.CylinderGeometry(coreRadius, coreRadius, coreLength/2, segments),
+                new THREE.MeshPhongMaterial({ color: isReversed ? RED : BLUE })
+            );
+            southHalf.rotateZ(Math.PI / 2);
+            southHalf.position.x = coreLength/4;
+            coreGroup.add(southHalf);
+
+            updateCoil(parseInt(inputN.value));
+            
+            // Add N/S Sprite Labels
+            labels.forEach(l => coreGroup.remove(l));
+            labels = [];
+            const nLabel = createPoleLabel(isReversed ? 'S' : 'N', -1.5);
+            const sLabel = createPoleLabel(isReversed ? 'N' : 'S', 1.5);
+            coreGroup.add(nLabel);
+            coreGroup.add(sLabel);
+            labels.push(nLabel, sLabel);
+
+            scene.add(coreGroup);
+        }
+
+        function updateCoil(turns) {
+            if(coilMesh) coreGroup.remove(coilMesh);
+            const coreLength = 6;
+            const coilRadius = 1.1;
+            const coilPoints = [];
+            const segments = Math.min(2000, turns * 10); 
+
+            for (let i = 0; i <= segments; i++) {
+                const t = i / segments;
+                const angle = t * Math.PI * 2 * turns;
+                const x = (t - 0.5) * coreLength;
+                const y = Math.cos(angle) * coilRadius;
+                const z = Math.sin(angle) * coilRadius;
+                coilPoints.push(new THREE.Vector3(x, y, z));
+            }
+            const coilGeom = new THREE.BufferGeometry().setFromPoints(coilPoints);
+            const coilMat = new THREE.LineBasicMaterial({ color: COPPER });
+            coilMesh = new THREE.Line(coilGeom, coilMat);
+            coreGroup.add(coilMesh);
+        }
+
+        function createField(densityFactor) {
+            fieldLines.forEach(l => scene.remove(l));
+            arrows.forEach(a => scene.remove(a));
+            fieldLines = [];
+            arrows = [];
+
+            const numSlices = 8;
+            const numRings = Math.min(12, Math.max(3, Math.floor(densityFactor * 25) + 2)); 
+
+            for (let s = 0; s < numSlices; s++) {
+                const sliceAngle = (s / numSlices) * Math.PI;
+                for (let r = 1; r <= numRings; r++) {
+                    const a = 4 + r * 1.2; 
+                    const b = 2 + r * 0.8; 
+                    const points = [];
+                    const arrowPositions = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
+
+                    for (let i = 0; i <= 64; i++) {
+                        const t = (i / 64) * Math.PI * 2;
+                        const x = a * Math.cos(t);
+                        const y = b * Math.sin(t);
+                        const pos = new THREE.Vector3(x, y * Math.cos(sliceAngle), y * Math.sin(sliceAngle));
+                        points.push(pos);
+
+                        if (arrowPositions.includes(t)) {
+                            createArrow(a, b, t, sliceAngle);
+                        }
+                    }
+
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: PINK, 
+                        transparent: true, 
+                        opacity: Math.min(0.7, 0.1 + (densityFactor * 0.8)) 
+                    });
+                    const line = new THREE.Line(geometry, material);
+                    scene.add(line);
+                    fieldLines.push(line);
+                }
+            }
+        }
+
+        function createArrow(a, b, t, sliceAngle) {
+            const x = a * Math.cos(t);
+            const y = b * Math.sin(t);
+            const pos = new THREE.Vector3(x, y * Math.cos(sliceAngle), y * Math.sin(sliceAngle));
+            const tx = -a * Math.sin(t);
+            const ty = b * Math.cos(t);
+            let dir = new THREE.Vector3(tx, ty * Math.cos(sliceAngle), ty * Math.sin(sliceAngle)).normalize();
+
+            if (isReversed) dir.multiplyScalar(-1);
+
+            const arrowHelper = new THREE.ArrowHelper(dir, pos, 0.6, PINK, 0.25, 0.2);
+            scene.add(arrowHelper);
+            arrows.push(arrowHelper);
+        }
+
+        function updateLimits() {
+            inputN.max = maxTurns.value;
+            inputI.max = maxCurrent.value;
+            updateSimulation();
+        }
+
+        function updateSimulation() {
+            const N = parseInt(inputN.value);
+            const I = parseFloat(inputI.value);
+            const muR = parseInt(materialSelect.value);
+
+            valN.textContent = N;
+            valI.textContent = I.toFixed(1);
+
+            const H = (N * I) / L;
+            const B = MU_0 * muR * H;
+
+            calcH.textContent = `H = ${H.toLocaleString(undefined, {maximumFractionDigits: 0})} A/m`;
+            calcB.textContent = `B = ${B.toFixed(4)} T`;
+
+            updateCoil(N);
+            createField(Math.min(1.0, B * 0.5)); 
+        }
+
+        function updatePolarity() {
+            isReversed = !isReversed;
+            createCoreAndCoil();
+            updateSimulation();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        inputN.addEventListener('input', updateSimulation);
+        inputI.addEventListener('input', updateSimulation);
+        materialSelect.addEventListener('change', updateSimulation);
+        maxTurns.addEventListener('change', updateLimits);
+        maxCurrent.addEventListener('change', updateLimits);
+        reverseBtn.addEventListener('click', updatePolarity);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        init();
+    </script>
+</body>
+</html>
