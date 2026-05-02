@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Induction Motor Schematic Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fan-blade {
+            transform-origin: center;
+        }
+
+        /* Winding Flow Animation */
+        .winding-flow {
+            stroke-dasharray: 4;
+            animation: flow 1s linear infinite;
+        }
+
+        @keyframes flow {
+            from { stroke-dashoffset: 8; }
+            to { stroke-dashoffset: 0; }
+        }
+
+        .flow-reverse {
+            animation-direction: reverse;
+        }
+
+        .winding-path {
+            fill: none;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: stroke 0.3s ease;
+        }
+
+        .terminal-label {
+            font-size: 10px;
+            font-weight: bold;
+            fill: #1e293b;
+        }
+
+        .regulator-knob {
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: 50px 50px;
+        }
+        
+        .step-dot {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .step-dot:hover {
+            filter: brightness(1.2);
+        }
+
+        /* Master Switch Toggle Style */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #475569;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #22c55e;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-5xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-blue-400">Ceiling Fan Motor Simulator</h1>
+            <p class="text-slate-400 mt-2">Single Phase induction motor-Capacitor Start</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left: Controls -->
+            <div class="space-y-6">
+                <!-- Power & Regulator Box -->
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                    <h2 class="text-xl font-semibold mb-6 flex items-center">
+                        <span class="bg-blue-500 w-2 h-6 rounded-full mr-2"></span> Power & Speed
+                    </h2>
+                    
+                    <div class="space-y-8">
+                        <!-- Master Switch -->
+                        <div class="flex items-center justify-between p-4 bg-slate-700/30 rounded-xl border border-slate-600">
+                            <div>
+                                <span class="block font-bold text-sm">Master Switch</span>
+                                <span class="text-[10px] text-slate-400 uppercase tracking-tighter" id="pwrText">System Offline</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="powerToggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <!-- Regulator Dial -->
+                        <div class="flex flex-col items-center p-4 bg-slate-700/30 rounded-xl border border-slate-600">
+                            <label class="text-[10px] uppercase font-bold text-slate-400 mb-4 tracking-widest text-center">4-Point Regulator</label>
+                            <div class="relative w-40 h-40">
+                                <svg viewBox="0 0 100 100" class="w-full h-full" id="regulatorSvg">
+                                    <!-- Dial Background -->
+                                    <circle cx="50" cy="50" r="48" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+                                    <circle cx="50" cy="50" r="42" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="2 4"/>
+                                    
+                                    <!-- Clickable Step Zones -->
+                                    <!-- Pos 0: Off (Bottom Left) -->
+                                    <g onclick="setStep(0)" class="step-dot">
+                                        <circle cx="25" cy="75" r="5" id="dot-0" fill="#ef4444"/>
+                                        <text x="12" y="85" class="text-[8px]" fill="#94a3b8" font-weight="bold">OFF</text>
+                                    </g>
+                                    
+                                    <!-- Pos 1: Low (Top Left) -->
+                                    <g onclick="setStep(1)" class="step-dot">
+                                        <circle cx="25" cy="25" r="5" id="dot-1" fill="#475569"/>
+                                        <text x="12" y="20" class="text-[8px]" fill="#94a3b8" font-weight="bold">1</text>
+                                    </g>
+
+                                    <!-- Pos 2: Med (Top Right) -->
+                                    <g onclick="setStep(2)" class="step-dot">
+                                        <circle cx="75" cy="25" r="5" id="dot-2" fill="#475569"/>
+                                        <text x="82" y="20" class="text-[8px]" fill="#94a3b8" font-weight="bold">2</text>
+                                    </g>
+
+                                    <!-- Pos 3: High (Bottom Right) -->
+                                    <g onclick="setStep(3)" class="step-dot">
+                                        <circle cx="75" cy="75" r="5" id="dot-3" fill="#475569"/>
+                                        <text x="82" y="85" class="text-[8px]" fill="#94a3b8" font-weight="bold">3</text>
+                                    </g>
+
+                                    <!-- Knob -->
+                                    <g id="knob" class="regulator-knob">
+                                        <circle cx="50" cy="50" r="32" fill="#334155" stroke="#94a3b8" stroke-width="1.5" shadow="0 2px 4px rgba(0,0,0,0.5)"/>
+                                        <!-- The Pointer - Adjusted to point correctly -->
+                                        <path d="M50 25 L54 50 L46 50 Z" fill="#60a5fa" />
+                                        <circle cx="50" cy="50" r="4" fill="#60a5fa" />
+                                    </g>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase/Winding Box -->
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                    <h2 class="text-sm font-semibold mb-4 text-slate-400 uppercase tracking-widest">Winding Configuration</h2>
+                    <div class="space-y-4">
+                        <div class="p-3 bg-slate-700/50 rounded-lg border-l-4 border-red-500">
+                            <label class="block text-[10px] text-slate-400 mb-2 uppercase font-bold">Main Phase (M1-M2)</label>
+                            <div class="flex gap-2">
+                                <button onclick="setDir('main', 'norm')" id="main-norm" class="flex-1 py-1.5 bg-blue-600 rounded text-[9px] font-bold border-2 border-white">NORMAL</button>
+                                <button onclick="setDir('main', 'rev')" id="main-rev" class="flex-1 py-1.5 bg-slate-600 rounded text-[9px] font-bold border-2 border-transparent">REVERSED</button>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-slate-700/50 rounded-lg border-l-4 border-amber-500">
+                            <label class="block text-[10px] text-slate-400 mb-2 uppercase font-bold">Aux Phase (A1-A2)</label>
+                            <div class="flex gap-2">
+                                <button onclick="setDir('aux', 'norm')" id="aux-norm" class="flex-1 py-1.5 bg-blue-600 rounded text-[9px] font-bold border-2 border-white">NORMAL</button>
+                                <button onclick="setDir('aux', 'rev')" id="aux-rev" class="flex-1 py-1.5 bg-slate-600 rounded text-[9px] font-bold border-2 border-transparent">REVERSED</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Schematic -->
+            <div class="lg:col-span-2 bg-white p-8 rounded-3xl shadow-2xl relative flex flex-col">
+                <h2 class="text-slate-900 text-xl font-bold mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Circuit Diagram
+                </h2>
+
+                <svg viewBox="0 0 600 450" class="w-full h-auto flex-grow">
+                    <!-- Supply lines -->
+                    <g stroke="#1e293b" stroke-width="2" fill="none">
+                        <line x1="50" y1="80" x2="50" y2="130" />
+                        <line x1="50" y1="320" x2="50" y2="370" />
+                        <line x1="50" y1="80" x2="250" y2="80" />
+                        <line x1="400" y1="80" x2="550" y2="80" />
+                        <line x1="550" y1="80" x2="550" y2="370" />
+                        <line x1="50" y1="370" x2="550" y2="370" />
+                    </g>
+
+                    <!-- AC Source -->
+                    <g>
+                        <circle cx="50" cy="225" r="15" fill="none" stroke="#1e293b" stroke-width="2"/>
+                        <path d="M42 225 Q46 215 50 225 T58 225" fill="none" stroke="#1e293b" stroke-width="2"/>
+                        <text x="60" y="240" class="text-[9px] font-bold" fill="#475569">230V ~ 50Hz</text>
+                    </g>
+
+                    <!-- Main Winding Group -->
+                    <g id="mainWindingGroup">
+                        <text x="235" y="75" id="lbl-m1" class="terminal-label">M1</text>
+                        <text x="405" y="75" id="lbl-m2" class="terminal-label">M2</text>
+                        
+                        <path id="mainCoil" d="M250 80 
+                            q5 -20 10 0 q5 -20 10 0 q5 -20 10 0 q5 -20 10 0 
+                            q5 -20 10 0 q5 -20 10 0 q5 -20 10 0 q5 -20 10 0
+                            q5 -20 10 0 q5 -20 10 0 q5 -20 10 0 q5 -20 10 0
+                            q5 -20 10 0 q5 -20 10 0 q5 -20 10 0" 
+                            class="winding-path winding-flow" stroke="#ef4444" style="animation-play-state: paused;"/>
+                        <text x="280" y="45" fill="#ef4444" class="text-[14px] font-bold uppercase tracking-widest">Main Winding</text>
+                    </g>
+
+                    <!-- Aux Branch Group -->
+                    <g id="auxBranch">
+                        <line x1="50" y1="130" x2="150" y2="130" stroke="#1e293b" stroke-width="2" />
+                        <g>
+                            <line x1="150" y1="130" x2="150" y2="150" stroke="#1e293b" stroke-width="2" />
+                            <line x1="135" y1="150" x2="165" y2="150" stroke="#1e293b" stroke-width="3" />
+                            <line x1="135" y1="158" x2="165" y2="158" stroke="#1e293b" stroke-width="3" />
+                            <text x="175" y="157" fill="#1e293b" class="text-[12px] font-bold italic">Capacitor</text>
+                        </g>
+                        <text x="130" y="185" id="lbl-a1" class="terminal-label">A1</text>
+                        <text x="130" y="325" id="lbl-a2" class="terminal-label">A2</text>
+
+                        <line x1="150" y1="158" x2="150" y2="190" stroke="#1e293b" stroke-width="2" />
+                        <path id="auxCoil" d="M150 190 
+                            q20 5 0 10 q20 5 0 10 q20 5 0 10 q20 5 0 10 
+                            q20 5 0 10 q20 5 0 10 q20 5 0 10 q20 5 0 10 
+                            q20 5 0 10 q20 5 0 10 q20 5 0 10 q20 5 0 10" 
+                            class="winding-path winding-flow" stroke="#f59e0b" style="animation-play-state: paused;"/>
+                        <line x1="150" y1="310" x2="150" y2="370" stroke="#1e293b" stroke-width="2" />
+                        <text x="175" y="245" fill="#f59e0b" class="text-[11px] font-bold uppercase tracking-tighter">Aux Winding</text>
+                    </g>
+
+                    <!-- Rotor and Fan -->
+                    <g id="rotorContainer">
+                        <circle cx="350" cy="235" r="75" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+                        <g id="rotatingAssembly">
+                            <g id="bars" fill="#3b82f6">
+                                <circle cx="350" cy="175" r="4" /> <circle cx="350" cy="295" r="4" />
+                                <circle cx="290" cy="235" r="4" /> <circle cx="410" cy="235" r="4" />
+                                <circle cx="308" cy="193" r="4" /> <circle cx="392" cy="193" r="4" />
+                                <circle cx="308" cy="277" r="4" /> <circle cx="392" cy="277" r="4" />
+                            </g>
+                            <g id="blades">
+                                <circle cx="350" cy="235" r="14" fill="#1e293b" />
+                                <path d="M350 221 L350 150 Q385 150 385 185 T350 221" fill="#475569" fill-opacity="0.8" />
+                                <path d="M350 249 L350 320 Q315 320 315 285 T350 249" fill="#475569" fill-opacity="0.8" />
+                                <path d="M336 235 L265 235 Q265 200 300 200 T336 235" fill="#475569" fill-opacity="0.8" />
+                                <path d="M364 235 L435 235 Q435 270 400 270 T364 235" fill="#475569" fill-opacity="0.8" />
+                            </g>
+                        </g>
+                    </g>
+                </svg>
+
+                <div class="mt-4 p-4 bg-slate-800 rounded-xl flex justify-around items-center border border-slate-700">
+                    <div class="text-center">
+                        <span class="block text-[10px] text-slate-400 uppercase">Rotation</span>
+                        <span class="font-bold text-sm tracking-wider" id="rotVal">OFF</span>
+                    </div>
+                    <div class="h-8 w-px bg-slate-700"></div>
+                    <div class="text-center">
+                        <span class="block text-[10px] text-slate-400 uppercase">Current (I)</span>
+                        <span class="font-mono text-sm text-green-400" id="aVal">0.00A</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            on: false,
+            speedStep: 0, 
+            main: 'norm',
+            aux: 'norm',
+            angle: 0,
+            currSpeed: 0
+        };
+
+        // Pointer Angles for each step to align with dots
+        const steps = [
+            { angle: -135, speed: 0, current: "0.00" }, // OFF
+            { angle: -45,  speed: 4, current: "0.18" }, // 1
+            { angle: 45,   speed: 9, current: "0.31" }, // 2
+            { angle: 135,  speed: 16, current: "0.45" } // 3
+        ];
+
+        const aVal = document.getElementById('aVal');
+        const rotVal = document.getElementById('rotVal');
+        const rotatingAssembly = document.getElementById('rotatingAssembly');
+        const mainCoil = document.getElementById('mainCoil');
+        const auxCoil = document.getElementById('auxCoil');
+        const knob = document.getElementById('knob');
+        const powerToggle = document.getElementById('powerToggle');
+        const pwrText = document.getElementById('pwrText');
+
+        const lblM1 = document.getElementById('lbl-m1');
+        const lblM2 = document.getElementById('lbl-m2');
+        const lblA1 = document.getElementById('lbl-a1');
+        const lblA2 = document.getElementById('lbl-a2');
+
+        function update() {
+            // Power State
+            state.on = powerToggle.checked;
+            pwrText.textContent = state.on ? "System Active" : "System Offline";
+            pwrText.className = "text-[10px] uppercase tracking-tighter " + (state.on ? "text-green-400" : "text-slate-400");
+
+            // Winding UI
+            ['main', 'aux'].forEach(w => {
+                const isNorm = state[w] === 'norm';
+                document.getElementById(`${w}-norm`).className = isNorm 
+                    ? 'flex-1 py-1.5 bg-blue-600 rounded text-[9px] font-bold border-2 border-white transition-all'
+                    : 'flex-1 py-1.5 bg-slate-600 rounded text-[9px] font-bold border-2 border-transparent transition-all';
+                document.getElementById(`${w}-rev`).className = !isNorm 
+                    ? 'flex-1 py-1.5 bg-blue-600 rounded text-[9px] font-bold border-2 border-white transition-all'
+                    : 'flex-1 py-1.5 bg-slate-600 rounded text-[9px] font-bold border-2 border-transparent transition-all';
+            });
+
+            // Terminal Labels
+            lblM1.textContent = state.main === 'norm' ? "M1" : "M2";
+            lblM2.textContent = state.main === 'norm' ? "M2" : "M1";
+            lblA1.textContent = state.aux === 'norm' ? "A1" : "A2";
+            lblA2.textContent = state.aux === 'norm' ? "A2" : "A1";
+
+            // Regulator Logic
+            const currentStep = steps[state.speedStep];
+            knob.style.transform = `rotate(${currentStep.angle}deg)`;
+            
+            for(let i=0; i<4; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (i === state.speedStep) {
+                    dot.setAttribute('fill', i === 0 ? '#ef4444' : '#60a5fa');
+                    dot.setAttribute('r', '7');
+                } else {
+                    dot.setAttribute('fill', '#475569');
+                    dot.setAttribute('r', '5');
+                }
+            }
+
+            // Motor Feedback
+            const running = state.on && state.speedStep > 0;
+            mainCoil.style.animationPlayState = running ? 'running' : 'paused';
+            auxCoil.style.animationPlayState = running ? 'running' : 'paused';
+            
+            if (running) {
+                aVal.textContent = currentStep.current + "A";
+                const directionMultiplier = (state.main === state.aux) ? 1 : -1;
+                rotVal.textContent = directionMultiplier > 0 ? "CLOCKWISE" : "COUNTER-CW";
+                rotVal.className = "font-bold text-sm tracking-wider " + (directionMultiplier > 0 ? "text-blue-400" : "text-amber-400");
+
+                if (state.main === 'rev') mainCoil.classList.add('flow-reverse');
+                else mainCoil.classList.remove('flow-reverse');
+                
+                if (state.aux === 'rev') auxCoil.classList.add('flow-reverse');
+                else auxCoil.classList.remove('flow-reverse');
+            } else {
+                aVal.textContent = "0.00A";
+                rotVal.textContent = state.on ? "IDLE (SPD 0)" : "OFF";
+                rotVal.className = "font-bold text-sm tracking-wider text-slate-500";
+            }
+        }
+
+        function setStep(val) {
+            state.speedStep = val;
+            update();
+        }
+
+        function setDir(winding, dir) {
+            state[winding] = dir;
+            update();
+        }
+
+        powerToggle.onchange = update;
+
+        function tick() {
+            const running = state.on && state.speedStep > 0;
+            const currentStep = steps[state.speedStep];
+            const directionMultiplier = (state.main === state.aux) ? 1 : -1;
+            const targetSpeed = running ? currentStep.speed * directionMultiplier : 0;
+
+            // Physics: Accelerate or Slow down
+            state.currSpeed += (targetSpeed - state.currSpeed) * 0.025;
+            
+            if (Math.abs(state.currSpeed) > 0.01) {
+                state.angle += state.currSpeed;
+                rotatingAssembly.setAttribute('transform', `rotate(${state.angle}, 350, 235)`);
+            }
+            requestAnimationFrame(tick);
+        }
+
+        update();
+        tick();
+    </script>
+</body>
+</html>
