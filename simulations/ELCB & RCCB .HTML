@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELCB vs RCCB Engineering Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { margin: 0; background: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; }
+        .header { background: #2c3e50; color: white; width: 100%; padding: 15px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .control-bar { background: #ffffff; padding: 20px; margin: 15px; border-radius: 12px; width: 1100px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; border: 1px solid #dee2e6; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .panel-info { border-left: 6px solid #f39c12; padding-left: 15px; }
+        .rccb-info { border-left: 6px solid #3498db; padding-left: 15px; }
+        button { cursor: pointer; padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; background: #34495e; color: white; transition: all 0.2s; margin-top: 10px; font-size: 14px; }
+        button:hover { background: #2c3e50; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .trip-btn { background: #e74c3c; }
+        .trip-btn:hover { background: #c0392b; }
+        .reset-btn { background: #27ae60; }
+        .reset-btn:hover { background: #219150; }
+        #canvas-container { border: 1px solid #ccc; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); background: white; margin-bottom: 40px; }
+        .instruction { font-size: 0.85em; color: #666; margin-bottom: 8px; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1 style="margin:0; font-size: 24px;">Advanced Safety Device Simulation</h1>
+        <p style="margin:5px 0 0; font-size: 14px; opacity: 0.8;">Double-Pole Disconnection Logic (Phase & Neutral Opening)</p>
+    </div>
+
+    <div class="control-bar">
+        <div class="panel-info">
+            <strong style="color:#e67e22">VOLTAGE ELCB (EARTH LEAKAGE)</strong>
+            <p class="instruction">Detects <strong>Voltage</strong> on metal enclosure. Trips both poles immediately.</p>
+            <button class="trip-btn" onclick="elcb.fault = true">Induce Internal Fault</button>
+            <button class="reset-btn" onclick="resetElcb()">Reset System</button>
+        </div>
+        <div class="rccb-info">
+            <strong style="color:#2980b9">CURRENT RCCB (RESIDUAL CURRENT)</strong>
+            <p class="instruction">Detects <strong>Current Imbalance</strong>. Drag person to touch metal body to trip.</p>
+            <button class="trip-btn" onclick="rccb.fault = true">Induce Internal Fault</button>
+            <button class="reset-btn" onclick="resetRccb()">Reset System</button>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+<script>
+let elcb = { tripped: false, fault: false, anim: 0 };
+let rccb = { tripped: false, fault: false, anim: 0, imbalance: 0 };
+let man = { x: 1080, y: 500, dragging: false, shocked: false };
+
+function setup() {
+    let canvas = createCanvas(1200, 680);
+    canvas.parent('canvas-container');
+}
+
+function draw() {
+    background(255);
+    updateLogic();
+    
+    // Grid
+    stroke(245); strokeWeight(1);
+    for(let i=0; i<width; i+=40) line(i, 0, i, height);
+    for(let i=0; i<height; i+=40) line(0, i, width, i);
+    stroke(220); strokeWeight(2); line(width/2, 50, width/2, height - 100);
+    
+    drawGround();
+    drawELCB(60, 120);
+    drawRCCB(660, 120);
+    drawPerson();
+}
+
+function updateLogic() {
+    elcb.anim += 2.5;
+    rccb.anim += 2.5;
+
+    if (elcb.fault && !elcb.tripped) elcb.tripped = true;
+
+    if (mouseIsPressed) {
+        let d = dist(mouseX, mouseY, man.x, man.y - 70);
+        if (d < 60 || man.dragging) {
+            man.dragging = true;
+            man.x = lerp(man.x, mouseX, 0.2);
+            man.y = lerp(man.y, mouseY, 0.2);
+        }
+    } else { man.dragging = false; }
+
+    let machineX = 660 + 420; 
+    let machineY = 120 + 60;  
+    let contact = dist(man.x, man.y - 70, machineX + 50, machineY + 70);
+    
+    if (rccb.fault && !rccb.tripped && contact < 60) {
+        man.shocked = true;
+        rccb.tripped = true;
+        rccb.imbalance = 0.030;
+    } else if (rccb.tripped) {
+        man.shocked = false; 
+    } else {
+        man.shocked = false;
+        rccb.imbalance = 0;
+    }
+}
+
+function drawGround() {
+    fill(240); noStroke(); rect(0, 580, width, 100);
+    stroke(180); strokeWeight(2); line(0, 580, width, 580);
+    drawEarthSymbol(120, 580);
+    drawEarthSymbol(1080, 580);
+}
+
+function drawELCB(x, y) {
+    push(); translate(x, y);
+    fill(50); noStroke(); textAlign(CENTER); textStyle(BOLD); textSize(16);
+    text("VOLTAGE-OPERATED ELCB", 250, -40);
+    
+    stroke(0); strokeWeight(4);
+    if (!elcb.tripped) {
+        line(100, 50, 160, 50); line(100, 100, 160, 100);
+    } else {
+        // Disconnected
+        line(100, 50, 130, 10); 
+        line(100, 100, 130, 60);
+        fill(231, 76, 60); noStroke(); text("TRIPPED", 130, 0);
+    }
+
+    strokeWeight(2);
+    drawAnimatedWire(0, 50, 100, 50, !elcb.tripped, elcb.anim, "#333"); 
+    drawAnimatedWire(0, 100, 100, 100, !elcb.tripped, elcb.anim, "#3498db"); 
+    drawAnimatedWire(160, 50, 380, 50, !elcb.tripped, elcb.anim, "#333");
+    drawAnimatedWire(160, 100, 380, 100, !elcb.tripped, elcb.anim, "#3498db");
+
+    fill(245); stroke(150); rect(380, 30, 100, 120, 4);
+    fill(80); noStroke(); textSize(12); textStyle(NORMAL); text("APPLIANCE\nBODY", 430, 95);
+    
+    if (elcb.fault) {
+        stroke(255, 0, 0); strokeWeight(3); line(380, 50, 380, 90);
+    }
+
+    stroke(46, 204, 113); 
+    drawAnimatedWire(430, 150, 430, 320, elcb.fault && !elcb.tripped, elcb.anim, "#2ecc71");
+    line(430, 320, 260, 320);
+    stroke(211, 84, 0); strokeWeight(2); noFill();
+    for(let i=0; i<10; i++) arc(230, 320 + (i*4), 40, 12, 0, PI);
+    fill(50); noStroke(); text("Sensing Coil", 230, 380);
+    stroke(46, 204, 113); line(200, 320, 50, 320); line(50, 320, 50, 460); drawEarthSymbol(50, 460);
+    pop();
+}
+
+function drawRCCB(x, y) {
+    push(); translate(x, y);
+    fill(50); noStroke(); textAlign(CENTER); textStyle(BOLD); textSize(16);
+    text("CURRENT-OPERATED RCCB", 250, -40);
+
+    // Toroid
+    noFill(); stroke(100); strokeWeight(16);
+    ellipse(200, 120, 80, 160);
+    fill(200); noStroke(); textSize(12); textStyle(NORMAL); text("CBCT", 200, 120);
+
+    // Wires 
+    strokeWeight(3);
+    // Left side (Input)
+    drawAnimatedWire(20, 80, 60, 80, true, rccb.anim, "#e74c3c"); 
+    drawAnimatedWire(20, 160, 60, 160, !rccb.tripped, -rccb.anim, "#3498db");
+    
+    // Right side (Load)
+    drawAnimatedWire(120, 80, 420, 80, !rccb.tripped, rccb.anim, "#e74c3c"); 
+    drawAnimatedWire(420, 160, 120, 160, !rccb.tripped, -rccb.anim, "#3498db");
+
+    // FULL DOUBLE-POLE DISCONNECTION
+    stroke(0); strokeWeight(4);
+    if (rccb.tripped) {
+        // Phase Contact Open (Red Line)
+        line(60, 80, 100, 40); 
+        // Neutral Contact Open (Blue Line)
+        line(60, 160, 100, 120); 
+        
+        fill(231, 76, 60); noStroke(); textStyle(BOLD); textAlign(CENTER);
+        text("TRIPPED: P & N DISCONNECTED", 250, 20);
+    } else {
+        // Closed position
+        line(60, 80, 120, 80); 
+        line(60, 160, 120, 160);
+    }
+    
+    // Contact Terminal Dots
+    fill(0); noStroke();
+    circle(60, 80, 6); circle(120, 80, 6);
+    circle(60, 160, 6); circle(120, 160, 6);
+
+    // Load Appliance
+    fill(245); stroke(150); rect(420, 60, 100, 140, 4);
+    fill(80); noStroke(); textAlign(CENTER); text("APPLIANCE\nBODY", 470, 135);
+    
+    // RESTORED BODY LIVE STATES
+    if (rccb.fault) {
+        stroke(255, 0, 0); strokeWeight(3); line(420, 80, 420, 100); 
+        if (!rccb.tripped) {
+            fill(255, 0, 0); noStroke(); textStyle(BOLD); text("BODY IS LIVE!", 470, 220);
+        } else {
+            fill(100); noStroke(); textStyle(NORMAL); text("BODY IS SAFE (TRIPPED)", 470, 220);
+        }
+    } else {
+        fill(100); noStroke(); text("BODY IS SAFE", 470, 220);
+    }
+
+    fill(50); textStyle(NORMAL); textAlign(LEFT);
+    text("Current In: " + (rccb.tripped ? "0.00" : "10.00") + " A", 260, 70);
+    text("Current Out: " + (rccb.tripped ? "0.00" : (10.00 - rccb.imbalance).toFixed(2)) + " A", 260, 190);
+    
+    if (rccb.imbalance > 0) {
+        fill(231, 76, 60); textStyle(BOLD);
+        text("LEAKAGE: " + (rccb.imbalance * 1000).toFixed(0) + " mA", 260, 235);
+        if (man.shocked || rccb.tripped) {
+            drawAnimatedWire(420, 100, man.x - x - 35, man.y - y - 70, !rccb.tripped, rccb.anim, "#e74c3c");
+            drawAnimatedWire(man.x - x, man.y - y, man.x - x, 460, !rccb.tripped, rccb.anim, "#e74c3c");
+        }
+    }
+    pop();
+}
+
+function drawPerson() {
+    push(); translate(man.x, man.y);
+    stroke(0); strokeWeight(2.5);
+    fill(man.shocked ? "#ff7675" : "#f1f2f6");
+    circle(0, -100, 35); 
+    line(0, -82, 0, -30); line(0, -70, -35, -55); line(0, -70, 30, -50); 
+    line(0, -30, -20, 30); line(0, -30, 20, 30);
+    if (man.shocked) {
+        fill(255, 0, 0); noStroke(); textAlign(CENTER); text("SHOCK DETECTED", 0, -135);
+    }
+    pop();
+}
+
+function drawEarthSymbol(x, y) {
+    stroke(0); strokeWeight(2);
+    line(x-20, y, x+20, y); line(x-14, y+6, x+14, y+6); line(x-8, y+12, x+8, y+12);
+}
+
+function drawAnimatedWire(x1, y1, x2, y2, active, offset, col) {
+    stroke(col || 0);
+    line(x1, y1, x2, y2);
+    if (active) {
+        let d = dist(x1, y1, x2, y2);
+        for (let i = 0; i < d; i += 35) {
+            let t = ((i + offset) % d) / d;
+            let px = lerp(x1, x2, t); let py = lerp(y1, y2, t);
+            fill(255, 255, 0); noStroke(); circle(px, py, 6);
+        }
+    }
+}
+
+function resetElcb() { elcb = { tripped: false, fault: false, anim: 0 }; }
+function resetRccb() { rccb = { tripped: false, fault: false, anim: 0, imbalance: 0 }; man.x = 1080; man.y = 500; }
+</script>
+</body>
+</html>
