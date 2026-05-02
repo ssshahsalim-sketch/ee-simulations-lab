@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Ohm's Law Lab</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --accent: #38bdf8;
+            --voltage-color: #f87171;
+            --current-color: #4ade80;
+            --res-color: #fbbf24;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        /* Fraction Formula Display */
+        .formula-container {
+            height: 180px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .fraction {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            vertical-align: middle;
+            margin: 0 10px;
+        }
+
+        .numerator { border-bottom: 2px solid white; padding: 5px; }
+        .denominator { padding: 5px; }
+        
+        #i-text { color: var(--current-color); font-weight: bold; transition: 0.1s; }
+        #v-text { color: var(--voltage-color); font-weight: bold; transition: 0.1s; }
+        #r-text { color: var(--res-color); font-weight: bold; transition: 0.1s; }
+
+        /* Range Settings Inputs */
+        .range-config {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .range-config input {
+            width: 60px;
+            background: #334155;
+            border: 1px solid #475569;
+            color: white;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .controls label {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0 5px;
+            color: #94a3b8;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+
+        .graph-container {
+            height: 450px;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .toggle-btn {
+            background: #334155;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: var(--accent);
+            color: #0f172a;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1 style="margin-bottom: 20px;">Ohm's Law: I = V / Rs</h1>
+
+    <div class="layout">
+        <div class="panel">
+            <div class="range-config">
+                <div>Max V: <input type="number" id="maxVInput" value="20" onchange="resetRanges()"></div>
+                <div>Max R: <input type="number" id="maxRInput" value="50" onchange="resetRanges()"></div>
+                <span style="font-size: 0.7rem; color: #888;">Enter values to update sliders</span>
+            </div>
+
+            <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+                <button id="btnOhmic" class="toggle-btn active" onclick="setMode('ohmic')">Ohmic</button>
+                <button id="btnNonOhmic" class="toggle-btn" onclick="setMode('non-ohmic')">Non-Ohmic</button>
+            </div>
+
+            <div class="formula-container">
+                <div style="font-size: 30px; display: flex; align-items: center;">
+                    <span id="i-text">I</span>
+                    <span style="margin: 0 15px;">=</span>
+                    <div class="fraction">
+                        <div class="numerator" id="v-text">V</div>
+                        <div class="denominator" id="r-text">R</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <label>Voltage (V): <strong id="vLabel">5.0V</strong></label>
+                <input type="range" id="vSlider" min="0" max="20" step="0.1" value="5">
+
+                <label>Resistance (R): <strong id="rLabel">10Ω</strong></label>
+                <input type="range" id="rSlider" min="1" max="50" step="1" value="10">
+            </div>
+
+            <div style="margin-top: 30px; padding: 20px; background: #0f172a; border-radius: 12px; text-align: center; border: 1px solid var(--current-color);">
+                <span style="color: #94a3b8;">Calculated Current:</span><br>
+                <span style="font-size: 2rem; color: var(--current-color); font-weight: bold;" id="iLabel">0.50A</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="graph-container">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mode = 'ohmic';
+        let chart;
+
+        function initChart() {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'I-V Curve',
+                        data: [],
+                        borderColor: '#38bdf8',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.1
+                    }, {
+                        label: 'Operating Point',
+                        data: [],
+                        pointBackgroundColor: '#ef4444',
+                        pointRadius: 10,
+                        showLine: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', title: { display: true, text: 'Voltage (V)' } },
+                        y: { title: { display: true, text: 'Current (I)' }, min: 0 }
+                    }
+                }
+            });
+        }
+
+        function resetRanges() {
+            const maxV = document.getElementById('maxVInput').value;
+            const maxR = document.getElementById('maxRInput').value;
+            
+            const vSlider = document.getElementById('vSlider');
+            const rSlider = document.getElementById('rSlider');
+            
+            vSlider.max = maxV;
+            rSlider.max = maxR;
+            
+            // Ensure current values aren't out of new bounds
+            if (parseFloat(vSlider.value) > maxV) vSlider.value = maxV;
+            if (parseFloat(rSlider.value) > maxR) rSlider.value = maxR;
+            
+            update();
+        }
+
+        function setMode(m) {
+            mode = m;
+            document.getElementById('btnOhmic').classList.toggle('active', mode === 'ohmic');
+            document.getElementById('btnNonOhmic').classList.toggle('active', mode === 'non-ohmic');
+            update();
+        }
+
+        function update() {
+            const V = parseFloat(document.getElementById('vSlider').value);
+            const R = parseFloat(document.getElementById('rSlider').value);
+            const maxV = parseFloat(document.getElementById('maxVInput').value);
+
+            let I;
+            if (mode === 'ohmic') {
+                I = V / R;
+            } else {
+                // Non-linear simulation
+                I = Math.pow(V, 2) / (R * 10);
+            }
+
+            document.getElementById('vLabel').innerText = V.toFixed(1) + 'V';
+            document.getElementById('rLabel').innerText = R + 'Ω';
+            document.getElementById('iLabel').innerText = I.toFixed(2) + 'A';
+
+            // Dynamic Formula Scaling
+            document.getElementById('v-text').style.fontSize = (20 + (V * 1.5)) + "px";
+            document.getElementById('r-text').style.fontSize = (20 + (R / 2)) + "px";
+            document.getElementById('i-text').style.fontSize = (30 + (I * 15)) + "px";
+
+            // Update Graph
+            let points = [];
+            for (let v = 0; v <= maxV; v += (maxV/40)) {
+                let yVal = (mode === 'ohmic') ? (v / R) : (Math.pow(v, 2) / (R * 10));
+                points.push({x: v, y: yVal});
+            }
+
+            chart.data.datasets[0].data = points;
+            chart.data.datasets[1].data = [{x: V, y: I}];
+            
+            chart.options.scales.x.max = maxV;
+            const maxI = Math.max(...points.map(p => p.y));
+            chart.options.scales.y.max = maxI * 1.2;
+            
+            chart.update('none');
+        }
+
+        document.getElementById('vSlider').oninput = update;
+        document.getElementById('rSlider').oninput = update;
+
+        initChart();
+        resetRanges();
+    </script>
+</body>
+</html>
