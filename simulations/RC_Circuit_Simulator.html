@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RC Circuit Simulator</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#111; color:#0f0; margin:0; padding:16px; }
+  canvas { border:1px solid #0f0; display:block; margin:10px auto; }
+  .ctrl { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin:10px 0; }
+  label { font-size:.85rem; }
+  input[type=range] { width:120px; }
+  h3 { text-align:center; color:#0ff; font-size:1rem; margin:4px 0 12px; }
+  .vals { text-align:center; font-size:.82rem; color:#ff0; }
+</style>
+</head>
+<body>
+<h3>⚡ RC Circuit — Voltage Response</h3>
+<div class="ctrl">
+  <label>R: <input type="range" id="R" min="100" max="10000" value="1000"> <span id="Rv">1kΩ</span></label>
+  <label>C: <input type="range" id="C" min="1" max="500" value="100"> <span id="Cv">100µF</span></label>
+  <label>V: <input type="range" id="V" min="1" max="24" value="9"> <span id="Vv">9V</span></label>
+</div>
+<canvas id="c" width="500" height="220"></canvas>
+<div class="vals" id="info"></div>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx    = canvas.getContext("2d");
+
+function draw() {
+  const R  = +document.getElementById("R").value;
+  const C  = +document.getElementById("C").value * 1e-6;
+  const V0 = +document.getElementById("V").value;
+  const tau = R * C;
+
+  document.getElementById("Rv").textContent = R >= 1000 ? (R/1000)+"kΩ" : R+"Ω";
+  document.getElementById("Cv").textContent = (C*1e6).toFixed(0)+"µF";
+  document.getElementById("Vv").textContent = V0+"V";
+  document.getElementById("info").textContent =
+    `τ = RC = ${(tau*1000).toFixed(2)} ms  |  At 5τ ≈ ${(5*tau*1000).toFixed(1)} ms, Vc ≈ ${(V0*0.993).toFixed(2)}V`;
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Grid
+  ctx.strokeStyle = "#1a2a1a"; ctx.lineWidth=1;
+  for(let x=0;x<canvas.width;x+=50){
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
+  }
+  for(let y=0;y<canvas.height;y+=40){
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();
+  }
+  // Axes
+  ctx.strokeStyle="#0f0";ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(40,10);ctx.lineTo(40,canvas.height-30);
+  ctx.lineTo(canvas.width-10,canvas.height-30);ctx.stroke();
+  // Curve
+  ctx.strokeStyle="#0ff";ctx.lineWidth=2.5;
+  ctx.beginPath();
+  const tMax = 6*tau;
+  for(let px=0;px<=canvas.width-52;px++){
+    const t  = (px/(canvas.width-52))*tMax;
+    const Vc = V0*(1-Math.exp(-t/tau));
+    const x  = 40+px;
+    const y  = (canvas.height-30) - (Vc/V0)*(canvas.height-50);
+    px===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  // Source
+  ctx.strokeStyle="#ff0";ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  ctx.moveTo(40,(canvas.height-30)-(canvas.height-50));
+  ctx.lineTo(canvas.width-10,(canvas.height-30)-(canvas.height-50));
+  ctx.stroke(); ctx.setLineDash([]);
+  // Labels
+  ctx.fillStyle="#0f0";ctx.font="11px monospace";
+  ctx.fillText("Vc(V)",2,16);
+  ctx.fillText("t(ms)",canvas.width-36,canvas.height-14);
+  ctx.fillStyle="#ff0";
+  ctx.fillText(V0+"V",44,(canvas.height-30)-(canvas.height-50)+4);
+}
+
+["R","C","V"].forEach(id => document.getElementById(id).addEventListener("input",draw));
+draw();
+</script>
+</body>
+</html>
