@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<!-- saved from url=(0084)file:///C:/Users/DELL_PC/Downloads/Simulator%20tool/Inductor%20magnetic%20field.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Magnetic Field Simulator</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; }
+        canvas { display: block; }
+        
+        .panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 20px;
+            border-radius: 12px;
+            width: 200px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .meter {
+            position: absolute;
+            background: #0044ff;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            cursor: move;
+            user-select: none;
+            border: 2px solid #fff;
+            width: 110px;
+        }
+
+        .meter-crosshair {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid #00f2ff;
+            border-radius: 50%;
+        }
+
+        input[type=range] { width: 100%; margin: 10px 0; }
+        button { width: 100%; padding: 8px; cursor: pointer; background: #eee; border: 1px solid #ccc; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="panel">
+    <strong style="font-size: 1.1em;">Bar Magnet</strong><br>
+    <label>Strength: <span id="strengthVal">92%</span></label>
+    <input type="range" id="strengthSlider" min="0" max="100" value="70">
+    <button onclick="togglePolarity()">Flip Polarity</button>
+</div>
+
+<div id="fieldMeter" class="meter" style="left: 1105px; top: 334px;">
+    <div class="meter-crosshair"></div>
+    <div>B: <span id="bTotal">0.53</span> G</div>
+    <div>Bx: <span id="bx">0.22</span> G</div>
+    <div>By: <span id="by">-0.49</span> G</div>
+</div>
+
+<canvas id="simCanvas" width="1707" height="758"></canvas>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const strengthSlider = document.getElementById('strengthSlider');
+    const fieldMeter = document.getElementById('fieldMeter');
+
+    let width, height;
+    let magnet = { x: 0, y: 0, w: 160, h: 45, strength: 0.7, flipped: false };
+    let dragTarget = null;
+    let offset = { x: 0, y: 0 };
+
+    function init() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        magnet.x = width / 2;
+        magnet.y = height / 2 + 100;
+    }
+
+    function togglePolarity() { magnet.flipped = !magnet.flipped; }
+
+    function getFieldAtPoint(px, py) {
+        const magStrength = strengthSlider.value / 100;
+        const nx = magnet.x + (magnet.flipped ? -magnet.w/2 : magnet.w/2);
+        const ny = magnet.y;
+        const sx = magnet.x + (magnet.flipped ? magnet.w/2 : -magnet.w/2);
+        const sy = magnet.y;
+
+        const rn = Math.hypot(px - nx, py - ny) + 10; // offset to avoid infinity
+        const rs = Math.hypot(px - sx, py - sy) + 10;
+
+        // B-field vector components (Dipole physics)
+        let bx = ((px - nx) / Math.pow(rn, 2.5) - (px - sx) / Math.pow(rs, 2.5)) * 5000 * magStrength;
+        let by = ((py - ny) / Math.pow(rn, 2.5) - (py - sy) / Math.pow(rs, 2.5)) * 5000 * magStrength;
+
+        return { bx, by, angle: Math.atan2(by, bx), total: Math.hypot(bx, by) };
+    }
+
+    function updateMeter() {
+        const mx = fieldMeter.offsetLeft + 55; // center of meter
+        const my = fieldMeter.offsetTop - 5;  // at the crosshair
+        const data = getFieldAtPoint(mx, my);
+        
+        document.getElementById('bTotal').innerText = data.total.toFixed(2);
+        document.getElementById('bx').innerText = data.bx.toFixed(2);
+        document.getElementById('by').innerText = data.by.toFixed(2);
+        document.getElementById('strengthVal').innerText = strengthSlider.value + "%";
+    }
+
+    function draw() {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, width, height);
+
+        // 1. Draw Field Vectors
+        const spacing = 45;
+        for (let x = spacing/2; x < width; x += spacing) {
+            for (let y = spacing/2; y < height; y += spacing) {
+                const data = getFieldAtPoint(x, y);
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(data.angle);
+                ctx.globalAlpha = Math.min(data.total * 2, 0.8); // Fades away far from magnet
+                
+                ctx.beginPath();
+                ctx.strokeStyle = 'red'; ctx.moveTo(0, 0); ctx.lineTo(10, 0); ctx.stroke();
+                ctx.beginPath();
+                ctx.strokeStyle = '#ccc'; ctx.moveTo(0, 0); ctx.lineTo(-10, 0); ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // 2. Draw Bar Magnet
+        ctx.save();
+        ctx.translate(magnet.x, magnet.y);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'white';
+        
+        // South Side
+        ctx.fillStyle = magnet.flipped ? '#f00' : '#4444ff';
+        ctx.fillRect(-magnet.w/2, -magnet.h/2, magnet.w/2, magnet.h);
+        ctx.strokeRect(-magnet.w/2, -magnet.h/2, magnet.w/2, magnet.h);
+        
+        // North Side
+        ctx.fillStyle = magnet.flipped ? '#4444ff' : '#f00';
+        ctx.fillRect(0, -magnet.h/2, magnet.w/2, magnet.h);
+        ctx.strokeRect(0, -magnet.h/2, magnet.w/2, magnet.h);
+
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(magnet.flipped ? 'N' : 'S', -magnet.w/4, 8);
+        ctx.fillText(magnet.flipped ? 'S' : 'N', magnet.w/4, 8);
+        ctx.restore();
+
+        updateMeter();
+        requestAnimationFrame(draw);
+    }
+
+    // Drag Logic for both Magnet and Meter
+    window.addEventListener('mousedown', (e) => {
+        if (e.target === fieldMeter || fieldMeter.contains(e.target)) {
+            dragTarget = 'meter';
+            offset.x = e.clientX - fieldMeter.offsetLeft;
+            offset.y = e.clientY - fieldMeter.offsetTop;
+        } else if (Math.hypot(e.clientX - magnet.x, e.clientY - magnet.y) < 80) {
+            dragTarget = 'magnet';
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (dragTarget === 'magnet') {
+            magnet.x = e.clientX;
+            magnet.y = e.clientY;
+        } else if (dragTarget === 'meter') {
+            fieldMeter.style.left = (e.clientX - offset.x) + 'px';
+            fieldMeter.style.top = (e.clientY - offset.y) + 'px';
+        }
+    });
+
+    window.addEventListener('mouseup', () => dragTarget = null);
+    window.addEventListener('resize', init);
+
+    init();
+    draw();
+</script>
+
+</body></html>
