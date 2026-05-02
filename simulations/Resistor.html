@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resistance in a Wire (Interactive Symbol Scaling)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7e7; /* PhET light beige background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            user-select: none;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            width: 900px;
+            max-width: 95%;
+            height: 500px;
+            align-items: center;
+        }
+
+        /* Formula Column (Visualizer) */
+        .viz-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* --- Formula Box --- */
+        .formula-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 150px; /* Base height to handle symbol scaling */
+        }
+
+        /* Base size is 60px, JS will scale these up/down */
+        .formula-symbol {
+            font-weight: bold;
+            font-size: 60px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 5px;
+            transition: font-size 0.05s ease-out; /* Smooth transition */
+        }
+
+        .formula-R { color: #e74c3c; /* Red R */ }
+        .formula-equal { color: black; font-size: 60px; margin: 0 10px; } /* Equal sign does not scale */
+        .formula-rho, .formula-L, .formula-A { color: #3498db; /* Blue greek/variables */ }
+
+        .formula-fraction {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 5px;
+        }
+
+        .formula-numerator {
+            display: inline-flex;
+            align-items: baseline;
+            justify-content: center;
+            border-bottom: 3px solid black; /* The division bar */
+            padding: 0 5px;
+        }
+
+        /* --- Wire Visualizer --- */
+        .wire-container {
+            position: relative;
+            width: 400px;
+            height: 200px;
+        }
+
+        #wire-canvas {
+            border-radius: 8px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background-color: #ffffff;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: 100%;
+            justify-content: center;
+        }
+
+        .readout {
+            color: #e74c3c;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        /* Material Selection Dropdown */
+        .material-group {
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .material-label { font-size: 14px; font-weight: bold; color: #333; margin-bottom: 5px; display: block; }
+        #material-select { width: 100%; padding: 5px; font-size: 14px; }
+
+        /* Sliders */
+        .slider-group {
+            display: grid;
+            grid-template-columns: 30px 1fr;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider-label { text-align: center; font-size: 14px; font-weight: bold; color: #3498db; }
+        input[type=range] { width: 100%; }
+
+        .variable-display {
+            text-align: center;
+            font-size: 14px;
+            margin-top: 2px;
+            font-weight: bold;
+        }
+        .unit-label { font-weight: normal; color: #333; }
+
+        /* Custom Max Length Input */
+        .max-length-input {
+            margin-top: auto;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+        #custom-max-L { width: 60px; text-align: center; }
+
+        /* Reset Button */
+        #reset-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: orange;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            display: flex; justify-content: center; align-items: center;
+            color: white; font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="viz-column">
+        <div class="formula-box">
+            <span class="formula-symbol formula-R" id="sym-r">R</span> 
+            <span class="formula-equal">=</span> 
+            <div class="formula-fraction">
+                <div class="formula-numerator">
+                    <span class="formula-symbol formula-rho" id="sym-rho">ρ</span>
+                    <span class="formula-symbol formula-L" id="sym-l">L</span>
+                </div>
+                <div class="formula-denominator">
+                    <span class="formula-symbol formula-A" id="sym-a">A</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="wire-container">
+            <canvas id="wire-canvas" width="300" height="150"></canvas>
+        </div>
+
+        <button id="reset-btn">&#x21bb;</button>
+    </div>
+
+    <div class="control-panel">
+        <div class="readout">resistance = <span id="r-val">0.67</span> ohms</div>
+
+        <div class="material-group">
+            <label class="material-label" for="material-select">Select Material (Sets ρ):</label>
+            <select id="material-select">
+                <option value="custom" selected>Custom</option>
+                <option value="silver">Silver (Ag)</option>
+                <option value="copper">Copper (Cu)</option>
+                <option value="gold">Gold (Au)</option>
+                <option value="aluminum">Aluminum (Al)</option>
+                <option value="tungsten">Tungsten (W)</option>
+                <option value="iron">Iron (Fe)</option>
+                <option value="lead">Lead (Pb)</option>
+                <option value="nichrome">Nichrome</option>
+            </select>
+        </div>
+
+        <div class="slider-group">
+            <div class="slider-label">ρ</div>
+            <input type="range" id="rho-slider" min="0.01" max="5.00" step="0.01" value="0.50">
+        </div>
+        <div class="variable-display" id="rho-display">0.50 <span class="unit-label">Ωcm</span></div>
+
+        <div class="slider-group">
+            <div class="slider-label">L</div>
+            <input type="range" id="length-slider" min="1.00" max="20.00" step="0.01" value="10.00">
+        </div>
+        <div class="variable-display" id="length-display">10.00 <span class="unit-label">cm</span></div>
+
+        <div class="slider-group">
+            <div class="slider-label">A</div>
+            <input type="range" id="area-slider" min="1.00" max="30.00" step="0.01" value="7.50">
+        </div>
+        <div class="variable-display" id="area-display">7.50 <span class="unit-label">cm²</span></div>
+
+        <div class="max-length-input">
+            <label for="custom-max-L">Set Max Length (L):</label>
+            <div>
+                <input type="number" id="custom-max-L" value="20" min="5" max="100" step="1">
+                cm
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('wire-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Controls
+    const rhoSlider = document.getElementById('rho-slider');
+    const lengthSlider = document.getElementById('length-slider');
+    const areaSlider = document.getElementById('area-slider');
+    const materialSelect = document.getElementById('material-select');
+    const maxLElement = document.getElementById('custom-max-L');
+    const resetBtn = document.getElementById('reset-btn');
+
+    // Display elements
+    const rDisplay = document.getElementById('r-val');
+    const rhoDisplay = document.getElementById('rho-display');
+    const lengthDisplay = document.getElementById('length-display');
+    const areaDisplay = document.getElementById('area-display');
+
+    // --- Dynamic Symbol Elements ---
+    const symR = document.getElementById('sym-r');
+    const symRho = document.getElementById('sym-rho');
+    const symL = document.getElementById('sym-l');
+    const symA = document.getElementById('sym-a');
+
+    // Standard Resistivities (ρ × 10⁻⁸ Ωm converted to simulation scale Ωcm)
+    const materialData = {
+        'silver': 0.16,
+        'copper': 0.17,
+        'gold': 0.24,
+        'aluminum': 0.27,
+        'tungsten': 0.56,
+        'iron': 1.00,
+        'lead': 2.20,
+        'nichrome': 11.0 // High resistivity example
+    };
+
+    function updateSimulation() {
+        const rho = parseFloat(rhoSlider.value);
+        let L = parseFloat(lengthSlider.value);
+        const A = parseFloat(areaSlider.value);
+
+        // --- Handle Material Selection ---
+        if (materialSelect.value !== 'custom') {
+            const selectedRho = materialData[materialSelect.value];
+            // Update the slider to match the chosen material
+            rhoSlider.value = selectedRho.toFixed(2);
+            rhoDisplay.innerHTML = `${selectedRho.toFixed(2)} <span class="unit-label">Ωcm</span>`;
+        } else {
+             rhoDisplay.innerHTML = `${rho.toFixed(2)} <span class="unit-label">Ωcm</span>`;
+        }
+
+        // --- Handle Custom Max Length ---
+        const maxLValue = parseFloat(maxLElement.value);
+        lengthSlider.max = maxLValue;
+        // Clamp L if the max changed below the current value
+        if (L > maxLValue) {
+            L = maxLValue;
+            lengthSlider.value = L;
+        }
+
+        // --- Calculate Resistance (R = ρ * L / A) ---
+        const resistanceVal = (rho * L / A);
+        rDisplay.innerText = resistanceVal.toFixed(3);
+
+        // --- Update Displays ---
+        lengthDisplay.innerHTML = `${L.toFixed(2)} <span class="unit-label">cm</span>`;
+        areaDisplay.innerHTML = `${A.toFixed(2)} <span class="unit-label">cm²</span>`;
+
+        // --- NEW: Scale Symbols based on values ---
+        updateSymbolScales(resistanceVal, rho, L, A);
+
+        // --- Visualizer (Canvas) ---
+        drawWire(rho, L, A);
+    }
+
+    /**
+     * Dynamically sets the font size of the symbols based on their current value.
+     */
+    function updateSymbolScales(resistanceVal, rho, L, A) {
+        // Base Font Size: 60px
+        const baseSize = 60;
+        
+        // --- Scale Factors ---
+        // How much do we want the letters to scale? We define 'Min' and 'Max' scale multipliers.
+        const minScale = 0.5; // 50% of base (30px)
+        const maxScale = 1.8; // 180% of base (108px)
+
+        // Map R: Can go very high (Nichrome) or very low. Map log scale perhaps? 
+        // Simple mapping:
+        let scaleR = minScale + (resistanceVal / 20) * (maxScale - minScale); // Maxed out around 20 Ohms
+        symR.style.fontSize = `${clampScale(scaleR, minScale, maxScale) * baseSize}px`;
+
+        // Map rho: Slider range 0.01 to 5
+        let scaleRho = minScale + (rho / 5) * (maxScale - minScale);
+        symRho.style.fontSize = `${clampScale(scaleRho, minScale, maxScale) * baseSize}px`;
+
+        // Map L: Slider range 1 to maxL (usually 20)
+        let scaleL = minScale + (L / parseFloat(lengthSlider.max)) * (maxScale - minScale);
+        symL.style.fontSize = `${clampScale(scaleL, minScale, maxScale) * baseSize}px`;
+
+        // Map A: Slider range 1 to 30
+        let scaleA = minScale + (A / 30) * (maxScale - minScale);
+        symA.style.fontSize = `${clampScale(scaleA, minScale, maxScale) * baseSize}px`;
+    }
+
+    // Utility helper to keep scale within defined min/max multipliers
+    function clampScale(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+    }
+
+    function drawWire(rho, L, A) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+
+        // Base wire dimensions (scales with sliders)
+        const baseWidth = 20; // Minimal visual width
+        const baseHeight = 10;
+        
+        // Scale factors: these determine how much the visual changes
+        const currentWidth = baseWidth + (L * 12); // L makes it longer
+        const currentHeight = baseHeight + (Math.sqrt(A) * 15); // A makes it thicker (diameter change)
+
+        // Center on canvas
+        const x = (canvas.width - currentWidth) / 2;
+        const y = (canvas.height - currentHeight) / 2;
+
+        // --- Draw the main cylinder (the wire material) ---
+        const gradient = ctx.createLinearGradient(x, y, x, y + currentHeight);
+        gradient.addColorStop(0, '#e5b699'); // Top highlight
+        gradient.addColorStop(0.5, '#d4946c'); // Center base
+        gradient.addColorStop(1, '#b57a55'); // Bottom shadow
+        ctx.fillStyle = gradient;
+        
+        ctx.beginPath();
+        ctx.roundRect(x, y, currentWidth, currentHeight, currentHeight/2); // Cylinder end cap rounding
+        ctx.fill();
+        ctx.stroke(); // Dark outline like image_0.png
+
+        // --- Draw 'impure atoms' (dots): ρ determines density ---
+        ctx.fillStyle = 'black';
+        // Density logic: base dots + dots proportional to rho * visible area
+        const numDots = Math.floor(rho * currentWidth * currentHeight / 80); 
+        for (let i = 0; i < numDots; i++) {
+            const dotX = x + (Math.random() * currentWidth);
+            const dotY = y + (Math.random() * currentHeight);
+            
+            // Constrain dots inside the wire outline (approximate)
+            if (dotX > x + currentHeight/4 && dotX < x + currentWidth - currentHeight/4) {
+                 ctx.beginPath();
+                 ctx.arc(dotX, dotY, 1.2, 0, Math.PI * 2);
+                 ctx.fill();
+            }
+        }
+    }
+
+    // --- Reset Functionality ---
+    function resetSim() {
+        rhoSlider.value = 0.50;
+        lengthSlider.value = 10.00;
+        areaSlider.value = 7.50;
+        materialSelect.value = 'custom';
+        maxLElement.value = 20;
+        updateSimulation();
+    }
+
+    // --- Event Listeners ---
+    [rhoSlider, lengthSlider, areaSlider].forEach(slider => {
+        slider.addEventListener('input', () => {
+             // If a user moves the ρ slider manually, set material back to 'custom'
+            if (slider.id === 'rho-slider' && materialSelect.value !== 'custom') {
+                materialSelect.value = 'custom';
+            }
+            updateSimulation();
+        });
+    });
+
+    materialSelect.addEventListener('change', updateSimulation);
+    maxLElement.addEventListener('input', updateSimulation);
+    resetBtn.addEventListener('click', resetSim);
+
+    // Initialize
+    updateSimulation();
+
+</script>
+</body>
+</html>
