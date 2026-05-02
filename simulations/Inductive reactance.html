@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Industrial Automation: XL Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: #0f0f0f; 
+            color: #e0e0e0; 
+            margin: 0; 
+            display: flex; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+        /* Left Sidebar Layout */
+        .sidebar { 
+            width: 320px; 
+            background: #1a1a1a; 
+            border-right: 2px solid #333; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 20px; 
+            box-sizing: border-box; 
+            gap: 15px;
+        }
+        .main-view { 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative;
+        }
+        .control-card { 
+            background: #252525; 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: 1px solid #444; 
+        }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        input[type="number"] { 
+            width: 50px; 
+            background: #000; 
+            color: #0f0; 
+            border: 1px solid #555; 
+            text-align: center; 
+        }
+        label { font-size: 0.85em; color: #aaa; margin-bottom: 5px; display: block; }
+        .warning { 
+            color: #ff3333; 
+            font-weight: bold; 
+            text-align: center; 
+            border: 2px solid #ff3333; 
+            padding: 10px; 
+            margin-top: 10px;
+            display: none;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        
+        /* Formula Overlay */
+        #dynamic-formula {
+            position: absolute;
+            top: 40px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            color: #ffff00;
+            width: 100%;
+            transition: all 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h3 style="color: #00ffcc; margin-top: 0;">System Controls</h3>
+        
+        <div class="control-card">
+            <label>Source Type</label>
+            <select id="supplyType" style="width: 100%; background: #333; color: white;">
+                <option value="AC">AC (Oscillating)</option>
+                <option value="DC">DC (Steady State)</option>
+            </select>
+        </div>
+
+        <div class="control-card">
+            <label>Frequency (f): <span id="f-val" style="color:#00ffcc">50</span> Hz</label>
+            <input type="range" id="fSlider" min="1" max="100" value="50">
+            <div style="font-size:0.7em; margin-top:5px">Limit: <input type="number" id="fMax" value="100"></div>
+        </div>
+
+        <div class="control-card">
+            <label>Inductance (L): <span id="l-val" style="color:#00ffcc">0.5</span> H</label>
+            <input type="range" id="lSlider" min="0.1" max="5" step="0.1" value="0.5">
+            <div style="font-size:0.7em; margin-top:5px">Limit: <input type="number" id="lMax" value="5"></div>
+        </div>
+
+        <div id="scope-container"></div>
+        
+        <div id="sc-warning" class="warning">SHORT CIRCUIT!<br>0Ω REACTANCE</div>
+    </div>
+
+    <div class="main-view">
+        <div id="dynamic-formula">XL = 2πfL</div>
+        <div id="canvas-container"></div>
+    </div>
+
+<script>
+let scopeCanvas;
+let mainCanvas;
+
+function setup() {
+    mainCanvas = createCanvas(800, 500);
+    mainCanvas.parent('canvas-container');
+    
+    scopeCanvas = createGraphics(280, 100);
+}
+
+function draw() {
+    background(15);
+    
+    let type = document.getElementById('supplyType').value;
+    let f = parseFloat(document.getElementById('fSlider').value);
+    let L = parseFloat(document.getElementById('lSlider').value);
+    
+    // Update Max Limits
+    document.getElementById('fSlider').max = document.getElementById('fMax').value;
+    document.getElementById('lSlider').max = document.getElementById('lMax').value;
+    document.getElementById('f-val').innerText = f;
+    document.getElementById('l-val').innerText = L;
+
+    let XL = (type === "AC") ? (2 * Math.PI * f * L) : 0;
+    
+    updateFormulaUI(XL, f, L, type);
+    drawIndustrialCircuit(type, f, XL);
+    drawSidebarScope(type, f);
+}
+
+function updateFormulaUI(XL, f, L, type) {
+    let formulaDiv = document.getElementById('dynamic-formula');
+    if (type === "DC") {
+        formulaDiv.innerHTML = "XL = 2π(0)L = 0 Ω";
+        formulaDiv.style.fontSize = "24px";
+        document.getElementById('sc-warning').style.display = "block";
+    } else {
+        formulaDiv.innerHTML = `XL = 2π × ${f}Hz × ${L}H = ${XL.toFixed(2)} Ω`;
+        // Dynamic scaling: size grows with XL
+        let size = map(XL, 0, 1000, 20, 60);
+        formulaDiv.style.fontSize = constrain(size, 20, 70) + "px";
+        document.getElementById('sc-warning').style.display = "none";
+    }
+}
+
+function drawIndustrialCircuit(type, f, XL) {
+    // Wiring
+    stroke(80);
+    strokeWeight(4);
+    noFill();
+    rect(150, 150, 500, 250, 5);
+
+    // Power Supply Symbol
+    fill(20);
+    stroke(120);
+    circle(150, 275, 70);
+    if(type === "AC") {
+        stroke(0, 255, 204);
+        beginShape();
+        for(let x=-25; x<25; x++) vertex(150+x, 275 + sin(x*0.15 + frameCount*0.2)*15);
+        endShape();
+    } else {
+        stroke(255, 200, 0);
+        line(135, 265, 165, 265); line(140, 275, 160, 275);
+        line(135, 285, 165, 285); line(140, 295, 160, 295);
+    }
+
+    // Better Inductor Symbol (Iron Core Style)
+    drawInductorSymbol(650, 275);
+
+    // Electron Animation
+    let speedFactor = (type === "AC") ? map(XL, 0, 2000, 0.5, 0.05) : 1;
+    let t = (frameCount * 5 * speedFactor) % 1500;
+    
+    noStroke();
+    fill(type === "DC" ? '#ff3333' : '#00ccff');
+    
+    if(type === "AC") {
+        let osc = sin(frameCount * (f * 0.005)) * 200;
+        circle(400 + osc, 150, 15);
+    } else {
+        // Continuous flow for DC Short Circuit
+        if(t < 500) circle(150+t, 150, 15);
+        else if(t < 750) circle(650, 150+(t-500), 15);
+        else if(t < 1250) circle(650-(t-750), 400, 15);
+        else circle(150, 400-(t-1250), 15);
+    }
+}
+
+function drawInductorSymbol(x, y) {
+    push();
+    translate(x, y - 60);
+    // Iron Core Lines
+    stroke(100);
+    strokeWeight(2);
+    line(-15, 0, -15, 120);
+    line(-22, 0, -22, 120);
+    
+    // Coils
+    stroke(205, 127, 50);
+    strokeWeight(4);
+    noFill();
+    for (let i = 0; i < 8; i++) {
+        arc(0, 10 + i * 14, 40, 25, HALF_PI, -HALF_PI);
+    }
+    pop();
+}
+
+function drawSidebarScope(type, f) {
+    scopeCanvas.background(10);
+    scopeCanvas.stroke(40);
+    for(let i=0; i<280; i+=40) scopeCanvas.line(i, 0, i, 100);
+    
+    scopeCanvas.stroke(0, 255, 0);
+    scopeCanvas.noFill();
+    scopeCanvas.beginShape();
+    if(type === "AC") {
+        for(let x=0; x<280; x++) {
+            let y = 50 + sin(x * (f * 0.01) + frameCount * 0.1) * 35;
+            scopeCanvas.vertex(x, y);
+        }
+    } else {
+        scopeCanvas.line(0, 20, 280, 20);
+    }
+    scopeCanvas.endShape();
+    
+    image(scopeCanvas, 20, height - 120);
+}
+</script>
+</body>
+</html>
