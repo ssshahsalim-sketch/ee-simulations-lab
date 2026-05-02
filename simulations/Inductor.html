@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { margin: 0; background: #0a0a0a; color: white; font-family: 'Segoe UI', sans-serif; display: flex; overflow: hidden; }
+        
+        #ui-layer { 
+            width: 350px; background: #151515; padding: 20px; border-right: 2px solid #00ffcc; 
+            height: 100vh; overflow-y: auto; box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+        }
+
+        .control-group { margin-bottom: 20px; }
+        .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        label { font-size: 11px; color: #00ffcc; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* Input box for custom limits */
+        .val-input { 
+            width: 60px; background: #222; border: 1px solid #444; color: #00ffcc; 
+            text-align: center; border-radius: 3px; font-weight: bold; padding: 2px;
+        }
+
+        input[type=range] { width: 100%; accent-color: #00ffcc; cursor: ew-resize; }
+        select { width: 100%; padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 5px; }
+        
+        #formula-box { background: #000; padding: 15px; border-radius: 8px; border: 1px dashed #555; margin-top: 20px; text-align: center; }
+        .formula-text { font-size: 24px; font-family: 'Times New Roman', serif; }
+        .var { display: inline-block; transition: all 0.2s ease; color: #00ffcc; font-style: italic; }
+        
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px; }
+        button { background: #333; color: white; border: 1px solid #555; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        button:hover { background: #00ffcc; color: black; }
+    </style>
+</head>
+<body>
+    <div id="ui-layer">
+        <h2 style="margin:0 0 20px 0;">Inductor <span style="color:#00ffcc;">PRO</span></h2>
+        
+        <div class="control-group">
+            <label>Core Material</label>
+            <select id="material">
+                <option value="1.00000037" data-color="none">Air Core</option>
+                <option value="280000" data-color="#3d3d3d">Iron Core</option>
+                <option value="600" data-color="#a0a0a0">Nickel Core</option>
+                <option value="5000" data-color="#1a1a1a">Ferrite Core</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Coil Shape</label>
+            <select id="shape" onchange="toggleInputs()">
+                <option value="circular">Circular</option>
+                <option value="rectangular">Rectangular</option>
+            </select>
+        </div>
+
+        <div id="circ-ui">
+            <div class="control-group">
+                <div class="label-row"><label>Radius (mm)</label> <input type="number" id="rIn" class="val-input" value="60" oninput="sync('rIn','rS')"></div>
+                <input type="range" id="rS" min="1" max="100" value="60" oninput="sync('rS','rIn')">
+            </div>
+        </div>
+
+        <div id="rect-ui" style="display:none;">
+            <div class="control-group">
+                <div class="label-row"><label>Width (mm)</label> <input type="number" id="wIn" class="val-input" value="50" oninput="sync('wIn','wS')"></div>
+                <input type="range" id="wS" min="1" max="100" value="50" oninput="sync('wS','wIn')">
+            </div>
+            <div class="control-group">
+                <div class="label-row"><label>Height (mm)</label> <input type="number" id="hIn" class="val-input" value="50" oninput="sync('hIn','hS')"></div>
+                <input type="range" id="hS" min="1" max="100" value="50" oninput="sync('hS','hIn')">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="label-row"><label>Turns (N)</label> <input type="number" id="nIn" class="val-input" value="120" oninput="sync('nIn','nS')"></div>
+            <input type="range" id="nS" min="1" max="200" value="120" oninput="sync('nS','nIn')">
+        </div>
+
+        <div class="control-group">
+            <div class="label-row"><label>Length (l) mm</label> <input type="number" id="lIn" class="val-input" value="400" oninput="sync('lIn','lS')"></div>
+            <input type="range" id="lS" min="10" max="500" value="400" oninput="sync('lS','lIn')">
+        </div>
+
+        <div id="formula-box">
+            <div class="formula-text">L = <span class="var" id="f-mu">μ</span> <span class="var" id="f-n">N<sup>2</sup></span> <span class="var" id="f-a">A</span> / <span class="var" id="f-l">l</span></div>
+            <div id="inductance-res" style="font-size: 20px; color: #00ffcc; margin-top: 10px; font-weight: bold;">0.00 mH</div>
+        </div>
+
+        <div class="btn-group">
+            <button onclick="view('top')">TOP VIEW</button>
+            <button onclick="view('side')">SIDE VIEW</button>
+            <button onclick="view('reset')" style="grid-column: span 2;">RESET 3D ORBIT</button>
+        </div>
+    </div>
+
+<script>
+let mu0 = 4 * Math.PI * 1e-7;
+let cam;
+
+function setup() {
+    let canvas = createCanvas(windowWidth - 350, windowHeight, WEBGL);
+    canvas.position(350, 0);
+    cam = createCamera();
+    view('reset');
+}
+
+// Syncing Slider and Input Box + Dynamic Max
+function sync(srcId, destId) {
+    let src = document.getElementById(srcId);
+    let dest = document.getElementById(destId);
+    let val = parseFloat(src.value);
+    
+    if (src.type === 'number') {
+        if (val > dest.max) dest.max = val * 1.5; // Expand slider limit if user types higher
+        dest.value = val;
+    } else {
+        dest.value = val;
+    }
+}
+
+function toggleInputs() {
+    let s = document.getElementById('shape').value;
+    document.getElementById('circ-ui').style.display = (s === 'circular') ? 'block' : 'none';
+    document.getElementById('rect-ui').style.display = (s === 'rectangular') ? 'block' : 'none';
+}
+
+function view(mode) {
+    if(mode === 'reset') { cam.setPosition(200, -200, 500); cam.lookAt(0,0,0); }
+    if(mode === 'top') { cam.setPosition(0, -600, 0); cam.lookAt(0,0,0); }
+    if(mode === 'side') { cam.setPosition(600, 0, 0); cam.lookAt(0,0,0); }
+}
+
+function draw() {
+    background(10);
+    orbitControl(3, 3, 0.2); // Highly sensitive free rotation
+    
+    let n = parseFloat(document.getElementById('nIn').value);
+    let l_mm = parseFloat(document.getElementById('lIn').value);
+    let mur = parseFloat(document.getElementById('material').value);
+    let shape = document.getElementById('shape').value;
+    let coreColor = document.getElementById('material').selectedOptions[0].getAttribute('data-color');
+    
+    let r = parseFloat(document.getElementById('rIn').value);
+    let w = parseFloat(document.getElementById('wIn').value);
+    let h = parseFloat(document.getElementById('hIn').value);
+
+    // Calc
+    let l_m = l_mm / 1000;
+    let area_m2 = (shape === 'circular') ? (PI * Math.pow(r/1000, 2)) : ((w/1000) * (h/1000));
+    let inductance = (mu0 * mur * Math.pow(n, 2) * area_m2) / l_m;
+    document.getElementById('inductance-res').innerText = `L = ${(inductance * 1000).toFixed(4)} mH`;
+
+    // Formula Scaling
+    document.getElementById('f-n').style.fontSize = constrain(n/2, 15, 50) + "px";
+    document.getElementById('f-l').style.fontSize = constrain(l_mm/10, 15, 50) + "px";
+    document.getElementById('f-a').style.fontSize = constrain((r||(w+h)/2)/2, 15, 50) + "px";
+
+    ambientLight(150);
+    pointLight(255, 255, 255, 500, -500, 500);
+
+    // Draw Core
+    if(coreColor !== "none") {
+        push();
+        fill(coreColor); noStroke();
+        if(shape === 'circular') cylinder(r-1, l_mm);
+        else box(w-2, l_mm, h-2);
+        pop();
+    }
+
+    // Draw Coil
+    stroke(255, 150, 50); strokeWeight(2); noFill();
+    beginShape();
+    let spacing = l_mm / n;
+    for (let i = 0; i < n; i++) {
+        for (let a = 0; a < TWO_PI; a += 0.3) {
+            let x, z, gap = 4;
+            if (shape === 'circular') {
+                x = cos(a) * (r + gap); z = sin(a) * (r + gap);
+            } else {
+                let seg = (a / TWO_PI) * 4;
+                let hw = (w/2)+gap, hh = (h/2)+gap;
+                if(seg<1){ x=hw; z=-hh+seg*hh*2; }
+                else if(seg<2){ x=hw-(seg-1)*hw*2; z=hh; }
+                else if(seg<3){ x=-hw; z=hh-(seg-2)*hh*2; }
+                else { x=-hw+(seg-3)*hw*2; z=-hh; }
+            }
+            vertex(x, -l_mm/2 + (i*spacing) + (a/TWO_PI*spacing), z);
+        }
+    }
+    endShape();
+}
+
+function windowResized() { resizeCanvas(windowWidth - 350, windowHeight); }
+</script>
+</body>
+</html>
