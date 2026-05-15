@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Available Fault Current Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0d12;
+  --surface:#111520;
+  --card:#161c2d;
+  --card2:#1a2234;
+  --border:#1e2d45;
+  --border2:#243454;
+  --accent:#00d4ff;
+  --accent2:#0099cc;
+  --danger:#ff4a4a;
+  --warn:#f5a623;
+  --green:#00e676;
+  --purple:#b066ff;
+  --text:#e8edf5;
+  --muted:#6b7fa3;
+  --dim:#3a4a6a;
+  --mono:'DM Mono',monospace;
+  --sans:'Inter',sans-serif;
+  --head:'Syne',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;padding:0}
+.grid-bg{
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,212,255,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,212,255,.04) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;z-index:0;
+}
+.app{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:32px 24px 80px}
+
+/* HEADER */
+header{margin-bottom:40px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.brand-icon{width:40px;height:40px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.brand-icon svg{width:24px;height:24px;fill:var(--bg)}
+.brand-name{font-family:var(--head);font-size:22px;font-weight:800;letter-spacing:-.5px}
+.brand-name span{color:var(--accent)}
+h1{font-family:var(--head);font-size:38px;font-weight:800;line-height:1.1;letter-spacing:-1px;margin-bottom:8px}
+h1 em{color:var(--accent);font-style:normal}
+.subtitle{color:var(--muted);font-size:14px;font-weight:400}
+
+/* LAYOUT */
+.main-layout{display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start}
+@media(max-width:900px){.main-layout{grid-template-columns:1fr}}
+
+/* PANELS */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.panel-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.panel-header .ph-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.panel-header h2{font-family:var(--head);font-size:14px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+.panel-body{padding:20px}
+
+/* SOURCE TABS */
+.source-tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surface);border-radius:10px;padding:4px}
+.source-tab{flex:1;padding:8px 10px;border:none;border-radius:7px;font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;background:transparent;color:var(--muted);text-align:center}
+.source-tab.active{background:var(--card);color:var(--text);border:1px solid var(--border2)}
+.source-section{display:none}
+.source-section.active{display:block}
+
+/* FORM ELEMENTS */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.field input,.field select{
+  width:100%;padding:9px 12px;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-family:var(--mono);font-size:13px;
+  transition:border-color .2s,box-shadow .2s;outline:none;
+}
+.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,212,255,.1)}
+.field select option{background:var(--card)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field-hint{font-size:10px;color:var(--dim);margin-top:4px}
+.unit-badge{
+  display:inline-block;padding:2px 6px;background:rgba(0,212,255,.1);
+  border:1px solid rgba(0,212,255,.2);border-radius:4px;
+  font-size:10px;font-family:var(--mono);color:var(--accent);margin-left:6px;vertical-align:middle;
+}
+
+/* COMPONENT CHAIN */
+.chain{display:flex;flex-direction:column;gap:0}
+.chain-item{position:relative;padding-left:28px}
+.chain-line{position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border)}
+.chain-item:last-child .chain-line{display:none}
+.chain-dot{
+  position:absolute;left:2px;top:18px;width:14px;height:14px;
+  border-radius:50%;border:2px solid var(--border2);background:var(--card);
+  transition:border-color .3s,background .3s;z-index:1;
+}
+.chain-dot.active{border-color:var(--accent);background:rgba(0,212,255,.2)}
+.chain-content{
+  background:var(--card2);border:1px solid var(--border);border-radius:10px;
+  margin-bottom:6px;overflow:hidden;transition:border-color .2s;
+}
+.chain-content.active-card{border-color:var(--border2)}
+.chain-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;cursor:pointer;user-select:none;
+}
+.chain-head:hover{background:rgba(255,255,255,.02)}
+.chain-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.chain-badge{
+  padding:2px 8px;border-radius:4px;font-size:10px;font-family:var(--mono);font-weight:500;
+}
+.badge-xfmr{background:rgba(176,102,255,.15);color:var(--purple);border:1px solid rgba(176,102,255,.3)}
+.badge-cable{background:rgba(0,212,255,.1);color:var(--accent);border:1px solid rgba(0,212,255,.2)}
+.badge-bus{background:rgba(245,166,35,.1);color:var(--warn);border:1px solid rgba(245,166,35,.2)}
+.badge-motor{background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2)}
+.badge-gen{background:rgba(255,74,74,.1);color:var(--danger);border:1px solid rgba(255,74,74,.2)}
+.chain-toggle{font-size:16px;color:var(--muted);transition:transform .2s}
+.chain-toggle.open{transform:rotate(90deg)}
+.chain-body{padding:12px 14px 14px;border-top:1px solid var(--border);display:none}
+.chain-body.open{display:block}
+.remove-btn{
+  display:inline-flex;align-items:center;gap:4px;margin-top:10px;
+  padding:5px 10px;background:rgba(255,74,74,.08);border:1px solid rgba(255,74,74,.2);
+  border-radius:6px;color:var(--danger);font-size:11px;font-weight:500;cursor:pointer;
+  font-family:var(--sans);transition:background .2s;
+}
+.remove-btn:hover{background:rgba(255,74,74,.15)}
+
+/* ADD BUTTONS */
+.add-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.add-btn{
+  padding:8px 10px;border:1px dashed var(--border2);border-radius:8px;
+  background:transparent;color:var(--muted);font-family:var(--sans);font-size:12px;
+  font-weight:500;cursor:pointer;transition:all .2s;text-align:center;
+}
+.add-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.04)}
+
+/* CALCULATE BUTTON */
+.calc-btn{
+  width:100%;margin-top:16px;padding:14px;
+  background:var(--accent);border:none;border-radius:10px;
+  color:var(--bg);font-family:var(--head);font-size:15px;font-weight:700;
+  cursor:pointer;letter-spacing:.3px;transition:all .2s;
+}
+.calc-btn:hover{background:#1ae0ff;transform:translateY(-1px)}
+.calc-btn:active{transform:translateY(0)}
+
+/* RESULTS PANEL */
+.results-panel{display:flex;flex-direction:column;gap:16px}
+
+/* ONE-LINE DIAGRAM */
+.oneline-wrap{
+  background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;
+}
+.oneline-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.oneline-header h2{font-family:var(--head);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.oneline-svg-wrap{padding:20px;overflow-x:auto}
+
+/* FAULT CARDS */
+.fault-cards{display:grid;gap:12px}
+.fault-card{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:16px 18px;position:relative;overflow:hidden;
+  transition:border-color .2s;
+}
+.fault-card::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+}
+.fault-card.fault-xfmr::before{background:var(--purple)}
+.fault-card.fault-cable::before{background:var(--accent)}
+.fault-card.fault-bus::before{background:var(--warn)}
+.fault-card.fault-end::before{background:var(--danger)}
+.fault-card.fault-gen::before{background:var(--danger)}
+.fault-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.fault-label .fl-name{color:var(--text)}
+.fault-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fault-metric{background:var(--surface);border-radius:8px;padding:10px 12px}
+.fm-label{font-size:10px;color:var(--dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.fm-value{font-family:var(--mono);font-size:16px;font-weight:500;color:var(--text)}
+.fm-value.highlight{color:var(--danger)}
+.fm-unit{font-size:10px;color:var(--muted);margin-left:2px}
+
+/* SCCR SECTION */
+.sccr-box{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px;
+}
+.sccr-title{font-family:var(--head);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);margin-bottom:12px}
+.sccr-rating-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.sccr-item{background:var(--surface);border-radius:8px;padding:10px 12px;border:1px solid transparent}
+.sccr-item.ok{border-color:rgba(0,230,118,.2);background:rgba(0,230,118,.05)}
+.sccr-item.warn{border-color:rgba(245,166,35,.2);background:rgba(245,166,35,.05)}
+.sccr-item.fail{border-color:rgba(255,74,74,.2);background:rgba(255,74,74,.05)}
+.sccr-loc{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.sccr-val{font-family:var(--mono);font-size:18px;font-weight:500}
+.sccr-item.ok .sccr-val{color:var(--green)}
+.sccr-item.warn .sccr-val{color:var(--warn)}
+.sccr-item.fail .sccr-val{color:var(--danger)}
+.sccr-desc{font-size:10px;color:var(--dim);margin-top:2px}
+
+/* SYSTEM SUMMARY */
+.sys-summary{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 20px;
+}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.summary-item{text-align:center}
+.si-val{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--accent)}
+.si-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* EMPTY STATE */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 20px;color:var(--muted);text-align:center;
+}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:.3}
+.empty-text{font-size:14px}
+
+/* ALERTS */
+.alert{
+  padding:10px 14px;border-radius:8px;font-size:12px;margin-top:10px;
+  display:flex;align-items:center;gap:8px;
+}
+.alert-warn{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.25);color:var(--warn)}
+.alert-info{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);color:var(--accent)}
+
+/* SVG ONE-LINE */
+svg.oneline text{font-family:'DM Mono',monospace}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9l-6-6zm-1 7V4.5L17.5 10H12z"/></svg>
+      </div>
+      <div class="brand-name">AFC<span>Calc</span></div>
+    </div>
+    <h1>Available <em>Fault Current</em><br>Calculator</h1>
+    <div class="subtitle">Three-phase short-circuit analysis · IEC / NEC compliant · SCCR verification</div>
+  </header>
+
+  <div class="main-layout">
+    <!-- LEFT: INPUT PANEL -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- SOURCE -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="ph-icon" style="background:rgba(255,74,74,.15)">⚡</div>
+          <h2>Power Source</h2>
+        </div>
+        <div class="panel-body">
+          <div class="source-tabs">
+            <button class="source-tab active" onclick="switchSource('transformer')">Transformer</button>
+            <button class="source-tab" onclick="switchSource('generator')">Generator</button>
+            <button class="source-tab" onclick="switchSource('infinite')">Infinite Bus</button>
+          </div>
+
+          <!-- TRANSFORMER -->
+          <div class="source-section active" id="src-transformer">
+            <div class="field-row">
+              <div class="field">
+                <label>KVA Rating</label>
+                <input type="number" id="xfmr-kva" value="100" min="1" step="1">
+              </div>
+              <div class="field">
+                <label>Secondary Voltage <span class="unit-badge">V (L-L)</span></label>
+                <input type="number" id="xfmr-volts" value="440" min="100" step="1">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>%Z Impedance</label>
+                <input type="number" id="xfmr-z" value="5" min="0.1" step="0.1">
+              </div>
+              <div class="field">
+                <label>%Z Tolerance</label>
+                <select id="xfmr-ztol">
+                  <option value="-10">-10% (Max Fault)</option>
+                  <option value="0">0% (Nominal)</option>
+                  <option value="+10">+10% (Min Fault)</option>
+                </select>
+              </div>
+            </div>
+            <div class="alert alert-info">Infinite primary source assumed upstream</div>
+          </div>
+
+          <!-- GENERATOR -->
+          <div class="source-section" id="src-generator">
+            <div class="field-row">
+              <div class="field">
+                <label>KVA Rating</label>
+                <input type="number" id="gen-kva" value="500" min="1">
+              </div>
+              <div class="field">
+                <label>Output Voltage <span class="unit-badge">V</span></label>
+                <input type="number" id="gen-volts" value="440" min="100">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Subtransient X"d <span class="unit-badge">%</span></label>
+                <input type="number" id="gen-xd" value="12" min="1" step="0.1">
+              </div>
+              <div class="field">
+                <label>Power Factor</label>
+                <select id="gen-pf">
+                  <option value="0.8">0.8</option>
+                  <option value="0.85">0.85</option>
+                  <option value="0.9">0.9</option>
+                  <option value="1.0">1.0 (unity)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- INFINITE -->
+          <div class="source-section" id="src-infinite">
+            <div class="field-row">
+              <div class="field">
+                <label>System Voltage <span class="unit-badge">V (L-L)</span></label>
+                <input type="number" id="inf-volts" value="440" min="100">
+              </div>
+              <div class="field">
+                <label>Available Fault <span class="unit-badge">kA</span></label>
+                <input type="number" id="inf-kva" value="65" min="1">
+              </div>
+            </div>
+            <div class="alert alert-warn">⚠ Maximum available fault current — all downstream equipment must be rated accordingly</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPONENT CHAIN -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="ph-icon" style="background:rgba(0,212,255,.1)">🔗</div>
+          <h2>System Components</h2>
+        </div>
+        <div class="panel-body">
+          <div class="chain" id="component-chain"></div>
+
+          <!-- ADD BUTTONS -->
+          <div class="add-btns">
+            <button class="add-btn" onclick="addComponent('cable')">+ Cable Run</button>
+            <button class="add-btn" onclick="addComponent('busway')">+ Busway</button>
+            <button class="add-btn" onclick="addComponent('motor')">+ Motor Load</button>
+            <button class="add-btn" onclick="addComponent('faultpoint')">+ Fault Point</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="calc-btn" onclick="calculate()">⚡ Calculate Fault Currents</button>
+    </div>
+
+    <!-- RIGHT: RESULTS -->
+    <div class="results-panel" id="results-panel">
+      <div class="panel" style="min-height:300px">
+        <div class="panel-header">
+          <div class="ph-icon" style="background:rgba(255,74,74,.1)">📊</div>
+          <h2>Results</h2>
+        </div>
+        <div class="empty-state" id="results-empty">
+          <div class="empty-icon">⚡</div>
+          <div class="empty-text">Configure your system and click<br>Calculate to see fault current results</div>
+        </div>
+        <div id="results-content" style="display:none;padding:20px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let sourceType = 'transformer';
+let components = [];
+let compId = 0;
+
+function switchSource(type) {
+  sourceType = type;
+  document.querySelectorAll('.source-tab').forEach((t,i) => {
+    t.classList.toggle('active', ['transformer','generator','infinite'][i] === type);
+  });
+  document.querySelectorAll('.source-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('src-'+type).classList.add('active');
+}
+
+function addComponent(type) {
+  const id = ++compId;
+  const defaults = {
+    cable: {label:'Cable Run', size:'3/0', length:100, qty:1, conduit:'Steel', wire:'Cu, 600V'},
+    busway: {label:'Busway', length:20, ampacity:1200, material:'Copper', type:'Plug-In'},
+    motor: {label:'Motor Load', voltage:440, fla:50},
+    faultpoint: {label:'Fault Point'}
+  };
+  components.push({id, type, open:true, ...defaults[type]});
+  renderChain();
+}
+
+function removeComponent(id) {
+  components = components.filter(c => c.id !== id);
+  renderChain();
+}
+
+function toggleComp(id) {
+  const c = components.find(x => x.id === id);
+  if(c) { c.open = !c.open; renderChain(); }
+}
+
+function updateField(id, field, value) {
+  const c = components.find(x => x.id === id);
+  if(c) c[field] = value;
+}
+
+const badgeClass = {cable:'badge-cable', busway:'badge-bus', motor:'badge-motor', faultpoint:'badge-gen'};
+const badgeLabel = {cable:'Cable', busway:'Busway', motor:'Motor', faultpoint:'Fault ✕'};
+
+function renderChain() {
+  const container = document.getElementById('component-chain');
+
+  if(components.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No components added yet</div>';
+    return;
+  }
+
+  container.innerHTML = components.map((c,i) => `
+    <div class="chain-item">
+      <div class="chain-line"></div>
+      <div class="chain-dot ${c.open?'active':''}"></div>
+      <div class="chain-content ${c.open?'active-card':''}">
+        <div class="chain-head" onclick="toggleComp(${c.id})">
+          <div class="chain-title">
+            <span class="chain-badge ${badgeClass[c.type]}">${badgeLabel[c.type]}</span>
+            <span style="font-size:12px;color:var(--muted)">#${i+1}</span>
+          </div>
+          <span class="chain-toggle ${c.open?'open':''}">›</span>
+        </div>
+        <div class="chain-body ${c.open?'open':''}">
+          ${renderCompFields(c)}
+          <button class="remove-btn" onclick="removeComponent(${c.id})">✕ Remove</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderCompFields(c) {
+  if(c.type === 'cable') return `
+    <div class="field-row">
+      <div class="field"><label>Length <span class="unit-badge">ft</span></label>
+        <input type="number" value="${c.length}" min="1" onchange="updateField(${c.id},'length',+this.value)"></div>
+      <div class="field"><label>Size</label>
+        <select onchange="updateField(${c.id},'size',this.value)">
+          ${['#14 AWG','#12 AWG','#10 AWG','#8 AWG','#6 AWG','#4 AWG','#2 AWG','#1 AWG','1/0','2/0','3/0','4/0','250 kcmil','350 kcmil','500 kcmil','750 kcmil'].map(s=>`<option ${s===c.size?'selected':''}>${s}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Qty / Phase</label>
+        <input type="number" value="${c.qty}" min="1" max="6" onchange="updateField(${c.id},'qty',+this.value)"></div>
+      <div class="field"><label>Conduit</label>
+        <select onchange="updateField(${c.id},'conduit',this.value)">
+          <option ${c.conduit==='Steel'?'selected':''}>Steel</option>
+          <option ${c.conduit==='Aluminum'?'selected':''}>Aluminum</option>
+          <option ${c.conduit==='PVC'?'selected':''}>PVC</option>
+          <option ${c.conduit==='None'?'selected':''}>None</option>
+        </select></div>
+    </div>
+    <div class="field"><label>Wire Type</label>
+      <select onchange="updateField(${c.id},'wire',this.value)">
+        <option ${c.wire==='Cu, 600V'?'selected':''}>Cu, 600V</option>
+        <option ${c.wire==='Al, 600V'?'selected':''}>Al, 600V</option>
+        <option ${c.wire==='Cu, 5kV'?'selected':''}>Cu, 5kV</option>
+        <option ${c.wire==='Al, 5kV'?'selected':''}>Al, 5kV</option>
+      </select></div>`;
+
+  if(c.type === 'busway') return `
+    <div class="field-row">
+      <div class="field"><label>Length <span class="unit-badge">ft</span></label>
+        <input type="number" value="${c.length}" min="1" onchange="updateField(${c.id},'length',+this.value)"></div>
+      <div class="field"><label>Ampacity <span class="unit-badge">A</span></label>
+        <select onchange="updateField(${c.id},'ampacity',+this.value)">
+          ${[400,600,800,1000,1200,1350,1600,2000,2500,3000,4000].map(a=>`<option ${a===c.ampacity?'selected':''}>${a}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Material</label>
+        <select onchange="updateField(${c.id},'material',this.value)">
+          <option ${c.material==='Copper'?'selected':''}>Copper</option>
+          <option ${c.material==='Aluminum'?'selected':''}>Aluminum</option>
+        </select></div>
+      <div class="field"><label>Type</label>
+        <select onchange="updateField(${c.id},'bustype',this.value)">
+          <option ${c.type==='Plug-In'?'selected':''}>Plug-In</option>
+          <option>Feeder</option>
+          <option>High-Impedance</option>
+        </select></div>
+    </div>`;
+
+  if(c.type === 'motor') return `
+    <div class="field-row">
+      <div class="field"><label>Voltage <span class="unit-badge">V</span></label>
+        <input type="number" value="${c.voltage}" onchange="updateField(${c.id},'voltage',+this.value)"></div>
+      <div class="field"><label>Full-Load Amps</label>
+        <input type="number" value="${c.fla}" min="1" onchange="updateField(${c.id},'fla',+this.value)"></div>
+    </div>
+    <div class="field-hint">Motor contribution = 4× FLA (IEEE standard)</div>`;
+
+  if(c.type === 'faultpoint') return `
+    <div class="field"><label>Location Label</label>
+      <input type="text" value="${c.label}" onchange="updateField(${c.id},'label',this.value)" style="font-family:var(--sans)"></div>
+    <div class="field-hint">Records I_sc at this exact point in the system</div>`;
+
+  return '';
+}
+
+// ============================================================
+// CALCULATION ENGINE
+// ============================================================
+
+// Cable impedance table (mohm/ft per conductor, from NEC Ch 9 Table 9)
+const cableZ = {
+  'Cu':{
+    '#14 AWG': {Steel:3.1, Aluminum:3.1, PVC:3.1, None:3.1},
+    '#12 AWG': {Steel:2.0, Aluminum:2.0, PVC:2.0, None:2.0},
+    '#10 AWG': {Steel:1.24, Aluminum:1.24, PVC:1.24, None:1.24},
+    '#8 AWG':  {Steel:0.78, Aluminum:0.78, PVC:0.78, None:0.78},
+    '#6 AWG':  {Steel:0.49, Aluminum:0.49, PVC:0.49, None:0.49},
+    '#4 AWG':  {Steel:0.31, Aluminum:0.31, PVC:0.31, None:0.31},
+    '#2 AWG':  {Steel:0.194, Aluminum:0.194, PVC:0.194, None:0.194},
+    '#1 AWG':  {Steel:0.154, Aluminum:0.154, PVC:0.154, None:0.154},
+    '1/0':     {Steel:0.122, Aluminum:0.122, PVC:0.122, None:0.122},
+    '2/0':     {Steel:0.097, Aluminum:0.097, PVC:0.097, None:0.097},
+    '3/0':     {Steel:0.077, Aluminum:0.077, PVC:0.077, None:0.077},
+    '4/0':     {Steel:0.061, Aluminum:0.061, PVC:0.061, None:0.061},
+    '250 kcmil':{Steel:0.052, Aluminum:0.052, PVC:0.052, None:0.052},
+    '350 kcmil':{Steel:0.037, Aluminum:0.037, PVC:0.037, None:0.037},
+    '500 kcmil':{Steel:0.027, Aluminum:0.027, PVC:0.027, None:0.027},
+    '750 kcmil':{Steel:0.018, Aluminum:0.018, PVC:0.018, None:0.018},
+  },
+  'Al':{
+    '#8 AWG':  {Steel:1.29, Aluminum:1.29, PVC:1.29, None:1.29},
+    '#6 AWG':  {Steel:0.81, Aluminum:0.81, PVC:0.81, None:0.81},
+    '#4 AWG':  {Steel:0.51, Aluminum:0.51, PVC:0.51, None:0.51},
+    '#2 AWG':  {Steel:0.32, Aluminum:0.32, PVC:0.32, None:0.32},
+    '#1 AWG':  {Steel:0.253, Aluminum:0.253, PVC:0.253, None:0.253},
+    '1/0':     {Steel:0.202, Aluminum:0.202, PVC:0.202, None:0.202},
+    '2/0':     {Steel:0.160, Aluminum:0.160, PVC:0.160, None:0.160},
+    '3/0':     {Steel:0.127, Aluminum:0.127, PVC:0.127, None:0.127},
+    '4/0':     {Steel:0.101, Aluminum:0.101, PVC:0.101, None:0.101},
+    '250 kcmil':{Steel:0.085, Aluminum:0.085, PVC:0.085, None:0.085},
+    '350 kcmil':{Steel:0.061, Aluminum:0.061, PVC:0.061, None:0.061},
+    '500 kcmil':{Steel:0.044, Aluminum:0.044, PVC:0.044, None:0.044},
+    '750 kcmil':{Steel:0.030, Aluminum:0.030, PVC:0.030, None:0.030},
+  }
+};
+
+// Busway Z table (mohm/ft)
+const buswayZ = {
+  'Copper':   {400:0.286, 600:0.190, 800:0.143, 1000:0.114, 1200:0.095, 1350:0.085, 1600:0.071, 2000:0.057, 2500:0.046, 3000:0.038, 4000:0.029},
+  'Aluminum': {400:0.340, 600:0.226, 800:0.170, 1000:0.136, 1200:0.113, 1350:0.101, 1600:0.085, 2000:0.068, 2500:0.054, 3000:0.045, 4000:0.034},
+};
+
+function getSourceIsc() {
+  let isc = 0, volts = 440;
+
+  if(sourceType === 'transformer') {
+    const kva = +document.getElementById('xfmr-kva').value;
+    volts = +document.getElementById('xfmr-volts').value;
+    let pz = +document.getElementById('xfmr-z').value;
+    const tol = document.getElementById('xfmr-ztol').value;
+    if(tol === '-10') pz *= 0.9;
+    else if(tol === '+10') pz *= 1.1;
+    const ifl = (kva * 1000) / (Math.sqrt(3) * volts);
+    isc = ifl / (pz / 100);
+  } else if(sourceType === 'generator') {
+    const kva = +document.getElementById('gen-kva').value;
+    volts = +document.getElementById('gen-volts').value;
+    const xd = +document.getElementById('gen-xd').value;
+    const ifl = (kva * 1000) / (Math.sqrt(3) * volts);
+    isc = ifl / (xd / 100);
+  } else {
+    volts = +document.getElementById('inf-volts').value;
+    const kA = +document.getElementById('inf-kva').value;
+    isc = kA * 1000;
+  }
+  return {isc: Math.round(isc), volts};
+}
+
+function getCableZ(c) {
+  const isAl = c.wire.startsWith('Al');
+  const mat = isAl ? 'Al' : 'Cu';
+  const table = cableZ[mat] || cableZ['Cu'];
+  const sizeRow = table[c.size] || {Steel:0.077,Aluminum:0.077,PVC:0.077,None:0.077};
+  const conduit = c.conduit || 'Steel';
+  const zPerFt = sizeRow[conduit] || sizeRow['Steel'];
+  // Total Z in milliohms: zPerFt × length / qty (parallel conductors)
+  return (zPerFt * c.length) / (c.qty || 1);
+}
+
+function getBuswayZ(c) {
+  const mat = c.material || 'Copper';
+  const amp = c.ampacity || 1200;
+  const table = buswayZ[mat] || buswayZ['Copper'];
+  const zPerFt = table[amp] || table[1200];
+  return zPerFt * c.length;
+}
+
+function calculate() {
+  const {isc: srcIsc, volts} = getSourceIsc();
+  const vll = volts;
+
+  // Base impedance at fault point
+  // Z_base = V²/(MVA) but we work in milliohms
+  // Z_source (milliohms) = (V_ln / sqrt(3)) / Isc * 1000
+  // Actually simpler: Z_source = V / (sqrt(3) * Isc) in ohms
+  let Z_total_mohm = (vll / (Math.sqrt(3) * srcIsc)) * 1000; // milliohms
+
+  let motorContrib = 0;
+  const faultPoints = [];
+  const nodeList = []; // for one-line diagram
+
+  // Source node
+  nodeList.push({type: sourceType, label: sourceType==='transformer'?'Transformer T1':sourceType==='generator'?'Generator G1':'Infinite Bus', isc: srcIsc, motorContrib: 0, total: srcIsc, volts});
+
+  let runningMotorContrib = 0;
+
+  components.forEach((c, idx) => {
+    if(c.type === 'motor') {
+      const contrib = Math.round(c.fla * 4);
+      runningMotorContrib += contrib;
+      motorContrib = runningMotorContrib;
+      nodeList.push({type:'motor', label:`Motor M${idx+1}`, fla: c.fla, contrib, isc: null});
+      return;
+    }
+
+    if(c.type === 'cable') {
+      const dz = getCableZ(c);
+      Z_total_mohm += dz;
+      const newIsc = Math.round((vll / (Math.sqrt(3) * Z_total_mohm / 1000)));
+      const total = newIsc + runningMotorContrib;
+      nodeList.push({type:'cable', label:`Cable C${idx+1}`, size: c.size, length: c.length, isc: newIsc, motorContrib: runningMotorContrib, total, volts});
+    }
+
+    if(c.type === 'busway') {
+      const dz = getBuswayZ(c);
+      Z_total_mohm += dz;
+      const newIsc = Math.round((vll / (Math.sqrt(3) * Z_total_mohm / 1000)));
+      const total = newIsc + runningMotorContrib;
+      nodeList.push({type:'busway', label:`Bus B${idx+1}`, ampacity: c.ampacity, length: c.length, isc: newIsc, motorContrib: runningMotorContrib, total, volts});
+    }
+
+    if(c.type === 'faultpoint') {
+      const curIsc = Math.round((vll / (Math.sqrt(3) * Z_total_mohm / 1000)));
+      const total = curIsc + runningMotorContrib;
+      nodeList.push({type:'faultpoint', label: c.label || `Fault X${idx+1}`, isc: curIsc, motorContrib: runningMotorContrib, total, volts});
+      faultPoints.push({label: c.label || `Fault X${idx+1}`, isc: curIsc, motorContrib: runningMotorContrib, total, volts});
+    }
+  });
+
+  // If no explicit fault points, show final fault at end of chain
+  const finalIsc = Math.round((vll / (Math.sqrt(3) * Z_total_mohm / 1000)));
+  const finalTotal = finalIsc + runningMotorContrib;
+
+  renderResults(nodeList, faultPoints, finalIsc, finalTotal, runningMotorContrib, vll);
+}
+
+function renderResults(nodeList, faultPoints, finalIsc, finalTotal, motorContrib, vll) {
+  document.getElementById('results-empty').style.display = 'none';
+  const content = document.getElementById('results-content');
+  content.style.display = 'block';
+
+  // Build fault cards
+  const faultNodes = nodeList.filter(n => n.type === 'faultpoint' || (n.isc !== null && ['transformer','generator','infinite','cable','busway'].includes(n.type)));
+  if(faultNodes.length === 0) {
+    // Show final
+    faultNodes.push({type:'faultpoint', label:'End of System', isc: finalIsc, motorContrib, total: finalTotal, volts: vll});
+  }
+
+  const colorClass = {transformer:'fault-xfmr', generator:'fault-gen', infinite:'fault-gen', cable:'fault-cable', busway:'fault-bus', faultpoint:'fault-end'};
+
+  let html = '';
+
+  // System summary strip
+  html += `<div class="sys-summary" style="margin-bottom:16px">
+    <div class="summary-grid">
+      <div class="summary-item"><div class="si-val">${(finalTotal/1000).toFixed(2)}</div><div class="si-label">Max Fault (kA)</div></div>
+      <div class="summary-item"><div class="si-val">${vll}</div><div class="si-label">Voltage (V)</div></div>
+      <div class="summary-item"><div class="si-val">${motorContrib}</div><div class="si-label">Motor Contrib (A)</div></div>
+      <div class="summary-item"><div class="si-val">${nodeList.filter(n=>n.type==='motor').length}</div><div class="si-label">Motor Loads</div></div>
+    </div>
+  </div>`;
+
+  // One-line diagram
+  html += `<div class="oneline-wrap" style="margin-bottom:16px">
+    <div class="oneline-header"><h2>One-Line Diagram</h2><span style="font-size:11px;color:var(--muted)">Schematic view</span></div>
+    <div class="oneline-svg-wrap">${buildOneLine(nodeList, vll)}</div>
+  </div>`;
+
+  // Fault current cards
+  html += `<div class="fault-cards">`;
+  faultNodes.forEach(n => {
+    if(n.isc === null) return;
+    html += `<div class="fault-card ${colorClass[n.type]||'fault-end'}">
+      <div class="fault-label"><span>📍</span><span class="fl-name">${n.label}</span> — Three-Phase Fault</div>
+      <div class="fault-metrics">
+        <div class="fault-metric">
+          <div class="fm-label">I sc (L-L-L)</div>
+          <div class="fm-value">${n.isc.toLocaleString()}<span class="fm-unit">A</span></div>
+        </div>
+        <div class="fault-metric">
+          <div class="fm-label">Motor Contrib</div>
+          <div class="fm-value">${n.motorContrib.toLocaleString()}<span class="fm-unit">A</span></div>
+        </div>
+        <div class="fault-metric">
+          <div class="fm-label">I total sc</div>
+          <div class="fm-value highlight">${n.total.toLocaleString()}<span class="fm-unit">A</span></div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // SCCR guide
+  const maxFault = finalTotal;
+  const ratings = [5000, 10000, 14000, 18000, 22000, 30000, 42000, 65000, 100000];
+  const minRating = ratings.find(r => r >= maxFault) || 100000;
+  const prev = ratings[ratings.indexOf(minRating)-1] || 0;
+
+  html += `<div class="sccr-box" style="margin-top:4px">
+    <div class="sccr-title">SCCR Recommendation</div>
+    <div class="sccr-rating-grid">
+      ${ratings.map(r => {
+        let cls = r < maxFault ? 'fail' : r === minRating ? 'warn' : 'ok';
+        let desc = r < maxFault ? 'Insufficient' : r === minRating ? 'Minimum required' : 'Suitable';
+        return `<div class="sccr-item ${cls}">
+          <div class="sccr-loc">${desc}</div>
+          <div class="sccr-val">${(r/1000).toFixed(0)}kA</div>
+          <div class="sccr-desc">${r.toLocaleString()} A RMS</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="alert alert-warn" style="margin-top:12px">⚠ All equipment must be rated ≥ <strong>${minRating.toLocaleString()} A</strong> (${(minRating/1000).toFixed(0)} kA) SCCR at ${vll}V</div>
+  </div>`;
+
+  content.innerHTML = html;
+}
+
+// ONE-LINE SVG BUILDER
+function buildOneLine(nodeList, vll) {
+  const W = 600, nodeW = 130, nodeH = 48;
+  let y = 20;
+  const cx = W/2;
+  let svgElems = [];
+  let prevY = 0;
+
+  // Source symbol at top
+  const srcNode = nodeList[0];
+  // Draw source icon
+  svgElems.push(`<text x="${cx}" y="${y+16}" text-anchor="middle" font-size="11" fill="#6b7fa3" font-family="DM Mono,monospace">∞ PRIMARY SOURCE</text>`);
+  y += 30;
+  // Transformer symbol (zigzag coils)
+  if(srcNode.type === 'transformer') {
+    // Simple transformer box
+    svgElems.push(`<rect x="${cx-65}" y="${y}" width="130" height="${nodeH}" rx="8" fill="rgba(176,102,255,.15)" stroke="rgba(176,102,255,.4)" stroke-width="1"/>`);
+    svgElems.push(`<text x="${cx}" y="${y+18}" text-anchor="middle" font-size="11" font-weight="600" fill="#b066ff" font-family="DM Mono,monospace">TRANSFORMER T1</text>`);
+    svgElems.push(`<text x="${cx}" y="${y+34}" text-anchor="middle" font-size="10" fill="#6b7fa3" font-family="DM Mono,monospace">${document.getElementById('xfmr-kva')?.value||'?'}kVA · ${vll}V · ${document.getElementById('xfmr-z')?.value||'?'}%Z</text>`);
+    prevY = y + nodeH;
+    y += nodeH + 8;
+    // Fault X1 at source
+    svgElems.push(`<line x1="${cx}" y1="${prevY}" x2="${cx}" y2="${y+4}" stroke="rgba(255,74,74,.5)" stroke-width="1.5" stroke-dasharray="4,3"/>`);
+    svgElems.push(`<text x="${cx+14}" y="${y+16}" font-size="10" fill="var(--danger,#ff4a4a)" font-family="DM Mono,monospace">✕ X1</text>`);
+    svgElems.push(`<text x="${cx+14}" y="${y+28}" font-size="10" fill="#6b7fa3" font-family="DM Mono,monospace">${srcNode.isc.toLocaleString()} A</text>`);
+    y += 40;
+  } else if(srcNode.type === 'generator') {
+    svgElems.push(`<circle cx="${cx}" cy="${y+24}" r="28" fill="rgba(255,74,74,.1)" stroke="rgba(255,74,74,.4)" stroke-width="1"/>`);
+    svgElems.push(`<text x="${cx}" y="${y+22}" text-anchor="middle" font-size="13" font-weight="600" fill="#ff4a4a" font-family="DM Mono,monospace">G</text>`);
+    svgElems.push(`<text x="${cx}" y="${y+34}" text-anchor="middle" font-size="9" fill="#6b7fa3" font-family="DM Mono,monospace">Generator</text>`);
+    prevY = y + 52;
+    y += 56;
+    svgElems.push(`<text x="${cx+14}" y="${y+4}" font-size="10" fill="#ff4a4a" font-family="DM Mono,monospace">✕ G1: ${srcNode.isc.toLocaleString()} A</text>`);
+    y += 24;
+  } else {
+    svgElems.push(`<rect x="${cx-65}" y="${y}" width="130" height="${nodeH}" rx="8" fill="rgba(255,74,74,.1)" stroke="rgba(255,74,74,.4)" stroke-width="1"/>`);
+    svgElems.push(`<text x="${cx}" y="${y+20}" text-anchor="middle" font-size="11" font-weight="600" fill="#ff4a4a" font-family="DM Mono,monospace">INFINITE BUS</text>`);
+    svgElems.push(`<text x="${cx}" y="${y+36}" text-anchor="middle" font-size="10" fill="#6b7fa3" font-family="DM Mono,monospace">${srcNode.isc.toLocaleString()} A available</text>`);
+    prevY = y + nodeH;
+    y += nodeH + 30;
+  }
+
+  nodeList.slice(1).forEach((n, i) => {
+    if(n.type === 'motor') {
+      // Motor branch off to the side
+      const mx = cx + 100;
+      const my = y - 20;
+      svgElems.push(`<line x1="${cx}" y1="${my}" x2="${mx-20}" y2="${my}" stroke="rgba(0,230,118,.4)" stroke-width="1.5"/>`);
+      svgElems.push(`<circle cx="${mx}" cy="${my}" r="18" fill="rgba(0,230,118,.1)" stroke="rgba(0,230,118,.4)" stroke-width="1"/>`);
+      svgElems.push(`<text x="${mx}" y="${my+4}" text-anchor="middle" font-size="11" font-weight="600" fill="#00e676" font-family="DM Mono,monospace">M</text>`);
+      svgElems.push(`<text x="${mx+24}" y="${my+4}" font-size="9" fill="#6b7fa3" font-family="DM Mono,monospace">${n.fla}A FLA</text>`);
+      svgElems.push(`<text x="${mx+24}" y="${my+15}" font-size="9" fill="#00e676" font-family="DM Mono,monospace">+${n.contrib}A</text>`);
+      return;
+    }
+
+    // Main line
+    svgElems.push(`<line x1="${cx}" y1="${y-4}" x2="${cx}" y2="${y+10}" stroke="rgba(255,255,255,.15)" stroke-width="2"/>`);
+    y += 14;
+
+    if(n.type === 'cable') {
+      // Draw conductor symbol
+      svgElems.push(`<rect x="${cx-70}" y="${y}" width="140" height="${nodeH}" rx="6" fill="rgba(0,212,255,.08)" stroke="rgba(0,212,255,.3)" stroke-width="1"/>`);
+      svgElems.push(`<text x="${cx}" y="${y+18}" text-anchor="middle" font-size="10" font-weight="600" fill="#00d4ff" font-family="DM Mono,monospace">CONDUCTOR ${n.label.replace(/[^0-9]/g,'C$&').slice(0,10)}</text>`);
+      svgElems.push(`<text x="${cx}" y="${y+32}" text-anchor="middle" font-size="9" fill="#6b7fa3" font-family="DM Mono,monospace">${n.size} · ${n.length}ft</text>`);
+      y += nodeH + 10;
+      // Fault mark
+      svgElems.push(`<line x1="${cx}" y1="${y-8}" x2="${cx}" y2="${y+4}" stroke="rgba(255,74,74,.5)" stroke-width="1" stroke-dasharray="3,2"/>`);
+      svgElems.push(`<text x="${cx+10}" y="${y+14}" font-size="10" fill="#ff4a4a" font-family="DM Mono,monospace">✕ ${n.total.toLocaleString()} A</text>`);
+      y += 28;
+    }
+
+    if(n.type === 'busway') {
+      svgElems.push(`<rect x="${cx-70}" y="${y}" width="140" height="${nodeH}" rx="6" fill="rgba(245,166,35,.08)" stroke="rgba(245,166,35,.35)" stroke-width="1"/>`);
+      svgElems.push(`<text x="${cx}" y="${y+18}" text-anchor="middle" font-size="10" font-weight="600" fill="#f5a623" font-family="DM Mono,monospace">BUS RUN ${n.label.replace(/[^0-9]/g,'')}</text>`);
+      svgElems.push(`<text x="${cx}" y="${y+32}" text-anchor="middle" font-size="9" fill="#6b7fa3" font-family="DM Mono,monospace">${n.ampacity}A · ${n.length}ft</text>`);
+      y += nodeH + 10;
+      svgElems.push(`<line x1="${cx}" y1="${y-8}" x2="${cx}" y2="${y+4}" stroke="rgba(255,74,74,.5)" stroke-width="1" stroke-dasharray="3,2"/>`);
+      svgElems.push(`<text x="${cx+10}" y="${y+14}" font-size="10" fill="#ff4a4a" font-family="DM Mono,monospace">✕ ${n.total.toLocaleString()} A</text>`);
+      y += 28;
+    }
+
+    if(n.type === 'faultpoint') {
+      svgElems.push(`<rect x="${cx-70}" y="${y}" width="140" height="40" rx="6" fill="rgba(255,74,74,.12)" stroke="rgba(255,74,74,.5)" stroke-width="1.5"/>`);
+      svgElems.push(`<text x="${cx}" y="${y+16}" text-anchor="middle" font-size="11" font-weight="600" fill="#ff4a4a" font-family="DM Mono,monospace">✕ FAULT</text>`);
+      svgElems.push(`<text x="${cx}" y="${y+30}" text-anchor="middle" font-size="10" fill="#e8edf5" font-family="DM Mono,monospace">${n.total.toLocaleString()} A (total)</text>`);
+      y += 54;
+    }
+  });
+
+  // End ground symbol
+  const gh = y + 10;
+  svgElems.push(`<line x1="${cx}" y1="${y}" x2="${cx}" y2="${gh}" stroke="rgba(255,255,255,.2)" stroke-width="2"/>`);
+  svgElems.push(`<line x1="${cx-16}" y1="${gh}" x2="${cx+16}" y2="${gh}" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>`);
+  svgElems.push(`<line x1="${cx-10}" y1="${gh+5}" x2="${cx+10}" y2="${gh+5}" stroke="rgba(255,255,255,.2)" stroke-width="1.5"/>`);
+  svgElems.push(`<line x1="${cx-4}" y1="${gh+10}" x2="${cx+4}" y2="${gh+10}" stroke="rgba(255,255,255,.1)" stroke-width="1.5"/>`);
+  y = gh + 20;
+
+  return `<svg width="${W}" height="${y+10}" viewBox="0 0 ${W} ${y+10}" style="display:block">${svgElems.join('')}</svg>`;
+}
+
+// INITIALIZE with a default example
+(function init() {
+  // Pre-populate with the document's example
+  addComponent('cable');
+  setTimeout(() => {
+    const c = components[0];
+    c.length = 100;
+    c.size = '3/0';
+    c.qty = 4;
+    c.conduit = 'Steel';
+    renderChain();
+
+    addComponent('busway');
+    setTimeout(() => {
+      const b = components[1];
+      b.length = 20;
+      b.ampacity = 1200;
+      b.material = 'Copper';
+      renderChain();
+
+      addComponent('motor');
+      setTimeout(() => {
+        const m = components[2];
+        m.fla = 50;
+        m.voltage = 440;
+        renderChain();
+
+        addComponent('faultpoint');
+        setTimeout(() => {
+          components[3].label = 'Fault X2';
+          renderChain();
+        }, 0);
+      }, 0);
+    }, 0);
+  }, 0);
+})();
+</script>
+</body>
+</html>
