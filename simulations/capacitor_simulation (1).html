@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capacitor Interactive Simulation</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #0f1629;
+    --border: #1e3a5f;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --green: #00ff88;
+    --pos: #ff4466;
+    --neg: #4488ff;
+    --text: #c8e0ff;
+    --dim: #4a6080;
+    --glow: 0 0 20px rgba(0,212,255,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(0,100,200,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(0,212,255,0.05) 0%, transparent 50%);
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  header h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    letter-spacing: 3px;
+  }
+
+  header p {
+    color: var(--dim);
+    font-size: 0.8rem;
+    margin-top: 4px;
+    letter-spacing: 2px;
+  }
+
+  .formula-bar {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 28px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    box-shadow: var(--glow);
+  }
+
+  .formula-bar span.var { color: var(--accent); font-weight: bold; }
+  .formula-bar span.eq { color: var(--text); }
+  .formula-bar span.eps { color: var(--green); }
+  .formula-bar span.val { color: var(--accent2); font-family: 'Orbitron', sans-serif; font-size: 1.3rem; }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 20px;
+    width: 100%;
+    max-width: 1000px;
+  }
+
+  .sim-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .sim-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,212,255,0.03) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .sim-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    color: var(--dim);
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+
+  canvas#capCanvas {
+    display: block;
+    width: 100%;
+    border-radius: 8px;
+    background: transparent;
+  }
+
+  .controls-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .ctrl-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .ctrl-card h3 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    color: var(--dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .slider-row {
+    margin-bottom: 14px;
+  }
+
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+  }
+
+  .slider-label .name { color: var(--text); }
+  .slider-label .val-display {
+    color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75rem;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(0,212,255,0.6);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  input[type=range].area-slider::-webkit-slider-thumb { background: var(--green); box-shadow: 0 0 10px rgba(0,255,136,0.6); }
+  input[type=range].voltage-slider::-webkit-slider-thumb { background: var(--accent2); box-shadow: 0 0 10px rgba(255,107,53,0.6); }
+  input[type=range].dielectric-slider::-webkit-slider-thumb { background: #cc88ff; box-shadow: 0 0 10px rgba(200,136,255,0.6); }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .metric-box {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .metric-box .m-label {
+    font-size: 0.65rem;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .metric-box .m-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .metric-box.cap .m-val { color: var(--accent); }
+  .metric-box.charge .m-val { color: var(--accent2); }
+  .metric-box.energy .m-val { color: var(--green); }
+  .metric-box.field .m-val { color: #cc88ff; }
+
+  .charge-bar-section { margin-top: 10px; }
+
+  .charge-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+  }
+
+  .bar-track {
+    height: 12px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s ease;
+  }
+
+  .bar-fill.pos { background: linear-gradient(90deg, #ff2244, #ff6688); }
+  .bar-fill.neg { background: linear-gradient(90deg, #2244ff, #4488ff); }
+
+  .info-box {
+    background: rgba(0,212,255,0.05);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.75rem;
+    color: var(--dim);
+    line-height: 1.6;
+  }
+
+  .info-box span { color: var(--accent); }
+
+  /* Max value input row */
+  .max-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 5px;
+    margin-bottom: 14px;
+  }
+  .max-row label {
+    font-size: 0.7rem;
+    color: var(--dim);
+    white-space: nowrap;
+    letter-spacing: 1px;
+  }
+  .max-input {
+    background: rgba(0,0,0,0.35);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.72rem;
+    padding: 4px 8px;
+    width: 90px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .max-input:focus { border-color: var(--accent); box-shadow: 0 0 6px rgba(0,212,255,0.3); }
+  .max-input.area-max:focus   { border-color: var(--green);  box-shadow: 0 0 6px rgba(0,255,136,0.3); }
+  .max-input.volt-max:focus   { border-color: var(--accent2);box-shadow: 0 0 6px rgba(255,107,53,0.3); }
+  .max-input.diel-max:focus   { border-color: #cc88ff;       box-shadow: 0 0 6px rgba(200,136,255,0.3); }
+
+  .set-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .set-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.07); }
+  .set-btn:active { transform: scale(0.95); }
+
+  @media (max-width: 760px) {
+    .main-grid { grid-template-columns: 1fr; }
+    header h1 { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ CAPACITOR SIMULATOR</h1>
+  <p>PARALLEL PLATE — INTERACTIVE PHYSICS ENGINE</p>
+</header>
+
+<div class="formula-bar">
+  <span class="var">C</span>
+  <span class="eq"> = </span>
+  <span class="eps">ε₀ · κ · A</span>
+  <span class="eq"> / </span>
+  <span class="eps">d</span>
+  <span class="eq"> &nbsp;=&nbsp; </span>
+  <span class="val" id="formulaVal">—</span>
+  <span class="eq"> F</span>
+</div>
+
+<div class="main-grid">
+  <!-- Simulation Canvas -->
+  <div class="sim-panel">
+    <div class="sim-title">▶ Live Visualization</div>
+    <canvas id="capCanvas" width="580" height="400"></canvas>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-panel">
+
+    <div class="ctrl-card">
+      <h3>⚙ Parameters</h3>
+
+      <!-- Area -->
+      <div class="slider-row">
+        <div class="slider-label">
+          <span class="name">Plate Area (A)</span>
+          <span class="val-display" id="areaDisplay">1.50 m²</span>
+        </div>
+        <input type="range" class="area-slider" id="areaSlider" min="0.1" max="4" step="0.01" value="1.5">
+        <div class="max-row">
+          <label>MAX →</label>
+          <input type="number" class="max-input area-max" id="areaMax" value="4" min="0.2" step="0.5" placeholder="max m²">
+          <button class="set-btn" onclick="applyMax('area')">SET</button>
+        </div>
+      </div>
+
+      <!-- Distance -->
+      <div class="slider-row">
+        <div class="slider-label">
+          <span class="name">Plate Distance (d)</span>
+          <span class="val-display" id="distDisplay">5.0 mm</span>
+        </div>
+        <input type="range" id="distSlider" min="0.5" max="20" step="0.1" value="5">
+        <div class="max-row">
+          <label>MAX →</label>
+          <input type="number" class="max-input" id="distMax" value="20" min="1" step="1" placeholder="max mm">
+          <button class="set-btn" onclick="applyMax('dist')">SET</button>
+        </div>
+      </div>
+
+      <!-- Voltage -->
+      <div class="slider-row">
+        <div class="slider-label">
+          <span class="name">Voltage (V)</span>
+          <span class="val-display" id="voltDisplay">12.0 V</span>
+        </div>
+        <input type="range" class="voltage-slider" id="voltSlider" min="0" max="50" step="0.5" value="12">
+        <div class="max-row">
+          <label>MAX →</label>
+          <input type="number" class="max-input volt-max" id="voltMax" value="50" min="1" step="10" placeholder="max V">
+          <button class="set-btn" onclick="applyMax('volt')">SET</button>
+        </div>
+      </div>
+
+      <!-- Dielectric -->
+      <div class="slider-row">
+        <div class="slider-label">
+          <span class="name">Dielectric (κ)</span>
+          <span class="val-display" id="kDisplay">1.0</span>
+        </div>
+        <input type="range" class="dielectric-slider" id="kSlider" min="1" max="10" step="0.1" value="1">
+        <div class="max-row">
+          <label>MAX →</label>
+          <input type="number" class="max-input diel-max" id="kMax" value="10" min="1.1" step="1" placeholder="max κ">
+          <button class="set-btn" onclick="applyMax('k')">SET</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ctrl-card">
+      <h3>📊 Live Metrics</h3>
+      <div class="metrics-grid">
+        <div class="metric-box cap">
+          <div class="m-label">Capacitance</div>
+          <div class="m-val" id="capVal">—</div>
+          <div style="font-size:0.65rem;color:var(--dim);margin-top:2px">pF</div>
+        </div>
+        <div class="metric-box charge">
+          <div class="m-label">Charge (Q)</div>
+          <div class="m-val" id="chargeVal">—</div>
+          <div style="font-size:0.65rem;color:var(--dim);margin-top:2px">nC</div>
+        </div>
+        <div class="metric-box energy">
+          <div class="m-label">Energy (U)</div>
+          <div class="m-val" id="energyVal">—</div>
+          <div style="font-size:0.65rem;color:var(--dim);margin-top:2px">nJ</div>
+        </div>
+        <div class="metric-box field">
+          <div class="m-label">E-Field</div>
+          <div class="m-val" id="fieldVal">—</div>
+          <div style="font-size:0.65rem;color:var(--dim);margin-top:2px">V/m</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ctrl-card">
+      <h3>⚡ Charge Distribution</h3>
+      <div class="charge-bar-section">
+        <div class="charge-bar-label">
+          <span style="color:var(--pos)">+ Positive Plate</span>
+          <span id="posChargeNum" style="color:var(--pos)">0 charges</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill pos" id="posBar" style="width:0%"></div></div>
+        <div class="charge-bar-label">
+          <span style="color:var(--neg)">− Negative Plate</span>
+          <span id="negChargeNum" style="color:var(--neg)">0 charges</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill neg" id="negBar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <span>ε₀</span> = 8.854 × 10⁻¹² F/m &nbsp;|&nbsp; <span>κ</span> = dielectric constant<br>
+      <span>Q = C·V</span> &nbsp;|&nbsp; <span>U = ½CV²</span> &nbsp;|&nbsp; <span>E = V/d</span><br>
+      Larger area → more capacitance<br>
+      Greater distance → less capacitance
+    </div>
+
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('capCanvas');
+const ctx = canvas.getContext('2d');
+
+const eps0 = 8.854e-12;
+let animFrame = 0;
+
+function getVals() {
+  const A = parseFloat(document.getElementById('areaSlider').value);
+  const d = parseFloat(document.getElementById('distSlider').value) / 1000; // mm to m
+  const V = parseFloat(document.getElementById('voltSlider').value);
+  const k = parseFloat(document.getElementById('kSlider').value);
+  const C = eps0 * k * A / d;
+  const Q = C * V;
+  const U = 0.5 * C * V * V;
+  const E = V / d;
+  return { A, d, V, k, C, Q, U, E };
+}
+
+function updateUI() {
+  const { A, d, V, k, C, Q, U, E } = getVals();
+
+  document.getElementById('areaDisplay').textContent = A.toFixed(2) + ' m²';
+  document.getElementById('distDisplay').textContent = (d * 1000).toFixed(1) + ' mm';
+  document.getElementById('voltDisplay').textContent = V.toFixed(1) + ' V';
+  document.getElementById('kDisplay').textContent = k.toFixed(1);
+
+  document.getElementById('formulaVal').textContent = (C * 1e12).toFixed(3) + ' p';
+  document.getElementById('capVal').textContent = (C * 1e12).toFixed(3);
+  document.getElementById('chargeVal').textContent = (Q * 1e9).toFixed(3);
+  document.getElementById('energyVal').textContent = (U * 1e9).toFixed(3);
+  document.getElementById('fieldVal').textContent = E.toFixed(1);
+
+  const maxQ = eps0 * 10 * 4 / 0.002 * 50;
+  const pct = Math.min(100, (Q / maxQ) * 100);
+  document.getElementById('posBar').style.width = pct + '%';
+  document.getElementById('negBar').style.width = pct + '%';
+  const numCharges = Math.round(pct / 100 * 40);
+  document.getElementById('posChargeNum').textContent = numCharges + ' charges';
+  document.getElementById('negChargeNum').textContent = numCharges + ' charges';
+}
+
+// Charge particles
+let particles = [];
+class Particle {
+  constructor(x, y, charge) {
+    this.x = x; this.y = y; this.charge = charge;
+    this.vx = (Math.random() - 0.5) * 0.4;
+    this.vy = (Math.random() - 0.5) * 0.4;
+    this.alpha = Math.random() * 0.5 + 0.5;
+    this.life = Math.random() * 200 + 100;
+    this.maxLife = this.life;
+  }
+  update() {
+    this.x += this.vx; this.y += this.vy; this.life--;
+    this.alpha = (this.life / this.maxLife) * 0.8;
+  }
+}
+
+function spawnParticles(plateX, plateY, plateW, plateH, charge, count) {
+  for (let i = 0; i < count; i++) {
+    const x = plateX + Math.random() * plateW;
+    const y = plateY + Math.random() * plateH;
+    particles.push(new Particle(x, y, charge));
+  }
+}
+
+let lastC = 0;
+function draw() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const { A, d, V, k, C, Q } = getVals();
+  animFrame++;
+
+  // Layout — scale visuals relative to current slider maxes
+  const aMax = parseFloat(document.getElementById('areaSlider').max) || 4;
+  const dMax = parseFloat(document.getElementById('distSlider').max) || 20;
+  const cx = W / 2;
+  const plateW = 60 + (A / aMax) * 240;
+  const plateH = 18;
+  const dMm = d * 1000;
+  const dMinMm = 0.5;
+  const gapPx = 50 + ((dMm - dMinMm) / (dMax - dMinMm)) * 130;
+  const topPlateY = H / 2 - gapPx / 2 - plateH;
+  const botPlateY = H / 2 + gapPx / 2;
+  const plateX = cx - plateW / 2;
+
+  // Background glow in gap
+  const gradient = ctx.createLinearGradient(cx, topPlateY + plateH, cx, botPlateY);
+  const vMax = parseFloat(document.getElementById('voltSlider').max) || 50;
+  const fieldStrength = vMax > 0 ? Math.min(1, V / vMax) : 0;
+  gradient.addColorStop(0, `rgba(255, 80, 80, ${0.05 + fieldStrength * 0.1})`);
+  gradient.addColorStop(0.5, `rgba(120, 120, 255, ${0.03 + fieldStrength * 0.07})`);
+  gradient.addColorStop(1, `rgba(60, 80, 255, ${0.05 + fieldStrength * 0.1})`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(plateX - 20, topPlateY + plateH, plateW + 40, gapPx);
+
+  // Electric field lines
+  if (V > 0) {
+    const numLines = Math.max(3, Math.floor(A * 4));
+    const spacing = plateW / (numLines + 1);
+    for (let i = 1; i <= numLines; i++) {
+      const lx = plateX + i * spacing;
+      const alpha = 0.15 + fieldStrength * 0.3;
+      ctx.save();
+      ctx.strokeStyle = `rgba(160, 200, 255, ${alpha})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.lineDashOffset = -(animFrame * 0.5) % 8;
+      ctx.beginPath();
+      ctx.moveTo(lx, topPlateY + plateH + 2);
+      ctx.lineTo(lx, botPlateY - 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Arrow
+      const arrowY = topPlateY + plateH + gapPx / 2;
+      ctx.save();
+      ctx.fillStyle = `rgba(160, 200, 255, ${alpha + 0.1})`;
+      ctx.beginPath();
+      ctx.moveTo(lx, arrowY + 7);
+      ctx.lineTo(lx - 4, arrowY - 4);
+      ctx.lineTo(lx + 4, arrowY - 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // Top plate (positive)
+  const posGrad = ctx.createLinearGradient(plateX, topPlateY, plateX, topPlateY + plateH);
+  posGrad.addColorStop(0, '#ff6688');
+  posGrad.addColorStop(1, '#cc2244');
+  ctx.fillStyle = posGrad;
+  ctx.beginPath();
+  ctx.roundRect(plateX, topPlateY, plateW, plateH, 4);
+  ctx.fill();
+  ctx.strokeStyle = '#ff4466';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Glow on top plate
+  ctx.shadowColor = '#ff4466';
+  ctx.shadowBlur = 12 + fieldStrength * 10;
+  ctx.fillStyle = 'transparent';
+  ctx.beginPath();
+  ctx.roundRect(plateX, topPlateY, plateW, plateH, 4);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Bottom plate (negative)
+  const negGrad = ctx.createLinearGradient(plateX, botPlateY, plateX, botPlateY + plateH);
+  negGrad.addColorStop(0, '#224488');
+  negGrad.addColorStop(1, '#4488ff');
+  ctx.fillStyle = negGrad;
+  ctx.beginPath();
+  ctx.roundRect(plateX, botPlateY, plateW, plateH, 4);
+  ctx.fill();
+  ctx.strokeStyle = '#4488ff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.shadowColor = '#4488ff';
+  ctx.shadowBlur = 12 + fieldStrength * 10;
+  ctx.fillStyle = 'transparent';
+  ctx.beginPath();
+  ctx.roundRect(plateX, botPlateY, plateW, plateH, 4);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // +/- Charges on plates
+  const maxCharges = 40;
+  const numCharges = Math.min(maxCharges, Math.round(fieldStrength * maxCharges));
+  const chargeSpacing = plateW / (numCharges + 1);
+
+  ctx.font = 'bold 11px Share Tech Mono';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 1; i <= numCharges; i++) {
+    const cx2 = plateX + i * chargeSpacing;
+    const pulse = 0.7 + Math.sin(animFrame * 0.05 + i) * 0.3;
+    ctx.globalAlpha = pulse;
+
+    // + on top plate
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#ffaabb';
+    ctx.shadowBlur = 6;
+    ctx.fillText('+', cx2, topPlateY + plateH / 2);
+
+    // - on bottom plate
+    ctx.fillStyle = '#aaccff';
+    ctx.shadowColor = '#88bbff';
+    ctx.fillText('−', cx2, botPlateY + plateH / 2);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  // Labels
+  ctx.font = '12px Share Tech Mono';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ff8899';
+  ctx.shadowColor = '#ff4466';
+  ctx.shadowBlur = 4;
+  ctx.fillText('+ Plate', plateX + plateW + 12, topPlateY + 9);
+  ctx.fillStyle = '#88aaff';
+  ctx.shadowColor = '#4488ff';
+  ctx.fillText('− Plate', plateX + plateW + 12, botPlateY + 9);
+  ctx.shadowBlur = 0;
+
+  // Distance arrow
+  const arrowX = plateX - 28;
+  ctx.strokeStyle = 'rgba(0,212,255,0.6)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(arrowX, topPlateY + plateH);
+  ctx.lineTo(arrowX, botPlateY);
+  ctx.stroke();
+  // arrowheads
+  ctx.fillStyle = 'rgba(0,212,255,0.8)';
+  ctx.beginPath();
+  ctx.moveTo(arrowX, topPlateY + plateH);
+  ctx.lineTo(arrowX - 4, topPlateY + plateH + 8);
+  ctx.lineTo(arrowX + 4, topPlateY + plateH + 8);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(arrowX, botPlateY);
+  ctx.lineTo(arrowX - 4, botPlateY - 8);
+  ctx.lineTo(arrowX + 4, botPlateY - 8);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(0,212,255,0.9)';
+  ctx.font = '10px Share Tech Mono';
+  ctx.textAlign = 'right';
+  ctx.fillText('d=' + (d * 1000).toFixed(1) + 'mm', arrowX - 6, H / 2);
+
+  // Area label
+  ctx.fillStyle = 'rgba(0,255,136,0.8)';
+  ctx.textAlign = 'center';
+  ctx.font = '11px Share Tech Mono';
+  ctx.fillText('A = ' + A.toFixed(2) + ' m²', cx, topPlateY - 16);
+
+  // Voltage label
+  ctx.fillStyle = 'rgba(255,107,53,0.9)';
+  ctx.font = '11px Share Tech Mono';
+  ctx.textAlign = 'right';
+  ctx.fillText('V = ' + V.toFixed(1) + ' V', W - 14, H / 2);
+
+  // Dielectric fill if k > 1
+  if (k > 1.2) {
+    const di = (k - 1) / 9;
+    ctx.fillStyle = `rgba(180,100,255,${di * 0.12})`;
+    ctx.fillRect(plateX, topPlateY + plateH, plateW, gapPx);
+    ctx.strokeStyle = `rgba(180,100,255,${di * 0.3})`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 5]);
+    ctx.strokeRect(plateX, topPlateY + plateH, plateW, gapPx);
+    ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(200,150,255,${di * 0.8})`;
+    ctx.font = '10px Share Tech Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('κ = ' + k.toFixed(1), cx, H / 2 + 12);
+  }
+
+  // Spawn particles on charge change
+  if (Math.abs(C - lastC) > 1e-14 && V > 0) {
+    spawnParticles(plateX, topPlateY - 4, plateW, 6, 1, 3);
+    spawnParticles(plateX, botPlateY + plateH - 2, plateW, 6, -1, 3);
+    lastC = C;
+  }
+
+  // Update & draw particles
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => {
+    p.update();
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.charge > 0 ? '#ff6688' : '#4488ff';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Particle spawn on animation
+  if (V > 0 && animFrame % 8 === 0) {
+    const n = Math.max(1, Math.floor(fieldStrength * 3));
+    spawnParticles(plateX, topPlateY + plateH, plateW, 2, 1, n);
+    spawnParticles(plateX, botPlateY - 2, plateW, 2, -1, n);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+['areaSlider','distSlider','voltSlider','kSlider'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateUI);
+});
+
+// Apply max value to a slider and snap its current value if needed
+function applyMax(type) {
+  const configs = {
+    area: { slider: 'areaSlider', maxInput: 'areaMax', minVal: 0.1, stepVal: 0.01 },
+    dist: { slider: 'distSlider', maxInput: 'distMax', minVal: 0.5, stepVal: 0.1 },
+    volt: { slider: 'voltSlider', maxInput: 'voltMax', minVal: 0,   stepVal: 0.5 },
+    k:    { slider: 'kSlider',    maxInput: 'kMax',    minVal: 1,   stepVal: 0.1 },
+  };
+  const { slider, maxInput, minVal, stepVal } = configs[type];
+  const sliderEl = document.getElementById(slider);
+  const maxEl    = document.getElementById(maxInput);
+
+  let newMax = parseFloat(maxEl.value);
+  if (isNaN(newMax) || newMax <= minVal) {
+    newMax = parseFloat(sliderEl.max); // keep existing
+    maxEl.value = newMax;
+    maxEl.style.borderColor = '#ff4466';
+    setTimeout(() => maxEl.style.borderColor = '', 800);
+    return;
+  }
+
+  sliderEl.max  = newMax;
+  sliderEl.step = stepVal;
+  // If current value exceeds new max, clamp it to new max
+  if (parseFloat(sliderEl.value) > newMax) {
+    sliderEl.value = newMax;
+  }
+
+  // Flash the input green to confirm
+  maxEl.style.borderColor = '#00ff88';
+  setTimeout(() => maxEl.style.borderColor = '', 700);
+
+  updateUI();
+}
+
+// Allow pressing Enter in max inputs to trigger SET
+['areaMax','distMax','voltMax','kMax'].forEach((id, i) => {
+  const types = ['area','dist','volt','k'];
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') applyMax(types[i]);
+  });
+});
+
+updateUI();
+draw();
+</script>
+</body>
+</html>
