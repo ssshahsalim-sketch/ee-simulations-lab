@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Single Phase Ceiling Fan Motor Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #050a12;
+    --panel: rgba(8,18,35,0.92);
+    --border: rgba(0,200,255,0.18);
+    --accent: #00c8ff;
+    --accent2: #ff6b00;
+    --accent3: #00ff88;
+    --main-winding: #ff4444;
+    --aux-winding: #4488ff;
+    --glow: 0 0 12px rgba(0,200,255,0.5);
+    --font-display: 'Orbitron', monospace;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-body: 'Rajdhani', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: #c8e8ff;
+    font-family: var(--font-body);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    background: rgba(0,10,25,0.98);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  header h1 {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-shadow: var(--glow);
+  }
+  .header-status {
+    display: flex; gap: 20px; align-items: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent3);
+    box-shadow: 0 0 8px var(--accent3);
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* MAIN LAYOUT */
+  .main-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  /* PANELS */
+  .panel {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) transparent;
+  }
+  .panel:last-child { border-right: none; border-left: 1px solid var(--border); }
+  .panel::-webkit-scrollbar { width: 4px; }
+  .panel::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    padding: 6px 0 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  /* CONTROLS */
+  .control-group { margin-bottom: 10px; }
+  .control-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: #88aacc;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+  }
+  .control-label span { color: var(--accent); font-weight: bold; }
+
+  input[type="range"] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--val,50%), rgba(0,200,255,0.15) var(--val,50%));
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    cursor: pointer;
+  }
+
+  select, input[type="number"] {
+    width: 100%;
+    background: rgba(0,200,255,0.05);
+    border: 1px solid var(--border);
+    color: #c8e8ff;
+    padding: 4px 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    border-radius: 3px;
+    outline: none;
+    margin-top: 2px;
+  }
+  select:focus, input[type="number"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 6px rgba(0,200,255,0.3);
+  }
+
+  .btn-row { display: flex; gap: 6px; margin: 8px 0; }
+  .btn {
+    flex: 1;
+    padding: 6px 4px;
+    font-family: var(--font-display);
+    font-size: 8px;
+    letter-spacing: 1px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .btn:hover { background: rgba(0,200,255,0.1); box-shadow: var(--glow); }
+  .btn.active { background: rgba(0,200,255,0.2); border-color: var(--accent); }
+  .btn.danger { color: #ff4444; border-color: rgba(255,68,68,0.3); }
+  .btn.danger:hover { background: rgba(255,68,68,0.1); }
+
+  .toggle-row { display: flex; gap: 6px; margin: 6px 0; flex-wrap: wrap; }
+  .toggle {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 3px 7px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: #88aacc;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .toggle.on { background: rgba(0,200,255,0.15); color: var(--accent); border-color: var(--accent); }
+
+  /* CENTER - 3D VIEW */
+  .center-view {
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at center, #050f1e 0%, #020509 100%);
+  }
+  #threeCanvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+
+  .view-controls {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+  }
+  .view-btn {
+    background: rgba(0,10,25,0.85);
+    border: 1px solid var(--border);
+    color: #88aacc;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+  }
+  .view-btn:hover, .view-btn.active { color: var(--accent); border-color: var(--accent); }
+
+  .rpm-display {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+  }
+  .rpm-value {
+    font-family: var(--font-display);
+    font-size: 28px;
+    color: var(--accent3);
+    text-shadow: 0 0 20px var(--accent3);
+    line-height: 1;
+  }
+  .rpm-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: #88aacc;
+    letter-spacing: 3px;
+  }
+
+  /* CANVAS OVERLAYS */
+  #waveCanvas {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  /* RIGHT PANEL - CALCULATIONS */
+  .metric-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .metric {
+    background: rgba(0,200,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 7px;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+  }
+  .metric-name {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: #667788;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 3px;
+  }
+  .metric-value {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .metric-unit {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: #88aacc;
+  }
+  .metric.warn .metric-value { color: var(--accent2); }
+  .metric.good .metric-value { color: var(--accent3); }
+
+  /* PHASOR CANVAS */
+  #phasorCanvas {
+    width: 100%;
+    height: 130px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: rgba(0,200,255,0.02);
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  /* TORQUE SPEED CURVE */
+  #torqueCanvas {
+    width: 100%;
+    height: 110px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: rgba(0,200,255,0.02);
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  /* FAULT PANEL */
+  .fault-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(0,200,255,0.05);
+  }
+  .fault-name { font-family: var(--font-mono); font-size: 10px; color: #88aacc; }
+  .fault-toggle {
+    width: 34px; height: 16px;
+    background: rgba(255,68,68,0.1);
+    border: 1px solid rgba(255,68,68,0.3);
+    border-radius: 8px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+  }
+  .fault-toggle.off { background: rgba(255,68,68,0.05); }
+  .fault-toggle::after {
+    content: '';
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #ff4444;
+    top: 2px; left: 2px;
+    transition: all 0.2s;
+    box-shadow: 0 0 4px #ff4444;
+  }
+  .fault-toggle.on { background: rgba(255,100,0,0.2); border-color: var(--accent2); }
+  .fault-toggle.on::after { left: 20px; background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+
+  /* GAUGE */
+  .gauge-wrap { position: relative; display: flex; justify-content: center; margin: 8px 0; }
+  #gaugeCanvas { display: block; }
+
+  /* TEMP BAR */
+  .temp-bar-wrap {
+    margin: 4px 0 8px;
+    height: 6px;
+    background: rgba(0,200,255,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .temp-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    background: linear-gradient(90deg, var(--accent3), #ffaa00, #ff4444);
+  }
+
+  .flux-indicator {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin: 4px 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: #88aacc;
+  }
+  .flux-bar {
+    flex: 1; height: 4px;
+    background: rgba(0,200,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .flux-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    border-radius: 2px;
+    transition: width 0.4s;
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  /* ANIMATION for current flow */
+  @keyframes flowRight { from{stroke-dashoffset:20} to{stroke-dashoffset:0} }
+  @keyframes flowLeft { from{stroke-dashoffset:0} to{stroke-dashoffset:20} }
+
+  .tooltip {
+    position: absolute;
+    background: rgba(0,10,25,0.95);
+    border: 1px solid var(--border);
+    color: #c8e8ff;
+    font-family: var(--font-body);
+    font-size: 11px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    max-width: 200px;
+    z-index: 100;
+    line-height: 1.5;
+  }
+  .tooltip.show { opacity: 1; }
+
+  /* Scrollbar for right panel */
+  .panel:last-child::-webkit-scrollbar { width: 4px; }
+  .panel:last-child::-webkit-scrollbar-thumb { background: var(--accent2); }
+
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 9px; color: #88aacc;
+    margin: 2px 0;
+  }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ SINGLE PHASE CEILING FAN MOTOR — INTERACTIVE SIMULATION</h1>
+  <div class="header-status">
+    <div class="status-dot"></div>
+    <span style="color:var(--accent3)">LIVE</span>
+    <span>|</span>
+    <span id="hdrRpm">— RPM</span>
+    <span>|</span>
+    <span id="hdrPF">PF: —</span>
+    <span>|</span>
+    <span id="hdrEff">η: —%</span>
+  </div>
+</header>
+
+<div class="main-layout">
+
+  <!-- LEFT CONTROL PANEL -->
+  <div class="panel" id="leftPanel">
+    <div class="section-title">⚙ Motor Parameters</div>
+
+    <div class="control-group">
+      <div class="control-label">Core Diameter <span id="lbl-diam">120 mm</span></div>
+      <input type="range" id="sl-diam" min="80" max="200" value="120" oninput="updateParam('diam',this)">
+    </div>
+    <div class="control-group">
+      <div class="control-label">Stack Length <span id="lbl-stack">40 mm</span></div>
+      <input type="range" id="sl-stack" min="20" max="100" value="40" oninput="updateParam('stack',this)">
+    </div>
+    <div class="control-group">
+      <div class="control-label">Stamping Thickness <span id="lbl-stamp">0.5 mm</span></div>
+      <input type="range" id="sl-stamp" min="0.3" max="1.0" step="0.05" value="0.5" oninput="updateParam('stamp',this)">
+    </div>
+
+    <div class="section-title">🔧 Slot Configuration</div>
+    <div class="control-group">
+      <div class="control-label">Number of Slots <span id="lbl-slots">24</span></div>
+      <input type="range" id="sl-slots" min="12" max="48" step="4" value="24" oninput="updateParam('slots',this)">
+    </div>
+    <div class="control-group">
+      <div class="control-label">Pole Count</div>
+      <select id="sel-poles" onchange="recalculate()">
+        <option value="2">2 Poles (3000/3600 RPM)</option>
+        <option value="4" selected>4 Poles (1500/1800 RPM)</option>
+        <option value="6">6 Poles (1000/1200 RPM)</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <div class="control-label">Rotor Air Gap <span id="lbl-gap">0.3 mm</span></div>
+      <input type="range" id="sl-gap" min="0.1" max="1.0" step="0.05" value="0.3" oninput="updateParam('gap',this)">
+    </div>
+
+    <div class="section-title">⚡ Electrical Parameters</div>
+    <div class="control-group">
+      <div class="control-label">Supply Voltage</div>
+      <select id="sel-volt" onchange="recalculate()">
+        <option value="110">110 V</option>
+        <option value="220" selected>220 V</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+    <div class="control-group" id="customVoltGroup" style="display:none">
+      <div class="control-label">Custom Voltage (V)</div>
+      <input type="number" id="in-volt" value="220" min="50" max="500" oninput="recalculate()">
+    </div>
+    <div class="control-group">
+      <div class="control-label">Frequency <span id="lbl-freq">50 Hz</span></div>
+      <select id="sel-freq" onchange="recalculate()">
+        <option value="50" selected>50 Hz</option>
+        <option value="60">60 Hz</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <div class="control-label">Capacitor Value <span id="lbl-cap">4.0 µF</span></div>
+      <input type="range" id="sl-cap" min="1" max="20" step="0.5" value="4" oninput="updateParam('cap',this)">
+    </div>
+    <div class="control-group">
+      <div class="control-label">Capacitor Type</div>
+      <select id="sel-captype" onchange="recalculate()">
+        <option value="psc" selected>Permanent Split Cap.</option>
+        <option value="cs">Capacitor Start</option>
+        <option value="csco">Cap. Start + Cap. Run</option>
+      </select>
+    </div>
+
+    <div class="section-title">🔩 Winding Parameters</div>
+    <div class="control-group">
+      <div class="control-label">Main Turns <span id="lbl-mturns">600</span></div>
+      <input type="range" id="sl-mturns" min="100" max="1200" step="10" value="600" oninput="updateParam('mturns',this)">
+    </div>
+    <div class="control-group">
+      <div class="control-label">Aux Turns <span id="lbl-aturns">400</span></div>
+      <input type="range" id="sl-aturns" min="100" max="1200" step="10" value="400" oninput="updateParam('aturns',this)">
+    </div>
+    <div class="control-group">
+      <div class="control-label">Wire Gauge</div>
+      <select id="sel-gauge" onchange="recalculate()">
+        <option value="26">SWG 26 (0.457mm)</option>
+        <option value="28" selected>SWG 28 (0.376mm)</option>
+        <option value="30">SWG 30 (0.315mm)</option>
+        <option value="32">SWG 32 (0.274mm)</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <div class="control-label">Main Winding R <span id="lbl-mr">35 Ω</span></div>
+      <input type="range" id="sl-mr" min="5" max="100" value="35" oninput="updateParam('mr',this)">
+    </div>
+    <div class="control-group">
+      <div class="control-label">Aux Winding R <span id="lbl-ar">65 Ω</span></div>
+      <input type="range" id="sl-ar" min="5" max="150" value="65" oninput="updateParam('ar',this)">
+    </div>
+    <div class="control-group">
+      <div class="control-label">Bearing Friction</div>
+      <select id="sel-bear" onchange="recalculate()">
+        <option value="0.02" selected>Low</option>
+        <option value="0.05">Medium</option>
+        <option value="0.10">High</option>
+      </select>
+    </div>
+
+    <div class="section-title">⚠ Fault Simulation</div>
+    <div class="fault-row">
+      <span class="fault-name">Capacitor Failure</span>
+      <div class="fault-toggle off" id="fault-cap" onclick="toggleFault('cap',this)"></div>
+    </div>
+    <div class="fault-row">
+      <span class="fault-name">Open Winding (Aux)</span>
+      <div class="fault-toggle off" id="fault-open" onclick="toggleFault('open',this)"></div>
+    </div>
+    <div class="fault-row">
+      <span class="fault-name">Overvoltage (+15%)</span>
+      <div class="fault-toggle off" id="fault-ov" onclick="toggleFault('ov',this)"></div>
+    </div>
+    <div class="fault-row">
+      <span class="fault-name">Undervoltage (-20%)</span>
+      <div class="fault-toggle off" id="fault-uv" onclick="toggleFault('uv',this)"></div>
+    </div>
+    <div class="fault-row">
+      <span class="fault-name">Short Circuit</span>
+      <div class="fault-toggle off" id="fault-sc" onclick="toggleFault('sc',this)"></div>
+    </div>
+  </div>
+
+  <!-- CENTER 3D VIEW -->
+  <div class="center-view" id="centerView">
+    <canvas id="threeCanvas"></canvas>
+    <canvas id="waveCanvas"></canvas>
+
+    <div class="view-controls">
+      <button class="view-btn active" onclick="setView('iso')">ISO</button>
+      <button class="view-btn" onclick="setView('top')">TOP</button>
+      <button class="view-btn" onclick="setView('side')">SIDE</button>
+      <button class="view-btn" onclick="setView('section')">SECTION</button>
+    </div>
+
+    <div class="rpm-display">
+      <div class="rpm-value" id="rpmBig">0</div>
+      <div class="rpm-label">RPM</div>
+    </div>
+
+    <!-- Toggle overlays -->
+    <div style="position:absolute;top:40px;left:8px;">
+      <div class="toggle-row" style="flex-direction:column;gap:4px;">
+        <button class="toggle on" id="tog-main" onclick="toggleLayer('main',this)">MAIN WINDING</button>
+        <button class="toggle on" id="tog-aux" onclick="toggleLayer('aux',this)">AUX WINDING</button>
+        <button class="toggle on" id="tog-flux" onclick="toggleLayer('flux',this)">FLUX FIELD</button>
+        <button class="toggle on" id="tog-rotor" onclick="toggleLayer('rotor',this)">ROTOR</button>
+        <button class="toggle off" id="tog-xray" onclick="toggleLayer('xray',this)">X-RAY MODE</button>
+        <button class="toggle off" id="tog-explode" onclick="toggleLayer('explode',this)">EXPLODED</button>
+      </div>
+    </div>
+
+    <div id="tooltip" class="tooltip"></div>
+  </div>
+
+  <!-- RIGHT CALCULATIONS PANEL -->
+  <div class="panel" id="rightPanel">
+    <div class="section-title">📊 Live Calculations</div>
+
+    <div class="metric-grid">
+      <div class="metric good">
+        <div class="metric-name">Est. RPM</div>
+        <div class="metric-value" id="m-rpm">—</div>
+        <div class="metric-unit">rev/min</div>
+      </div>
+      <div class="metric">
+        <div class="metric-name">Sync Speed</div>
+        <div class="metric-value" id="m-sync">—</div>
+        <div class="metric-unit">rev/min</div>
+      </div>
+      <div class="metric warn">
+        <div class="metric-name">Slip</div>
+        <div class="metric-value" id="m-slip">—</div>
+        <div class="metric-unit">%</div>
+      </div>
+      <div class="metric">
+        <div class="metric-name">Power Factor</div>
+        <div class="metric-value" id="m-pf">—</div>
+        <div class="metric-unit">lagging</div>
+      </div>
+      <div class="metric">
+        <div class="metric-name">Main Current</div>
+        <div class="metric-value" id="m-im">—</div>
+        <div class="metric-unit">A</div>
+      </div>
+      <div class="metric">
+        <div class="metric-name">Aux Current</div>
+        <div class="metric-value" id="m-ia">—</div>
+        <div class="metric-unit">A</div>
+      </div>
+      <div class="metric good">
+        <div class="metric-name">Efficiency</div>
+        <div class="metric-value" id="m-eff">—</div>
+        <div class="metric-unit">%</div>
+      </div>
+      <div class="metric">
+        <div class="metric-name">Input Power</div>
+        <div class="metric-value" id="m-pin">—</div>
+        <div class="metric-unit">W</div>
+      </div>
+      <div class="metric warn">
+        <div class="metric-name">Cu Losses</div>
+        <div class="metric-value" id="m-culoss">—</div>
+        <div class="metric-unit">W</div>
+      </div>
+      <div class="metric">
+        <div class="metric-name">Output Power</div>
+        <div class="metric-value" id="m-pout">—</div>
+        <div class="metric-unit">W</div>
+      </div>
+      <div class="metric warn">
+        <div class="metric-name">Temp Rise</div>
+        <div class="metric-value" id="m-temp">—</div>
+        <div class="metric-unit">°C</div>
+      </div>
+      <div class="metric">
+        <div class="metric-name">Start Torque</div>
+        <div class="metric-value" id="m-torq">—</div>
+        <div class="metric-unit">N·m</div>
+      </div>
+    </div>
+
+    <div class="section-title">🌡 Temperature</div>
+    <div class="temp-bar-wrap"><div class="temp-bar" id="tempBar" style="width:30%"></div></div>
+
+    <div class="section-title">🧲 Magnetic Flux</div>
+    <div class="flux-indicator">
+      <span>Main</span>
+      <div class="flux-bar"><div class="flux-fill" id="fluxMain" style="width:60%"></div></div>
+    </div>
+    <div class="flux-indicator">
+      <span>Aux&nbsp;</span>
+      <div class="flux-bar"><div class="flux-fill" id="fluxAux" style="width:40%;background:linear-gradient(90deg,var(--aux-winding),#88aaff)"></div></div>
+    </div>
+    <div class="flux-indicator">
+      <span>Total</span>
+      <div class="flux-bar"><div class="flux-fill" id="fluxTotal" style="width:75%"></div></div>
+    </div>
+
+    <div class="section-title">📐 Phasor Diagram</div>
+    <canvas id="phasorCanvas"></canvas>
+    <div style="display:flex;gap:12px;margin-bottom:6px;flex-wrap:wrap;">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--main-winding)"></div>Main I</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--aux-winding)"></div>Aux I</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffff44"></div>Voltage</div>
+    </div>
+
+    <div class="section-title">📈 Torque-Speed Curve</div>
+    <canvas id="torqueCanvas"></canvas>
+
+    <div class="section-title">📡 Phase Shift</div>
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="metric-name">Phase Angle</div>
+        <div class="metric-value" id="m-phase">—</div>
+        <div class="metric-unit">degrees</div>
+      </div>
+      <div class="metric good">
+        <div class="metric-name">Cap Reactance</div>
+        <div class="metric-value" id="m-xc">—</div>
+        <div class="metric-unit">Ω</div>
+      </div>
+    </div>
+
+    <!-- GAUGE -->
+    <div class="section-title">🎯 Speed Gauge</div>
+    <div class="gauge-wrap">
+      <canvas id="gaugeCanvas" width="200" height="110"></canvas>
+    </div>
+
+    <div class="section-title">ℹ Educational Notes</div>
+    <div id="eduNotes" style="font-size:11px;line-height:1.6;color:#88aacc;border:1px solid var(--border);padding:8px;border-radius:4px;min-height:60px;"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// =============================================
+//  STATE
+// =============================================
+const state = {
+  diam: 120, stack: 40, stamp: 0.5,
+  slots: 24, poles: 4, gap: 0.3,
+  voltage: 220, freq: 50,
+  cap: 4.0, captype: 'psc',
+  mturns: 600, aturns: 400,
+  mr: 35, ar: 65,
+  friction: 0.02,
+  gaugeW: 26,
+
+  // calculated
+  rpm: 0, syncRpm: 0, slip: 0,
+  Im: 0, Ia: 0, pf: 0, eff: 0,
+  pin: 0, pout: 0, culoss: 0,
+  temp: 0, torque: 0, phaseAngle: 0, Xc: 0,
+
+  // faults
+  faults: { cap: false, open: false, ov: false, uv: false, sc: false },
+
+  // layers
+  layers: { main: true, aux: true, flux: true, rotor: true, xray: false, explode: false },
+
+  // animation
+  angle: 0, fluxAngle: 0, time: 0
+};
+
+// =============================================
+//  PARAMETER UPDATE
+// =============================================
+function updateParam(key, el) {
+  const v = parseFloat(el.value);
+  // Update slider background
+  const min = parseFloat(el.min), max = parseFloat(el.max);
+  const pct = ((v - min) / (max - min)) * 100;
+  el.style.setProperty('--val', pct + '%');
+
+  const labels = {
+    diam: ['lbl-diam', v+' mm'],
+    stack: ['lbl-stack', v+' mm'],
+    stamp: ['lbl-stamp', v.toFixed(2)+' mm'],
+    slots: ['lbl-slots', v],
+    gap: ['lbl-gap', v.toFixed(2)+' mm'],
+    cap: ['lbl-cap', v.toFixed(1)+' µF'],
+    mturns: ['lbl-mturns', v],
+    aturns: ['lbl-aturns', v],
+    mr: ['lbl-mr', v+' Ω'],
+    ar: ['lbl-ar', v+' Ω'],
+  };
+  if (labels[key]) {
+    document.getElementById(labels[key][0]).textContent = labels[key][1];
+    state[key] = v;
+  }
+  recalculate();
+  updateStatorGeometry();
+}
+
+// =============================================
+//  CALCULATIONS
+// =============================================
+function recalculate() {
+  // Gather current values
+  state.poles = parseInt(document.getElementById('sel-poles').value);
+  state.freq = parseInt(document.getElementById('sel-freq').value);
+  const voltSel = document.getElementById('sel-volt').value;
+  state.voltage = voltSel === 'custom'
+    ? parseFloat(document.getElementById('in-volt').value) || 220
+    : parseFloat(voltSel);
+  document.getElementById('customVoltGroup').style.display = voltSel === 'custom' ? 'block' : 'none';
+  state.captype = document.getElementById('sel-captype').value;
+  state.friction = parseFloat(document.getElementById('sel-bear').value);
+
+  // Apply faults
+  let V = state.voltage;
+  if (state.faults.ov) V *= 1.15;
+  if (state.faults.uv) V *= 0.80;
+  if (state.faults.sc) V *= 0.3;
+
+  // Synchronous speed
+  state.syncRpm = (120 * state.freq) / state.poles;
+
+  // Capacitive reactance
+  let capVal = state.faults.cap ? 0.01 : state.cap;
+  state.Xc = 1 / (2 * Math.PI * state.freq * capVal * 1e-6);
+
+  // Impedances
+  const Lm = (state.mturns * 0.001) * (state.diam / 120);
+  const La = (state.aturns * 0.001) * (state.diam / 120);
+  const Xm = 2 * Math.PI * state.freq * Lm * 8;
+  const Xa = 2 * Math.PI * state.freq * La * 6;
+
+  const Rm = state.mr;
+  const Ra = state.ar;
+
+  // Main winding current
+  const Zm = Math.sqrt(Rm * Rm + Xm * Xm);
+  state.Im = state.faults.sc ? V * 3 : V / Zm;
+
+  // Aux winding current (with capacitor in series)
+  const Za = state.faults.open ? 1e6 : Math.sqrt(Ra * Ra + Math.pow(Xa - state.Xc, 2));
+  state.Ia = state.faults.open ? 0 : V / Za;
+
+  // Phase angles
+  const phiM = Math.atan2(Xm, Rm) * (180 / Math.PI);
+  const phiA = Math.atan2(Xa - state.Xc, Ra) * (180 / Math.PI);
+  state.phaseAngle = Math.abs(phiM - phiA);
+
+  // Starting torque (simplified: proportional to Im * Ia * sin(phase diff))
+  const phaseDiffRad = state.phaseAngle * (Math.PI / 180);
+  const kT = 0.15 * (state.diam / 120) * (state.stack / 40);
+  state.torque = state.faults.open ? 0 : kT * state.Im * state.Ia * Math.sin(phaseDiffRad);
+
+  // Slip estimation
+  // Base slip: friction + gap effect + losses
+  const baseSlip = 0.04 + state.friction * 0.5 + (state.gap / 0.3) * 0.02;
+  const voltFactor = (V / state.voltage);
+  const slipAdj = baseSlip / (voltFactor * voltFactor);
+  state.slip = Math.min(0.5, slipAdj) * 100;
+
+  // RPM
+  state.rpm = state.faults.open
+    ? (state.syncRpm * (1 - slipAdj * 3))
+    : state.syncRpm * (1 - slipAdj);
+  state.rpm = Math.max(0, Math.round(state.rpm));
+
+  // Power factor
+  const phaseMrad = Math.atan2(Xm, Rm);
+  state.pf = Math.cos(phaseMrad);
+
+  // Powers
+  state.culoss = state.Im * state.Im * Rm + (state.faults.open ? 0 : state.Ia * state.Ia * Ra);
+  state.pin = V * state.Im * state.pf + (state.faults.open ? 0 : V * state.Ia * 0.7);
+  const mech = state.rpm * Math.PI / 30;
+  state.pout = Math.max(0, state.torque * mech * 0.85);
+  state.eff = state.pin > 1 ? Math.min(92, (state.pout / state.pin) * 100) : 0;
+
+  // Temperature rise
+  state.temp = Math.min(80, state.culoss * 1.8 + 25);
+
+  updateDisplay();
+}
+
+function updateDisplay() {
+  const r = (v, d=1) => isNaN(v) ? '—' : v.toFixed(d);
+
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+
+  set('m-rpm', Math.round(state.rpm));
+  set('m-sync', Math.round(state.syncRpm));
+  set('m-slip', r(state.slip, 1));
+  set('m-pf', r(state.pf, 3));
+  set('m-im', r(state.Im, 2));
+  set('m-ia', r(state.Ia, 2));
+  set('m-eff', r(state.eff, 1));
+  set('m-pin', r(state.pin, 1));
+  set('m-culoss', r(state.culoss, 1));
+  set('m-pout', r(state.pout, 1));
+  set('m-temp', r(state.temp, 1));
+  set('m-torq', r(state.torque, 3));
+  set('m-phase', r(state.phaseAngle, 1));
+  set('m-xc', r(state.Xc, 1));
+  set('rpmBig', Math.round(state.rpm));
+  set('hdrRpm', Math.round(state.rpm) + ' RPM');
+  set('hdrPF', 'PF: ' + r(state.pf, 2));
+  set('hdrEff', 'η: ' + r(state.eff, 1) + '%');
+
+  // Temp bar
+  const tb = document.getElementById('tempBar');
+  if (tb) tb.style.width = Math.min(100, (state.temp - 25) / 55 * 100) + '%';
+
+  // Flux bars
+  const fm = document.getElementById('fluxMain');
+  const fa = document.getElementById('fluxAux');
+  const ft = document.getElementById('fluxTotal');
+  if (fm) fm.style.width = Math.min(100, state.Im * 30) + '%';
+  if (fa) fa.style.width = Math.min(100, state.Ia * 20) + '%';
+  if (ft) ft.style.width = Math.min(100, (state.Im + state.Ia) * 15) + '%';
+
+  // Educational notes
+  updateEduNotes();
+
+  drawPhasor();
+  drawTorqueCurve();
+  drawGauge();
+}
+
+function updateEduNotes() {
+  let notes = '';
+  if (state.faults.cap) notes += '⚠ <b>Capacitor Failure:</b> Without the capacitor, the auxiliary winding cannot create the necessary phase shift. Motor may not start or runs sluggishly. ';
+  if (state.faults.open) notes += '⚠ <b>Open Winding:</b> Auxiliary winding is disconnected. Motor runs as a single-phase machine with reduced torque and higher slip. ';
+  if (state.phaseAngle > 80) notes += '✅ Good phase separation (>80°) — excellent starting torque. ';
+  if (state.phaseAngle < 30) notes += '⚠ Poor phase separation (<30°) — weak starting torque. Increase capacitor value. ';
+  if (state.temp > 60) notes += '🌡 High temperature detected — check winding resistance and ventilation. ';
+  if (!notes) notes = '📘 The capacitor creates a phase shift between main and auxiliary windings, producing a rotating magnetic field that starts and sustains rotation. Adjust parameters to explore motor behavior.';
+  document.getElementById('eduNotes').innerHTML = notes;
+}
+
+// =============================================
+//  PHASOR DIAGRAM
+// =============================================
+function drawPhasor() {
+  const canvas = document.getElementById('phasorCanvas');
+  if (!canvas) return;
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const cx = W / 2, cy = H / 2, r = Math.min(cx, cy) - 12;
+
+  // Grid circles
+  ctx.strokeStyle = 'rgba(0,200,255,0.07)';
+  ctx.lineWidth = 1;
+  [0.33, 0.66, 1].forEach(f => {
+    ctx.beginPath(); ctx.arc(cx, cy, r * f, 0, Math.PI * 2); ctx.stroke();
+  });
+
+  // Axes
+  ctx.strokeStyle = 'rgba(0,200,255,0.15)';
+  ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
+
+  const phiM = Math.atan2(state.Im > 0 ? 1 : 0, state.pf);
+  const phiA = phiM - state.phaseAngle * Math.PI / 180;
+
+  const imScale = Math.min(r * 0.85, state.Im * 30);
+  const iaScale = Math.min(r * 0.85, state.Ia * 25);
+
+  // Voltage reference
+  drawArrow(ctx, cx, cy, cx + r * 0.7, cy, '#ffff44', 'V');
+
+  // Main winding current
+  const mx = cx + imScale * Math.cos(phiM);
+  const my = cy - imScale * Math.sin(phiM);
+  drawArrow(ctx, cx, cy, mx, my, '#ff4444', 'Im');
+
+  // Aux winding current
+  const ax = cx + iaScale * Math.cos(phiA);
+  const ay = cy - iaScale * Math.sin(phiA);
+  drawArrow(ctx, cx, cy, ax, ay, '#4488ff', 'Ia');
+
+  // Phase angle arc
+  ctx.strokeStyle = 'rgba(255,255,100,0.4)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 25, -phiM, -phiA, phiM > phiA);
+  ctx.stroke();
+  ctx.fillStyle = '#ffff44';
+  ctx.font = '9px Share Tech Mono';
+  ctx.fillText(state.phaseAngle.toFixed(0) + '°', cx + 28, cy - 8);
+}
+
+function drawArrow(ctx, x1, y1, x2, y2, color, label) {
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const len = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+  if (len < 2) return;
+
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 6;
+
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  // Arrowhead
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - 8 * Math.cos(angle - 0.4), y2 - 8 * Math.sin(angle - 0.4));
+  ctx.lineTo(x2 - 8 * Math.cos(angle + 0.4), y2 - 8 * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.font = '9px Share Tech Mono';
+  ctx.fillText(label, x2 + 4, y2 - 4);
+}
+
+// =============================================
+//  TORQUE-SPEED CURVE
+// =============================================
+function drawTorqueCurve() {
+  const canvas = document.getElementById('torqueCanvas');
+  if (!canvas) return;
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { l: 28, r: 10, t: 8, b: 20 };
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+
+  // Axes
+  ctx.strokeStyle = 'rgba(0,200,255,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph);
+  ctx.lineTo(pad.l + pw, pad.t + ph);
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = '#88aacc';
+  ctx.font = '8px Share Tech Mono';
+  ctx.fillText('T', 2, pad.t + ph / 2);
+  ctx.fillText('0', pad.l - 6, pad.t + ph + 10);
+  ctx.fillText('Ns', pad.l + pw - 10, pad.t + ph + 10);
+
+  // Torque-speed curve (bell curve shape for induction motor)
+  const Tmax = state.torque * 2.8;
+  const slipMax = 0.12; // slip at max torque
+
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(0,200,255,0.8)';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#00c8ff';
+  ctx.shadowBlur = 8;
+
+  for (let i = 0; i <= 100; i++) {
+    const s = i / 100;
+    const rpm = state.syncRpm * (1 - s);
+    const x = pad.l + (rpm / state.syncRpm) * pw;
+    // Approximate torque formula
+    const T = Tmax * (2 * s * slipMax) / (s * s + slipMax * slipMax);
+    const maxT = Tmax * 1.1;
+    const y = pad.t + ph - (T / maxT) * ph;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Operating point
+  const opS = state.slip / 100;
+  const opRpm = state.rpm;
+  const opX = pad.l + (opRpm / state.syncRpm) * pw;
+  const opT = Tmax * (2 * opS * slipMax) / (opS * opS + slipMax * slipMax);
+  const opY = pad.t + ph - (opT / (Tmax * 1.1)) * ph;
+
+  ctx.beginPath();
+  ctx.arc(opX, opY, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#00ff88';
+  ctx.shadowColor = '#00ff88';
+  ctx.shadowBlur = 10;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#00ff88';
+  ctx.font = '8px Share Tech Mono';
+  ctx.fillText('●OP', opX + 5, opY - 4);
+}
+
+// =============================================
+//  SPEED GAUGE
+// =============================================
+function drawGauge() {
+  const canvas = document.getElementById('gaugeCanvas');
+  if (!canvas) return;
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const cx = W / 2, cy = H - 12, r = H - 24;
+  const maxRpm = state.syncRpm * 1.05;
+  const startAngle = Math.PI;
+  const endAngle = 0;
+
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, startAngle, endAngle, false);
+  ctx.strokeStyle = 'rgba(0,200,255,0.1)';
+  ctx.lineWidth = 12;
+  ctx.stroke();
+
+  // Colored arc
+  const fraction = Math.min(1, state.rpm / maxRpm);
+  const curAngle = startAngle + fraction * Math.PI;
+  const grad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
+  grad.addColorStop(0, '#00ff88');
+  grad.addColorStop(0.6, '#ffaa00');
+  grad.addColorStop(1, '#ff4444');
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, startAngle, curAngle, false);
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 12;
+  ctx.shadowColor = '#00c8ff';
+  ctx.shadowBlur = 12;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Tick marks
+  ctx.strokeStyle = 'rgba(0,200,255,0.5)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const angle = startAngle + (i / 10) * Math.PI;
+    const inner = r - 10, outer = r + 4;
+    ctx.beginPath();
+    ctx.moveTo(cx + inner * Math.cos(angle), cy + inner * Math.sin(angle));
+    ctx.lineTo(cx + outer * Math.cos(angle), cy + outer * Math.sin(angle));
+    ctx.stroke();
+  }
+
+  // Needle
+  const needleAngle = startAngle + fraction * Math.PI;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(
+    cx + (r - 18) * Math.cos(needleAngle),
+    cy + (r - 18) * Math.sin(needleAngle)
+  );
+  ctx.strokeStyle = '#ff4444';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#ff4444';
+  ctx.shadowBlur = 8;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#ff4444';
+  ctx.fill();
+
+  // Labels
+  ctx.fillStyle = '#88aacc';
+  ctx.font = '9px Orbitron';
+  ctx.textAlign = 'center';
+  ctx.fillText('0', cx - r + 4, cy + 2);
+  ctx.fillText(Math.round(maxRpm / 2), cx, cy - r + 6);
+  ctx.fillText(Math.round(maxRpm), cx + r - 4, cy + 2);
+}
+
+// =============================================
+//  WAVEFORM CANVAS
+// =============================================
+let waveT = 0;
+function drawWave() {
+  const canvas = document.getElementById('waveCanvas');
+  if (!canvas) return;
+  const W = canvas.parentElement.offsetWidth;
+  const H = 80;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const freq = state.freq;
+  const V = state.voltage;
+  const scaleY = (H * 0.35) / (V || 1);
+
+  // Voltage
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(255,255,100,0.6)';
+  ctx.lineWidth = 1.5;
+  for (let x = 0; x < W; x++) {
+    const t = waveT + x * 0.04;
+    const y = H / 2 - Math.sin(t) * V * scaleY;
+    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Main current
+  const phiM = Math.acos(Math.max(-1, Math.min(1, state.pf)));
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(255,68,68,0.7)';
+  ctx.lineWidth = 1.5;
+  for (let x = 0; x < W; x++) {
+    const t = waveT + x * 0.04;
+    const y = H / 2 - Math.sin(t - phiM) * state.Im * 30;
+    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Aux current
+  const phiA = phiM - state.phaseAngle * Math.PI / 180;
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(68,136,255,0.7)';
+  ctx.lineWidth = 1.5;
+  for (let x = 0; x < W; x++) {
+    const t = waveT + x * 0.04;
+    const y = H / 2 - Math.sin(t - phiA) * state.Ia * 25;
+    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+// =============================================
+//  THREE.JS 3D SCENE
+// =============================================
+let scene, camera, renderer, controls;
+let statorMesh, rotorMesh, slots = [], fluxLines = [], fanBlades = [];
+let mainWindingMeshes = [], auxWindingMeshes = [];
+
+function initThree() {
+  const container = document.getElementById('centerView');
+  const canvas = document.getElementById('threeCanvas');
+  const W = container.offsetWidth, H = container.offsetHeight;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0d1117);
+  scene.fog = new THREE.FogExp2(0x0d1117, 0.006);
+
+  camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 1000);
+  camera.position.set(3, 2, 4);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.6;
+
+  // Lights — tuned for realistic copper + steel look
+  const ambient = new THREE.AmbientLight(0x1a2030, 1.4);
+  scene.add(ambient);
+
+  const dirLight = new THREE.DirectionalLight(0xfff5e0, 3.5);
+  dirLight.position.set(4, 7, 5);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
+  scene.add(dirLight);
+
+  const fillLight = new THREE.DirectionalLight(0x406080, 1.2);
+  fillLight.position.set(-4, -2, -3);
+  scene.add(fillLight);
+
+  const copperLight = new THREE.PointLight(0xff9940, 2.8, 6);
+  copperLight.position.set(0, 2.5, 0);
+  scene.add(copperLight);
+
+  const rimLight = new THREE.DirectionalLight(0x204060, 2.0);
+  rimLight.position.set(-3, 2, -5);
+  scene.add(rimLight);
+
+  const topLight = new THREE.PointLight(0x88ccff, 1.0, 8);
+  topLight.position.set(0, 5, 0);
+  scene.add(topLight);
+
+  // Orbit controls (manual implementation)
+  setupOrbitControls(canvas);
+
+  // Grid
+  const gridHelper = new THREE.GridHelper(10, 20, 0x0a2a3a, 0x051520);
+  gridHelper.position.y = -2.2;
+  scene.add(gridHelper);
+
+  buildMotor();
+  animate3D();
+}
+
+// Manual orbit controls
+let isMouseDown = false, lastMouse = { x: 0, y: 0 };
+let spherical = { theta: 0.6, phi: 1.0, r: 5 };
+let panOffset = new THREE.Vector3();
+
+function setupOrbitControls(canvas) {
+  canvas.addEventListener('mousedown', e => {
+    isMouseDown = true;
+    lastMouse = { x: e.clientX, y: e.clientY };
+  });
+  canvas.addEventListener('mousemove', e => {
+    if (!isMouseDown) return;
+    const dx = e.clientX - lastMouse.x;
+    const dy = e.clientY - lastMouse.y;
+    if (e.buttons === 1) {
+      spherical.theta -= dx * 0.005;
+      spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi + dy * 0.005));
+    } else if (e.buttons === 2) {
+      panOffset.x -= dx * 0.01;
+      panOffset.y += dy * 0.01;
+    }
+    lastMouse = { x: e.clientX, y: e.clientY };
+  });
+  canvas.addEventListener('mouseup', () => isMouseDown = false);
+  canvas.addEventListener('wheel', e => {
+    spherical.r = Math.max(2, Math.min(15, spherical.r + e.deltaY * 0.01));
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  // Touch support
+  let touches = [];
+  canvas.addEventListener('touchstart', e => { touches = [...e.touches]; });
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length === 1 && touches.length === 1) {
+      const dx = e.touches[0].clientX - touches[0].clientX;
+      const dy = e.touches[0].clientY - touches[0].clientY;
+      spherical.theta -= dx * 0.005;
+      spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi + dy * 0.005));
+    } else if (e.touches.length === 2 && touches.length === 2) {
+      const prevD = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+      const newD = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      spherical.r *= prevD / newD;
+      spherical.r = Math.max(2, Math.min(15, spherical.r));
+    }
+    touches = [...e.touches];
+    e.preventDefault();
+  }, { passive: false });
+}
+
+// ─── material helpers ────────────────────────────────────────────────────────
+function makeLaminateMat(xray) {
+  return new THREE.MeshStandardMaterial({
+    color: 0x4a5a6a,
+    metalness: 0.88,
+    roughness: 0.28,
+    transparent: xray,
+    opacity: xray ? 0.22 : 1.0
+  });
+}
+function makeBobbinMat() {
+  return new THREE.MeshStandardMaterial({ color: 0xd4a843, metalness: 0.05, roughness: 0.85 });
+}
+function makeCopperMat(isMain, intensity) {
+  return new THREE.MeshStandardMaterial({
+    color: isMain ? 0xc84010 : 0xb85020,
+    emissive: isMain ? 0x8b2a08 : 0x7a2010,
+    emissiveIntensity: intensity || 0.35,
+    metalness: 0.92,
+    roughness: 0.12
+  });
+}
+
+// ─── tooth cross-section (T-shape) extruded into full depth ──────────────────
+function makeToothShape(toothW, toothH, tipW, tipH) {
+  const s = new THREE.Shape();
+  const hw = toothW / 2, tw = tipW / 2;
+  s.moveTo(-tw, 0);
+  s.lineTo( tw, 0);
+  s.lineTo( tw, tipH);
+  s.lineTo( hw, tipH);
+  s.lineTo( hw, tipH + toothH);
+  s.lineTo(-hw, tipH + toothH);
+  s.lineTo(-hw, tipH);
+  s.lineTo(-tw, tipH);
+  s.closePath();
+  return s;
+}
+
+// ─── coil bundle around one tooth (overhang on both ends) ────────────────────
+function buildCoilOnTooth(group, angle, toothMidR, toothH, L, isMain, xray) {
+  const coilMat = makeCopperMat(isMain, 0.4);
+  const bobbinMat = makeBobbinMat();
+
+  // Coil body — rectangular tube approximation using rounded box
+  // Side conductors (in-slot, along axis)
+  const conductorW = 0.055, conductorH = toothH * 0.7;
+  const halfSpan = conductorH / 2;
+
+  // Two side legs (go along motor axis inside the slot)
+  const legGeo = new THREE.CylinderGeometry(conductorW, conductorW, L * 0.9, 10);
+  const offsets = [toothH * 0.28, -toothH * 0.28];
+  offsets.forEach(off => {
+    const leg = new THREE.Mesh(legGeo, coilMat);
+    const lx = Math.cos(angle) * (toothMidR + off) - Math.sin(angle) * 0;
+    const lz = Math.sin(angle) * (toothMidR + off) + Math.cos(angle) * 0;
+    leg.position.set(lx, 0, lz);
+    group.add(leg);
+    if (isMain) mainWindingMeshes.push(leg);
+    else auxWindingMeshes.push(leg);
+  });
+
+  // End turns — top and bottom overhangs (toroidal arcs)
+  const arcR = toothH * 0.3;
+  const endY = [L * 0.47, -L * 0.47];
+  endY.forEach(ey => {
+    const pts = [];
+    for (let k = 0; k <= 16; k++) {
+      const a = -Math.PI / 2 + (k / 16) * Math.PI;
+      pts.push(new THREE.Vector3(
+        Math.cos(angle) * (toothMidR + arcR * Math.cos(a)),
+        ey + arcR * 0.35 * Math.sin(a) * (ey > 0 ? 1 : -1),
+        Math.sin(angle) * (toothMidR + arcR * Math.cos(a))
+      ));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const tubeGeo = new THREE.TubeGeometry(curve, 16, conductorW * 0.9, 8, false);
+    const tube = new THREE.Mesh(tubeGeo, coilMat);
+    group.add(tube);
+    if (isMain) mainWindingMeshes.push(tube);
+    else auxWindingMeshes.push(tube);
+  });
+
+  // Bobbin insulation (thin cream/yellow collar)
+  const bGeo = new THREE.CylinderGeometry(conductorW * 1.35, conductorW * 1.35, L * 0.92, 8);
+  const bMesh = new THREE.Mesh(bGeo, bobbinMat);
+  bMesh.position.set(
+    Math.cos(angle) * toothMidR,
+    0,
+    Math.sin(angle) * toothMidR
+  );
+  group.add(bMesh);
+}
+
+function buildMotor() {
+  // ── Clear everything ──────────────────────────────────────────────────────
+  const toRemove = [];
+  scene.traverse(o => { if (o.isMesh || o.isLine || o.isGroup) toRemove.push(o); });
+  toRemove.forEach(o => scene.remove(o));
+  slots = []; fluxLines = []; mainWindingMeshes = []; auxWindingMeshes = []; fanBlades = [];
+  statorMesh = null; rotorMesh = null;
+
+  const R   = state.diam / 80;       // stator outer radius  (~1.5 for 120mm)
+  const Ri  = R * 0.54;              // bore radius (inner)
+  const L   = state.stack / 30;      // axial length
+  const N   = state.slots;           // slot count
+  const xray = state.layers.xray;
+
+  const laminateMat = makeLaminateMat(xray);
+
+  // ── 1. Stator yoke (outer ring, laminated appearance) ────────────────────
+  const yokeOuter = R;
+  const yokeInner = Ri + (R - Ri) * 0.35; // yoke inner edge (teeth root)
+
+  const yokeShape = new THREE.Shape();
+  yokeShape.absarc(0, 0, yokeOuter, 0, Math.PI * 2, false);
+  const yokeHole = new THREE.Path();
+  yokeHole.absarc(0, 0, yokeInner, 0, Math.PI * 2, true);
+  yokeShape.holes.push(yokeHole);
+
+  const yokeGeo = new THREE.ExtrudeGeometry(yokeShape, { depth: L, bevelEnabled: false });
+  yokeGeo.rotateX(Math.PI / 2);
+  yokeGeo.translate(0, -L / 2, 0);
+  statorMesh = new THREE.Mesh(yokeGeo, laminateMat);
+  statorMesh.castShadow = true;
+  statorMesh.receiveShadow = true;
+  scene.add(statorMesh);
+  slots.push(statorMesh);
+
+  // Lamination stripes (thin rings to simulate stacked laminations)
+  const nLam = Math.round(state.stack / state.stamp);
+  const lamStep = L / nLam;
+  const lamMat = new THREE.MeshStandardMaterial({ color: 0x2a3a4a, metalness: 0.6, roughness: 0.5 });
+  for (let k = 0; k < nLam; k += 3) {
+    const y = -L / 2 + k * lamStep;
+    const lineGeo = new THREE.TorusGeometry((yokeOuter + yokeInner) / 2, 0.005, 4, 64);
+    const line = new THREE.Mesh(lineGeo, lamMat);
+    line.rotation.x = Math.PI / 2;
+    line.position.y = y;
+    scene.add(line);
+    slots.push(line);
+  }
+
+  // ── 2. Stator teeth ───────────────────────────────────────────────────────
+  const toothHeight = (yokeInner - Ri) * 0.9;
+  const toothW      = (2 * Math.PI * yokeInner / N) * 0.42;
+  const tipW        = (2 * Math.PI * Ri / N) * 0.7;
+  const tipH        = toothHeight * 0.08;
+  const toothMidR   = Ri + toothHeight / 2;
+
+  const motorGroup = new THREE.Group();
+  scene.add(motorGroup);
+  slots.push(motorGroup);
+
+  for (let i = 0; i < N; i++) {
+    const angle = (i / N) * Math.PI * 2;
+
+    // Tooth body (extruded T cross-section)
+    const tShape = makeToothShape(toothW, toothHeight, tipW, tipH);
+    const tGeo = new THREE.ExtrudeGeometry(tShape, { depth: L, bevelEnabled: false });
+    // The shape is built in XY; pivot it so it points radially
+    tGeo.rotateX(Math.PI / 2);
+    tGeo.translate(0, -L / 2, 0);
+
+    const tooth = new THREE.Mesh(tGeo, laminateMat.clone());
+    // Position and orient radially
+    tooth.position.set(Math.cos(angle) * Ri, 0, Math.sin(angle) * Ri);
+    tooth.rotation.y = -angle - Math.PI / 2;
+    tooth.castShadow = true;
+    motorGroup.add(tooth);
+    slots.push(tooth);
+  }
+
+  // ── 3. Coil windings on each tooth ───────────────────────────────────────
+  if (state.layers.main || state.layers.aux) {
+    const coilGroup = new THREE.Group();
+    scene.add(coilGroup);
+    slots.push(coilGroup);
+
+    for (let i = 0; i < N; i++) {
+      const angle = (i / N) * Math.PI * 2;
+      const isMain = (i % 2 === 0);
+      if (isMain && !state.layers.main) continue;
+      if (!isMain && !state.layers.aux) continue;
+
+      buildCoilOnTooth(coilGroup, angle, toothMidR + 0.02, toothHeight, L, isMain, xray);
+    }
+  }
+
+  // ── 4. Rotor (mounting plate + shaft + holes) ─────────────────────────────
+  if (state.layers.rotor) {
+    rotorMesh = new THREE.Group();
+    scene.add(rotorMesh);
+
+    const rr = Ri - (state.gap / 40) - 0.02;
+
+    // Rotor lamination stack
+    const rotorShape = new THREE.Shape();
+    rotorShape.absarc(0, 0, rr, 0, Math.PI * 2, false);
+    const shaftHole = new THREE.Path();
+    shaftHole.absarc(0, 0, rr * 0.12, 0, Math.PI * 2, true);
+    rotorShape.holes.push(shaftHole);
+
+    // Mounting holes (like reference image)
+    const nHoles = 6;
+    const holeR = rr * 0.55;
+    const holeSz = rr * 0.09;
+    for (let k = 0; k < nHoles; k++) {
+      const ha = (k / nHoles) * Math.PI * 2;
+      const h = new THREE.Path();
+      h.absarc(Math.cos(ha) * holeR, Math.sin(ha) * holeR, holeSz, 0, Math.PI * 2, true);
+      rotorShape.holes.push(h);
+    }
+
+    const rotorGeo = new THREE.ExtrudeGeometry(rotorShape, { depth: L * 0.9, bevelEnabled: false });
+    rotorGeo.rotateX(Math.PI / 2);
+    rotorGeo.translate(0, -L * 0.45, 0);
+
+    const rotorMat = new THREE.MeshStandardMaterial({
+      color: 0x5a6a7a,
+      metalness: 0.92,
+      roughness: 0.18,
+    });
+    const rotorBody = new THREE.Mesh(rotorGeo, rotorMat);
+    rotorBody.castShadow = true;
+    rotorMesh.add(rotorBody);
+
+    // Shaft
+    const shaftGeo = new THREE.CylinderGeometry(rr * 0.1, rr * 0.1, L * 2.5, 16);
+    const shaftMat = new THREE.MeshStandardMaterial({ color: 0x9aabb0, metalness: 0.98, roughness: 0.04 });
+    const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+    rotorMesh.add(shaft);
+
+    // Hub boss (raised center)
+    const hubGeo = new THREE.CylinderGeometry(rr * 0.2, rr * 0.2, L * 0.25, 24);
+    const hub = new THREE.Mesh(hubGeo, shaftMat);
+    hub.position.y = L * 0.5;
+    rotorMesh.add(hub);
+
+    // Squirrel cage bars embedded at rotor surface
+    const nBars = 28;
+    for (let i = 0; i < nBars; i++) {
+      const ba = (i / nBars) * Math.PI * 2;
+      const barR = rr - rr * 0.07;
+      const barGeo = new THREE.CylinderGeometry(0.018, 0.018, L * 0.88, 6);
+      const barMat = new THREE.MeshStandardMaterial({ color: 0xaa7722, metalness: 0.95, roughness: 0.08 });
+      const bar = new THREE.Mesh(barGeo, barMat);
+      bar.position.set(Math.cos(ba) * barR, 0, Math.sin(ba) * barR);
+      rotorMesh.add(bar);
+    }
+
+    // End rings
+    [-L * 0.44, L * 0.44].forEach(y => {
+      const erGeo = new THREE.TorusGeometry(rr - rr * 0.07, 0.03, 10, 64);
+      const er = new THREE.Mesh(erGeo, new THREE.MeshStandardMaterial({ color: 0xbb8833, metalness: 0.95, roughness: 0.1 }));
+      er.rotation.x = Math.PI / 2;
+      er.position.y = y;
+      rotorMesh.add(er);
+    });
+  }
+
+  // ── 5. Flux lines ─────────────────────────────────────────────────────────
+  if (state.layers.flux) buildFluxLines();
+
+  // ── 6. Exploded view ──────────────────────────────────────────────────────
+  const explodeY = state.layers.explode ? 1.8 : 0;
+  if (statorMesh) statorMesh.position.y = state.layers.explode ? explodeY : 0;
+  if (rotorMesh)  rotorMesh.position.y  = state.layers.explode ? -explodeY * 0.6 : 0;
+}
+
+function buildFanBlades() {
+  const nBlades = 5;
+  const bladeGroup = new THREE.Group();
+  const R = state.diam / 80;
+
+  for (let i = 0; i < nBlades; i++) {
+    const angle = (i / nBlades) * Math.PI * 2;
+    const bladeShape = new THREE.Shape();
+    bladeShape.moveTo(0, 0);
+    bladeShape.lineTo(0.08, 0.8);
+    bladeShape.lineTo(-0.08, 0.8);
+    bladeShape.closePath();
+    const bladeGeo = new THREE.ShapeGeometry(bladeShape);
+    const bladeMat = new THREE.MeshStandardMaterial({
+      color: 0x334455,
+      metalness: 0.7,
+      roughness: 0.3,
+      side: THREE.DoubleSide
+    });
+    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+    blade.rotation.y = angle;
+    blade.rotation.x = 0.3;
+    blade.position.set(Math.cos(angle) * (R + 0.2), state.stack / 60 + 0.5, Math.sin(angle) * (R + 0.2));
+    bladeGroup.add(blade);
+  }
+  scene.add(bladeGroup);
+  fanBlades.push(bladeGroup);
+}
+
+function buildFluxLines() {
+  const nLines = 8;
+  const Ri = (state.diam / 80) * 0.55;
+  for (let i = 0; i < nLines; i++) {
+    const angle = (i / nLines) * Math.PI * 2;
+    const points = [];
+    for (let j = 0; j <= 32; j++) {
+      const a = angle + (j / 32) * Math.PI * 2;
+      points.push(new THREE.Vector3(Math.cos(a) * Ri * 0.7, 0, Math.sin(a) * Ri * 0.7));
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = new THREE.LineBasicMaterial({
+      color: 0x00c8ff,
+      transparent: true,
+      opacity: 0.25
+    });
+    const line = new THREE.Line(geo, mat);
+    scene.add(line);
+    fluxLines.push(line);
+  }
+}
+
+function updateStatorGeometry() {
+  buildMotor();
+}
+
+// =============================================
+//  3D ANIMATION LOOP
+// =============================================
+function animate3D() {
+  requestAnimationFrame(animate3D);
+
+  state.time += 0.016;
+  waveT += 0.06;
+
+  // Camera orbit
+  const x = spherical.r * Math.sin(spherical.phi) * Math.sin(spherical.theta) + panOffset.x;
+  const y = spherical.r * Math.cos(spherical.phi) + panOffset.y;
+  const z = spherical.r * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+  camera.position.set(x, y, z);
+  camera.lookAt(panOffset.x, panOffset.y, 0);
+
+  // Rotor rotation
+  if (rotorMesh && state.rpm > 0) {
+    const radsPerSec = (state.rpm * 2 * Math.PI) / 60;
+    rotorMesh.rotation.y += radsPerSec * 0.016;
+  }
+
+  // Fan blades
+  fanBlades.forEach(group => {
+    const radsPerSec = (state.rpm * 2 * Math.PI) / 60;
+    group.rotation.y += radsPerSec * 0.016;
+  });
+
+  // Flux line animation
+  fluxLines.forEach((line, i) => {
+    if (!line.material) return;
+    const offset = (state.time * 2 + i * 0.2) % 1;
+    line.material.opacity = 0.1 + 0.2 * Math.sin(state.time * 3 + i);
+    line.rotation.y = state.fluxAngle + i * (Math.PI / fluxLines.length);
+  });
+
+  // Rotating flux field
+  state.fluxAngle += (2 * Math.PI * state.freq / 60) * 0.016;
+
+  // Winding glow pulsing
+  const t = state.time;
+  mainWindingMeshes.forEach((m, i) => {
+    if (m.material) {
+      m.material.emissiveIntensity = 0.4 + 0.4 * Math.sin(t * 2 * Math.PI * state.freq + i);
+    }
+  });
+  auxWindingMeshes.forEach((m, i) => {
+    if (m.material) {
+      const phaseShift = state.phaseAngle * Math.PI / 180;
+      m.material.emissiveIntensity = 0.4 + 0.4 * Math.sin(t * 2 * Math.PI * state.freq + phaseShift + i);
+    }
+  });
+
+  renderer.render(scene, camera);
+  drawWave();
+}
+
+// =============================================
+//  VIEW PRESETS
+// =============================================
+function setView(v) {
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  if (v === 'iso') { spherical.theta = 0.6; spherical.phi = 1.0; spherical.r = 5; }
+  else if (v === 'top') { spherical.theta = 0; spherical.phi = 0.05; spherical.r = 5; }
+  else if (v === 'side') { spherical.theta = Math.PI / 2; spherical.phi = Math.PI / 2; spherical.r = 5; }
+  else if (v === 'section') { spherical.theta = 0; spherical.phi = Math.PI / 2; spherical.r = 4; }
+}
+
+// =============================================
+//  LAYER TOGGLES
+// =============================================
+function toggleLayer(key, el) {
+  state.layers[key] = !state.layers[key];
+  el.classList.toggle('on');
+  el.classList.toggle('off');
+  buildMotor();
+}
+
+// =============================================
+//  FAULT TOGGLES
+// =============================================
+function toggleFault(key, el) {
+  state.faults[key] = !state.faults[key];
+  el.classList.toggle('on');
+  el.classList.toggle('off');
+  recalculate();
+}
+
+// =============================================
+//  RESPONSIVE RESIZE
+// =============================================
+window.addEventListener('resize', () => {
+  const container = document.getElementById('centerView');
+  const W = container.offsetWidth, H = container.offsetHeight;
+  if (renderer) {
+    renderer.setSize(W, H);
+    camera.aspect = W / H;
+    camera.updateProjectionMatrix();
+  }
+});
+
+// =============================================
+//  TOOLTIPS
+// =============================================
+const tooltips = {
+  'sl-cap': 'Capacitor creates a phase shift between main and auxiliary windings, generating a rotating magnetic field for starting torque.',
+  'sel-captype': 'PSC: capacitor stays in circuit always. Capacitor Start: capacitor disconnects after starting. CSC+R: uses two capacitors for optimal performance.',
+  'sl-slots': 'More slots allow finer distributed winding, reducing harmonics and improving motor efficiency.',
+  'sel-poles': 'Synchronous speed = 120f/P. More poles → lower speed but higher torque at same power.',
+  'sl-gap': 'Larger air gap requires more magnetizing current, reducing power factor. Smaller gap improves efficiency but needs precision manufacturing.',
+  'sl-mr': 'Main winding resistance affects copper losses and power factor. Higher resistance means more heat generation.',
+  'sl-ar': 'Auxiliary winding has higher resistance to achieve better phase separation from the capacitor.',
+  'sl-mturns': 'More turns increase the inductance and reduce current, but also reduce the magnetic flux at same voltage.',
+};
+document.querySelectorAll('input[type=range], select').forEach(el => {
+  el.addEventListener('mouseenter', (e) => {
+    if (tooltips[el.id]) {
+      const tip = document.getElementById('tooltip');
+      tip.textContent = tooltips[el.id];
+      tip.style.left = '290px';
+      tip.style.top = e.clientY + 'px';
+      tip.classList.add('show');
+    }
+  });
+  el.addEventListener('mouseleave', () => {
+    document.getElementById('tooltip').classList.remove('show');
+  });
+});
+
+// =============================================
+//  INIT
+// =============================================
+// Initialize all slider backgrounds
+document.querySelectorAll('input[type=range]').forEach(el => {
+  const min = parseFloat(el.min), max = parseFloat(el.max), val = parseFloat(el.value);
+  const pct = ((val - min) / (max - min)) * 100;
+  el.style.setProperty('--val', pct + '%');
+});
+
+// Set initial toggle states
+document.querySelectorAll('.toggle').forEach(t => {
+  if (t.classList.contains('on')) {
+    t.classList.add('on');
+  }
+});
+
+recalculate();
+initThree();
+
+// Periodic recalc for animation
+setInterval(() => {
+  drawPhasor();
+  drawTorqueCurve();
+  drawGauge();
+}, 200);
+
+</script>
+</body>
+</html>
