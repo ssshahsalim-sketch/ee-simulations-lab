@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagnoSim - 3D Ceiling Fan Motor Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #09090b;
+            color: #e4e4e7;
+            overflow: hidden;
+        }
+        .glass {
+            background: rgba(24, 24, 27, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(63, 63, 70, 0.5);
+        }
+        .neon-text {
+            text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #18181b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 10px;
+        }
+        canvas { outline: none; }
+        .gauge-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+        }
+        .value-badge {
+            font-family: 'JetBrains Mono', monospace;
+            background: #27272a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #22d3ee;
+        }
+        .parameter-label {
+            font-size: 0.75rem;
+            color: #a1a1aa;
+            margin-bottom: 0.25rem;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body class="h-screen w-full flex flex-col">
+
+    <header class="h-14 border-b border-zinc-800 flex items-center justify-between px-6 glass z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight">MagnoSim <span class="text-cyan-400 font-light">Pro</span></h1>
+                <p class="text-[10px] text-zinc-500 uppercase tracking-widest">Single-Phase Motor Dynamics</p>
+            </div>
+        </div>
+        <div class="flex gap-4">
+            <div id="statusIndicator" class="flex items-center gap-2 px-3 py-1 bg-zinc-900 rounded-full border border-zinc-800">
+                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span class="text-xs font-medium text-zinc-300">System Nominal</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        <!-- Left Sidebar: Controls -->
+        <aside class="w-80 glass border-r border-zinc-800 flex flex-col h-full z-40 overflow-y-auto custom-scrollbar">
+            <div class="p-4 border-b border-zinc-800">
+                <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Physical Parameters</h2>
+            </div>
+            
+            <div class="p-4 space-y-6">
+                <!-- Stator Geometry -->
+                <section>
+                    <div class="parameter-label">
+                        <span>Stator Diameter (mm)</span>
+                        <span class="value-badge" id="val-coreDia">120</span>
+                    </div>
+                    <input type="range" id="coreDia" min="80" max="200" value="120" class="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                    
+                    <div class="mt-4 parameter-label">
+                        <span>Stack Height (mm)</span>
+                        <span class="value-badge" id="val-stackHeight">18</span>
+                    </div>
+                    <input type="range" id="stackHeight" min="10" max="40" value="18" class="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+
+                    <div class="mt-4 parameter-label">
+                        <span>Number of Slots</span>
+                        <span class="value-badge" id="val-slots">32</span>
+                    </div>
+                    <select id="slots" class="w-full bg-zinc-900 border border-zinc-800 text-xs p-2 rounded focus:ring-1 focus:ring-cyan-500 outline-none">
+                        <option value="16">16 Slots</option>
+                        <option value="24">24 Slots</option>
+                        <option value="32" selected>32 Slots</option>
+                        <option value="48">48 Slots</option>
+                    </select>
+                </section>
+
+                <!-- Electrical Settings -->
+                <section class="pt-4 border-t border-zinc-800/50">
+                    <h3 class="text-[10px] text-zinc-500 font-bold uppercase mb-4">Electrical Configuration</h3>
+                    
+                    <div class="parameter-label">
+                        <span>Supply Voltage (V)</span>
+                        <span class="value-badge" id="val-voltage">230</span>
+                    </div>
+                    <input type="range" id="voltage" min="110" max="260" value="230" class="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+
+                    <div class="mt-4 parameter-label">
+                        <span>Capacitance (μF)</span>
+                        <span class="value-badge" id="val-capacitor">2.5</span>
+                    </div>
+                    <input type="range" id="capacitor" min="0" max="10" step="0.1" value="2.5" class="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+
+                    <div class="mt-4 parameter-label">
+                        <span>Pole Count</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button class="pole-btn bg-cyan-900/30 border border-cyan-500/50 text-cyan-400 py-1 text-xs rounded" data-poles="2">2P</button>
+                        <button class="pole-btn bg-zinc-900 border border-zinc-800 text-zinc-500 py-1 text-xs rounded" data-poles="4">4P</button>
+                        <button class="pole-btn bg-zinc-900 border border-zinc-800 text-zinc-500 py-1 text-xs rounded" data-poles="12">12P</button>
+                    </div>
+                </section>
+
+                <!-- Winding Details -->
+                <section class="pt-4 border-t border-zinc-800/50">
+                    <h3 class="text-[10px] text-zinc-500 font-bold uppercase mb-4">Winding Specification</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="parameter-label"><span>Main Turns</span><span class="value-badge" id="val-mainTurns">450</span></div>
+                            <input type="range" id="mainTurns" min="100" max="1000" value="450" class="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-500">
+                        </div>
+                        <div>
+                            <div class="parameter-label"><span>Aux Turns</span><span class="value-badge" id="val-auxTurns">520</span></div>
+                            <input type="range" id="auxTurns" min="100" max="1000" value="520" class="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-pink-500">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Visualization Toggles -->
+                <section class="pt-4 border-t border-zinc-800/50 pb-10">
+                    <h3 class="text-[10px] text-zinc-500 font-bold uppercase mb-4">View Options</h3>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="showMagneticField" checked class="rounded border-zinc-800 text-cyan-500">
+                            <span>Rotating Magnetic Field</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="transparentRotor" class="rounded border-zinc-800 text-cyan-500">
+                            <span>Transparent Rotor</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="explodedView" class="rounded border-zinc-800 text-cyan-500">
+                            <span>Exploded View</span>
+                        </label>
+                    </div>
+                </section>
+            </div>
+        </aside>
+
+        <!-- Center: 3D Visualization -->
+        <div class="flex-1 relative flex flex-col bg-[#050505]">
+            <div id="threejs-container" class="w-full h-full"></div>
+            
+            <!-- 3D HUD Top -->
+            <div class="absolute top-6 left-6 flex gap-4 pointer-events-none">
+                <div class="glass p-3 rounded-lg border-l-4 border-cyan-500">
+                    <div class="text-[10px] text-zinc-500 uppercase tracking-tighter">Current RPM</div>
+                    <div id="display-rpm" class="text-2xl font-bold font-mono neon-text">0</div>
+                </div>
+                <div class="glass p-3 rounded-lg border-l-4 border-amber-500">
+                    <div class="text-[10px] text-zinc-500 uppercase tracking-tighter">Sync Speed</div>
+                    <div id="display-sync" class="text-2xl font-bold font-mono">3000</div>
+                </div>
+            </div>
+
+            <!-- 3D HUD Bottom -->
+            <div class="absolute bottom-6 left-6 right-6 flex justify-between items-end pointer-events-none">
+                <div class="flex gap-2">
+                    <div class="glass p-2 rounded flex flex-col items-center pointer-events-auto cursor-help" title="Main Winding Active">
+                        <div class="w-3 h-3 bg-amber-500 rounded-full"></div>
+                        <span class="text-[8px] mt-1 uppercase">Main</span>
+                    </div>
+                    <div class="glass p-2 rounded flex flex-col items-center pointer-events-auto cursor-help" title="Aux Winding Active">
+                        <div class="w-3 h-3 bg-pink-500 rounded-full"></div>
+                        <span class="text-[8px] mt-1 uppercase">Aux</span>
+                    </div>
+                    <div class="glass p-2 rounded flex flex-col items-center pointer-events-auto cursor-help" title="Capacitor Engaged">
+                        <div class="w-3 h-3 bg-cyan-400 rounded-full shadow-[0_0_8px_#22d3ee]"></div>
+                        <span class="text-[8px] mt-1 uppercase">Cap</span>
+                    </div>
+                </div>
+
+                <div class="glass p-4 rounded-xl flex gap-8 pointer-events-auto border border-zinc-700/50">
+                    <div class="flex flex-col items-center">
+                        <canvas id="torqueChart" width="120" height="60"></canvas>
+                        <span class="text-[9px] text-zinc-500 mt-1 uppercase">Torque Curve</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <canvas id="phasorCanvas" width="80" height="80"></canvas>
+                        <span class="text-[9px] text-zinc-500 mt-1 uppercase">Phasor Diagram</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar: Analytics -->
+        <aside class="w-72 glass border-l border-zinc-800 flex flex-col h-full z-40 overflow-y-auto custom-scrollbar">
+            <div class="p-4 border-b border-zinc-800">
+                <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Performance Data</h2>
+            </div>
+            <div class="p-4 space-y-4">
+                <div class="grid grid-cols-1 gap-3">
+                    <div class="bg-zinc-900/50 p-3 rounded border border-zinc-800">
+                        <div class="text-[10px] text-zinc-500 uppercase">Input Power</div>
+                        <div class="flex justify-between items-baseline">
+                            <span id="res-power" class="text-lg font-bold">0.0</span>
+                            <span class="text-xs text-zinc-500">Watts</span>
+                        </div>
+                    </div>
+                    <div class="bg-zinc-900/50 p-3 rounded border border-zinc-800">
+                        <div class="text-[10px] text-zinc-500 uppercase">Power Factor</div>
+                        <div class="flex justify-between items-baseline">
+                            <span id="res-pf" class="text-lg font-bold">0.00</span>
+                            <span class="text-xs text-zinc-500">cos φ</span>
+                        </div>
+                    </div>
+                    <div class="bg-zinc-900/50 p-3 rounded border border-zinc-800">
+                        <div class="text-[10px] text-zinc-500 uppercase">Efficiency</div>
+                        <div class="flex justify-between items-baseline">
+                            <span id="res-eff" class="text-lg font-bold text-green-400">0%</span>
+                        </div>
+                    </div>
+                    <div class="bg-zinc-900/50 p-3 rounded border border-zinc-800">
+                        <div class="text-[10px] text-zinc-500 uppercase">Current (Total)</div>
+                        <div class="flex justify-between items-baseline">
+                            <span id="res-current" class="text-lg font-bold">0.00</span>
+                            <span class="text-xs text-zinc-500">Amps</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="text-[10px] text-zinc-500 font-bold uppercase mb-2">Phase Analysis</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-zinc-500">Phase Shift</span>
+                            <span id="res-phaseShift" class="text-cyan-400">0°</span>
+                        </div>
+                        <div class="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                            <div id="phaseProgressBar" class="h-full bg-cyan-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-6 border-t border-zinc-800/50">
+                    <h3 class="text-[10px] text-zinc-500 font-bold uppercase mb-2">Engineering Log</h3>
+                    <div id="eng-log" class="text-[10px] font-mono text-zinc-600 h-40 overflow-y-auto space-y-1">
+                        <div>> Initializing physics engine...</div>
+                        <div>> Model loaded successfully.</div>
+                        <div>> Waiting for voltage...</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <footer class="h-8 border-t border-zinc-800 glass flex items-center px-4 justify-between text-[10px] text-zinc-500">
+        <div>3D Engine: Three.js r128 | Simulation Precision: 64-bit</div>
+        <div class="flex gap-4">
+            <span>&copy; 2026 GEOMETRIC DYNAMICS</span>
+            <span class="text-cyan-600">v2.4.1-STABLE</span>
+        </div>
+    </footer>
+
+    <script>
+        /* Constants & Configuration */
+        const UI = {
+            coreDia: document.getElementById('coreDia'),
+            stackHeight: document.getElementById('stackHeight'),
+            slots: document.getElementById('slots'),
+            voltage: document.getElementById('voltage'),
+            capacitor: document.getElementById('capacitor'),
+            mainTurns: document.getElementById('mainTurns'),
+            auxTurns: document.getElementById('auxTurns'),
+            displayRpm: document.getElementById('display-rpm'),
+            displaySync: document.getElementById('display-sync'),
+            resPower: document.getElementById('res-power'),
+            resPf: document.getElementById('res-pf'),
+            resEff: document.getElementById('res-eff'),
+            resCurrent: document.getElementById('res-current'),
+            resPhaseShift: document.getElementById('res-phaseShift'),
+            phaseProgressBar: document.getElementById('phaseProgressBar'),
+            engLog: document.getElementById('eng-log'),
+            showMagneticField: document.getElementById('showMagneticField'),
+            transparentRotor: document.getElementById('transparentRotor'),
+            explodedView: document.getElementById('explodedView')
+        };
+
+        let scene, camera, renderer, controls;
+        let motorGroup, stator, rotor, bladesGroup, magneticFieldGroup;
+        let mainWindings = [], auxWindings = [];
+        let poles = 2;
+        let motorState = {
+            currentRpm: 0,
+            targetRpm: 0,
+            slip: 0,
+            torque: 0,
+            phaseShift: 0,
+            frequency: 50
+        };
+
+        function init3D() {
+            scene = new THREE.Scene();
+            scene.background = null;
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(250, 250, 250);
+
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                alpha: true,
+                powerPreference: "high-performance"
+            });
+            renderer.setSize(document.getElementById('threejs-container').clientWidth, document.getElementById('threejs-container').clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('threejs-container').appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+            mainLight.position.set(100, 200, 100);
+            scene.add(mainLight);
+
+            const rimLight = new THREE.PointLight(0x22d3ee, 1, 500);
+            rimLight.position.set(-150, 100, -150);
+            scene.add(rimLight);
+
+            motorGroup = new THREE.Group();
+            scene.add(motorGroup);
+
+            window.addEventListener('resize', onWindowResize);
+            createMotor();
+            animate();
+        }
+
+        function createMotor() {
+            // Clear existing
+            while(motorGroup.children.length > 0){ 
+                motorGroup.remove(motorGroup.children[0]); 
+            }
+
+            const dia = parseFloat(UI.coreDia.value);
+            const height = parseFloat(UI.stackHeight.value);
+            const slotCount = parseInt(UI.slots.value);
+
+            // Stator Core (Laminated Steel Look)
+            const statorGeo = new THREE.CylinderGeometry(dia/2, dia/2, height, 64);
+            const statorMat = new THREE.MeshStandardMaterial({ 
+                color: 0x3f3f46, 
+                metalness: 0.8, 
+                roughness: 0.4,
+                transparent: true,
+                opacity: 0.95
+            });
+            stator = new THREE.Mesh(statorGeo, statorMat);
+            motorGroup.add(stator);
+
+            // Adding Slots and Teeth
+            const slotDepth = 15;
+            const slotWidth = (Math.PI * dia) / (slotCount * 2);
+            
+            for (let i = 0; i < slotCount; i++) {
+                const angle = (i / slotCount) * Math.PI * 2;
+                
+                // Visual Winding representation (simplified as tubes)
+                const isMain = i % 2 === 0;
+                const windingColor = isMain ? 0xf59e0b : 0xec4899;
+                
+                const windingGeo = new THREE.TorusGeometry(height/2 + 2, 1.5, 8, 20, Math.PI);
+                const windingMat = new THREE.MeshStandardMaterial({ 
+                    color: windingColor, 
+                    emissive: windingColor,
+                    emissiveIntensity: 0.2
+                });
+                const w = new THREE.Mesh(windingGeo, windingMat);
+                
+                w.position.x = (dia/2 - 2) * Math.cos(angle);
+                w.position.z = (dia/2 - 2) * Math.sin(angle);
+                w.rotation.y = -angle;
+                w.rotation.x = Math.PI / 2;
+                
+                motorGroup.add(w);
+                if(isMain) mainWindings.push(w); else auxWindings.push(w);
+            }
+
+            // Rotor (Outer Rotor Design for Fan)
+            const rotorOuterDia = dia + 15;
+            const rotorGeo = new THREE.CylinderGeometry(rotorOuterDia/2, rotorOuterDia/2, height + 10, 64, 1, true);
+            const rotorMat = new THREE.MeshStandardMaterial({ 
+                color: 0x27272a, 
+                metalness: 0.9, 
+                roughness: 0.2, 
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.9
+            });
+            rotor = new THREE.Mesh(rotorGeo, rotorMat);
+            
+            // Rotor Top Cover
+            const capGeo = new THREE.CircleGeometry(rotorOuterDia/2, 64);
+            const cap = new THREE.Mesh(capGeo, rotorMat);
+            cap.rotation.x = -Math.PI / 2;
+            cap.position.y = (height + 10) / 2;
+            rotor.add(cap);
+
+            // Fan Blades
+            bladesGroup = new THREE.Group();
+            const bladeGeo = new THREE.BoxGeometry(100, 1, 30);
+            const bladeMat = new THREE.MeshStandardMaterial({ color: 0x18181b });
+            
+            for(let i=0; i<3; i++) {
+                const b = new THREE.Mesh(bladeGeo, bladeMat);
+                b.position.x = 80;
+                const pivot = new THREE.Group();
+                pivot.rotation.y = (i * Math.PI * 2) / 3;
+                pivot.add(b);
+                bladesGroup.add(pivot);
+            }
+            bladesGroup.position.y = (height + 10) / 2 + 5;
+            rotor.add(bladesGroup);
+            
+            motorGroup.add(rotor);
+
+            // Magnetic Flux Visualizer
+            magneticFieldGroup = new THREE.Group();
+            const ringGeo = new THREE.RingGeometry(dia/2 - 5, dia/2 + 5, 32);
+            const ringMat = new THREE.MeshBasicMaterial({ 
+                color: 0x22d3ee, 
+                transparent: true, 
+                opacity: 0.3, 
+                side: THREE.DoubleSide 
+            });
+            const field = new THREE.Mesh(ringGeo, ringMat);
+            field.rotation.x = Math.PI / 2;
+            magneticFieldGroup.add(field);
+            motorGroup.add(magneticFieldGroup);
+        }
+
+        function updatePhysics() {
+            const V = parseFloat(UI.voltage.value);
+            const C = parseFloat(UI.capacitor.value);
+            const Nm = parseInt(UI.mainTurns.value);
+            const Na = parseInt(UI.auxTurns.value);
+            const P = poles;
+            const f = motorState.frequency;
+
+            // Synchronous Speed
+            const Ns = (120 * f) / P;
+            UI.displaySync.innerText = Math.round(Ns);
+
+            // Reactance calculations (simplified)
+            const Lm = Nm * 0.0002; // Henrys approximation
+            const La = Na * 0.0002;
+            const XLm = 2 * Math.PI * f * Lm;
+            const XLa = 2 * Math.PI * f * La;
+            const XC = C > 0 ? 1 / (2 * Math.PI * f * C * 1e-6) : 1e9;
+
+            // Impedance
+            const Zm_mag = Math.sqrt(5**2 + XLm**2); // Assuming 5 ohm resistance
+            const Za_mag = Math.sqrt(8**2 + (XLa - XC)**2);
+
+            const Im = V / Zm_mag;
+            const Ia = V / Za_mag;
+            const Itot = Im + (Ia * 0.5); // Simplified vector sum
+
+            // Phase Shift calculation
+            const phi_m = Math.atan2(XLm, 5) * (180/Math.PI);
+            const phi_a = Math.atan2((XLa - XC), 8) * (180/Math.PI);
+            const shift = Math.abs(phi_m - phi_a);
+            
+            motorState.phaseShift = shift;
+
+            // Starting Torque Estimation
+            // Torque proportional to V^2 * C * sin(alpha)
+            const startTorque = (V/230)**2 * (C/2.5) * Math.sin(shift * Math.PI/180);
+            
+            // RPM logic
+            // Load factor (blades at air resistance)
+            const load = 0.15;
+            const targetSlip = load / (startTorque + 0.1);
+            motorState.targetRpm = Ns * (1 - Math.min(targetSlip, 0.95));
+
+            // Smooth RPM transition
+            motorState.currentRpm += (motorState.targetRpm - motorState.currentRpm) * 0.02;
+
+            // UI Updates
+            UI.displayRpm.innerText = Math.round(motorState.currentRpm);
+            UI.resCurrent.innerText = Itot.toFixed(2);
+            UI.resPower.innerText = (V * Itot * 0.85).toFixed(1); // pf assumed 0.85
+            UI.resPf.innerText = (0.7 + (shift/180)).toFixed(2);
+            UI.resEff.innerText = Math.round(75 + (motorState.currentRpm / Ns) * 15) + "%";
+            UI.resPhaseShift.innerText = Math.round(shift) + "°";
+            UI.phaseProgressBar.style.width = (shift / 90 * 100) + "%";
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            updatePhysics();
+
+            // Rotate Rotor
+            const rotationSpeed = (motorState.currentRpm / 60) * (Math.PI * 2) / 60;
+            if (rotor) rotor.rotation.y += rotationSpeed;
+
+            // Animation for Magnetic Field
+            if (magneticFieldGroup && UI.showMagneticField.checked) {
+                magneticFieldGroup.visible = true;
+                magneticFieldGroup.rotation.y += (UI.displaySync.innerText / 60) * (Math.PI * 2) / 60;
+                const pulse = Math.sin(Date.now() * 0.005) * 0.1 + 0.9;
+                magneticFieldGroup.scale.set(pulse, 1, pulse);
+            } else {
+                magneticFieldGroup.visible = false;
+            }
+
+            // Exploded view logic
+            if (UI.explodedView.checked) {
+                rotor.position.y = THREE.MathUtils.lerp(rotor.position.y, 100, 0.05);
+                stator.position.y = THREE.MathUtils.lerp(stator.position.y, -20, 0.05);
+            } else {
+                rotor.position.y = THREE.MathUtils.lerp(rotor.position.y, 0, 0.05);
+                stator.position.y = THREE.MathUtils.lerp(stator.position.y, 0, 0.05);
+            }
+
+            // Transparent rotor
+            if(rotor) rotor.material.opacity = UI.transparentRotor.checked ? 0.2 : 0.9;
+
+            renderer.render(scene, camera);
+            drawPhasor();
+        }
+
+        function onWindowResize() {
+            camera.aspect = document.getElementById('threejs-container').clientWidth / document.getElementById('threejs-container').clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(document.getElementById('threejs-container').clientWidth, document.getElementById('threejs-container').clientHeight);
+        }
+
+        function drawPhasor() {
+            const canvas = document.getElementById('phasorCanvas');
+            const ctx = canvas.getContext('2d');
+            const cx = 40, cy = 40;
+            
+            ctx.clearRect(0,0,80,80);
+            
+            // Voltage Ref (Vertical)
+            ctx.strokeStyle = '#52525b';
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, 10); ctx.stroke();
+
+            // Main Current
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + 25 * Math.sin(30 * Math.PI/180), cy + 25 * Math.cos(30 * Math.PI/180));
+            ctx.stroke();
+
+            // Aux Current (with shift)
+            ctx.strokeStyle = '#ec4899';
+            const auxAngle = (30 - motorState.phaseShift) * Math.PI/180;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + 25 * Math.sin(auxAngle), cy + 25 * Math.cos(auxAngle));
+            ctx.stroke();
+        }
+
+        // UI Interaction Listeners
+        [UI.coreDia, UI.stackHeight, UI.voltage, UI.capacitor, UI.mainTurns, UI.auxTurns].forEach(el => {
+            el.addEventListener('input', (e) => {
+                document.getElementById('val-' + e.target.id).innerText = e.target.value;
+                if(e.target.id === 'coreDia' || e.target.id === 'stackHeight') createMotor();
+                logToEng(`Parameter Changed: ${e.target.id} = ${e.target.value}`);
+            });
+        });
+
+        UI.slots.addEventListener('change', (e) => {
+            document.getElementById('val-slots').innerText = e.target.value;
+            createMotor();
+            logToEng(`Stator re-slotted to ${e.target.value} divisions.`);
+        });
+
+        document.querySelectorAll('.pole-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                poles = parseInt(btn.dataset.poles);
+                document.querySelectorAll('.pole-btn').forEach(b => b.classList.replace('bg-cyan-900/30', 'bg-zinc-900'));
+                document.querySelectorAll('.pole-btn').forEach(b => b.classList.replace('text-cyan-400', 'text-zinc-500'));
+                btn.classList.replace('bg-zinc-900', 'bg-cyan-900/30');
+                btn.classList.replace('text-zinc-500', 'text-cyan-400');
+                logToEng(`Motor reconfigured for ${poles} poles.`);
+            });
+        });
+
+        function logToEng(msg) {
+            const entry = document.createElement('div');
+            entry.innerText = `> ${msg}`;
+            UI.engLog.prepend(entry);
+        }
+
+        // Initialize on load
+        window.onload = init3D;
+
+    </script>
+</body>
+</html>
