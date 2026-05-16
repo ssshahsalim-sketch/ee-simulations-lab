@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Short-Circuit Analysis Pro — ETAP-Style</title>
+<style>
+/* ═══════════════════════════════════════════════════════════ RESET & BASE */
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#060810;--panel:#0c1020;--panel2:#111828;--panel3:#161f30;
+  --border:#1e2d45;--accent:#1a8fff;--accent2:#00c9ff;
+  --success:#00e57a;--warn:#f5a623;--danger:#ff4757;
+  --text:#d4e5f7;--text2:#7a9ab8;--text3:#3d5a7a;
+  --grid:#0a1520;
+  --rail-l:#c0392b;--rail-n:#2980b9;
+  --bus:#ffd700;
+  --gen-col:#2ecc71;--tr-col:#e67e22;--mot-col:#9b59b6;
+  --cab-col:#1abc9c;--load-col:#e74c3c;--util-col:#3498db;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ═══════════════════════════════════════════════════════════ TOOLBAR */
+.toolbar{height:52px;background:var(--panel);border-bottom:2px solid #0d2040;display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;}
+.tb-logo{font-size:15px;font-weight:700;color:var(--accent2);letter-spacing:1px;white-space:nowrap;text-shadow:0 0 12px #00c9ff44;}
+.tb-logo span{color:#ff4757;}
+.sep{width:1px;height:32px;background:var(--border);flex-shrink:0;}
+.tbtn{cursor:pointer;background:var(--panel2);color:var(--text2);border:1px solid var(--border);padding:6px 13px;border-radius:5px;font-size:12px;font-weight:600;transition:all .15s;white-space:nowrap;}
+.tbtn:hover{border-color:var(--accent);color:var(--accent);background:#0a1a2e;}
+.tbtn.primary{background:#0a2a50;border-color:var(--accent);color:var(--accent2);}
+.tbtn.primary:hover{background:var(--accent);color:#000;}
+.tbtn.success{background:#0a2a1a;border-color:var(--success);color:var(--success);}
+.tbtn.success:hover{background:var(--success);color:#000;}
+.tbtn.danger{border-color:var(--danger);color:var(--danger);}
+.tbtn.danger:hover{background:#2a0a0a;}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.tb-badge{font-size:11px;color:var(--text2);background:var(--panel2);border:1px solid var(--border);padding:3px 9px;border-radius:12px;}
+
+/* ═══════════════════════════════════════════════════════════ LAYOUT */
+.main{display:flex;flex:1;overflow:hidden;}
+
+/* ═══════════════════════════════════════════════════════════ SIDEBAR */
+.sidebar{width:148px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;padding:8px 6px;gap:4px;}
+.sb-section{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;padding:6px 4px 3px;border-top:1px solid var(--border);margin-top:4px;}
+.sb-section:first-of-type{border-top:none;margin-top:0;}
+.comp-card{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;cursor:grab;display:flex;align-items:center;gap:7px;transition:all .15s;user-select:none;}
+.comp-card:hover{border-color:var(--accent);background:#0a1a2e;}
+.comp-card:active{cursor:grabbing;opacity:.7;}
+.comp-icon{width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.comp-icon svg{width:100%;height:100%;}
+.comp-name{font-size:10px;color:var(--text2);line-height:1.3;}
+
+/* ═══════════════════════════════════════════════════════════ CANVAS */
+.canvas-wrap{flex:1;overflow:auto;background:var(--grid);position:relative;}
+#mainCanvas{display:block;cursor:crosshair;}
+
+/* ═══════════════════════════════════════════════════════════ RIGHT PANEL */
+.rpanel{width:320px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+.rp-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.rp-header h3{font-size:12px;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;}
+.rp-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+.rp-tab{flex:1;padding:8px 4px;text-align:center;font-size:11px;cursor:pointer;color:var(--text2);background:none;border:none;border-bottom:2px solid transparent;font-family:inherit;}
+.rp-tab.active{color:var(--accent2);border-bottom-color:var(--accent2);}
+.rp-body{flex:1;overflow-y:auto;padding:12px;}
+
+/* ═══════════════════════════════════════════════════════════ FORMS */
+.form-section{margin-bottom:14px;}
+.form-section h4{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.field{margin-bottom:7px;}
+.field label{display:block;font-size:10px;color:var(--text2);margin-bottom:3px;}
+.field input,.field select{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:inherit;font-size:12px;}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);}
+.field-row{display:flex;gap:6px;}
+.field-row .field{flex:1;}
+.unit{font-size:9px;color:var(--text3);margin-left:4px;}
+
+/* ═══════════════════════════════════════════════════════════ RESULTS */
+.result-card{background:var(--panel2);border:1px solid var(--border);border-radius:6px;margin-bottom:10px;overflow:hidden;}
+.result-header{padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+.result-type{font-size:11px;font-weight:700;color:var(--accent2);}
+.result-badge{font-size:9px;padding:2px 7px;border-radius:10px;font-weight:600;}
+.rb-3ph{background:#0a2a1a;color:var(--success);border:1px solid var(--success);}
+.rb-lg {background:#1a0a0a;color:var(--danger);border:1px solid var(--danger);}
+.rb-ll {background:#1a1a0a;color:var(--warn);border:1px solid var(--warn);}
+.rb-llg{background:#1a0a1a;color:#cc88ff;border:1px solid #cc88ff;}
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.result-item{padding:7px 12px;border-bottom:1px solid var(--border);}
+.result-item:nth-child(even){border-left:1px solid var(--border);}
+.result-item:last-child,.result-item:nth-last-child(2){border-bottom:none;}
+.ri-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;}
+.ri-value{font-size:14px;font-weight:700;color:var(--accent2);margin-top:1px;}
+.ri-unit{font-size:9px;color:var(--text2);margin-left:2px;}
+.ri-danger{color:var(--danger)!important;}
+.ri-warn{color:var(--warn)!important;}
+
+/* ═══════════════════════════════════════════════════════════ SUMMARY TABLE */
+.sc-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px;}
+.sc-table th{background:var(--panel3);color:var(--text2);padding:5px 8px;text-align:left;font-weight:600;font-size:10px;border-bottom:1px solid var(--border);}
+.sc-table td{padding:5px 8px;border-bottom:1px solid #0a1520;font-family:'Courier New',monospace;}
+.sc-table tr:hover td{background:var(--panel3);}
+.td-high{color:var(--danger);font-weight:700;}
+.td-med{color:var(--warn);font-weight:600;}
+.td-ok{color:var(--success);}
+
+/* ═══════════════════════════════════════════════════════════ STATUS BAR */
+.statusbar{height:26px;background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:18px;font-size:11px;color:var(--text2);flex-shrink:0;}
+.sb-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);display:inline-block;margin-right:4px;}
+.sb-dot.ok{background:var(--success);}
+.sb-dot.warn{background:var(--warn);}
+
+/* ═══════════════════════════════════════════════════════════ MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:0;width:520px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.8);}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-head h3{font-size:14px;color:var(--accent2);}
+.modal-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;}
+.modal-close:hover{color:var(--danger);}
+.modal-body{padding:20px;overflow-y:auto;flex:1;}
+.modal-foot{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.mbtn{padding:7px 18px;border-radius:5px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;}
+.mbtn.ok{background:#0a2a50;border-color:var(--accent);color:var(--accent2);}
+.mbtn.ok:hover{background:var(--accent);color:#000;}
+
+/* ═══════════════════════════════════════════════════════════ HINT */
+.hint-box{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:12px;font-size:11px;color:var(--text2);line-height:1.7;}
+.hint-box b{color:var(--accent2);}
+
+/* TOOLTIP */
+.tooltip{position:fixed;background:#0d1e35;border:1px solid var(--accent);color:var(--accent2);font-size:11px;padding:4px 10px;border-radius:4px;pointer-events:none;z-index:300;white-space:nowrap;}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--panel);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- ══ TOOLBAR ══ -->
+<div class="toolbar">
+  <div class="tb-logo">⚡ ShortCircuit<span>Pro</span></div>
+  <div class="sep"></div>
+  <button class="tbtn primary" onclick="runAllFaults()">▶ Run All Faults</button>
+  <button class="tbtn" onclick="run3Ph()">⚡ 3-Phase</button>
+  <button class="tbtn" onclick="runLG()">↯ L-G</button>
+  <button class="tbtn" onclick="runLL()">↯ L-L</button>
+  <button class="tbtn" onclick="runLLG()">↯ L-L-G</button>
+  <div class="sep"></div>
+  <button class="tbtn" onclick="openSysSettings()">⚙ System Base</button>
+  <button class="tbtn" onclick="clearCanvas()">⬜ Clear</button>
+  <button class="tbtn" onclick="loadExample()">📋 Load Example</button>
+  <div class="tb-right">
+    <div class="tb-badge" id="sysInfo">Base: 100 MVA | 11 kV</div>
+    <button class="tbtn success" onclick="exportReport()">📄 Export Report</button>
+  </div>
+</div>
+
+<!-- ══ MAIN ══ -->
+<div class="main">
+
+  <!-- ══ SIDEBAR ══ -->
+  <div class="sidebar">
+    <div class="sb-section">Sources</div>
+    <div class="comp-card" draggable="true" data-type="UTILITY" title="Utility / Infinite Bus">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><rect x="2" y="2" width="24" height="24" rx="3" fill="none" stroke="#3498db" stroke-width="2"/><text x="14" y="19" font-size="11" fill="#3498db" text-anchor="middle" font-weight="bold">∞</text></svg></div>
+      <div class="comp-name">Utility Grid</div>
+    </div>
+    <div class="comp-card" draggable="true" data-type="GENERATOR" title="Synchronous Generator">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="none" stroke="#2ecc71" stroke-width="2"/><text x="14" y="19" font-size="12" fill="#2ecc71" text-anchor="middle" font-weight="bold">G</text></svg></div>
+      <div class="comp-name">Generator</div>
+    </div>
+
+    <div class="sb-section">Passive</div>
+    <div class="comp-card" draggable="true" data-type="TRANSFORMER" title="2-Winding Transformer">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><circle cx="9" cy="14" r="6" fill="none" stroke="#e67e22" stroke-width="2"/><circle cx="19" cy="14" r="6" fill="none" stroke="#e67e22" stroke-width="2"/></svg></div>
+      <div class="comp-name">Transformer</div>
+    </div>
+    <div class="comp-card" draggable="true" data-type="CABLE" title="Power Cable">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><line x1="2" y1="14" x2="26" y2="14" stroke="#1abc9c" stroke-width="3"/><rect x="8" y="10" width="12" height="8" rx="2" fill="none" stroke="#1abc9c" stroke-width="1.5"/></svg></div>
+      <div class="comp-name">Cable</div>
+    </div>
+    <div class="comp-card" draggable="true" data-type="BUS" title="Busbar">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><rect x="4" y="11" width="20" height="6" rx="2" fill="#ffd700" opacity=".9"/></svg></div>
+      <div class="comp-name">Busbar</div>
+    </div>
+    <div class="comp-card" draggable="true" data-type="REACTOR" title="Reactor / Inductor">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><line x1="2" y1="14" x2="7" y2="14" stroke="#888" stroke-width="2"/><path d="M7 14 Q9 8 11 14 Q13 20 15 14 Q17 8 19 14 Q21 20 23 14" fill="none" stroke="#aaa" stroke-width="2"/><line x1="23" y1="14" x2="26" y2="14" stroke="#888" stroke-width="2"/></svg></div>
+      <div class="comp-name">Reactor</div>
+    </div>
+
+    <div class="sb-section">Loads</div>
+    <div class="comp-card" draggable="true" data-type="MOTOR_INDUCTION" title="Induction Motor">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="none" stroke="#9b59b6" stroke-width="2"/><text x="14" y="19" font-size="12" fill="#9b59b6" text-anchor="middle" font-weight="bold">M</text></svg></div>
+      <div class="comp-name">Induction Motor</div>
+    </div>
+    <div class="comp-card" draggable="true" data-type="MOTOR_SYNC" title="Synchronous Motor">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="none" stroke="#8e44ad" stroke-width="2"/><text x="14" y="19" font-size="10" fill="#8e44ad" text-anchor="middle" font-weight="bold">SM</text></svg></div>
+      <div class="comp-name">Sync Motor</div>
+    </div>
+    <div class="comp-card" draggable="true" data-type="LIGHTING" title="Lighting Load">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><circle cx="14" cy="11" r="6" fill="none" stroke="#e74c3c" stroke-width="2"/><line x1="10" y1="19" x2="18" y2="19" stroke="#e74c3c" stroke-width="2"/><line x1="12" y1="22" x2="16" y2="22" stroke="#e74c3c" stroke-width="1.5"/></svg></div>
+      <div class="comp-name">Lighting</div>
+    </div>
+    <div class="comp-card" draggable="true" data-type="LOAD_STATIC" title="Static Load">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><rect x="6" y="8" width="16" height="12" rx="2" fill="none" stroke="#e74c3c" stroke-width="2"/><text x="14" y="18" font-size="9" fill="#e74c3c" text-anchor="middle">kW</text></svg></div>
+      <div class="comp-name">Static Load</div>
+    </div>
+
+    <div class="sb-section">Protection</div>
+    <div class="comp-card" draggable="true" data-type="BREAKER" title="Circuit Breaker">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><line x1="2" y1="14" x2="9" y2="14" stroke="#888" stroke-width="2"/><rect x="9" y="9" width="10" height="10" rx="2" fill="none" stroke="#f39c12" stroke-width="2"/><line x1="19" y1="14" x2="26" y2="14" stroke="#888" stroke-width="2"/><line x1="12" y1="9" x2="16" y2="19" stroke="#f39c12" stroke-width="1.5"/></svg></div>
+      <div class="comp-name">Circuit Breaker</div>
+    </div>
+    <div class="comp-card" draggable="true" data-type="FUSE" title="Fuse">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><line x1="2" y1="14" x2="8" y2="14" stroke="#888" stroke-width="2"/><ellipse cx="14" cy="14" rx="5" ry="5" fill="none" stroke="#e74c3c" stroke-width="2"/><line x1="14" y1="9" x2="14" y2="19" stroke="#e74c3c" stroke-width="1.5"/><line x1="19" y1="14" x2="26" y2="14" stroke="#888" stroke-width="2"/></svg></div>
+      <div class="comp-name">Fuse</div>
+    </div>
+    <div class="comp-card" draggable="true" data-type="FAULT_POINT" title="Fault Point (click to place fault)">
+      <div class="comp-icon"><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="9" fill="none" stroke="#ff4757" stroke-width="2"/><text x="14" y="19" font-size="13" fill="#ff4757" text-anchor="middle" font-weight="bold">F</text></svg></div>
+      <div class="comp-name">Fault Point</div>
+    </div>
+  </div>
+
+  <!-- ══ CANVAS ══ -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="mainCanvas" width="1600" height="1400"></canvas>
+  </div>
+
+  <!-- ══ RIGHT PANEL ══ -->
+  <div class="rpanel">
+    <div class="rp-header">
+      <h3 id="rpTitle">Component Properties</h3>
+    </div>
+    <div class="rp-tabs">
+      <button class="rp-tab active" onclick="rpSwitch('props',this)">Properties</button>
+      <button class="rp-tab" onclick="rpSwitch('results',this)">Results</button>
+      <button class="rp-tab" onclick="rpSwitch('sequence',this)">Sequence Z</button>
+    </div>
+    <div class="rp-body" id="rpProps">
+      <div class="hint-box">
+        <b>Getting Started:</b><br>
+        1. Drag components from the left panel onto the canvas.<br>
+        2. Click a component to select and edit its parameters.<br>
+        3. Use <b>Wire Mode (W)</b> or drag from port dots to connect.<br>
+        4. Place a <b>Fault Point (F)</b> on a bus and click <b>Run All Faults</b>.<br><br>
+        <b>Fault Types:</b> 3-Phase (LLL), Line-Ground (LG), Line-Line (LL), Line-Line-Ground (LLG).<br><br>
+        Try <b>Load Example</b> to see a pre-built system.
+      </div>
+    </div>
+    <div class="rp-body" id="rpResults" style="display:none">
+      <div class="hint-box">Run a fault study to see results here.</div>
+    </div>
+    <div class="rp-body" id="rpSequence" style="display:none">
+      <div class="hint-box">Sequence impedance network (Z1, Z2, Z0) will appear here after running a study.</div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <span><span class="sb-dot ok" id="statusDot"></span><span id="statusTxt">Ready</span></span>
+  <span>Components: <span id="nComps">0</span></span>
+  <span>Wires: <span id="nWires">0</span></span>
+  <span>Fault Buses: <span id="nFaults">0</span></span>
+  <span id="statusMsg" style="color:var(--accent2)"></span>
+</div>
+
+<!-- ══ SYSTEM SETTINGS MODAL ══ -->
+<div class="modal-bg" id="sysModal">
+<div class="modal">
+  <div class="modal-head"><h3>⚙ System Base Settings</h3><button class="modal-close" onclick="closeModal('sysModal')">✕</button></div>
+  <div class="modal-body">
+    <div class="form-section">
+      <h4>Power System Base</h4>
+      <div class="field-row">
+        <div class="field"><label>Base MVA<span class="unit">MVA</span></label><input type="number" id="sys_mva" value="100" min="0.1" step="0.1"/></div>
+        <div class="field"><label>Base kV<span class="unit">kV</span></label><input type="number" id="sys_kv" value="11" min="0.1" step="0.1"/></div>
+      </div>
+      <div class="field"><label>System Frequency<span class="unit">Hz</span></label><input type="number" id="sys_freq" value="50" min="50" max="60" step="10"/></div>
+    </div>
+    <div class="form-section">
+      <h4>Study Options</h4>
+      <div class="field">
+        <label>Standard</label>
+        <select id="sys_std">
+          <option value="ANSI">ANSI/IEEE C37</option>
+          <option value="IEC">IEC 60909</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Pre-fault Voltage<span class="unit">pu</span></label>
+        <input type="number" id="sys_vf" value="1.0" min="0.9" max="1.1" step="0.01"/>
+      </div>
+      <div class="field">
+        <label>Fault Impedance Zf<span class="unit">pu</span></label>
+        <input type="number" id="sys_zf" value="0" min="0" step="0.001"/>
+      </div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="mbtn" onclick="closeModal('sysModal')">Cancel</button>
+    <button class="mbtn ok" onclick="applySysSettings()">Apply Settings</button>
+  </div>
+</div>
+</div>
+
+<!-- ══ COMPONENT CONFIG MODAL ══ -->
+<div class="modal-bg" id="compModal">
+<div class="modal">
+  <div class="modal-head"><h3 id="compModalTitle">Configure Component</h3><button class="modal-close" onclick="closeModal('compModal')">✕</button></div>
+  <div class="modal-body" id="compModalBody"></div>
+  <div class="modal-foot">
+    <button class="mbtn" onclick="closeModal('compModal')">Cancel</button>
+    <button class="mbtn ok" onclick="applyCompConfig()">Apply</button>
+  </div>
+</div>
+</div>
+
+<div class="tooltip" id="tooltip" style="display:none"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+//  SHORT-CIRCUIT ANALYSIS PRO
+//  ETAP-compatible | Symmetrical Component Method | ANSI/IEC
+// ═══════════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('mainCanvas');
+const ctx    = canvas.getContext('2d');
+const wrap   = document.getElementById('canvasWrap');
+
+// ── SYSTEM SETTINGS ──
+let SYS = { mva:100, kv:11, freq:50, std:'ANSI', vf:1.0, zf:0 };
+
+// ── STATE ──
+let components = [], wires = [];
+let selectedComp = null, selectedWire = null;
+let dragComp = null, dragOffX=0, dragOffY=0;
+let dragToolType = null;
+let wireMode = false;
+let activePort = null, tempWire = null;
+let idCtr = 0;
+let lastResults = null;
+
+// ── GRID ──
+const GRID = 20;
+
+function snap(v){ return Math.round(v/GRID)*GRID; }
+function getMouse(e){
+  const r=canvas.getBoundingClientRect();
+  return {x:e.clientX-r.left+wrap.scrollLeft, y:e.clientY-r.top+wrap.scrollTop};
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  COMPONENT DEFINITIONS
+// ═══════════════════════════════════════════════════════════════════════
+const COMP_DEFAULTS = {
+  UTILITY: {
+    w:80,h:60, label:'Grid', color:'#3498db',
+    params:{ name:'UTL1', mva_sc:1000, xr:10, kv:11 },
+    info:'Utility Infinite Bus / Grid Supply',
+  },
+  GENERATOR: {
+    w:80,h:60, label:'Gen', color:'#2ecc71',
+    params:{ name:'G1', mva:5, kv:11, xd_pp:0.15, x2:0.13, x0:0.05, xr:30, grounded:true },
+    info:'Synchronous Generator',
+  },
+  TRANSFORMER: {
+    w:90,h:60, label:'TR', color:'#e67e22',
+    params:{ name:'T1', mva:5, kv_hv:11, kv_lv:0.415, z_pct:5.75, xr:12, conn:'Dyn11', grnd_hv:false, grnd_lv:true },
+    info:'2-Winding Transformer',
+  },
+  CABLE: {
+    w:100,h:40, label:'CAB', color:'#1abc9c',
+    params:{ name:'CAB1', r_ohm_km:0.32, x_ohm_km:0.08, len_km:0.5, kv:11, r0_mult:3.5, x0_mult:3.0 },
+    info:'Power Cable',
+  },
+  BUS: {
+    w:140,h:20, label:'BUS', color:'#ffd700',
+    params:{ name:'BUS1', kv:11, rated_kA:25 },
+    info:'Busbar',
+  },
+  REACTOR: {
+    w:80,h:50, label:'RCT', color:'#95a5a6',
+    params:{ name:'RCT1', x_ohm:0.5, r_ohm:0.01, kv:11 },
+    info:'Current-Limiting Reactor',
+  },
+  MOTOR_INDUCTION: {
+    w:80,h:60, label:'IM', color:'#9b59b6',
+    params:{ name:'M1', hp:200, kv:0.415, pf:0.85, eff:0.92, xd_pp:0.20, x2:0.25, poles:4 },
+    info:'Induction Motor (contributes fault current)',
+  },
+  MOTOR_SYNC: {
+    w:80,h:60, label:'SM', color:'#8e44ad',
+    params:{ name:'SM1', mva:1, kv:0.415, xd_pp:0.15, x2:0.13, x0:0.05, xr:25 },
+    info:'Synchronous Motor',
+  },
+  LIGHTING: {
+    w:60,h:50, label:'LTG', color:'#e74c3c',
+    params:{ name:'LTG1', kw:50, kv:0.415, pf:0.95, contrib:false },
+    info:'Lighting Load (no fault contribution)',
+  },
+  LOAD_STATIC: {
+    w:70,h:50, label:'LOAD', color:'#c0392b',
+    params:{ name:'LD1', mva:0.5, pf:0.85, kv:0.415, contrib:false },
+    info:'Static Load (no fault contribution)',
+  },
+  BREAKER: {
+    w:70,h:40, label:'CB', color:'#f39c12',
+    params:{ name:'CB1', rated_kV:11, rated_kA:25, type:'HVCB', closed:true },
+    info:'Circuit Breaker',
+  },
+  FUSE: {
+    w:60,h:40, label:'FU', color:'#e67e22',
+    params:{ name:'FU1', rated_kV:11, rated_A:200 },
+    info:'Fuse',
+  },
+  FAULT_POINT: {
+    w:36,h:36, label:'F', color:'#ff4757',
+    params:{ name:'F1', apply_3ph:true, apply_lg:true, apply_ll:true, apply_llg:true },
+    info:'Fault Point — place on a bus to apply fault',
+  },
+};
+
+function makeComp(type, x, y){
+  const def = COMP_DEFAULTS[type];
+  if (!def) return null;
+  return {
+    id: 'C'+(idCtr++),
+    type,
+    x: snap(x - def.w/2),
+    y: snap(y - def.h/2),
+    w: def.w, h: def.h,
+    label: def.label,
+    color: def.color,
+    params: JSON.parse(JSON.stringify(def.params)),
+    powered: false,
+  };
+}
+
+// ── PORTS: left-center & right-center ──
+function lPort(c){ return {x:c.x, y:c.y+c.h/2, side:'L', comp:c}; }
+function rPort(c){ return {x:c.x+c.w, y:c.y+c.h/2, side:'R', comp:c}; }
+function topPort(c){ return {x:c.x+c.w/2, y:c.y, side:'T', comp:c}; }
+function botPort(c){ return {x:c.x+c.w/2, y:c.y+c.h, side:'B', comp:c}; }
+
+// ═══════════════════════════════════════════════════════════════════════
+//  DRAW ENGINE
+// ═══════════════════════════════════════════════════════════════════════
+function drawGrid(){
+  ctx.save();
+  ctx.strokeStyle='#0e1825'; ctx.lineWidth=0.5;
+  for(let x=0;x<canvas.width;x+=GRID){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=0;y<canvas.height;y+=GRID){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  ctx.restore();
+}
+
+function drawComponent(c, isSelected){
+  const {x,y,w,h,type,color,params} = c;
+  const cx=x+w/2, cy=y+h/2;
+  ctx.save();
+
+  // Selection glow
+  if(isSelected){
+    ctx.shadowColor=color; ctx.shadowBlur=14;
+    ctx.strokeStyle=color; ctx.lineWidth=2;
+    ctx.strokeRect(x-4,y-4,w+8,h+8);
+    ctx.shadowBlur=0;
+  }
+
+  // ── Draw by type ──
+  switch(type){
+    case 'BUS':
+      ctx.fillStyle='#2a2000';
+      ctx.fillRect(x,y,w,h);
+      ctx.strokeStyle=color; ctx.lineWidth=3;
+      ctx.strokeRect(x,y,w,h);
+      ctx.fillStyle=color; ctx.font='bold 10px Consolas'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(params.name+' ('+params.kv+'kV)', cx, cy);
+      break;
+
+    case 'UTILITY':
+      ctx.strokeStyle=color; ctx.lineWidth=2;
+      ctx.fillStyle='#0a1a2a';
+      roundRect(ctx, x,y,w,h,6); ctx.fill(); ctx.stroke();
+      ctx.font='bold 18px serif'; ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('∞', cx, cy-2);
+      ctx.font='bold 9px Arial'; ctx.fillStyle='#aaa';
+      ctx.fillText(params.name, cx, cy+13);
+      ctx.font='9px Arial'; ctx.fillStyle=color;
+      ctx.fillText(params.kv+'kV | '+params.mva_sc+'MVA', cx, y+h+12);
+      break;
+
+    case 'GENERATOR':
+      ctx.fillStyle='#0a1a0e'; ctx.strokeStyle=color; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(cx, cy, Math.min(w,h)/2-2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.font='bold 16px Arial'; ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('G', cx, cy);
+      ctx.font='9px Arial'; ctx.fillStyle='#aaa';
+      ctx.fillText(params.name, cx, y+h+12);
+      ctx.fillStyle=color; ctx.fillText(params.mva+'MVA '+params.kv+'kV', cx, y+h+22);
+      // Ground symbol if grounded
+      if(params.grounded){ drawGround(ctx, cx, y+h, color); }
+      break;
+
+    case 'MOTOR_INDUCTION': case 'MOTOR_SYNC':
+      const mc=type==='MOTOR_SYNC'?'#8e44ad':color;
+      ctx.fillStyle='#150a20'; ctx.strokeStyle=mc; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(cx, cy, Math.min(w,h)/2-2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.font='bold 14px Arial'; ctx.fillStyle=mc; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(type==='MOTOR_SYNC'?'SM':'M', cx, cy);
+      ctx.font='9px Arial'; ctx.fillStyle='#aaa'; ctx.fillText(params.name, cx, y+h+12);
+      ctx.fillStyle=mc; ctx.fillText((params.hp||params.mva)+(params.hp?' HP':' MVA')+' '+params.kv+'kV', cx, y+h+22);
+      break;
+
+    case 'TRANSFORMER':
+      ctx.strokeStyle=color; ctx.lineWidth=2;
+      const r2=Math.min(w,h)*0.25;
+      ctx.fillStyle='#1a0a00';
+      ctx.beginPath(); ctx.arc(cx-r2*0.6, cy, r2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx+r2*0.6, cy, r2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.font='9px Arial'; ctx.fillStyle='#aaa'; ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.fillText(params.name, cx, y+h+2);
+      ctx.fillStyle=color; ctx.fillText(params.kv_hv+'/'+params.kv_lv+'kV '+params.z_pct+'%', cx, y+h+13);
+      // Wires to coils
+      ctx.strokeStyle='#555'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(cx-r2*0.6-r2, cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+w, cy); ctx.lineTo(cx+r2*0.6+r2, cy); ctx.stroke();
+      break;
+
+    case 'CABLE':
+      ctx.strokeStyle=color; ctx.lineWidth=2;
+      ctx.fillStyle='#0a1a18';
+      ctx.fillRect(x+10,y+5,w-20,h-10);
+      ctx.strokeRect(x+10,y+5,w-20,h-10);
+      // Cable line
+      ctx.strokeStyle='#555'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x,cy); ctx.lineTo(x+10,cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+w-10,cy); ctx.lineTo(x+w,cy); ctx.stroke();
+      ctx.strokeStyle=color; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x+10,cy); ctx.lineTo(x+w-10,cy); ctx.stroke();
+      ctx.font='8px Consolas'; ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(params.name, cx, cy);
+      ctx.font='8px Arial'; ctx.fillStyle='#aaa'; ctx.textBaseline='top';
+      ctx.fillText(params.len_km+'km '+params.kv+'kV', cx, y+h+2);
+      break;
+
+    case 'REACTOR':
+      ctx.strokeStyle=color; ctx.lineWidth=2;
+      ctx.fillStyle='#111';
+      // Coil symbol
+      const coilW=w-20, coilX=x+10;
+      ctx.strokeStyle='#555'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(x,cy); ctx.lineTo(coilX,cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(coilX+coilW,cy); ctx.lineTo(x+w,cy); ctx.stroke();
+      ctx.strokeStyle=color; ctx.lineWidth=2;
+      const loops=4, lw=coilW/loops;
+      ctx.beginPath();
+      for(let i=0;i<loops;i++){
+        ctx.arc(coilX+lw*i+lw/2, cy, lw/2, Math.PI, 0);
+      }
+      ctx.stroke();
+      ctx.font='8px Arial'; ctx.fillStyle='#aaa'; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(params.name, cx, y+h+2);
+      break;
+
+    case 'BREAKER':
+      ctx.strokeStyle=color; ctx.lineWidth=1.5;
+      ctx.fillStyle='#1a1000';
+      ctx.fillRect(x+10,y+5,w-20,h-10);
+      ctx.strokeRect(x+10,y+5,w-20,h-10);
+      ctx.strokeStyle='#555'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x,cy); ctx.lineTo(x+10,cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+w-10,cy); ctx.lineTo(x+w,cy); ctx.stroke();
+      // Breaker arm
+      ctx.strokeStyle=color; ctx.lineWidth=2;
+      if(params.closed){
+        ctx.beginPath(); ctx.moveTo(x+10,cy); ctx.lineTo(x+w-10,cy); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.moveTo(x+10,cy); ctx.lineTo(x+w-20,cy-8); ctx.stroke();
+      }
+      ctx.font='8px Arial'; ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(params.name, cx, y+h+2);
+      break;
+
+    case 'FUSE':
+      ctx.strokeStyle=color; ctx.lineWidth=1.5;
+      ctx.fillStyle='#1a0800';
+      ctx.beginPath(); ctx.ellipse(cx,cy,12,8,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle='#555'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x,cy); ctx.lineTo(cx-12,cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx+12,cy); ctx.lineTo(x+w,cy); ctx.stroke();
+      ctx.strokeStyle=color; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(cx-12,cy); ctx.lineTo(cx+12,cy); ctx.stroke();
+      ctx.font='8px Arial'; ctx.fillStyle='#aaa'; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(params.name, cx, y+h+2);
+      break;
+
+    case 'LIGHTING': case 'LOAD_STATIC':
+      ctx.fillStyle='#1a0808'; ctx.strokeStyle=color; ctx.lineWidth=1.5;
+      ctx.fillRect(x+5,y+5,w-10,h-10);
+      ctx.strokeRect(x+5,y+5,w-10,h-10);
+      const lbl2=type==='LIGHTING'?(params.kw+'kW'):(params.mva+'MVA');
+      ctx.font='9px Arial'; ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(params.name, cx, cy-6); ctx.fillText(lbl2, cx, cy+6);
+      break;
+
+    case 'FAULT_POINT':
+      // Pulsing circle
+      ctx.fillStyle='rgba(255,71,87,0.15)';
+      ctx.beginPath(); ctx.arc(cx,cy,22,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=color; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(cx,cy,16,0,Math.PI*2); ctx.stroke();
+      ctx.font='bold 14px Arial'; ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('F', cx, cy+1);
+      ctx.font='8px Arial'; ctx.fillStyle='#aaa'; ctx.textBaseline='top'; ctx.fillText(params.name, cx, y+h+2);
+      // Fault type indicators
+      const ftypes=['3Ph','LG','LL','LLG'];
+      const fcols=['#2ecc71','#e74c3c','#f39c12','#cc88ff'];
+      ftypes.forEach((ft,i)=>{
+        const active=params['apply_'+ft.toLowerCase().replace('-','')];
+        ctx.fillStyle=fcols[i]; ctx.font='7px Arial'; ctx.textBaseline='top';
+        ctx.globalAlpha=active?1:0.2;
+        ctx.fillText(ft, x+i*18-4, y-12);
+        ctx.globalAlpha=1;
+      });
+      break;
+  }
+
+  // Port dots
+  const lp=lPort(c), rp=rPort(c);
+  [lp,rp].forEach((p,pi)=>{
+    ctx.fillStyle=pi===0?'#c0392b':'#2980b9';
+    ctx.beginPath(); ctx.arc(p.x,p.y,5,0,Math.PI*2); ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+function drawGround(ctx2, x, y, col){
+  ctx2.save();
+  ctx2.strokeStyle=col||'#888'; ctx2.lineWidth=1.5;
+  ctx2.beginPath(); ctx2.moveTo(x,y); ctx2.lineTo(x,y+10); ctx2.stroke();
+  [12,8,4].forEach((w,i)=>{
+    ctx2.beginPath(); ctx2.moveTo(x-w/2,y+10+i*4); ctx2.lineTo(x+w/2,y+10+i*4); ctx2.stroke();
+  });
+  ctx2.restore();
+}
+
+function roundRect(ctx2,x,y,w,h,r){
+  ctx2.beginPath();
+  ctx2.moveTo(x+r,y); ctx2.lineTo(x+w-r,y);
+  ctx2.arcTo(x+w,y,x+w,y+r,r);
+  ctx2.lineTo(x+w,y+h-r);
+  ctx2.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx2.lineTo(x+r,y+h);
+  ctx2.arcTo(x,y+h,x,y+h-r,r);
+  ctx2.lineTo(x,y+r);
+  ctx2.arcTo(x,y,x+r,y,r);
+  ctx2.closePath();
+}
+
+function drawWire(w){
+  const {x1,y1,x2,y2,powered} = w;
+  ctx.save();
+  const sel = selectedWire===w;
+  ctx.strokeStyle = sel ? '#3af' : (powered?'#00e57a':'#1e3a50');
+  ctx.lineWidth   = sel ? 3 : (powered?3:2);
+  if(powered){ ctx.shadowColor='#00e57a'; ctx.shadowBlur=6; }
+  ctx.beginPath();
+  ctx.moveTo(x1,y1);
+  // Elbow routing
+  const midX = (x1+x2)/2;
+  ctx.lineTo(midX,y1);
+  ctx.lineTo(midX,y2);
+  ctx.lineTo(x2,y2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawTempWire(){
+  if(!tempWire) return;
+  ctx.save();
+  ctx.strokeStyle='#f1c40f'; ctx.lineWidth=2; ctx.setLineDash([6,5]);
+  const {x1,y1,x2,y2}=tempWire;
+  const midX=(x1+x2)/2;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(midX,y1); ctx.lineTo(midX,y2); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+}
+
+// ── MAIN RENDER ──
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawGrid();
+  wires.forEach(w=>drawWire(w));
+  drawTempWire();
+  components.forEach(c=>drawComponent(c, selectedComp===c));
+  updateStatusBar();
+  requestAnimationFrame(render);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  INTERACTION
+// ═══════════════════════════════════════════════════════════════════════
+function getCompAt(mx,my){
+  for(let i=components.length-1;i>=0;i--){
+    const c=components[i];
+    if(mx>=c.x-8&&mx<=c.x+c.w+8&&my>=c.y-8&&my<=c.y+c.h+8) return c;
+  }
+  return null;
+}
+
+function getPortAt(mx,my){
+  for(const c of components){
+    const ports=[lPort(c),rPort(c),topPort(c),botPort(c)];
+    for(const p of ports){
+      if(Math.hypot(mx-p.x,my-p.y)<14) return p;
+    }
+  }
+  return null;
+}
+
+function getWireAt(mx,my){
+  for(let i=wires.length-1;i>=0;i--){
+    const w=wires[i];
+    if(nearSegment(mx,my,w.x1,w.y1,(w.x1+w.x2)/2,w.y1,8)||
+       nearSegment(mx,my,(w.x1+w.x2)/2,w.y1,(w.x1+w.x2)/2,w.y2,8)||
+       nearSegment(mx,my,(w.x1+w.x2)/2,w.y2,w.x2,w.y2,8)) return w;
+  }
+  return null;
+}
+
+function nearSegment(px,py,x1,y1,x2,y2,tol){
+  const dx=x2-x1,dy=y2-y1,len2=dx*dx+dy*dy;
+  if(!len2) return Math.hypot(px-x1,py-y1)<tol;
+  const t=Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/len2));
+  return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))<tol;
+}
+
+canvas.addEventListener('mousedown',e=>{
+  const m=getMouse(e);
+  hideCtx();
+
+  // Port-to-port wire
+  const p=getPortAt(m.x,m.y);
+  if(p){
+    activePort=p; tempWire={x1:p.x,y1:p.y,x2:m.x,y2:m.y};
+    return;
+  }
+
+  const comp=getCompAt(m.x,m.y);
+  if(comp){
+    selectedComp=comp; selectedWire=null;
+    dragComp=comp; dragOffX=m.x-comp.x; dragOffY=m.y-comp.y;
+    openPropsPanel(comp);
+    return;
+  }
+
+  const w=getWireAt(m.x,m.y);
+  if(w){ selectedWire=w; selectedComp=null; return; }
+
+  selectedComp=null; selectedWire=null;
+  showPropsHint();
+});
+
+canvas.addEventListener('mousemove',e=>{
+  const m=getMouse(e);
+  if(dragComp){ dragComp.x=snap(m.x-dragOffX); dragComp.y=snap(m.y-dragOffY); return; }
+  if(activePort) tempWire={x1:activePort.x,y1:activePort.y,x2:m.x,y2:m.y};
+  // Tooltip
+  const p=getPortAt(m.x,m.y);
+  showTooltip(p?`${p.comp.params.name} ${p.side} port`:'',e.clientX,e.clientY);
+});
+
+canvas.addEventListener('mouseup',e=>{
+  const m=getMouse(e);
+  if(activePort){
+    const target=getPortAt(m.x,m.y);
+    if(target && target.comp!==activePort.comp){
+      wires.push({x1:activePort.x,y1:activePort.y,x2:target.x,y2:target.y,powered:false,
+        fromComp:activePort.comp, toComp:target.comp});
+      setMsg('Wire connected');
+    }
+    activePort=null; tempWire=null;
+  }
+  if(dragComp) dragComp=null;
+});
+
+canvas.addEventListener('dblclick',e=>{
+  const m=getMouse(e);
+  const comp=getCompAt(m.x,m.y);
+  if(comp) openCompModal(comp);
+});
+
+canvas.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  const m=getMouse(e);
+  const comp=getCompAt(m.x,m.y);
+  const wire=getWireAt(m.x,m.y);
+  if(comp) showCtxComp(comp,e.clientX,e.clientY);
+  else if(wire) showCtxWire(wire,e.clientX,e.clientY);
+});
+
+// ── SIDEBAR DRAG ──
+document.querySelectorAll('.comp-card').forEach(card=>{
+  card.addEventListener('mousedown',e=>{
+    e.preventDefault();
+    const type=card.dataset.type;
+    const m=getMouse({clientX:e.clientX,clientY:e.clientY});
+    const comp=makeComp(type, L_SAFE(m.x), m.y);
+    if(!comp) return;
+    components.push(comp);
+    selectedComp=comp;
+    dragComp=comp; dragOffX=comp.w/2; dragOffY=comp.h/2;
+    openPropsPanel(comp);
+    setMsg('Dropped '+type);
+  });
+});
+
+function L_SAFE(x){ return Math.max(160,x); }
+
+document.addEventListener('mousemove',e=>{
+  if(!dragComp) return;
+  const m=getMouse({clientX:e.clientX,clientY:e.clientY});
+  dragComp.x=snap(m.x-dragOffX);
+  dragComp.y=snap(m.y-dragOffY);
+});
+document.addEventListener('mouseup',()=>{ dragComp=null; });
+
+// ── DELETE KEY ──
+document.addEventListener('keydown',e=>{
+  if((e.key==='Delete'||e.key==='Backspace')&&!e.target.matches('input,select')){
+    if(selectedComp){
+      wires=wires.filter(w=>w.fromComp!==selectedComp&&w.toComp!==selectedComp);
+      components=components.filter(c=>c!==selectedComp);
+      selectedComp=null; showPropsHint();
+    }
+    if(selectedWire){ wires=wires.filter(w=>w!==selectedWire); selectedWire=null; }
+  }
+  if(e.key==='Escape') hideCtx();
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+//  CONTEXT MENUS
+// ═══════════════════════════════════════════════════════════════════════
+let ctxMenu = null;
+function showCtxComp(comp,cx,cy){
+  hideCtx();
+  const m=document.createElement('div'); m.className='ctxmenu';
+  m.style.cssText=`display:block;left:${cx}px;top:${cy}px;`;
+  const items=[
+    ['⚙ Configure', ()=>openCompModal(comp)],
+    ['🗑 Delete', ()=>{
+      wires=wires.filter(w=>w.fromComp!==comp&&w.toComp!==comp);
+      components=components.filter(c=>c!==comp);
+      selectedComp=null; showPropsHint();
+    }],
+  ];
+  if(comp.type==='FAULT_POINT') items.push(['▶ Run Fault Here', ()=>runAllFaults(comp)]);
+  if(comp.type==='BREAKER') items.push([comp.params.closed?'Open Breaker':'Close Breaker', ()=>{comp.params.closed=!comp.params.closed;}]);
+  items.forEach(([lbl,fn])=>{
+    const d=document.createElement('div'); d.textContent=lbl;
+    d.onclick=()=>{fn(); hideCtx();};
+    m.appendChild(d);
+  });
+  document.body.appendChild(m); ctxMenu=m;
+}
+function showCtxWire(w,cx,cy){
+  hideCtx();
+  const m=document.createElement('div'); m.className='ctxmenu';
+  m.style.cssText=`display:block;left:${cx}px;top:${cy}px;`;
+  const d=document.createElement('div'); d.textContent='🗑 Delete Wire';
+  d.onclick=()=>{ wires=wires.filter(x=>x!==w); selectedWire=null; hideCtx(); };
+  m.appendChild(d); document.body.appendChild(m); ctxMenu=m;
+}
+function hideCtx(){ if(ctxMenu){ctxMenu.remove();ctxMenu=null;} }
+document.addEventListener('click',e=>{ if(!e.target.closest('.ctxmenu')) hideCtx(); });
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PROPERTIES PANEL
+// ═══════════════════════════════════════════════════════════════════════
+function showPropsHint(){
+  document.getElementById('rpProps').innerHTML=`
+    <div class="hint-box">
+      <b>Getting Started:</b><br>
+      1. Drag components from the left panel onto the canvas.<br>
+      2. Click a component to select it and view its parameters.<br>
+      3. Drag from the <span style="color:#c0392b">●</span> <span style="color:#2980b9">●</span> port dots to draw wires.<br>
+      4. Place a <b>Fault Point (F)</b> and click <b>▶ Run All Faults</b>.<br><br>
+      <b>Tip:</b> Double-click any component to open its detailed editor.<br>
+      <b>Tip:</b> Right-click for context menu options.
+    </div>`;
+}
+
+function openPropsPanel(comp){
+  const def=COMP_DEFAULTS[comp.type];
+  document.getElementById('rpTitle').textContent=def.info;
+  const params=comp.params;
+  let html=`<div class="hint-box" style="font-size:10px;padding:8px;">${def.info}<br><b style="color:#f39c12">Double-click</b> to open full editor.</div>`;
+  html+=`<div class="form-section"><h4>${comp.type} — ${params.name}</h4>`;
+  Object.entries(params).forEach(([k,v])=>{
+    html+=`<div class="field"><label>${k}</label><input type="${typeof v==='boolean'?'checkbox':'text'}" 
+      ${typeof v==='boolean'?'data-bool=true '+(v?'checked':''):'value="'+v+'"'} 
+      onchange="updateParam('${comp.id}','${k}',this)" style="font-size:11px;"/></div>`;
+  });
+  html+=`</div><button class="tbtn primary" style="width:100%;margin-top:4px" onclick="openCompModal(getComp('${comp.id}'))">⚙ Full Editor</button>`;
+  document.getElementById('rpProps').innerHTML=html;
+}
+
+function getComp(id){ return components.find(c=>c.id===id); }
+
+function updateParam(compId,key,input){
+  const comp=getComp(compId); if(!comp) return;
+  if(input.dataset.bool) comp.params[key]=input.checked;
+  else {
+    const v=parseFloat(input.value);
+    comp.params[key]=isNaN(v)?input.value:v;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  COMPONENT MODAL EDITOR
+// ═══════════════════════════════════════════════════════════════════════
+let editingComp = null;
+
+function openCompModal(comp){
+  editingComp=comp;
+  const def=COMP_DEFAULTS[comp.type];
+  document.getElementById('compModalTitle').textContent=`⚙ ${def.info}`;
+
+  const FIELDS = {
+    UTILITY: [
+      {k:'name',l:'Tag Name',t:'text'},
+      {k:'kv',l:'Bus Voltage (kV)',t:'number',step:0.1},
+      {k:'mva_sc',l:'Available SC MVA',t:'number',step:10},
+      {k:'xr',l:'X/R Ratio',t:'number',step:0.5},
+    ],
+    GENERATOR: [
+      {k:'name',l:'Tag Name',t:'text'},{k:'mva',l:'Rated MVA',t:'number',step:0.1},
+      {k:'kv',l:'Rated kV',t:'number',step:0.1},
+      {k:'xd_pp',l:'X"d Subtransient (pu)',t:'number',step:0.001},
+      {k:'x2',l:'X2 Negative Seq (pu)',t:'number',step:0.001},
+      {k:'x0',l:'X0 Zero Seq (pu)',t:'number',step:0.001},
+      {k:'xr',l:'X/R Ratio',t:'number',step:0.5},
+      {k:'grounded',l:'Solidly Grounded',t:'bool'},
+    ],
+    TRANSFORMER: [
+      {k:'name',l:'Tag Name',t:'text'},{k:'mva',l:'Rated MVA',t:'number',step:0.1},
+      {k:'kv_hv',l:'HV Voltage (kV)',t:'number',step:0.1},
+      {k:'kv_lv',l:'LV Voltage (kV)',t:'number',step:0.001},
+      {k:'z_pct',l:'Impedance (%)',t:'number',step:0.01},
+      {k:'xr',l:'X/R Ratio',t:'number',step:0.5},
+      {k:'conn',l:'Winding Connection',t:'select',opts:['Dyn11','DYn11','YNyn0','DY1','YD11','ZNyn11']},
+      {k:'grnd_hv',l:'HV Grounded',t:'bool'},
+      {k:'grnd_lv',l:'LV Grounded',t:'bool'},
+    ],
+    CABLE: [
+      {k:'name',l:'Tag Name',t:'text'},{k:'kv',l:'Voltage (kV)',t:'number',step:0.1},
+      {k:'len_km',l:'Length (km)',t:'number',step:0.01},
+      {k:'r_ohm_km',l:'R₁ (Ω/km)',t:'number',step:0.001},
+      {k:'x_ohm_km',l:'X₁ (Ω/km)',t:'number',step:0.001},
+      {k:'r0_mult',l:'R₀/R₁ Multiplier',t:'number',step:0.1},
+      {k:'x0_mult',l:'X₀/X₁ Multiplier',t:'number',step:0.1},
+    ],
+    BUS: [
+      {k:'name',l:'Bus ID',t:'text'},{k:'kv',l:'Nominal kV',t:'number',step:0.1},
+      {k:'rated_kA',l:'Rated SC kA',t:'number',step:0.5},
+    ],
+    REACTOR: [
+      {k:'name',l:'Tag Name',t:'text'},{k:'kv',l:'Voltage (kV)',t:'number',step:0.1},
+      {k:'x_ohm',l:'Reactance X (Ω)',t:'number',step:0.001},
+      {k:'r_ohm',l:'Resistance R (Ω)',t:'number',step:0.0001},
+    ],
+    MOTOR_INDUCTION: [
+      {k:'name',l:'Tag Name',t:'text'},{k:'hp',l:'Rated HP',t:'number',step:10},
+      {k:'kv',l:'Rated kV',t:'number',step:0.001},
+      {k:'pf',l:'Power Factor',t:'number',step:0.01},
+      {k:'eff',l:'Efficiency',t:'number',step:0.01},
+      {k:'xd_pp',l:'X"d (pu)',t:'number',step:0.001},
+      {k:'x2',l:'X2 (pu)',t:'number',step:0.001},
+    ],
+    MOTOR_SYNC: [
+      {k:'name',l:'Tag Name',t:'text'},{k:'mva',l:'Rated MVA',t:'number',step:0.1},
+      {k:'kv',l:'Rated kV',t:'number',step:0.001},
+      {k:'xd_pp',l:'X"d (pu)',t:'number',step:0.001},
+      {k:'x2',l:'X2 (pu)',t:'number',step:0.001},
+      {k:'x0',l:'X0 (pu)',t:'number',step:0.001},
+      {k:'xr',l:'X/R Ratio',t:'number',step:0.5},
+    ],
+    LIGHTING:[{k:'name',l:'Tag Name',t:'text'},{k:'kw',l:'Load (kW)',t:'number',step:1},{k:'kv',l:'Voltage (kV)',t:'number',step:0.001},{k:'pf',l:'Power Factor',t:'number',step:0.01},{k:'contrib',l:'SC Contribution',t:'bool'}],
+    LOAD_STATIC:[{k:'name',l:'Tag Name',t:'text'},{k:'mva',l:'Load (MVA)',t:'number',step:0.01},{k:'pf',l:'Power Factor',t:'number',step:0.01},{k:'kv',l:'Voltage (kV)',t:'number',step:0.001},{k:'contrib',l:'SC Contribution',t:'bool'}],
+    BREAKER:[{k:'name',l:'Tag Name',t:'text'},{k:'rated_kV',l:'Rated kV',t:'number',step:0.1},{k:'rated_kA',l:'Rated SC kA',t:'number',step:0.5},{k:'type',l:'Type',t:'select',opts:['HVCB','LVCB','MCCB','ACB']},{k:'closed',l:'Initially Closed',t:'bool'}],
+    FUSE:[{k:'name',l:'Tag Name',t:'text'},{k:'rated_kV',l:'Rated kV',t:'number',step:0.1},{k:'rated_A',l:'Rated Amps',t:'number',step:10}],
+    FAULT_POINT:[
+      {k:'name',l:'Fault ID',t:'text'},
+      {k:'apply_3ph',l:'Apply 3-Phase (LLL)',t:'bool'},
+      {k:'apply_lg',l:'Apply Line-to-Ground (LG)',t:'bool'},
+      {k:'apply_ll',l:'Apply Line-to-Line (LL)',t:'bool'},
+      {k:'apply_llg',l:'Apply Line-to-Line-to-Ground (LLG)',t:'bool'},
+    ],
+  };
+
+  const fields=FIELDS[comp.type]||[];
+  let html='';
+  fields.forEach(f=>{
+    const v=comp.params[f.k];
+    html+=`<div class="field"><label>${f.l}</label>`;
+    if(f.t==='bool'){
+      html+=`<input id="m_${f.k}" type="checkbox" ${v?'checked':''} style="width:auto;margin-top:4px;transform:scale(1.3)"/>`;
+    } else if(f.t==='select'){
+      html+=`<select id="m_${f.k}">${f.opts.map(o=>`<option ${v===o?'selected':''}>${o}</option>`).join('')}</select>`;
+    } else {
+      html+=`<input id="m_${f.k}" type="number" value="${v}" step="${f.step||1}"/>`;
+    }
+    html+=`</div>`;
+  });
+
+  document.getElementById('compModalBody').innerHTML=html;
+  document.getElementById('modal_fields')?.remove();
+  document.getElementById('compModal').classList.add('show');
+}
+
+function applyCompConfig(){
+  if(!editingComp) return;
+  const def=COMP_DEFAULTS[editingComp.type];
+  const fields=Object.keys(editingComp.params);
+  fields.forEach(k=>{
+    const el=document.getElementById('m_'+k);
+    if(!el) return;
+    if(el.type==='checkbox') editingComp.params[k]=el.checked;
+    else if(el.tagName==='SELECT') editingComp.params[k]=el.value;
+    else { const v=parseFloat(el.value); editingComp.params[k]=isNaN(v)?el.value:v; }
+  });
+  openPropsPanel(editingComp);
+  closeModal('compModal');
+  setMsg('Updated: '+editingComp.params.name);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  SYSTEM SETTINGS
+// ═══════════════════════════════════════════════════════════════════════
+function openSysSettings(){
+  document.getElementById('sys_mva').value=SYS.mva;
+  document.getElementById('sys_kv').value=SYS.kv;
+  document.getElementById('sys_freq').value=SYS.freq;
+  document.getElementById('sys_std').value=SYS.std;
+  document.getElementById('sys_vf').value=SYS.vf;
+  document.getElementById('sys_zf').value=SYS.zf;
+  document.getElementById('sysModal').classList.add('show');
+}
+
+function applySysSettings(){
+  SYS.mva=parseFloat(document.getElementById('sys_mva').value)||100;
+  SYS.kv=parseFloat(document.getElementById('sys_kv').value)||11;
+  SYS.freq=parseFloat(document.getElementById('sys_freq').value)||50;
+  SYS.std=document.getElementById('sys_std').value;
+  SYS.vf=parseFloat(document.getElementById('sys_vf').value)||1.0;
+  SYS.zf=parseFloat(document.getElementById('sys_zf').value)||0;
+  document.getElementById('sysInfo').textContent=`Base: ${SYS.mva} MVA | ${SYS.kv} kV | ${SYS.std}`;
+  closeModal('sysModal');
+  setMsg('System base updated');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  SHORT-CIRCUIT ENGINE (full symmetrical component method)
+// ═══════════════════════════════════════════════════════════════════════
+function zbase(kv){ return kv*kv/SYS.mva; }
+function topu(z_ohm,kv){ return {r:z_ohm.r/zbase(kv), x:z_ohm.x/zbase(kv)}; }
+function cadd(a,b){ return {r:a.r+b.r, x:a.x+b.x}; }
+function cmul(a,s){ return {r:a.r*s, x:a.x*s}; }
+function cabs(z){ return Math.sqrt(z.r*z.r+z.x*z.x); }
+function cpar(a,b){
+  const den=cabs(cadd(a,b)); if(den<1e-14) return {r:1e12,x:1e12};
+  const n_r=a.r*b.r-a.x*b.x - (a.x*b.x-a.r*b.r);  // simplified real
+  // proper complex parallel
+  const denom_r=(a.r+b.r)*(a.r+b.r)+(a.x+b.x)*(a.x+b.x);
+  if(denom_r<1e-20) return {r:1e12,x:1e12};
+  const num_r=(a.r*b.r+a.x*b.x); // Re(a*b*)
+  const num_x=(a.x*b.r-a.r*b.x); // Im(a*b*)
+  return {r:num_r/denom_r, x:num_x/denom_r};
+}
+
+function buildSeqNetworks(){
+  // Build Thevenin Z1, Z2, Z0 from all components
+  // Simplification: all sources in parallel at the fault bus
+  let z1_sources=[], z2_sources=[], z0_sources=[];
+
+  components.forEach(c=>{
+    const p=c.params;
+    const kv_c = p.kv||p.kv_hv||SYS.kv;
+    const zb_c = kv_c*kv_c/SYS.mva;
+
+    if(c.type==='UTILITY'){
+      const kv=p.kv||SYS.kv;
+      const mva_sc=p.mva_sc||1000;
+      const xr=p.xr||10;
+      const z_pu=SYS.mva/mva_sc;
+      const r=z_pu/Math.sqrt(1+xr*xr);
+      const x=z_pu*xr/Math.sqrt(1+xr*xr);
+      const z={r,x};
+      z1_sources.push(z); z2_sources.push(z); z0_sources.push(z);
+    }
+    else if(c.type==='GENERATOR'){
+      const conv=SYS.mva/p.mva;
+      const xd=p.xd_pp||0.15;
+      const x2=p.x2||xd*0.85;
+      const x0=p.x0||xd*0.05;
+      const r1=xd/p.xr*conv;
+      z1_sources.push({r:r1, x:xd*conv});
+      z2_sources.push({r:r1, x:x2*conv});
+      // Zero seq: if grounded, include; else infinite
+      z0_sources.push(p.grounded?{r:r1*0.2, x:x0*conv}:{r:1e8,x:1e8});
+    }
+    else if(c.type==='MOTOR_INDUCTION'){
+      const hp=p.hp||100; const mva_m=hp*0.7457/(p.pf||0.85)/(p.eff||0.92)/1000;
+      if(mva_m<0.001) return;
+      const conv=SYS.mva/mva_m;
+      const xd=p.xd_pp||0.20;
+      const x2=p.x2||xd*1.2;
+      z1_sources.push({r:xd*conv*0.1, x:xd*conv});
+      z2_sources.push({r:x2*conv*0.1, x:x2*conv});
+      z0_sources.push({r:1e8,x:1e8}); // ungrounded
+    }
+    else if(c.type==='MOTOR_SYNC'){
+      const conv=SYS.mva/(p.mva||1);
+      const xd=p.xd_pp||0.15;
+      const x2=p.x2||0.13;
+      const x0=p.x0||0.05;
+      z1_sources.push({r:xd/p.xr*conv, x:xd*conv});
+      z2_sources.push({r:x2/p.xr*conv, x:x2*conv});
+      z0_sources.push({r:x0/(p.xr||25)*conv, x:x0*conv});
+    }
+    // TRANSFORMER adds series impedance (included in branch)
+    // CABLE adds series impedance
+    // REACTOR adds series impedance
+  });
+
+  // Series impedances (cables, transformers, reactors) — reduce from sources
+  let z_series1={r:0,x:0}, z_series2={r:0,x:0}, z_series0={r:0,x:0};
+
+  components.forEach(c=>{
+    const p=c.params;
+    if(c.type==='TRANSFORMER'){
+      const conv=SYS.mva/p.mva;
+      const z_pu=p.z_pct/100*conv;
+      const xr=p.xr||12;
+      const r=z_pu/Math.sqrt(1+xr*xr);
+      const x=z_pu*xr/Math.sqrt(1+xr*xr);
+      z_series1=cadd(z_series1,{r,x});
+      z_series2=cadd(z_series2,{r,x});
+      // Zero seq transformer: depends on winding; DYn = open HV zero seq
+      const conn=p.conn||'Dyn11';
+      if(conn.startsWith('D')||conn.startsWith('d')){
+        z_series0=cadd(z_series0,{r:1e8,x:1e8}); // delta HV blocks zero seq
+      } else {
+        z_series0=cadd(z_series0,{r,x});
+      }
+    }
+    else if(c.type==='CABLE'){
+      const kv=p.kv||SYS.kv;
+      const zb=kv*kv/SYS.mva;
+      const r1=p.r_ohm_km*p.len_km/zb;
+      const x1=p.x_ohm_km*p.len_km/zb;
+      const r0=r1*(p.r0_mult||3.5);
+      const x0=x1*(p.x0_mult||3.0);
+      z_series1=cadd(z_series1,{r:r1,x:x1});
+      z_series2=cadd(z_series2,{r:r1,x:x1});
+      z_series0=cadd(z_series0,{r:r0,x:x0});
+    }
+    else if(c.type==='REACTOR'){
+      const kv=p.kv||SYS.kv;
+      const zb=kv*kv/SYS.mva;
+      const r=p.r_ohm/zb; const x=p.x_ohm/zb;
+      z_series1=cadd(z_series1,{r,x});
+      z_series2=cadd(z_series2,{r,x});
+      z_series0=cadd(z_series0,{r,x});
+    }
+  });
+
+  // Thevenin: parallel sources + series impedance
+  function parallelAll(arr){
+    if(!arr.length) return {r:1e8,x:1e8};
+    if(arr.length===1) return arr[0];
+    return arr.reduce((acc,z)=>cpar(acc,z));
+  }
+
+  const z1_src=parallelAll(z1_sources);
+  const z2_src=parallelAll(z2_sources);
+  const z0_src=parallelAll(z0_sources);
+
+  const z1_th=cadd(z1_src,z_series1);
+  const z2_th=cadd(z2_src,z_series2);
+  const z0_th=cadd(z0_src,z_series0);
+
+  return {z1:z1_th, z2:z2_th, z0:z0_th, z1_src, z2_src, z0_src, z_series1, z_series2, z_series0};
+}
+
+function calcFaults(z1,z2,z0,vf,zf){
+  const i_base=SYS.mva/(Math.sqrt(3)*SYS.kv); // kA base
+
+  function i_kA(i_pu){ return i_pu*i_base; }
+  function mva_sc(i_pu){ return i_pu*SYS.mva*Math.sqrt(3); }
+
+  // 3-Phase
+  const z1abs=cabs(cadd(z1,{r:zf,x:0}));
+  const i3_pu = z1abs>1e-10 ? vf/z1abs : 0;
+
+  // L-G: Ia = 3Vf/(Z1+Z2+Z0+3Zf)
+  const z_lg=cabs({r:z1.r+z2.r+z0.r+3*zf, x:z1.x+z2.x+z0.x});
+  const ia1_lg= z_lg>1e-10 ? vf/z_lg : 0;
+  const i_lg_pu=3*ia1_lg;
+
+  // L-L: Ib = -Ic = -j√3·Ia1, Ia1=Vf/(Z1+Z2+Zf)
+  const z_ll=cabs({r:z1.r+z2.r+zf, x:z1.x+z2.x});
+  const ia1_ll= z_ll>1e-10 ? vf/z_ll : 0;
+  const i_ll_pu=Math.sqrt(3)*ia1_ll;
+
+  // L-L-G: more complex
+  // Z2||Z0 = Z2*Z0/(Z2+Z0)
+  const z2z0=cpar(z2,{r:z0.r+3*zf,x:z0.x});
+  const z_llg=cabs(cadd(z1,z2z0));
+  const ia1_llg= z_llg>1e-10 ? vf/z_llg : 0;
+  const z0tot_abs=cabs({r:z0.r+3*zf,x:z0.x});
+  const z2z0_abs=cabs(cadd(z2,{r:z0.r+3*zf,x:z0.x}));
+  const ia2_llg = z2z0_abs>1e-10 ? -ia1_llg*z0tot_abs/z2z0_abs : 0;
+  const ia0_llg = z2z0_abs>1e-10 ? -ia1_llg*cabs(z2)/z2z0_abs : 0;
+  // |Ib| ≈ |√3·ia1_llg| for simplification
+  const i_llg_pu = Math.sqrt(3)*ia1_llg;
+
+  const xr1 = z1.r>1e-10?z1.x/z1.r:15;
+  const dc_factor=1+Math.sqrt(2)*Math.exp(-Math.PI/xr1); // ANSI asymmetry
+
+  return [
+    {
+      type:'3-Phase (LLL)', badge:'3Ph', cls:'rb-3ph',
+      i_pu:i3_pu, ikA:i_kA(i3_pu), mva:mva_sc(i3_pu),
+      i_asym:i_kA(i3_pu)*dc_factor, i_mom:i_kA(i3_pu)*1.6,
+      ia:i3_pu, ib:i3_pu, ic:i3_pu,
+      z_th:z1abs, xr:xr1,
+      notes:'3-phase bolted fault. Maximum fault current.',
+    },
+    {
+      type:'Line-Ground (LG)', badge:'LG', cls:'rb-lg',
+      i_pu:i_lg_pu, ikA:i_kA(i_lg_pu), mva:mva_sc(i_lg_pu/Math.sqrt(3)),
+      i_asym:i_kA(i_lg_pu)*dc_factor*0.9, i_mom:i_kA(i_lg_pu)*1.5,
+      ia:i_lg_pu, ib:0, ic:0,
+      z_th:z_lg, xr:xr1,
+      notes:'Single L-G fault. Depends on zero-seq network.',
+    },
+    {
+      type:'Line-Line (LL)', badge:'LL', cls:'rb-ll',
+      i_pu:i_ll_pu, ikA:i_kA(i_ll_pu), mva:mva_sc(i_ll_pu/Math.sqrt(3)),
+      i_asym:i_kA(i_ll_pu)*dc_factor*0.85, i_mom:i_kA(i_ll_pu)*1.4,
+      ia:0, ib:i_ll_pu, ic:i_ll_pu,
+      z_th:z_ll, xr:xr1,
+      notes:'Phase-to-phase fault. ~86.6% of 3-Ph current.',
+    },
+    {
+      type:'Line-Line-Ground (LLG)', badge:'LLG', cls:'rb-llg',
+      i_pu:i_llg_pu, ikA:i_kA(i_llg_pu), mva:mva_sc(i_llg_pu/Math.sqrt(3)),
+      i_asym:i_kA(i_llg_pu)*dc_factor*0.95, i_mom:i_kA(i_llg_pu)*1.55,
+      ia:0, ib:i_llg_pu, ic:i_llg_pu,
+      z_th:z_llg, xr:xr1,
+      notes:'Double L-G fault. Generally larger than LL.',
+    },
+  ];
+}
+
+function runAllFaults(faultComp){
+  const faults=components.filter(c=>c.type==='FAULT_POINT');
+  if(!faults.length && !faultComp){
+    alert('Please place at least one Fault Point (F) component on the canvas first.\nDrag it from the sidebar Protection section.');
+    return;
+  }
+  const fc = faultComp || faults[0];
+  setMsg('Running fault study at '+fc.params.name+' ...');
+
+  const nets=buildSeqNetworks();
+  const results=calcFaults(nets.z1,nets.z2,nets.z0,SYS.vf,SYS.zf);
+  lastResults={results,nets,fault:fc};
+
+  // Filter by fault types selected
+  const filtered=results.filter(r=>{
+    const k='apply_'+r.badge.toLowerCase().replace('-','');
+    return fc.params[k]!==false;
+  });
+
+  displayResults(filtered, nets, fc);
+  displaySequenceZ(nets);
+  setMsg(`✓ Fault study complete at ${fc.params.name}`);
+}
+
+function run3Ph(){
+  const nets=buildSeqNetworks();
+  const all=calcFaults(nets.z1,nets.z2,nets.z0,SYS.vf,SYS.zf);
+  displayResults([all[0]],nets,null);
+  rpSwitch('results',document.querySelectorAll('.rp-tab')[1]);
+}
+function runLG(){
+  const nets=buildSeqNetworks();
+  const all=calcFaults(nets.z1,nets.z2,nets.z0,SYS.vf,SYS.zf);
+  displayResults([all[1]],nets,null);
+  rpSwitch('results',document.querySelectorAll('.rp-tab')[1]);
+}
+function runLL(){
+  const nets=buildSeqNetworks();
+  const all=calcFaults(nets.z1,nets.z2,nets.z0,SYS.vf,SYS.zf);
+  displayResults([all[2]],nets,null);
+  rpSwitch('results',document.querySelectorAll('.rp-tab')[1]);
+}
+function runLLG(){
+  const nets=buildSeqNetworks();
+  const all=calcFaults(nets.z1,nets.z2,nets.z0,SYS.vf,SYS.zf);
+  displayResults([all[3]],nets,null);
+  rpSwitch('results',document.querySelectorAll('.rp-tab')[1]);
+}
+
+function displayResults(results,nets,fc){
+  rpSwitch('results',document.querySelectorAll('.rp-tab')[1]);
+  const el=document.getElementById('rpResults');
+
+  const i_base=SYS.mva/(Math.sqrt(3)*SYS.kv);
+  let html=`<div style="font-size:10px;color:var(--text2);margin-bottom:10px;">
+    <b>Fault at:</b> ${fc?fc.params.name:'Bus'} &nbsp;|&nbsp;
+    <b>Base:</b> ${SYS.mva} MVA, ${SYS.kv} kV &nbsp;|&nbsp;
+    <b>Ibase:</b> ${i_base.toFixed(3)} kA &nbsp;|&nbsp;
+    <b>Std:</b> ${SYS.std}
+  </div>`;
+
+  // Summary table
+  html+=`<table class="sc-table" style="margin-bottom:14px;">
+    <thead><tr><th>Fault Type</th><th>I (kA)</th><th>MVAsc</th><th>I_asym (kA)</th><th>X/R</th></tr></thead><tbody>`;
+  results.forEach(r=>{
+    const cls=r.ikA>30?'td-high':r.ikA>15?'td-med':'td-ok';
+    html+=`<tr>
+      <td><span class="result-badge ${r.cls}">${r.badge}</span> ${r.type}</td>
+      <td class="${cls}">${r.ikA.toFixed(3)}</td>
+      <td>${r.mva.toFixed(1)}</td>
+      <td>${r.i_asym.toFixed(3)}</td>
+      <td>${r.xr.toFixed(1)}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+
+  // Detailed cards
+  results.forEach(r=>{
+    html+=`<div class="result-card">
+      <div class="result-header">
+        <span class="result-type">${r.type}</span>
+        <span class="result-badge ${r.cls}">${r.badge}</span>
+      </div>
+      <div class="result-grid">
+        <div class="result-item"><div class="ri-label">Sym. RMS (kA)</div><div class="ri-value ${r.ikA>30?'ri-danger':r.ikA>15?'ri-warn':''}">${r.ikA.toFixed(3)}<span class="ri-unit">kA</span></div></div>
+        <div class="result-item"><div class="ri-label">SC MVA</div><div class="ri-value">${r.mva.toFixed(1)}<span class="ri-unit">MVA</span></div></div>
+        <div class="result-item"><div class="ri-label">Asym Peak (kA)</div><div class="ri-value">${r.i_mom.toFixed(3)}<span class="ri-unit">kA</span></div></div>
+        <div class="result-item"><div class="ri-label">Asym RMS (kA)</div><div class="ri-value">${r.i_asym.toFixed(3)}<span class="ri-unit">kA</span></div></div>
+        <div class="result-item"><div class="ri-label">Phase A (pu)</div><div class="ri-value">${r.ia.toFixed(4)}</div></div>
+        <div class="result-item"><div class="ri-label">Phase B/C (pu)</div><div class="ri-value">${r.ib.toFixed(4)}</div></div>
+        <div class="result-item"><div class="ri-label">Z_Thevenin (pu)</div><div class="ri-value">${r.z_th.toFixed(4)}</div></div>
+        <div class="result-item"><div class="ri-label">X/R Ratio</div><div class="ri-value">${r.xr.toFixed(1)}</div></div>
+      </div>
+      <div style="padding:6px 12px;font-size:10px;color:var(--text3);border-top:1px solid var(--border);">${r.notes}</div>
+    </div>`;
+  });
+
+  el.innerHTML=html;
+}
+
+function displaySequenceZ(nets){
+  const el=document.getElementById('rpSequence');
+  const fmt=(z)=>`${z.r.toFixed(4)} + j${z.x.toFixed(4)} (|Z|=${cabs(z).toFixed(4)} pu)`;
+  el.innerHTML=`
+    <div class="form-section">
+      <h4>Thevenin Sequence Impedances (pu)</h4>
+      <table class="sc-table">
+        <thead><tr><th>Network</th><th>R (pu)</th><th>X (pu)</th><th>|Z| (pu)</th><th>X/R</th></tr></thead>
+        <tbody>
+          <tr><td style="color:#2ecc71">Z₁ (Positive)</td><td>${nets.z1.r.toFixed(5)}</td><td>${nets.z1.x.toFixed(5)}</td><td>${cabs(nets.z1).toFixed(5)}</td><td>${nets.z1.r>1e-10?(nets.z1.x/nets.z1.r).toFixed(1):'∞'}</td></tr>
+          <tr><td style="color:#f39c12">Z₂ (Negative)</td><td>${nets.z2.r.toFixed(5)}</td><td>${nets.z2.x.toFixed(5)}</td><td>${cabs(nets.z2).toFixed(5)}</td><td>${nets.z2.r>1e-10?(nets.z2.x/nets.z2.r).toFixed(1):'∞'}</td></tr>
+          <tr><td style="color:#e74c3c">Z₀ (Zero)</td><td>${Math.min(nets.z0.r,999).toFixed(5)}</td><td>${Math.min(nets.z0.x,999).toFixed(5)}</td><td>${Math.min(cabs(nets.z0),999).toFixed(5)}</td><td>${nets.z0.r>1e-10?(nets.z0.x/nets.z0.r).toFixed(1):'∞'}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="form-section">
+      <h4>Source Impedances (pu)</h4>
+      <table class="sc-table">
+        <thead><tr><th>Component</th><th>R (pu)</th><th>X (pu)</th><th>|Z| (pu)</th></tr></thead>
+        <tbody>
+          <tr><td>Src Z₁</td><td>${nets.z1_src.r.toFixed(5)}</td><td>${nets.z1_src.x.toFixed(5)}</td><td>${cabs(nets.z1_src).toFixed(5)}</td></tr>
+          <tr><td>Src Z₂</td><td>${nets.z2_src.r.toFixed(5)}</td><td>${nets.z2_src.x.toFixed(5)}</td><td>${cabs(nets.z2_src).toFixed(5)}</td></tr>
+          <tr><td>Series Z₁</td><td>${nets.z_series1.r.toFixed(5)}</td><td>${nets.z_series1.x.toFixed(5)}</td><td>${cabs(nets.z_series1).toFixed(5)}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="hint-box" style="font-size:10px;">
+      <b>Formulas used (ANSI/IEC):</b><br>
+      3Φ: I = Vf / Z₁<br>
+      LG: I = 3Vf / (Z₁+Z₂+Z₀+3Zf)<br>
+      LL: I = √3·Vf / (Z₁+Z₂+Zf)<br>
+      LLG: I = √3·Vf / (Z₁+Z₂∥Z₀)<br>
+      Asymmetry: Iasym = Isym × √(1+2e^(−2πR/X))
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  EXAMPLE CIRCUIT
+// ═══════════════════════════════════════════════════════════════════════
+function loadExample(){
+  components=[]; wires=[];
+  idCtr=0;
+
+  const util = makeComp('UTILITY',    280, 220);
+  const bus1  = makeComp('BUS',       480, 220);
+  const gen   = makeComp('GENERATOR', 280, 360);
+  const tr    = makeComp('TRANSFORMER',650, 220);
+  const bus2  = makeComp('BUS',       840, 220);
+  const cab   = makeComp('CABLE',     840, 340);
+  const bus3  = makeComp('BUS',       840, 460);
+  const mot1  = makeComp('MOTOR_INDUCTION',1020,220);
+  const mot2  = makeComp('MOTOR_INDUCTION',1020,360);
+  const load  = makeComp('LOAD_STATIC',1020,460);
+  const cb1   = makeComp('BREAKER',   640, 340);
+  const fp    = makeComp('FAULT_POINT',840,130);
+
+  // Customise
+  util.params={name:'GRID',mva_sc:2000,xr:12,kv:11};
+  bus1.params={name:'BUS-11kV',kv:11,rated_kA:40}; bus1.w=120;
+  gen.params={name:'G1',mva:3,kv:11,xd_pp:0.18,x2:0.15,x0:0.06,xr:35,grounded:true};
+  tr.params={name:'TR1',mva:2,kv_hv:11,kv_lv:0.415,z_pct:5.75,xr:12,conn:'Dyn11',grnd_hv:false,grnd_lv:true};
+  bus2.params={name:'BUS-415V',kv:0.415,rated_kA:50}; bus2.w=120;
+  cab.params={name:'CAB1',r_ohm_km:0.30,x_ohm_km:0.075,len_km:0.3,kv:0.415,r0_mult:3.5,x0_mult:3.0};
+  bus3.params={name:'BUS-415V-2',kv:0.415,rated_kA:25}; bus3.w=130;
+  mot1.params={name:'M1',hp:200,kv:0.415,pf:0.87,eff:0.92,xd_pp:0.20,x2:0.25};
+  mot2.params={name:'M2',hp:150,kv:0.415,pf:0.85,eff:0.90,xd_pp:0.22,x2:0.27};
+  load.params={name:'LD1',mva:0.15,pf:0.85,kv:0.415,contrib:false};
+  fp.params={name:'F1-11kV',apply_3ph:true,apply_lg:true,apply_ll:true,apply_llg:true};
+
+  components=[util,bus1,gen,tr,bus2,cab,bus3,mot1,mot2,load,cb1,fp];
+
+  // Wires
+  wires=[
+    {x1:rPort(util).x,y1:rPort(util).y, x2:lPort(bus1).x,y2:lPort(bus1).y, fromComp:util,toComp:bus1,powered:false},
+    {x1:rPort(gen).x, y1:rPort(gen).y,  x2:lPort(bus1).x,y2:lPort(bus1).y, fromComp:gen, toComp:bus1,powered:false},
+    {x1:rPort(bus1).x,y1:rPort(bus1).y, x2:lPort(tr).x,  y2:lPort(tr).y,   fromComp:bus1,toComp:tr,  powered:false},
+    {x1:rPort(tr).x,  y1:rPort(tr).y,   x2:lPort(bus2).x,y2:lPort(bus2).y, fromComp:tr,  toComp:bus2,powered:false},
+    {x1:rPort(bus2).x,y1:rPort(bus2).y, x2:lPort(mot1).x,y2:lPort(mot1).y, fromComp:bus2,toComp:mot1,powered:false},
+    {x1:botPort(bus2).x,y1:botPort(bus2).y, x2:lPort(cab).x,y2:lPort(cab).y, fromComp:bus2,toComp:cab,powered:false},
+    {x1:rPort(cab).x,y1:rPort(cab).y,   x2:lPort(bus3).x,y2:lPort(bus3).y, fromComp:cab, toComp:bus3,powered:false},
+    {x1:rPort(bus3).x,y1:rPort(bus3).y, x2:lPort(mot2).x,y2:lPort(mot2).y, fromComp:bus3,toComp:mot2,powered:false},
+    {x1:botPort(bus3).x,y1:botPort(bus3).y, x2:topPort(load).x,y2:topPort(load).y, fromComp:bus3,toComp:load,powered:false},
+    {x1:topPort(bus1).x,y1:topPort(bus1).y, x2:botPort(fp).x,y2:botPort(fp).y, fromComp:bus1,toComp:fp,powered:false},
+  ];
+
+  showPropsHint();
+  setMsg('Example loaded: 11kV grid + 3MVA gen + 2MVA transformer + motors. Click ▶ Run All Faults.');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  EXPORT REPORT
+// ═══════════════════════════════════════════════════════════════════════
+function exportReport(){
+  if(!lastResults){ alert('Run a fault study first.'); return; }
+  const {results,nets,fault}=lastResults;
+  const i_base=SYS.mva/(Math.sqrt(3)*SYS.kv);
+
+  let txt=`SHORT-CIRCUIT ANALYSIS REPORT
+${'='.repeat(60)}
+Standard  : ${SYS.std}
+System MVA: ${SYS.mva} MVA
+System kV : ${SYS.kv} kV
+I_base    : ${i_base.toFixed(4)} kA
+Fault at  : ${fault?fault.params.name:'Bus'}
+Pre-fault V: ${SYS.vf} pu
+Fault Z    : ${SYS.zf} pu
+Date      : ${new Date().toLocaleString()}
+
+SEQUENCE NETWORK IMPEDANCES
+${'─'.repeat(60)}
+Z1 (Positive): R=${nets.z1.r.toFixed(6)}, X=${nets.z1.x.toFixed(6)} pu  |Z|=${cabs(nets.z1).toFixed(6)} pu
+Z2 (Negative): R=${nets.z2.r.toFixed(6)}, X=${nets.z2.x.toFixed(6)} pu  |Z|=${cabs(nets.z2).toFixed(6)} pu
+Z0 (Zero)    : R=${Math.min(nets.z0.r,999).toFixed(6)}, X=${Math.min(nets.z0.x,999).toFixed(6)} pu  |Z|=${Math.min(cabs(nets.z0),999).toFixed(6)} pu
+
+FAULT RESULTS SUMMARY
+${'─'.repeat(60)}
+${'Fault Type'.padEnd(22)}${'I_sym(kA)'.padStart(12)}${'I_asym(kA)'.padStart(12)}${'Ipeak(kA)'.padStart(12)}${'MVA_sc'.padStart(12)}${'X/R'.padStart(8)}
+${'─'.repeat(78)}
+`;
+
+  results.forEach(r=>{
+    txt+=`${r.type.padEnd(22)}${r.ikA.toFixed(3).padStart(12)}${r.i_asym.toFixed(3).padStart(12)}${r.i_mom.toFixed(3).padStart(12)}${r.mva.toFixed(1).padStart(12)}${r.xr.toFixed(1).padStart(8)}\n`;
+  });
+
+  txt+=`\nCOMPONENTS IN STUDY\n${'─'.repeat(60)}\n`;
+  components.forEach(c=>{
+    txt+=`${c.type.padEnd(20)} ${c.params.name}: `;
+    if(c.type==='UTILITY') txt+=`${c.params.mva_sc}MVA_sc, ${c.params.kv}kV, X/R=${c.params.xr}`;
+    else if(c.type==='GENERATOR') txt+=`${c.params.mva}MVA, ${c.params.kv}kV, X"d=${c.params.xd_pp}pu`;
+    else if(c.type==='TRANSFORMER') txt+=`${c.params.mva}MVA, ${c.params.kv_hv}/${c.params.kv_lv}kV, Z%=${c.params.z_pct}%, ${c.params.conn}`;
+    else if(c.type==='CABLE') txt+=`${c.params.len_km}km, R=${c.params.r_ohm_km}Ω/km, X=${c.params.x_ohm_km}Ω/km`;
+    else if(c.type==='MOTOR_INDUCTION') txt+=`${c.params.hp}HP, ${c.params.kv}kV, X"d=${c.params.xd_pp}pu`;
+    txt+='\n';
+  });
+
+  txt+=`\n${'='.repeat(60)}\nGenerated by ShortCircuit Pro\nETAP-compatible symmetrical component method\n`;
+
+  const blob=new Blob([txt],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`SC_Report_${fault?fault.params.name:'Bus'}_${Date.now()}.txt`;
+  a.click();
+  setMsg('Report exported');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════════════════════
+function clearCanvas(){
+  if(!confirm('Clear all components and wires?')) return;
+  components=[]; wires=[]; selectedComp=null; selectedWire=null;
+  showPropsHint(); setMsg('Canvas cleared');
+}
+
+function updateStatusBar(){
+  document.getElementById('nComps').textContent=components.length;
+  document.getElementById('nWires').textContent=wires.length;
+  document.getElementById('nFaults').textContent=components.filter(c=>c.type==='FAULT_POINT').length;
+}
+
+function setMsg(m){ document.getElementById('statusMsg').textContent=m; }
+
+function rpSwitch(tab, btn){
+  document.querySelectorAll('.rp-tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('rpProps').style.display=tab==='props'?'':'none';
+  document.getElementById('rpResults').style.display=tab==='results'?'':'none';
+  document.getElementById('rpSequence').style.display=tab==='sequence'?'':'none';
+}
+
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m) m.classList.remove('show');}));
+
+function showTooltip(text,cx,cy){
+  const t=document.getElementById('tooltip');
+  if(!text){t.style.display='none';return;}
+  t.style.display='block'; t.textContent=text;
+  t.style.left=(cx+14)+'px'; t.style.top=(cy-4)+'px';
+}
+
+// ── INIT ──
+document.getElementById('sysInfo').textContent=`Base: ${SYS.mva} MVA | ${SYS.kv} kV | ${SYS.std}`;
+showPropsHint();
+render();
+loadExample(); // start with example loaded
+</script>
+</body>
+</html>
