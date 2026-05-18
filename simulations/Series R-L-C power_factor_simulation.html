@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Power Factor Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #050c14;
+    --panel: #0a1626;
+    --border: #1a3a5c;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --volt: #ffcc00;
+    --curr: #00aaff;
+    --ph2: #ff4d6d;
+    --ph3: #a855f7;
+    --text: #c8e0f4;
+    --dim: #4a7a9b;
+    --glow: 0 0 12px rgba(0,212,255,0.4);
+    --glow2: 0 0 12px rgba(255,107,53,0.4);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  h1 {
+    font-family: 'Share Tech Mono', monospace;
+    text-align: center;
+    font-size: 1.6rem;
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--accent);
+    letter-spacing: 4px;
+    padding: 16px 0 8px;
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: var(--dim);
+    font-size: 0.8rem;
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 12px;
+    padding: 0 12px 12px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    position: relative;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 20px; right: 20px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .panel-title {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent);
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::before {
+    content: '▶';
+    font-size: 0.6rem;
+  }
+
+  /* Phase Toggle */
+  .phase-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .phase-btn {
+    flex: 1;
+    padding: 8px;
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .phase-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: var(--glow);
+  }
+
+  /* Sliders */
+  .slider-group {
+    margin-bottom: 14px;
+  }
+
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .slider-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .slider-label .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .slider-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--accent);
+    min-width: 70px;
+    text-align: right;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range].r-slider { background: linear-gradient(90deg, #ff6b35 0%, #ff6b35 var(--pct, 50%), #1a3a5c var(--pct, 50%), #1a3a5c 100%); }
+  input[type=range].l-slider { background: linear-gradient(90deg, #ffcc00 0%, #ffcc00 var(--pct, 50%), #1a3a5c var(--pct, 50%), #1a3a5c 100%); }
+  input[type=range].c-slider { background: linear-gradient(90deg, #00d4ff 0%, #00d4ff var(--pct, 50%), #1a3a5c var(--pct, 50%), #1a3a5c 100%); }
+  input[type=range].v-slider { background: linear-gradient(90deg, #39ff14 0%, #39ff14 var(--pct, 50%), #1a3a5c var(--pct, 50%), #1a3a5c 100%); }
+  input[type=range].f-slider { background: linear-gradient(90deg, #a855f7 0%, #a855f7 var(--pct, 50%), #1a3a5c var(--pct, 50%), #1a3a5c 100%); }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .max-input {
+    width: 52px;
+    background: #0a1e30;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    padding: 2px 4px;
+    text-align: center;
+  }
+
+  .max-label {
+    font-size: 0.65rem;
+    color: var(--dim);
+    letter-spacing: 1px;
+    text-align: right;
+    margin-top: 2px;
+  }
+
+  /* Metrics */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .metric {
+    background: #071220;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .metric-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.2rem;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  .metric-label {
+    font-size: 0.65rem;
+    color: var(--dim);
+    letter-spacing: 2px;
+    margin-top: 3px;
+    text-transform: uppercase;
+  }
+
+  /* Type badge */
+  .type-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'Share Tech Mono', monospace;
+    margin-top: 8px;
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Right side */
+  .right-grid {
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 12px;
+  }
+
+  /* Waveform canvas */
+  canvas {
+    display: block;
+    width: 100%;
+    border-radius: 4px;
+  }
+
+  #waveCanvas { height: 220px; }
+  #phasorCanvas { height: 220px; }
+
+  .canvas-row {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 12px;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 6px 0 0;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .legend-line {
+    width: 20px; height: 3px;
+    border-radius: 2px;
+  }
+
+  /* Phase info table */
+  .phase-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+    font-family: 'Share Tech Mono', monospace;
+    margin-top: 8px;
+  }
+
+  .phase-table th {
+    color: var(--dim);
+    font-weight: normal;
+    letter-spacing: 1px;
+    text-align: left;
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.65rem;
+  }
+
+  .phase-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #0f2035;
+  }
+
+  /* Scrolling animation */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent3);
+    display: inline-block;
+    margin-right: 4px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 12px 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .canvas-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>⚡ Power Factor Simulator</h1>
+<div class="subtitle">// INTERACTIVE RLC CIRCUIT ANALYSIS — SINGLE &amp; THREE PHASE //</div>
+
+<div class="main-grid">
+
+  <!-- LEFT: Controls -->
+  <div>
+    <div class="panel">
+      <div class="panel-title">System Configuration</div>
+
+      <div class="phase-toggle">
+        <button class="phase-btn active" id="btn1ph" onclick="setPhase(1)">SINGLE PHASE</button>
+        <button class="phase-btn" id="btn3ph" onclick="setPhase(3)">THREE PHASE</button>
+      </div>
+
+      <!-- Resistance -->
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="dot" style="background:#ff6b35;box-shadow:0 0 6px #ff6b35"></span>Resistance (R)</div>
+          <div class="slider-value" id="rVal">50.0 Ω</div>
+        </div>
+        <div class="slider-row">
+          <input type="range" class="r-slider" id="rSlider" min="0" max="200" step="0.5" value="50" oninput="updateAll()">
+          <input type="number" class="max-input" id="rMax" value="200" min="1" oninput="updateMax('r')" title="Max R">
+        </div>
+        <div class="max-label">MAX: <span id="rMaxDisp">200</span> Ω</div>
+      </div>
+
+      <!-- Inductance -->
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="dot" style="background:#ffcc00;box-shadow:0 0 6px #ffcc00"></span>Inductance (L)</div>
+          <div class="slider-value" id="lVal">100.0 mH</div>
+        </div>
+        <div class="slider-row">
+          <input type="range" class="l-slider" id="lSlider" min="0" max="500" step="1" value="100" oninput="updateAll()">
+          <input type="number" class="max-input" id="lMax" value="500" min="1" oninput="updateMax('l')" title="Max L">
+        </div>
+        <div class="max-label">MAX: <span id="lMaxDisp">500</span> mH</div>
+      </div>
+
+      <!-- Capacitance -->
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="dot" style="background:#00d4ff;box-shadow:0 0 6px #00d4ff"></span>Capacitance (C)</div>
+          <div class="slider-value" id="cVal">100.0 µF</div>
+        </div>
+        <div class="slider-row">
+          <input type="range" class="c-slider" id="cSlider" min="0.1" max="1000" step="0.1" value="100" oninput="updateAll()">
+          <input type="number" class="max-input" id="cMax" value="1000" min="0.1" oninput="updateMax('c')" title="Max C">
+        </div>
+        <div class="max-label">MAX: <span id="cMaxDisp">1000</span> µF</div>
+      </div>
+
+      <!-- Voltage -->
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="dot" style="background:#39ff14;box-shadow:0 0 6px #39ff14"></span>Voltage (Vp)</div>
+          <div class="slider-value" id="vVal">230 V</div>
+        </div>
+        <div class="slider-row">
+          <input type="range" class="v-slider" id="vSlider" min="10" max="500" step="1" value="230" oninput="updateAll()">
+          <input type="number" class="max-input" id="vMax" value="500" min="10" oninput="updateMax('v')" title="Max V">
+        </div>
+        <div class="max-label">MAX: <span id="vMaxDisp">500</span> V</div>
+      </div>
+
+      <!-- Frequency -->
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="dot" style="background:#a855f7;box-shadow:0 0 6px #a855f7"></span>Frequency (f)</div>
+          <div class="slider-value" id="fVal">50.0 Hz</div>
+        </div>
+        <div class="slider-row">
+          <input type="range" class="f-slider" id="fSlider" min="1" max="1000" step="0.5" value="50" oninput="updateAll()">
+          <input type="number" class="max-input" id="fMax" value="1000" min="1" oninput="updateMax('f')" title="Max f">
+        </div>
+        <div class="max-label">MAX: <span id="fMaxDisp">1000</span> Hz</div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <!-- Metrics -->
+      <div style="text-align:center;margin-bottom:8px;">
+        <span class="live-dot"></span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--dim);letter-spacing:2px;">LIVE ANALYSIS</span>
+      </div>
+
+      <div id="typeBadge" class="type-badge" style="background:#1a3a5c;color:#00d4ff;border:1px solid #00d4ff;">RESISTIVE</div>
+
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-val" id="mPF" style="color:#00d4ff">1.000</div>
+          <div class="metric-label">Power Factor</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mAngle" style="color:#ffcc00">0.0°</div>
+          <div class="metric-label">Phase Angle</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mZ" style="color:#ff6b35">50.0 Ω</div>
+          <div class="metric-label">Impedance Z</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mI" style="color:#39ff14">4.60 A</div>
+          <div class="metric-label">Current Ip</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mP" style="color:#ff6b35">529 W</div>
+          <div class="metric-label">Active P</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mQ" style="color:#a855f7">0 VAR</div>
+          <div class="metric-label">Reactive Q</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mS" style="color:#00d4ff">529 VA</div>
+          <div class="metric-label">Apparent S</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mRes" style="color:#a855f7">RES</div>
+          <div class="metric-label">Resonance</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Visuals -->
+  <div class="right-grid">
+
+    <!-- Waveform -->
+    <div class="panel">
+      <div class="panel-title">Waveform Display — Voltage &amp; Current</div>
+      <canvas id="waveCanvas"></canvas>
+      <div class="legend" id="waveLegend">
+        <div class="legend-item"><div class="legend-line" style="background:#ffcc00"></div> V Phase 1</div>
+        <div class="legend-item"><div class="legend-line" style="background:#00aaff"></div> I Phase 1</div>
+      </div>
+    </div>
+
+    <!-- Phasor + Phase Table -->
+    <div class="canvas-row">
+      <div class="panel">
+        <div class="panel-title">Phasor Diagram</div>
+        <canvas id="phasorCanvas"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Phase Parameters</div>
+        <table class="phase-table" id="phaseTable">
+          <thead>
+            <tr>
+              <th>PHASE</th><th>Vp (V)</th><th>Ip (A)</th><th>φ (°)</th>
+            </tr>
+          </thead>
+          <tbody id="phaseTableBody"></tbody>
+        </table>
+        <div class="section-divider"></div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--dim);line-height:1.8">
+          <div>XL = <span id="infoXL" style="color:#ffcc00">31.4 Ω</span></div>
+          <div>XC = <span id="infoXC" style="color:#00d4ff">31.8 Ω</span></div>
+          <div>ωL-1/ωC = <span id="infoNet" style="color:#39ff14">-0.4 Ω</span></div>
+          <div style="margin-top:6px;color:#4a7a9b">f₀(res)=<span id="infoF0" style="color:#a855f7">50.3 Hz</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let phaseMode = 1;
+let animFrame = 0;
+let animId = null;
+let time = 0;
+
+// ============================================================
+// PHASE MODE
+// ============================================================
+function setPhase(n) {
+  phaseMode = n;
+  document.getElementById('btn1ph').classList.toggle('active', n===1);
+  document.getElementById('btn3ph').classList.toggle('active', n===3);
+  updateAll();
+}
+
+// ============================================================
+// MAX UPDATE
+// ============================================================
+function updateMax(type) {
+  const map = { r:'rSlider', l:'lSlider', c:'cSlider', v:'vSlider', f:'fSlider' };
+  const dispMap = { r:'rMaxDisp', l:'lMaxDisp', c:'cMaxDisp', v:'vMaxDisp', f:'fMaxDisp' };
+  const inputMap = { r:'rMax', l:'lMax', c:'cMax', v:'vMax', f:'fMax' };
+  const newMax = parseFloat(document.getElementById(inputMap[type]).value);
+  if (isNaN(newMax) || newMax <= 0) return;
+  const slider = document.getElementById(map[type]);
+  slider.max = newMax;
+  document.getElementById(dispMap[type]).textContent = newMax;
+  updateAll();
+}
+
+// ============================================================
+// SLIDER CSS GRADIENT
+// ============================================================
+function updateSliderFill(slider) {
+  const pct = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+  slider.style.setProperty('--pct', pct + '%');
+}
+
+// ============================================================
+// COMPUTE
+// ============================================================
+function getParams() {
+  const R = parseFloat(document.getElementById('rSlider').value);
+  const L = parseFloat(document.getElementById('lSlider').value) * 0.001; // H
+  const C = parseFloat(document.getElementById('cSlider').value) * 1e-6;  // F
+  const Vp = parseFloat(document.getElementById('vSlider').value);
+  const f = parseFloat(document.getElementById('fSlider').value);
+
+  const omega = 2 * Math.PI * f;
+  const XL = omega * L;
+  const XC = C > 0 ? 1 / (omega * C) : Infinity;
+  const Xnet = XL - XC;
+  const Z = Math.sqrt(R * R + Xnet * Xnet);
+  const phi = Math.atan2(Xnet, R); // rad, positive=inductive
+  const pf = Math.cos(phi);
+  const Ip = Vp / Z;
+  const P = 0.5 * Vp * Ip * Math.cos(phi);
+  const Q = 0.5 * Vp * Ip * Math.sin(phi);
+  const S = 0.5 * Vp * Ip;
+
+  // Resonance frequency
+  const f0 = L > 0 && C > 0 ? 1 / (2 * Math.PI * Math.sqrt(L * C)) : 0;
+
+  return { R, L, C, Vp, f, omega, XL, XC, Xnet, Z, phi, pf, Ip, P, Q, S, f0 };
+}
+
+function circuitType(p) {
+  if (Math.abs(p.Xnet) < 0.5) return 'RESONANT';
+  if (p.Xnet > 0) return 'INDUCTIVE';
+  return 'CAPACITIVE';
+}
+
+// ============================================================
+// UPDATE DISPLAY
+// ============================================================
+function updateAll() {
+  // Update slider fills
+  ['rSlider','lSlider','cSlider','vSlider','fSlider'].forEach(id => {
+    updateSliderFill(document.getElementById(id));
+  });
+
+  const p = getParams();
+  const R = p.R, L = p.L * 1000, C = p.C * 1e6, Vp = p.Vp, f = p.f;
+
+  // Labels
+  document.getElementById('rVal').textContent = R.toFixed(1) + ' Ω';
+  document.getElementById('lVal').textContent = L.toFixed(1) + ' mH';
+  document.getElementById('cVal').textContent = C.toFixed(1) + ' µF';
+  document.getElementById('vVal').textContent = Vp.toFixed(0) + ' V';
+  document.getElementById('fVal').textContent = f.toFixed(1) + ' Hz';
+
+  // Metrics
+  const phiDeg = p.phi * 180 / Math.PI;
+  document.getElementById('mPF').textContent = Math.abs(p.pf).toFixed(3);
+  document.getElementById('mAngle').textContent = phiDeg.toFixed(1) + '°';
+  document.getElementById('mZ').textContent = p.Z.toFixed(2) + ' Ω';
+  document.getElementById('mI').textContent = p.Ip.toFixed(3) + ' A';
+  document.getElementById('mP').textContent = fmtPower(p.P);
+  document.getElementById('mQ').textContent = fmtPower(Math.abs(p.Q));
+  document.getElementById('mS').textContent = fmtPower(p.S);
+
+  // Resonance indicator
+  const resFreq = p.f0;
+  const isRes = resFreq > 0 && Math.abs(p.f - resFreq) < resFreq * 0.02;
+  document.getElementById('mRes').textContent = isRes ? '⚡ ON' : 'OFF';
+  document.getElementById('mRes').style.color = isRes ? '#39ff14' : '#4a7a9b';
+
+  // Circuit type badge
+  const ctype = circuitType(p);
+  const badge = document.getElementById('typeBadge');
+  badge.textContent = ctype;
+  if (ctype === 'INDUCTIVE') {
+    badge.style.cssText = 'background:#1a2a0a;color:#ffcc00;border:1px solid #ffcc00;';
+  } else if (ctype === 'CAPACITIVE') {
+    badge.style.cssText = 'background:#0a1a2a;color:#00d4ff;border:1px solid #00d4ff;';
+  } else if (ctype === 'RESONANT') {
+    badge.style.cssText = 'background:#0a1f0a;color:#39ff14;border:1px solid #39ff14;';
+    badge.textContent = '⚡ RESONANCE';
+  } else {
+    badge.style.cssText = 'background:#1a1a2a;color:#ff6b35;border:1px solid #ff6b35;';
+  }
+
+  // Info panel
+  document.getElementById('infoXL').textContent = p.XL.toFixed(2) + ' Ω';
+  document.getElementById('infoXC').textContent = (p.XC === Infinity ? '∞' : p.XC.toFixed(2)) + ' Ω';
+  document.getElementById('infoNet').textContent = (p.XC === Infinity ? p.XL.toFixed(2) : p.Xnet.toFixed(2)) + ' Ω';
+  document.getElementById('infoF0').textContent = resFreq > 0 ? resFreq.toFixed(1) + ' Hz' : '—';
+
+  // Phase table
+  const phases = phaseMode === 1 ? [
+    { label: '1', color: '#ffcc00', curColor: '#00aaff', angle: phiDeg }
+  ] : [
+    { label: '1', color: '#ffcc00', curColor: '#00aaff', angle: phiDeg },
+    { label: '2', color: '#ff4d6d', curColor: '#ff9999', angle: phiDeg },
+    { label: '3', color: '#a855f7', curColor: '#cc99ff', angle: phiDeg }
+  ];
+
+  const tbody = document.getElementById('phaseTableBody');
+  tbody.innerHTML = '';
+  phases.forEach((ph, i) => {
+    const voltShift = i * -120;
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td style="color:${ph.color}">Ph ${ph.label}</td>
+      <td style="color:#c8e0f4">${Vp.toFixed(1)}</td>
+      <td style="color:#c8e0f4">${p.Ip.toFixed(3)}</td>
+      <td style="color:${ph.curColor}">${ph.angle.toFixed(1)}</td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  // Legend
+  const waveLegend = document.getElementById('waveLegend');
+  if (phaseMode === 1) {
+    waveLegend.innerHTML = `
+      <div class="legend-item"><div class="legend-line" style="background:#ffcc00"></div> Voltage</div>
+      <div class="legend-item"><div class="legend-line" style="background:#00aaff;"></div> Current</div>
+    `;
+  } else {
+    waveLegend.innerHTML = `
+      <div class="legend-item"><div class="legend-line" style="background:#ffcc00"></div> V₁</div>
+      <div class="legend-item"><div class="legend-line" style="background:#ff4d6d"></div> V₂</div>
+      <div class="legend-item"><div class="legend-line" style="background:#a855f7"></div> V₃</div>
+      <div class="legend-item"><div class="legend-line" style="background:#00aaff;border-style:dashed"></div> I₁</div>
+      <div class="legend-item"><div class="legend-line" style="background:#ff9999;border-style:dashed"></div> I₂</div>
+      <div class="legend-item"><div class="legend-line" style="background:#cc99ff;border-style:dashed"></div> I₃</div>
+    `;
+  }
+
+  drawWaveform(p);
+  drawPhasor(p);
+}
+
+function fmtPower(val) {
+  if (val >= 1000) return (val/1000).toFixed(2) + ' k';
+  return val.toFixed(1);
+}
+
+// ============================================================
+// WAVEFORM
+// ============================================================
+function drawWaveform(p) {
+  const canvas = document.getElementById('waveCanvas');
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight || 220;
+  canvas.width = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background grid
+  ctx.strokeStyle = '#0f2035';
+  ctx.lineWidth = 1;
+  const gridX = 8, gridY = 6;
+  for (let i = 0; i <= gridX; i++) {
+    const x = (W / gridX) * i;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let j = 0; j <= gridY; j++) {
+    const y = (H / gridY) * j;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Center line
+  ctx.strokeStyle = '#1a3a5c';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const T = 1 / p.f;
+  const cycles = 2.5;
+  const phi = p.phi;
+  const Vp = p.Vp;
+  const Ip = p.Ip;
+  const Vscale = (H * 0.42) / Vp;
+  const Iscale = (H * 0.38) / Ip;
+  const offset = time % W;
+
+  const phaseColors = [
+    { vColor: '#ffcc00', iColor: '#00aaff', shift: 0 },
+    { vColor: '#ff4d6d', iColor: '#ff9999', shift: -2*Math.PI/3 },
+    { vColor: '#a855f7', iColor: '#cc99ff', shift: -4*Math.PI/3 }
+  ];
+
+  const numPhases = phaseMode === 1 ? 1 : 3;
+
+  for (let ph = 0; ph < numPhases; ph++) {
+    const { vColor, iColor, shift } = phaseColors[ph];
+    const alpha = phaseMode === 1 ? 1 : 0.9;
+
+    // Voltage
+    ctx.beginPath();
+    ctx.strokeStyle = vColor;
+    ctx.lineWidth = phaseMode === 1 ? 2.5 : 2;
+    ctx.globalAlpha = alpha;
+    for (let px = 0; px < W; px++) {
+      const t = (px / W) * cycles * T + (offset / W) * T * 0.05;
+      const v = Vp * Math.sin(2 * Math.PI * p.f * t + shift);
+      const y = H/2 - v * Vscale;
+      px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
+    }
+    ctx.stroke();
+
+    // Current
+    ctx.beginPath();
+    ctx.strokeStyle = iColor;
+    ctx.lineWidth = phaseMode === 1 ? 2 : 1.8;
+    ctx.setLineDash([6, 3]);
+    for (let px = 0; px < W; px++) {
+      const t = (px / W) * cycles * T + (offset / W) * T * 0.05;
+      const i = Ip * Math.sin(2 * Math.PI * p.f * t - phi + shift);
+      const y = H/2 - i * Iscale;
+      px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.globalAlpha = 1;
+
+  // Axis labels
+  ctx.fillStyle = '#4a7a9b';
+  ctx.font = `${10 * devicePixelRatio / devicePixelRatio}px Share Tech Mono`;
+  ctx.fillText('+V/I', 4, 14);
+  ctx.fillText('-V/I', 4, H - 4);
+  ctx.fillText('t →', W - 30, H/2 - 6);
+}
+
+// ============================================================
+// PHASOR
+// ============================================================
+function drawPhasor(p) {
+  const canvas = document.getElementById('phasorCanvas');
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight || 220;
+  canvas.width = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+
+  ctx.clearRect(0, 0, W, H);
+
+  const cx = W / 2, cy = H / 2;
+  const maxR = Math.min(W, H) * 0.38;
+
+  // Grid circles
+  ctx.strokeStyle = '#0f2035';
+  ctx.lineWidth = 1;
+  for (let r = maxR * 0.33; r <= maxR; r += maxR * 0.33) {
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#1a3a5c';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Axis labels
+  ctx.fillStyle = '#1a3a5c';
+  ctx.font = '10px Share Tech Mono';
+  ctx.fillText('+Re', W - 26, cy - 4);
+  ctx.fillText('+Im', cx + 4, 12);
+  ctx.fillText('−Im', cx + 4, H - 4);
+
+  const phi = p.phi;
+  const numPhases = phaseMode === 1 ? 1 : 3;
+
+  const phases = [
+    { vColor: '#ffcc00', iColor: '#00aaff', shift: 0 },
+    { vColor: '#ff4d6d', iColor: '#ff9999', shift: -2*Math.PI/3 },
+    { vColor: '#a855f7', iColor: '#cc99ff', shift: -4*Math.PI/3 }
+  ];
+
+  for (let ph = 0; ph < numPhases; ph++) {
+    const { vColor, iColor, shift } = phases[ph];
+    const baseAngle = -Math.PI / 2 + shift; // start at top for phase 1
+
+    // Voltage phasor (reference)
+    const vAngle = 0 + shift; // horizontal reference per phase
+    const vx = cx + maxR * Math.cos(vAngle);
+    const vy = cy - maxR * Math.sin(vAngle);
+
+    drawArrow(ctx, cx, cy, vx, vy, vColor, 2.5);
+    ctx.fillStyle = vColor;
+    ctx.font = 'bold 11px Share Tech Mono';
+    ctx.fillText(`V${ph+1}`, vx + 4, vy - 4);
+
+    // Current phasor (lagging/leading by phi)
+    const iAngle = vAngle - phi;
+    const iMag = maxR * 0.72;
+    const ix = cx + iMag * Math.cos(iAngle);
+    const iy = cy - iMag * Math.sin(iAngle);
+
+    drawArrow(ctx, cx, cy, ix, iy, iColor, 2);
+    ctx.fillStyle = iColor;
+    ctx.fillText(`I${ph+1}`, ix + 4, iy + 12);
+
+    // Phase angle arc
+    if (Math.abs(phi) > 0.03) {
+      ctx.strokeStyle = '#334d66';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const arcR = maxR * 0.22;
+      ctx.arc(cx, cy, arcR,
+        -vAngle, -(vAngle - phi),
+        phi < 0
+      );
+      ctx.stroke();
+
+      // Angle label
+      const midA = vAngle - phi / 2;
+      const lx = cx + (arcR + 12) * Math.cos(midA);
+      const ly = cy - (arcR + 12) * Math.sin(midA);
+      ctx.fillStyle = '#aaccdd';
+      ctx.font = '10px Share Tech Mono';
+      ctx.fillText((phi * 180 / Math.PI).toFixed(1) + '°', lx - 14, ly + 4);
+    }
+  }
+}
+
+function drawArrow(ctx, x1, y1, x2, y2, color, width) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Arrowhead
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const len = 9, spread = Math.PI / 6;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - len * Math.cos(angle - spread), y2 - len * Math.sin(angle - spread));
+  ctx.lineTo(x2 - len * Math.cos(angle + spread), y2 - len * Math.sin(angle + spread));
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ============================================================
+// ANIMATION LOOP (slow scroll waveform)
+// ============================================================
+function animate() {
+  time += 0.8;
+  const p = getParams();
+  drawWaveform(p);
+  drawPhasor(p);
+  animId = requestAnimationFrame(animate);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load', () => {
+  updateAll();
+  animate();
+});
+
+window.addEventListener('resize', () => {
+  updateAll();
+});
+</script>
+</body>
+</html>
