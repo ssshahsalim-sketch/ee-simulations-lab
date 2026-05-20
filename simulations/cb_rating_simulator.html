@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>80% vs 100% Rated Circuit Breaker Simulator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0d1117;color:#c9d1d9;font-family:'Segoe UI',Arial,sans-serif;min-height:100vh;}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,#1f2937,#111827);border-bottom:2px solid #e94560;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.header h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.06em;}
+.header .sub{font-size:11px;color:#888;margin-top:2px;}
+.nec-badge{background:#e94560;color:#fff;font-size:10px;padding:3px 10px;border-radius:12px;font-weight:600;letter-spacing:.05em;}
+
+/* TABS */
+.tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;padding:0 20px;}
+.tab{padding:10px 18px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#888;transition:.2s;font-weight:500;}
+.tab.active{color:#58a6ff;border-bottom-color:#58a6ff;}
+.tab:hover{color:#c9d1d9;}
+.tab-content{display:none;padding:20px;}
+.tab-content.active{display:block;}
+
+/* CARDS */
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;color:#58a6ff;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;border-bottom:1px solid #21262d;padding-bottom:8px;}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+@media(max-width:700px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+
+/* FORM ELEMENTS */
+label{font-size:11px;color:#8b949e;display:block;margin-bottom:4px;}
+input[type=number],select{width:100%;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:7px 10px;font-size:12px;font-family:inherit;outline:none;transition:.2s;}
+input[type=number]:focus,select:focus{border-color:#58a6ff;}
+.input-row{margin-bottom:10px;}
+.unit{font-size:10px;color:#8b949e;margin-left:4px;}
+
+/* RESULT BOXES */
+.result-box{border-radius:6px;padding:12px;text-align:center;margin-top:6px;}
+.result-box .val{font-size:20px;font-weight:700;margin:4px 0;}
+.result-box .lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em;}
+.result-box .sub-val{font-size:11px;color:#888;margin-top:2px;}
+.box-80{background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.4);}
+.box-80 .val{color:#f85149;}
+.box-100{background:rgba(46,160,67,0.1);border:1px solid rgba(46,160,67,0.4);}
+.box-100 .val{color:#3fb950;}
+.box-info{background:rgba(88,166,255,0.08);border:1px solid rgba(88,166,255,0.3);}
+.box-info .val{color:#58a6ff;}
+.box-warn{background:rgba(210,153,34,0.1);border:1px solid rgba(210,153,34,0.4);}
+.box-warn .val{color:#d29922;}
+
+/* VERDICT */
+.verdict{border-radius:8px;padding:14px 16px;margin-top:14px;font-size:12px;line-height:1.7;}
+.verdict.save{background:rgba(46,160,67,0.1);border:1px solid #3fb950;}
+.verdict.warn{background:rgba(210,153,34,0.1);border:1px solid #d29922;}
+.verdict.neutral{background:rgba(88,166,255,0.08);border:1px solid #58a6ff;}
+.verdict .title{font-weight:700;font-size:13px;margin-bottom:6px;}
+
+/* BUTTONS */
+.btn{font-size:12px;padding:8px 18px;border-radius:4px;border:none;cursor:pointer;font-weight:600;transition:.15s;font-family:inherit;}
+.btn-primary{background:#1f6feb;color:#fff;}
+.btn-primary:hover{background:#388bfd;}
+.btn-danger{background:#b91c1c;color:#fff;}
+.btn-danger:hover{background:#ef4444;}
+.btn-green{background:#166534;color:#fff;}
+.btn-green:hover{background:#22c55e;}
+.btn-outline{background:transparent;border:1px solid #30363d;color:#c9d1d9;}
+.btn-outline:hover{background:#21262d;}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:11px;}
+th{background:#21262d;color:#8b949e;padding:8px 10px;text-align:left;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid #30363d;}
+td{padding:8px 10px;border-bottom:1px solid #21262d;vertical-align:middle;}
+tr:hover td{background:#1c2128;}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;}
+.tag-red{background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.3);}
+.tag-green{background:rgba(46,160,67,0.15);color:#3fb950;border:1px solid rgba(46,160,67,0.3);}
+.tag-blue{background:rgba(88,166,255,0.15);color:#58a6ff;border:1px solid rgba(88,166,255,0.3);}
+.tag-amber{background:rgba(210,153,34,0.15);color:#d29922;border:1px solid rgba(210,153,34,0.3);}
+
+/* CB VISUAL */
+.cb-visual{display:flex;justify-content:center;gap:32px;padding:16px 0;flex-wrap:wrap;}
+.cb-card{text-align:center;width:140px;}
+.cb-card .cb-body{width:80px;height:120px;margin:0 auto 8px;border-radius:6px;border:3px solid;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:.3s;}
+.cb-card .cb-handle{width:20px;height:30px;border-radius:3px;position:absolute;top:8px;}
+.cb-card .cb-rating{font-size:18px;font-weight:800;margin-top:36px;}
+.cb-card .cb-frame{font-size:9px;color:#888;margin-top:2px;}
+.cb-card .cb-name{font-size:11px;font-weight:600;margin-bottom:4px;}
+.cb-card .cb-desc{font-size:10px;color:#888;line-height:1.4;}
+.cb-80 .cb-body{border-color:#f85149;background:rgba(248,81,73,0.08);}
+.cb-80 .cb-handle{background:#f85149;}
+.cb-80 .cb-rating{color:#f85149;}
+.cb-100 .cb-body{border-color:#3fb950;background:rgba(46,160,67,0.08);}
+.cb-100 .cb-handle{background:#3fb950;}
+.cb-100 .cb-rating{color:#3fb950;}
+
+/* NEC INFO BOX */
+.nec-box{background:#1c2128;border-left:3px solid #58a6ff;padding:10px 14px;border-radius:0 6px 6px 0;font-size:11px;line-height:1.7;color:#8b949e;margin-bottom:12px;}
+.nec-box strong{color:#c9d1d9;}
+
+/* PROGRESS BAR */
+.progress-wrap{background:#21262d;border-radius:4px;height:10px;margin-top:6px;overflow:hidden;}
+.progress-bar{height:100%;border-radius:4px;transition:.5s;}
+
+/* SCENARIO CARDS */
+.scenario{border:1px solid #30363d;border-radius:6px;padding:12px;background:#0d1117;}
+.scenario.valid{border-color:#3fb950;background:rgba(46,160,67,0.05);}
+.scenario.invalid{border-color:#f85149;background:rgba(248,81,73,0.05);}
+.scenario-title{font-size:11px;font-weight:700;margin-bottom:8px;}
+
+/* STEP INDICATOR */
+.steps{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.step{background:#21262d;border:1px solid #30363d;border-radius:4px;padding:5px 10px;font-size:10px;color:#888;}
+.step.done{background:rgba(46,160,67,0.15);border-color:#3fb950;color:#3fb950;}
+.step.active{background:rgba(88,166,255,0.15);border-color:#58a6ff;color:#58a6ff;}
+
+/* SAVINGS METER */
+.savings-wrap{padding:12px;background:#0d1117;border-radius:6px;margin-top:8px;}
+.savings-title{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+.savings-pct{font-size:26px;font-weight:800;color:#3fb950;}
+
+/* TOOLTIP */
+.tip{display:inline-block;width:14px;height:14px;border-radius:50%;background:#30363d;color:#8b949e;font-size:9px;text-align:center;line-height:14px;cursor:help;margin-left:4px;position:relative;}
+.tip:hover::after{content:attr(data-tip);position:absolute;left:50%;transform:translateX(-50%);bottom:120%;background:#1f2937;border:1px solid #30363d;padding:6px 10px;border-radius:4px;width:200px;font-size:10px;color:#c9d1d9;z-index:99;white-space:normal;line-height:1.5;}
+
+/* COMPARISON TABLE HIGHLIGHT */
+.highlight-green td{background:rgba(46,160,67,0.08)!important;}
+.highlight-red td{background:rgba(248,81,73,0.06)!important;}
+
+/* BRANCH BUILDER */
+.branch-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;background:#0d1117;padding:8px;border-radius:6px;border:1px solid #21262d;}
+.branch-row input{width:80px;background:#161b22;}
+.branch-row select{width:110px;background:#161b22;}
+.branch-del{background:none;border:none;color:#f85149;cursor:pointer;font-size:16px;padding:0 4px;}
+.branch-label{font-size:10px;color:#8b949e;min-width:60px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header h1">⚡ 80% vs 100% Rated Circuit Breaker Simulator</div>
+    <div class="sub">Based on NEC Article 240.20(A) · UL 489 Standards · Interactive Engineering Tool</div>
+  </div>
+  <span class="nec-badge">NEC 240.20(A)</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('learn')">📚 Learn</div>
+  <div class="tab" onclick="switchTab('calc')">🔢 CB Sizing Calculator</div>
+  <div class="tab" onclick="switchTab('system')">🏗️ System Builder</div>
+  <div class="tab" onclick="switchTab('compare')">⚖️ Cost Comparison</div>
+  <div class="tab" onclick="switchTab('guide')">📋 Selection Guide</div>
+</div>
+
+<!-- ═══════════════════ TAB 1: LEARN ═══════════════════ -->
+<div class="tab-content active" id="tab-learn">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title">What Does "80% Rated" Mean?</div>
+        <div class="nec-box">
+          <strong>NEC 240.20(A):</strong> Where a branch circuit supplies continuous loads or any combination of continuous and noncontinuous loads, the rating of the overcurrent device shall not be less than the <strong>noncontinuous load + 125% of the continuous load.</strong>
+        </div>
+        <p style="font-size:12px;color:#8b949e;line-height:1.8;">
+          A <strong style="color:#f85149;">standard (80%-rated)</strong> breaker is not limited to only 80% of its rating physically — all breakers are manufactured to carry 100% current indefinitely. The <em>80%</em> is an <strong style="color:#c9d1d9;">NEC application restriction</strong>: when supplying <strong style="color:#c9d1d9;">continuous loads</strong> (running at full current ≥3 hours), you must size the breaker at 125% of load, meaning you only use <strong>80% of its capacity</strong> for continuous load.
+          <br><br>
+          <strong style="color:#d29922;">Example:</strong> 80A continuous load → 80 × 1.25 = <strong style="color:#f85149;">100A breaker required</strong>
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">What Does "100% Rated" Mean?</div>
+        <div class="nec-box">
+          <strong>NEC Exception:</strong> Where the assembly, including the overcurrent devices protecting the branch circuit(s), is <strong>listed for operation at 100% of its rating</strong>, the ampere rating shall be permitted to be not less than the sum of continuous + noncontinuous loads.
+        </div>
+        <p style="font-size:12px;color:#8b949e;line-height:1.8;">
+          A <strong style="color:#3fb950;">100%-rated</strong> breaker has undergone additional UL 489 testing inside a minimum-size enclosure at rated current until temperature stabilization — verifying it won't trip and won't exceed temperature rise limits. The manufacturer then marks it with:
+        </p>
+        <ul style="font-size:11px;color:#8b949e;padding-left:18px;margin-top:8px;line-height:2;">
+          <li>Minimum enclosure size (H × W × D)</li>
+          <li>Wire temperature rating required (75°C or 90°C)</li>
+          <li>Ventilation requirements (if any)</li>
+        </ul>
+        <p style="font-size:12px;color:#8b949e;margin-top:10px;">
+          <strong style="color:#d29922;">Same example:</strong> 80A continuous load → <strong style="color:#3fb950;">80A breaker allowed</strong>
+        </p>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Key Concept: Continuous vs Noncontinuous Load</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div class="result-box box-80">
+            <div class="lbl">Continuous Load</div>
+            <div class="val" style="font-size:15px;">≥ 3 Hours</div>
+            <div class="sub-val">Runs at max current for 3+ consecutive hours</div>
+            <div class="sub-val" style="margin-top:6px;color:#f85149;">Multiplier: ×1.25 (80% rated)</div>
+          </div>
+          <div class="result-box box-100">
+            <div class="lbl">Noncontinuous Load</div>
+            <div class="val" style="font-size:15px;">< 3 Hours</div>
+            <div class="sub-val">Runs at max current for less than 3 hours</div>
+            <div class="sub-val" style="margin-top:6px;color:#3fb950;">Multiplier: ×1.0 (no penalty)</div>
+          </div>
+        </div>
+        <table>
+          <tr><th>Load Type</th><th>Example</th><th>Typical Class</th></tr>
+          <tr><td>Lighting (office hours)</td><td>8hr/day fluorescents</td><td><span class="tag tag-red">Continuous</span></td></tr>
+          <tr><td>HVAC fans</td><td>Running all day</td><td><span class="tag tag-red">Continuous</span></td></tr>
+          <tr><td>Batch pump motor</td><td>2hr cycle pump</td><td><span class="tag tag-green">Noncontinuous</span></td></tr>
+          <tr><td>Welding machine</td><td>Intermittent use</td><td><span class="tag tag-green">Noncontinuous</span></td></tr>
+          <tr><td>Server room UPS</td><td>24/7 operation</td><td><span class="tag tag-red">Continuous</span></td></tr>
+          <tr><td>Motor starter (conveyor)</td><td>Runs 6+ hr/shift</td><td><span class="tag tag-red">Continuous</span></td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Visual: CB Sizing Comparison</div>
+        <div class="cb-visual">
+          <div class="cb-card cb-80">
+            <div class="cb-name">Standard (80%)</div>
+            <div class="cb-body">
+              <div class="cb-handle"></div>
+              <div class="cb-rating" id="vis-80">100A</div>
+              <div class="cb-frame" id="vis-80-frame">H-Frame</div>
+            </div>
+            <div class="cb-desc">125% of continuous load<br>Larger, lower cost per unit<br>Widely available</div>
+          </div>
+          <div style="display:flex;align-items:center;font-size:20px;color:#8b949e;">vs</div>
+          <div class="cb-card cb-100">
+            <div class="cb-name">100% Rated</div>
+            <div class="cb-body">
+              <div class="cb-handle"></div>
+              <div class="cb-rating" id="vis-100">80A</div>
+              <div class="cb-frame" id="vis-100-frame">G-Frame</div>
+            </div>
+            <div class="cb-desc">100% of continuous load<br>Smaller, may cost more<br>Specific installation rules</div>
+          </div>
+        </div>
+        <div style="text-align:center;font-size:11px;color:#8b949e;margin-top:4px;">
+          ↑ Based on 80A continuous load · Change in <strong style="color:#58a6ff;">CB Sizing Calculator</strong> tab
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEC Rules Summary -->
+  <div class="card">
+    <div class="card-title">NEC Rules Summary — Quick Reference</div>
+    <table>
+      <tr>
+        <th>Condition</th>
+        <th>80% Standard Breaker Rule</th>
+        <th>100% Rated Breaker Rule</th>
+        <th>Recommendation</th>
+      </tr>
+      <tr>
+        <td>All loads noncontinuous</td>
+        <td>Size at 100% of load ✓</td>
+        <td>Size at 100% of load ✓</td>
+        <td><span class="tag tag-amber">Use 80% — simpler & cheaper</span></td>
+      </tr>
+      <tr class="highlight-green">
+        <td>All loads continuous</td>
+        <td>Size at 125% of load</td>
+        <td>Size at 100% of load ✓</td>
+        <td><span class="tag tag-green">100% often saves cost &amp; space</span></td>
+      </tr>
+      <tr>
+        <td>Mixed continuous + noncont.</td>
+        <td>Noncont. + 125% × Cont.</td>
+        <td>Noncont. + 100% × Cont.</td>
+        <td><span class="tag tag-blue">Evaluate both — depends on ratio</span></td>
+      </tr>
+      <tr>
+        <td>Large motor (continuous)</td>
+        <td>May jump to next frame size</td>
+        <td>Stays in current frame size</td>
+        <td><span class="tag tag-green">100% saves frame + cable cost</span></td>
+      </tr>
+      <tr>
+        <td>Small loads / short runs</td>
+        <td>Minimal difference</td>
+        <td>Extra cost not justified</td>
+        <td><span class="tag tag-amber">Use 80% standard</span></td>
+      </tr>
+    </table>
+    <div class="nec-box" style="margin-top:12px;">
+      <strong>⚠ Important:</strong> When applying 100%-rated MCCBs, the <strong>entire system including conductors must be listed for 100% operation.</strong> Check manufacturer markings for minimum enclosure size, wire temperature rating, and ventilation requirements.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB 2: CALCULATOR ═══════════════════ -->
+<div class="tab-content" id="tab-calc">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title">Load Input</div>
+        <div class="input-row">
+          <label>Continuous Load Current <span class="tip" data-tip="Load running at max current for 3+ hours">?</span></label>
+          <input type="number" id="c-cont" value="80" min="0" oninput="calcCB()"> <span class="unit">Amps</span>
+        </div>
+        <div class="input-row">
+          <label>Noncontinuous Load Current <span class="tip" data-tip="Load running at max current for less than 3 hours">?</span></label>
+          <input type="number" id="c-noncont" value="20" min="0" oninput="calcCB()"> <span class="unit">Amps</span>
+        </div>
+        <div class="input-row">
+          <label>System Voltage</label>
+          <select id="c-volt" onchange="calcCB()">
+            <option value="120">120V (1φ)</option>
+            <option value="240">240V (1φ)</option>
+            <option value="208">208V (3φ)</option>
+            <option value="240t">240V (3φ)</option>
+            <option value="480" selected>480V (3φ)</option>
+            <option value="600">600V (3φ)</option>
+          </select>
+        </div>
+        <div class="input-row">
+          <label>Load Type / Application</label>
+          <select id="c-loadtype" onchange="calcCB()">
+            <option value="motor">Motor (continuous)</option>
+            <option value="lighting">Lighting (continuous)</option>
+            <option value="hvac">HVAC (continuous)</option>
+            <option value="batch">Batch Process (noncontinuous)</option>
+            <option value="welding">Welding (noncontinuous)</option>
+            <option value="mixed" selected>Mixed Load</option>
+          </select>
+        </div>
+
+        <!-- Load Split Visual -->
+        <div style="margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#8b949e;margin-bottom:4px;">
+            <span>Continuous portion</span><span id="cont-pct">80%</span>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-bar" id="cont-bar" style="width:80%;background:linear-gradient(90deg,#f85149,#d29922);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#8b949e;margin-top:6px;margin-bottom:4px;">
+            <span>Noncontinuous portion</span><span id="noncont-pct">20%</span>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-bar" id="noncont-bar" style="width:20%;background:#3fb950;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Step-by-Step Calculation</div>
+        <div id="calc-steps" style="font-size:11px;color:#8b949e;line-height:2.2;"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Results</div>
+        <div class="grid-2">
+          <div>
+            <div class="result-box box-80">
+              <div class="lbl">80% Standard Breaker</div>
+              <div class="val" id="res-80">125A</div>
+              <div class="sub-val" id="res-80-frame">H-Frame recommended</div>
+            </div>
+            <div style="font-size:10px;color:#8b949e;text-align:center;margin-top:4px;">Formula: Noncont + (1.25 × Cont)</div>
+          </div>
+          <div>
+            <div class="result-box box-100">
+              <div class="lbl">100% Rated Breaker</div>
+              <div class="val" id="res-100">100A</div>
+              <div class="sub-val" id="res-100-frame">G-Frame possible</div>
+            </div>
+            <div style="font-size:10px;color:#8b949e;text-align:center;margin-top:4px;">Formula: Noncont + (1.0 × Cont)</div>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top:10px;">
+          <div class="result-box box-info">
+            <div class="lbl">Total Connected Load</div>
+            <div class="val" id="res-total">100A</div>
+          </div>
+          <div class="result-box box-warn">
+            <div class="lbl">Demand Load (80% calc)</div>
+            <div class="val" id="res-demand">120A</div>
+          </div>
+        </div>
+
+        <div id="verdict-box" class="verdict neutral" style="margin-top:14px;">
+          <div class="title" id="verdict-title">Calculating...</div>
+          <div id="verdict-body"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Frame Size Reference (Allen-Bradley / ABB Guide)</div>
+        <table>
+          <tr><th>Amp Range</th><th>Frame</th><th>Notes</th></tr>
+          <tr id="fr-g"><td>15–100A</td><td>G-Frame</td><td>Compact, standard panel</td></tr>
+          <tr id="fr-h"><td>70–150A</td><td>H-Frame</td><td>Common for small motors</td></tr>
+          <tr id="fr-i"><td>125–250A</td><td>I-Frame</td><td>Mid-range applications</td></tr>
+          <tr id="fr-j"><td>150–400A</td><td>J-Frame</td><td>Industrial feeders</td></tr>
+          <tr id="fr-k"><td>300–600A</td><td>K-Frame (100% avail.)</td><td>400A 100% rated available</td></tr>
+          <tr id="fr-m"><td>600–1000A</td><td>M-Frame (100% avail.)</td><td>800A 100% rated available</td></tr>
+          <tr id="fr-n"><td>800–1600A</td><td>N-Frame (100% avail.)</td><td>1200A 100% rated available</td></tr>
+          <tr id="fr-r"><td>1600–3000A</td><td>R-Frame (100% avail.)</td><td>2000–3000A 100% rated</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">100% Rated CB Installation Requirements</div>
+        <div id="install-req" style="font-size:11px;color:#8b949e;line-height:1.9;">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB 3: SYSTEM BUILDER ═══════════════════ -->
+<div class="tab-content" id="tab-system">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title">Branch Circuit Builder</div>
+        <p style="font-size:11px;color:#8b949e;margin-bottom:12px;">Add branch circuits to calculate total main breaker requirements for both 80% and 100% rated designs.</p>
+        <div id="branch-list"></div>
+        <button class="btn btn-outline" onclick="addBranch()" style="width:100%;margin-top:4px;">+ Add Branch Circuit</button>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn btn-primary" onclick="calcSystem()" style="flex:1;">Calculate System</button>
+          <button class="btn btn-outline" onclick="clearBranches()">Clear</button>
+          <button class="btn btn-outline" onclick="loadExample()">Load Example</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">System Summary</div>
+        <div id="sys-results">
+          <p style="font-size:11px;color:#555;font-style:italic;">Add branch circuits and click Calculate to see results.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:0;">
+    <div class="card-title">Branch-by-Branch Analysis</div>
+    <div id="branch-analysis">
+      <p style="font-size:11px;color:#555;font-style:italic;">Results will appear here after calculation.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB 4: COST COMPARISON ═══════════════════ -->
+<div class="tab-content" id="tab-compare">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title">Cost Input Parameters</div>
+        <div class="input-row">
+          <label>Continuous Load (A)</label>
+          <input type="number" id="cost-cont" value="360" min="1" oninput="calcCost()">
+        </div>
+        <div class="input-row">
+          <label>Noncontinuous Load (A)</label>
+          <input type="number" id="cost-noncont" value="0" min="0" oninput="calcCost()">
+        </div>
+        <div class="input-row">
+          <label>Cable Run Length (meters)</label>
+          <input type="number" id="cost-cable" value="50" min="1" oninput="calcCost()">
+        </div>
+        <div class="input-row">
+          <label>Number of Phases</label>
+          <select id="cost-phases" onchange="calcCost()">
+            <option value="1">Single Phase</option>
+            <option value="3" selected>Three Phase</option>
+          </select>
+        </div>
+        <div class="input-row">
+          <label>CB Unit Cost Factor (80% = base)</label>
+          <input type="number" id="cost-factor" value="1.35" step="0.05" min="1" oninput="calcCost()">
+          <div style="font-size:10px;color:#555;margin-top:2px;">100% rated CB typically costs 1.2–1.5× more than equivalent 80% rated</div>
+        </div>
+        <div class="input-row">
+          <label>Cable Cost ($/meter per conductor)</label>
+          <input type="number" id="cost-cpm" value="8" min="1" oninput="calcCost()">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Cost Analysis Results</div>
+        <div id="cost-results">
+          <p style="font-size:11px;color:#555;font-style:italic;">Adjust inputs to see results.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Total Installation Cost Comparison</div>
+    <div id="cost-breakdown"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB 5: SELECTION GUIDE ═══════════════════ -->
+<div class="tab-content" id="tab-guide">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title">🔍 Interactive Selection Guide</div>
+        <p style="font-size:11px;color:#8b949e;margin-bottom:14px;">Answer the questions below to get a recommendation.</p>
+
+        <div class="input-row">
+          <label>Q1. Will the load run at maximum current for 3 or more consecutive hours?</label>
+          <select id="q1" onchange="runGuide()">
+            <option value="">-- Select --</option>
+            <option value="yes">Yes (Continuous Load)</option>
+            <option value="no">No (Noncontinuous Load)</option>
+            <option value="mixed">Mix of both</option>
+          </select>
+        </div>
+        <div class="input-row">
+          <label>Q2. What is the total connected load current?</label>
+          <input type="number" id="q2" value="300" min="1" oninput="runGuide()"> <span class="unit">A</span>
+        </div>
+        <div class="input-row">
+          <label>Q3. What is the percentage that is continuous? (%)</label>
+          <input type="number" id="q3" value="100" min="0" max="100" oninput="runGuide()"> <span class="unit">%</span>
+        </div>
+        <div class="input-row">
+          <label>Q4. Is long cable run involved? (&gt;30m)</label>
+          <select id="q4" onchange="runGuide()">
+            <option value="yes">Yes — significant cable run</option>
+            <option value="no" selected>No — short run</option>
+          </select>
+        </div>
+        <div class="input-row">
+          <label>Q5. Is panel space a constraint?</label>
+          <select id="q5" onchange="runGuide()">
+            <option value="yes">Yes — space is tight</option>
+            <option value="no" selected>No — space available</option>
+          </select>
+        </div>
+        <div class="input-row">
+          <label>Q6. Availability priority?</label>
+          <select id="q6" onchange="runGuide()">
+            <option value="avail" selected>Need off-the-shelf availability</option>
+            <option value="cost">Cost optimization is priority</option>
+            <option value="size">Minimize physical size</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">📋 Recommendation</div>
+        <div id="guide-result">
+          <p style="font-size:11px;color:#555;font-style:italic;">Complete the questions on the left to get a recommendation.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Checklist for 100% Rated CB Installation</div>
+        <div style="font-size:11px;color:#8b949e;line-height:2.2;">
+          <div>☐ <strong style="color:#c9d1d9;">Verify listing:</strong> Confirm CB is UL listed as 100% rated</div>
+          <div>☐ <strong style="color:#c9d1d9;">Enclosure size:</strong> Use minimum enclosure per manufacturer marking</div>
+          <div>☐ <strong style="color:#c9d1d9;">Wire rating:</strong> Use 90°C insulated wire if required by marking</div>
+          <div>☐ <strong style="color:#c9d1d9;">Wire ampacity:</strong> Size conductors at 75°C ampacity even with 90°C wire</div>
+          <div>☐ <strong style="color:#c9d1d9;">Ventilation:</strong> Provide ventilation if required per marking</div>
+          <div>☐ <strong style="color:#c9d1d9;">Full system:</strong> Entire assembly must be listed for 100% operation</div>
+          <div>☐ <strong style="color:#c9d1d9;">AHJ approval:</strong> Check with Authority Having Jurisdiction</div>
+          <div>☐ <strong style="color:#c9d1d9;">Documentation:</strong> Keep manufacturer installation requirements on file</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Decision Flowchart Summary</div>
+    <div style="overflow-x:auto;">
+    <table>
+      <tr>
+        <th>Step</th><th>Check</th><th>If YES</th><th>If NO</th>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>Are any loads continuous (≥3 hrs)?</td>
+        <td>Proceed to Step 2</td>
+        <td><span class="tag tag-amber">Use 80% CB — no penalty applies</span></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Does 125% multiplier push you to next frame size?</td>
+        <td><span class="tag tag-green">100% rated likely saves cost</span></td>
+        <td>Proceed to Step 3</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Is there a significant cable/conduit run involved?</td>
+        <td><span class="tag tag-green">100% rated saves cable + conduit cost</span></td>
+        <td>Proceed to Step 4</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Is panel space constrained?</td>
+        <td><span class="tag tag-green">100% rated CB is physically smaller</span></td>
+        <td>Proceed to Step 5</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Is 100% rated CB readily available for this application?</td>
+        <td>Evaluate total installation cost of both options</td>
+        <td><span class="tag tag-amber">Use 80% CB — simpler, more available</span></td>
+      </tr>
+    </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  FRAME SIZE TABLE
+// ════════════════════════════════════════
+var FRAMES=[
+  {max:100,name:'G-Frame',100:true},
+  {max:150,name:'H-Frame',100:false},
+  {max:250,name:'I-Frame',100:false},
+  {max:400,name:'J-Frame',100:false},
+  {max:600,name:'K-Frame',100:true},
+  {max:1000,name:'M-Frame',100:true},
+  {max:1600,name:'N-Frame',100:true},
+  {max:3000,name:'R-Frame',100:true}
+];
+
+var STD_SIZES=[15,20,25,30,35,40,50,60,70,80,90,100,110,125,150,175,200,225,250,300,350,400,450,500,600,700,800,1000,1200,1600,2000,2500,3000];
+
+function nextSize(v){
+  for(var i=0;i<STD_SIZES.length;i++) if(STD_SIZES[i]>=v) return STD_SIZES[i];
+  return v;
+}
+function getFrame(a){
+  for(var i=0;i<FRAMES.length;i++) if(FRAMES[i].max>=a) return FRAMES[i];
+  return FRAMES[FRAMES.length-1];
+}
+
+// ════════════════════════════════════════
+//  TAB SWITCHING
+// ════════════════════════════════════════
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.remove('active');});
+  document.querySelectorAll('.tab-content').forEach(function(t){t.classList.remove('active');});
+  var tabs=['learn','calc','system','compare','guide'];
+  var idx=tabs.indexOf(id);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  if(id==='calc') calcCB();
+  if(id==='compare') calcCost();
+  if(id==='guide') runGuide();
+}
+
+// ════════════════════════════════════════
+//  CB SIZING CALCULATOR
+// ════════════════════════════════════════
+function calcCB(){
+  var cont=parseFloat(document.getElementById('c-cont').value)||0;
+  var ncont=parseFloat(document.getElementById('c-noncont').value)||0;
+  var total=cont+ncont;
+  var demand80=ncont+(cont*1.25);
+  var demand100=total;
+
+  var min80=nextSize(demand80);
+  var min100=nextSize(demand100);
+  var frame80=getFrame(min80);
+  var frame100=getFrame(min100);
+
+  // Update results
+  document.getElementById('res-80').textContent=min80+'A';
+  document.getElementById('res-80-frame').textContent=frame80.name;
+  document.getElementById('res-100').textContent=min100+'A';
+  document.getElementById('res-100-frame').textContent=frame100.name+(frame100[100]?' (100% avail.)':' (check avail.)');
+  document.getElementById('res-total').textContent=total.toFixed(1)+'A';
+  document.getElementById('res-demand').textContent=demand80.toFixed(1)+'A';
+
+  // Update learn tab visuals
+  document.getElementById('vis-80').textContent=min80+'A';
+  document.getElementById('vis-80-frame').textContent=frame80.name;
+  document.getElementById('vis-100').textContent=min100+'A';
+  document.getElementById('vis-100-frame').textContent=frame100.name;
+
+  // Progress bars
+  var pct=total>0?Math.round(cont/total*100):0;
+  document.getElementById('cont-pct').textContent=pct+'%';
+  document.getElementById('noncont-pct').textContent=(100-pct)+'%';
+  document.getElementById('cont-bar').style.width=pct+'%';
+  document.getElementById('noncont-bar').style.width=(100-pct)+'%';
+
+  // Steps
+  var steps='';
+  steps+='<div>① Total Connected Load = '+cont+'A + '+ncont+'A = <strong style="color:#c9d1d9;">'+total.toFixed(1)+'A</strong></div>';
+  if(cont>0){
+    steps+='<div>② Continuous portion ('+cont+'A) × 1.25 = <strong style="color:#f85149;">'+(cont*1.25).toFixed(1)+'A</strong> <span style="color:#888;">(80% rule)</span></div>';
+    steps+='<div>③ 80% Demand = '+ncont+'A + '+(cont*1.25).toFixed(1)+'A = <strong style="color:#f85149;">'+demand80.toFixed(1)+'A</strong></div>';
+    steps+='<div>④ Next standard size → <strong style="color:#f85149;">'+min80+'A</strong> '+frame80.name+'</div>';
+    steps+='<div>⑤ 100% Rated = '+ncont+'A + '+cont+'A = <strong style="color:#3fb950;">'+demand100.toFixed(1)+'A</strong></div>';
+    steps+='<div>⑥ Next standard size → <strong style="color:#3fb950;">'+min100+'A</strong> '+frame100.name+'</div>';
+  } else {
+    steps+='<div>② No continuous load → No 1.25 multiplier needed</div>';
+    steps+='<div>③ Required CB = <strong style="color:#3fb950;">'+min100+'A</strong> (same for 80% and 100% rated)</div>';
+  }
+  document.getElementById('calc-steps').innerHTML=steps;
+
+  // Verdict
+  var vbox=document.getElementById('verdict-box');
+  var vtitle=document.getElementById('verdict-title');
+  var vbody=document.getElementById('verdict-body');
+  var frameDiff=frame80.name!==frame100.name;
+  var saving=min80-min100;
+
+  if(cont===0){
+    vbox.className='verdict neutral';
+    vtitle.textContent='ℹ No Continuous Load — Either Type Works';
+    vbody.textContent='Since there is no continuous load, neither the 1.25 multiplier nor the 100% rated exception applies. Use a standard 80%-rated breaker at '+min100+'A — it\'s simpler and more cost-effective.';
+  } else if(frameDiff){
+    vbox.className='verdict save';
+    vtitle.textContent='✅ Recommend 100% Rated — Frame Size Savings!';
+    vbody.innerHTML='Switching to a 100% rated breaker keeps you in <strong>'+frame100.name+'</strong> instead of <strong>'+frame80.name+'</strong>. This typically saves 10–34% on the circuit breaker cost and reduces cable/conduit sizing since the CB rating drops from '+min80+'A to '+min100+'A.';
+  } else if(saving>0){
+    vbox.className='verdict save';
+    vtitle.textContent='💡 100% Rated May Save on Cable Costs';
+    vbody.innerHTML='Both options use '+frame100.name+' but the 100% rated CB is rated '+min100+'A vs '+min80+'A. This means smaller cable conductors, conduit, and fittings over the cable run — especially worthwhile for runs longer than 30m.';
+  } else {
+    vbox.className='verdict warn';
+    vtitle.textContent='⚠ Standard 80% Rated is Likely Better Here';
+    vbody.textContent='The 100% rated option does not yield a smaller frame or significant current reduction. Standard 80% rated breakers are more available and lower cost — the extra expense of 100% rated is not justified for this load profile.';
+  }
+
+  // Installation requirements
+  document.getElementById('install-req').innerHTML=
+    '<strong style="color:#c9d1d9;">For '+min100+'A 100%-rated CB:</strong><br>'+
+    '• Minimum enclosure: Verify per manufacturer datasheet<br>'+
+    '• Wire: 90°C insulation if required; sized per 75°C ampacity table<br>'+
+    '• Available 100%-rated frames at this rating: '+(frame100[100]?'✅ '+frame100.name+' available':'⚠ Check manufacturer for availability')+'<br>'+
+    '• Verify entire assembly (including conductors) is listed for 100% operation';
+
+  // Highlight frame table row
+  document.querySelectorAll('#tab-calc table tr').forEach(function(tr){tr.style.background='';});
+  var fmap={'G-Frame':'fr-g','H-Frame':'fr-h','I-Frame':'fr-i','J-Frame':'fr-j','K-Frame':'fr-k','M-Frame':'fr-m','N-Frame':'fr-n','R-Frame':'fr-r'};
+  if(fmap[frame80.name]) document.getElementById(fmap[frame80.name]).style.background='rgba(248,81,73,0.1)';
+  if(fmap[frame100.name]) document.getElementById(fmap[frame100.name]).style.background='rgba(46,160,67,0.1)';
+}
+
+// ════════════════════════════════════════
+//  SYSTEM BUILDER
+// ════════════════════════════════════════
+var branches=[];
+var bId=0;
+
+function addBranch(){
+  bId++;
+  branches.push({id:bId,cont:100,ncont:0,name:'Branch '+bId});
+  renderBranches();
+}
+
+function removeBranch(id){
+  branches=branches.filter(function(b){return b.id!==id;});
+  renderBranches();
+}
+
+function renderBranches(){
+  var html='';
+  branches.forEach(function(b){
+    html+='<div class="branch-row">'+
+      '<span class="branch-label">'+b.name+'</span>'+
+      '<div><div style="font-size:9px;color:#8b949e;margin-bottom:2px;">Continuous (A)</div><input type="number" class="b-cont" data-id="'+b.id+'" value="'+b.cont+'" min="0" oninput="updateBranch('+b.id+',\'cont\',this.value)" style="width:70px;background:#161b22;"></div>'+
+      '<div><div style="font-size:9px;color:#8b949e;margin-bottom:2px;">Noncont. (A)</div><input type="number" class="b-ncont" data-id="'+b.id+'" value="'+b.ncont+'" min="0" oninput="updateBranch('+b.id+',\'ncont\',this.value)" style="width:70px;background:#161b22;"></div>'+
+      '<button class="branch-del" onclick="removeBranch('+b.id+')">✕</button>'+
+    '</div>';
+  });
+  document.getElementById('branch-list').innerHTML=html;
+}
+
+function updateBranch(id,field,val){
+  var b=branches.find(function(x){return x.id===id;});
+  if(b) b[field]=parseFloat(val)||0;
+}
+
+function calcSystem(){
+  if(branches.length===0){alert('Please add at least one branch circuit.');return;}
+  var rows='<table><tr><th>Branch</th><th>Cont (A)</th><th>Noncont (A)</th><th>Total (A)</th><th>80% Min Trip</th><th>80% CB Size</th><th>100% Min Trip</th><th>100% CB Size</th><th>Frame Saving?</th></tr>';
+  var tot80=0,tot100=0;
+  branches.forEach(function(b){
+    var d80=b.ncont+(b.cont*1.25);
+    var d100=b.cont+b.ncont;
+    var s80=nextSize(d80),s100=nextSize(d100);
+    var f80=getFrame(s80),f100=getFrame(s100);
+    var saving=f80.name!==f100.name;
+    tot80+=d80; tot100+=d100;
+    rows+='<tr class="'+(saving?'highlight-green':'')+'">'+
+      '<td>'+b.name+'</td>'+
+      '<td>'+b.cont+'A</td>'+
+      '<td>'+b.ncont+'A</td>'+
+      '<td>'+(b.cont+b.ncont)+'A</td>'+
+      '<td>'+d80.toFixed(0)+'A</td>'+
+      '<td><span class="tag tag-red">'+s80+'A '+f80.name+'</span></td>'+
+      '<td>'+d100.toFixed(0)+'A</td>'+
+      '<td><span class="tag tag-green">'+s100+'A '+f100.name+'</span></td>'+
+      '<td>'+(saving?'<span class="tag tag-green">✅ Yes</span>':'<span class="tag tag-amber">No</span>')+'</td>'+
+    '</tr>';
+  });
+  rows+='</table>';
+  document.getElementById('branch-analysis').innerHTML=rows;
+
+  var ms80=nextSize(tot80),ms100=nextSize(tot100);
+  var mf80=getFrame(ms80),mf100=getFrame(ms100);
+  document.getElementById('sys-results').innerHTML=
+    '<div class="grid-2">'+
+    '<div class="result-box box-80"><div class="lbl">Main CB (80% Design)</div><div class="val">'+ms80+'A</div><div class="sub-val">'+mf80.name+'</div><div class="sub-val">Demand: '+tot80.toFixed(0)+'A</div></div>'+
+    '<div class="result-box box-100"><div class="lbl">Main CB (100% Design)</div><div class="val">'+ms100+'A</div><div class="sub-val">'+mf100.name+'</div><div class="sub-val">Total: '+tot100.toFixed(0)+'A</div></div>'+
+    '</div>'+
+    '<div class="verdict '+(ms80>ms100?'save':'neutral')+'" style="margin-top:10px;">'+
+    '<div class="title">'+(ms80>ms100?'✅ 100% Rated Saves on Main Breaker':'ℹ Similar Main Breaker for Both Designs')+'</div>'+
+    (ms80>ms100?'Main breaker drops from '+ms80+'A ('+mf80.name+') to '+ms100+'A ('+mf100.name+') using 100% rated design. This can save 10–34% on the main CB cost and reduces cable sizing throughout.':'Both designs result in similar main breaker sizing. Evaluate branch circuits individually for savings.')+
+    '</div>';
+}
+
+function clearBranches(){branches=[];bId=0;renderBranches();document.getElementById('sys-results').innerHTML='<p style="font-size:11px;color:#555;font-style:italic;">Add branch circuits and click Calculate.</p>';document.getElementById('branch-analysis').innerHTML='<p style="font-size:11px;color:#555;font-style:italic;">Results will appear here.</p>';}
+
+function loadExample(){
+  branches=[];bId=0;
+  [{cont:400,ncont:250,name:'Branch 1'},{cont:760,ncont:0,name:'Branch 2'},{cont:400,ncont:0,name:'Branch 3'}].forEach(function(b){bId++;branches.push({id:bId,cont:b.cont,ncont:b.ncont,name:b.name});});
+  renderBranches();
+  calcSystem();
+}
+
+// ════════════════════════════════════════
+//  COST COMPARISON
+// ════════════════════════════════════════
+var CABLE_AMPACITY=[
+  {awg:'#14 AWG',a:15,cpm:1.2},{awg:'#12 AWG',a:20,cpm:1.8},{awg:'#10 AWG',a:30,cpm:2.8},{awg:'#8 AWG',a:50,cpm:4.2},
+  {awg:'#6 AWG',a:65,cpm:6},{awg:'#4 AWG',a:85,cpm:8.5},{awg:'#3 AWG',a:100,cpm:10},{awg:'#2 AWG',a:115,cpm:12},
+  {awg:'#1 AWG',a:130,cpm:15},{awg:'#1/0',a:150,cpm:19},{awg:'#2/0',a:175,cpm:23},{awg:'#3/0',a:200,cpm:28},
+  {awg:'#4/0',a:230,cpm:34},{awg:'250 kcmil',a:255,cpm:42},{awg:'300 kcmil',a:285,cpm:50},{awg:'350 kcmil',a:310,cpm:58},
+  {awg:'400 kcmil',a:335,cpm:67},{awg:'500 kcmil',a:380,cpm:82},{awg:'600 kcmil',a:420,cpm:98},{awg:'750 kcmil',a:475,cpm:120}
+];
+
+function getCable(amps){
+  for(var i=0;i<CABLE_AMPACITY.length;i++) if(CABLE_AMPACITY[i].a>=amps) return CABLE_AMPACITY[i];
+  return CABLE_AMPACITY[CABLE_AMPACITY.length-1];
+}
+
+// CB base cost lookup (approximate)
+var CB_COST={15:120,20:130,25:140,30:150,35:165,40:180,50:200,60:220,70:250,80:280,90:310,100:350,110:400,125:450,150:520,175:600,200:680,225:780,250:880,300:1050,350:1250,400:1500,450:1800,500:2100,600:2800,700:3500,800:4500,1000:6000,1200:8000,1600:12000,2000:18000,2500:26000,3000:36000};
+
+function getCBCost(amps){ var k=Object.keys(CB_COST).map(Number).sort(function(a,b){return a-b;}); for(var i=0;i<k.length;i++) if(k[i]>=amps) return CB_COST[k[i]]; return CB_COST[3000]; }
+
+function calcCost(){
+  var cont=parseFloat(document.getElementById('cost-cont').value)||100;
+  var ncont=parseFloat(document.getElementById('cost-noncont').value)||0;
+  var cableLen=parseFloat(document.getElementById('cost-cable').value)||50;
+  var phases=parseInt(document.getElementById('cost-phases').value)||3;
+  var factor=parseFloat(document.getElementById('cost-factor').value)||1.35;
+
+  var d80=ncont+(cont*1.25);
+  var d100=cont+ncont;
+  var cb80=nextSize(d80), cb100=nextSize(d100);
+  var f80=getFrame(cb80), f100=getFrame(cb100);
+
+  // Cables — one per phase
+  var cable80=getCable(cb80), cable100=getCable(cb100);
+  var cbCost80=getCBCost(cb80);
+  var cbCost100=Math.round(getCBCost(cb100)*factor);
+  var cableCost80=Math.round(cable80.cpm*cableLen*phases);
+  var cableCost100=Math.round(cable100.cpm*cableLen*phases);
+  var total80=cbCost80+cableCost80;
+  var total100=cbCost100+cableCost100;
+  var saving=total80-total100;
+  var savingPct=Math.round((saving/total80)*100);
+
+  document.getElementById('cost-results').innerHTML=
+    '<div class="grid-2">'+
+    '<div class="result-box box-80"><div class="lbl">80% Design Total</div><div class="val">$'+total80.toLocaleString()+'</div><div class="sub-val">'+cb80+'A '+f80.name+'</div></div>'+
+    '<div class="result-box box-100"><div class="lbl">100% Design Total</div><div class="val">$'+total100.toLocaleString()+'</div><div class="sub-val">'+cb100+'A '+f100.name+'</div></div>'+
+    '</div>'+
+    '<div class="savings-wrap" style="margin-top:12px;">'+
+    '<div class="savings-title">'+(saving>0?'Estimated Savings with 100% Rated Design':'Additional Cost of 100% Rated Design')+'</div>'+
+    '<div class="savings-pct" style="color:'+(saving>0?'#3fb950':'#f85149')+'">'+(saving>0?'+':'')+savingPct+'%</div>'+
+    '<div style="font-size:11px;color:#8b949e;margin-top:4px;">'+(saving>0?'Save approx. $'+Math.abs(saving).toLocaleString()+' on CB + cable':'Costs approx. $'+Math.abs(saving).toLocaleString()+' more for CB + cable')+'</div>'+
+    '</div>';
+
+  document.getElementById('cost-breakdown').innerHTML=
+    '<table>'+
+    '<tr><th>Item</th><th>80% Design</th><th>100% Design</th><th>Difference</th></tr>'+
+    '<tr><td>Circuit Breaker Rating</td><td>'+cb80+'A</td><td>'+cb100+'A</td><td>'+(cb80-cb100)+'A smaller</td></tr>'+
+    '<tr><td>Frame Size</td><td>'+f80.name+'</td><td>'+f100.name+'</td><td>'+(f80.name!==f100.name?'<span class="tag tag-green">Smaller frame</span>':'<span class="tag tag-amber">Same frame</span>')+'</td></tr>'+
+    '<tr><td>Cable per Phase</td><td>'+cable80.awg+'</td><td>'+cable100.awg+'</td><td>'+(cable80.awg!==cable100.awg?'<span class="tag tag-green">Smaller cable</span>':'<span class="tag tag-amber">Same cable</span>')+'</td></tr>'+
+    '<tr><td>CB Cost (est.)</td><td>$'+cbCost80.toLocaleString()+'</td><td>$'+cbCost100.toLocaleString()+'</td><td style="color:'+(cbCost80>cbCost100?'#3fb950':'#f85149')+'">'+(cbCost80>cbCost100?'Saves $'+(cbCost80-cbCost100).toLocaleString():'Costs $'+(cbCost100-cbCost80).toLocaleString()+' more')+'</td></tr>'+
+    '<tr><td>Cable Cost ('+phases+' conductors × '+cableLen+'m)</td><td>$'+cableCost80.toLocaleString()+'</td><td>$'+cableCost100.toLocaleString()+'</td><td style="color:'+(cableCost80>cableCost100?'#3fb950':'#f85149')+'">'+(cableCost80>cableCost100?'Saves $'+(cableCost80-cableCost100).toLocaleString():'Same or slightly more')+'</td></tr>'+
+    '<tr style="font-weight:700;"><td>Total (CB + Cable)</td><td>$'+total80.toLocaleString()+'</td><td>$'+total100.toLocaleString()+'</td><td style="color:'+(saving>0?'#3fb950':'#f85149')+'">'+(saving>0?'<strong>Saves $'+Math.abs(saving).toLocaleString()+' ('+savingPct+'%)</strong>':'Costs $'+Math.abs(saving).toLocaleString()+' more')+'</td></tr>'+
+    '</table>'+
+    '<div class="nec-box" style="margin-top:12px;"><strong>Note:</strong> Costs are estimates for comparison purposes. Actual costs vary by manufacturer, region, and installation conditions. Conduit, fittings, labor, and enclosure size savings are not included — which further increases the 100% rated advantage in large installations.</div>';
+}
+
+// ════════════════════════════════════════
+//  SELECTION GUIDE
+// ════════════════════════════════════════
+function runGuide(){
+  var q1=document.getElementById('q1').value;
+  var q2=parseFloat(document.getElementById('q2').value)||100;
+  var q3=parseFloat(document.getElementById('q3').value)||100;
+  var q4=document.getElementById('q4').value;
+  var q5=document.getElementById('q5').value;
+  var q6=document.getElementById('q6').value;
+  if(!q1){document.getElementById('guide-result').innerHTML='<p style="font-size:11px;color:#555;font-style:italic;">Answer Q1 to continue.</p>';return;}
+
+  var contLoad=q2*(q3/100);
+  var ncontLoad=q2*(1-q3/100);
+  var d80=ncontLoad+(contLoad*1.25);
+  var d100=q2;
+  var cb80=nextSize(d80), cb100=nextSize(d100);
+  var f80=getFrame(cb80), f100=getFrame(cb100);
+  var frameSave=f80.name!==f100.name;
+  var ampereSave=cb80-cb100;
+
+  var rec='', cls='neutral';
+  if(q1==='no'){
+    rec='<div class="title">✅ Use Standard 80%-Rated Breaker</div>With no continuous loads, the 1.25 multiplier does not apply. A standard 80%-rated breaker sized at <strong>'+cb100+'A</strong> ('+f100.name+') is correct and most economical.';
+    cls='neutral';
+  } else if(frameSave||(q4==='yes'&&ampereSave>0)){
+    rec='<div class="title">✅ Recommend 100%-Rated Breaker</div>';
+    if(frameSave) rec+='A 100%-rated breaker keeps you in <strong>'+f100.name+'</strong> ('+cb100+'A) instead of <strong>'+f80.name+'</strong> ('+cb80+'A) — saving on CB cost and physical panel space. ';
+    if(q4==='yes'&&ampereSave>0) rec+='With a long cable run, the reduced rating from '+cb80+'A to '+cb100+'A saves significantly on conductor, conduit, and fitting costs. ';
+    if(q5==='yes') rec+='Panel space savings are a bonus since the 100%-rated CB is physically smaller. ';
+    rec+='<br><br><strong style="color:#d29922;">Remember:</strong> Verify minimum enclosure size, wire rating, and ensure entire assembly is listed for 100% operation.';
+    cls='save';
+  } else if(q6==='avail'){
+    rec='<div class="title">⚠ Consider Standard 80%-Rated Breaker</div>While a 100%-rated option is technically possible ('+cb100+'A '+f100.name+'), it does not yield a significant frame or cable saving in this case. Standard 80%-rated breakers are more available and typically less expensive. Use the 80%-rated '+cb80+'A ('+f80.name+') unless other project constraints favour the 100% option.';
+    cls='warn';
+  } else {
+    rec='<div class="title">💡 Evaluate Both Options</div>';
+    rec+='80%-rated: <strong>'+cb80+'A</strong> ('+f80.name+')<br>100%-rated: <strong>'+cb100+'A</strong> ('+f100.name+')<br><br>';
+    if(q6==='cost') rec+='Since cost optimisation is your priority, get quotes for both options including cable, conduit, and enclosure. The 100%-rated CB itself costs more but total installation may be cheaper.';
+    else rec+='Since physical size is the priority, the 100%-rated '+cb100+'A ('+f100.name+') will be the smaller choice.';
+    cls='neutral';
+  }
+
+  document.getElementById('guide-result').innerHTML=
+    '<div class="verdict '+cls+'" style="margin:0;">'+rec+'</div>'+
+    '<div style="margin-top:12px;font-size:11px;color:#8b949e;">'+
+    '<strong>Your load breakdown:</strong> '+contLoad.toFixed(0)+'A continuous + '+ncontLoad.toFixed(0)+'A noncontinuous = '+q2+'A total<br>'+
+    '80% sizing: '+d80.toFixed(0)+'A → '+cb80+'A '+f80.name+' | '+
+    '100% sizing: '+d100.toFixed(0)+'A → '+cb100+'A '+f100.name+
+    '</div>';
+}
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+calcCB();
+</script>
+</body>
+</html>
