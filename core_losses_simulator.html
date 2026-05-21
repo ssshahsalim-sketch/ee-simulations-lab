@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Core Losses Simulator — Eddy Current & Hysteresis</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
+
+:root{
+  --bg:#04080f;
+  --bg2:#080e1a;
+  --bg3:#0d1526;
+  --panel:#0f1d35;
+  --border:#1a3060;
+  --border2:#243d70;
+  --acc1:#00d4ff;
+  --acc2:#ff6b35;
+  --acc3:#39ff14;
+  --acc4:#ff3d9a;
+  --text:#c8d8f0;
+  --text2:#6a8ab0;
+  --text3:#3a5a8a;
+  --grid:rgba(0,212,255,0.04);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow-x:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:14px;}
+
+/* ANIMATED GRID BACKGROUND */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;z-index:0;
+}
+
+/* HEADER */
+.header{
+  position:relative;z-index:10;
+  background:linear-gradient(180deg,rgba(0,212,255,0.08),transparent);
+  border-bottom:1px solid var(--border2);
+  padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+}
+.header-logo{display:flex;align-items:center;gap:14px;}
+.logo-icon{width:44px;height:44px;border:2px solid var(--acc1);border-radius:6px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.logo-icon::before{content:'';position:absolute;inset:0;background:radial-gradient(circle,rgba(0,212,255,0.2),transparent);}
+.logo-icon svg{position:relative;z-index:1;}
+.header-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.12em;color:#fff;line-height:1.1;}
+.header-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--acc1);letter-spacing:.08em;margin-top:1px;}
+.header-badges{display:flex;gap:8px;flex-wrap:wrap;}
+.badge{font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 10px;border-radius:2px;letter-spacing:.06em;font-weight:500;}
+.b-blue{background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.4);color:var(--acc1);}
+.b-orange{background:rgba(255,107,53,0.12);border:1px solid rgba(255,107,53,0.4);color:var(--acc2);}
+.b-green{background:rgba(57,255,20,0.1);border:1px solid rgba(57,255,20,0.35);color:var(--acc3);}
+
+/* TABS */
+.tabs{position:relative;z-index:10;display:flex;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;gap:2px;}
+.tab{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:12px;padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;color:var(--text2);transition:.2s;letter-spacing:.06em;text-transform:uppercase;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--acc1);border-bottom-color:var(--acc1);}
+.tc{display:none;position:relative;z-index:5;padding:18px 20px;}
+.tc.active{display:block;}
+
+/* LAYOUT */
+.cols-3{display:grid;grid-template-columns:300px 1fr 280px;gap:16px;}
+.cols-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.cols-2b{display:grid;grid-template-columns:340px 1fr;gap:16px;}
+@media(max-width:1100px){.cols-3{grid-template-columns:1fr 1fr;}.cols-2b{grid-template-columns:1fr;}}
+@media(max-width:700px){.cols-3,.cols-2,.cols-2b{grid-template-columns:1fr;}}
+
+/* PANELS */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:14px;}
+.panel-title{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.12em;color:var(--acc1);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.panel-title .dot{width:6px;height:6px;border-radius:50%;background:var(--acc1);box-shadow:0 0 6px var(--acc1);}
+.panel-title.orange .dot{background:var(--acc2);box-shadow:0 0 6px var(--acc2);}
+.panel-title.orange{color:var(--acc2);}
+.panel-title.green .dot{background:var(--acc3);box-shadow:0 0 6px var(--acc3);}
+.panel-title.green{color:var(--acc3);}
+.panel-title.pink .dot{background:var(--acc4);box-shadow:0 0 6px var(--acc4);}
+.panel-title.pink{color:var(--acc4);}
+
+/* SLIDERS */
+.ctrl{margin-bottom:14px;}
+.ctrl label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;display:flex;justify-content:space-between;margin-bottom:5px;}
+.ctrl label span{font-family:'JetBrains Mono',monospace;color:var(--acc1);font-size:11px;}
+.slider{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border2);outline:none;cursor:pointer;}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--acc1);box-shadow:0 0 8px var(--acc1);cursor:pointer;transition:.15s;}
+.slider::-webkit-slider-thumb:hover{transform:scale(1.3);}
+.slider.orange::-webkit-slider-thumb{background:var(--acc2);box-shadow:0 0 8px var(--acc2);}
+.slider.green::-webkit-slider-thumb{background:var(--acc3);box-shadow:0 0 8px var(--acc3);}
+.slider.pink::-webkit-slider-thumb{background:var(--acc4);box-shadow:0 0 8px var(--acc4);}
+
+/* RESULT CARDS */
+.rcard{border-radius:4px;padding:10px 12px;margin-bottom:8px;position:relative;overflow:hidden;}
+.rcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.rcard.blue::before{background:var(--acc1);}
+.rcard.orange::before{background:var(--acc2);}
+.rcard.green::before{background:var(--acc3);}
+.rcard.pink::before{background:var(--acc4);}
+.rcard.blue{background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.2);}
+.rcard.orange{background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.2);}
+.rcard.green{background:rgba(57,255,20,0.06);border:1px solid rgba(57,255,20,0.2);}
+.rcard.pink{background:rgba(255,61,154,0.07);border:1px solid rgba(255,61,154,0.2);}
+.rcard .rlabel{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;}
+.rcard .rval{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;line-height:1.2;margin-top:2px;}
+.rcard.blue .rval{color:var(--acc1);}
+.rcard.orange .rval{color:var(--acc2);}
+.rcard.green .rval{color:var(--acc3);}
+.rcard.pink .rval{color:var(--acc4);}
+.rcard .rsub{font-size:10px;color:var(--text3);margin-top:1px;}
+
+/* CANVAS WRAPPER */
+.cvs-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:6px;overflow:hidden;position:relative;}
+.cvs-title{position:absolute;top:8px;left:12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--acc1);z-index:2;letter-spacing:.06em;}
+.cvs-wrap canvas{display:block;width:100%;}
+
+/* FORMULA BOXES */
+.formula{background:var(--bg2);border:1px solid var(--border2);border-radius:4px;padding:10px 14px;margin-bottom:10px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:2;}
+.formula .var{color:var(--acc1);}
+.formula .eq{color:#fff;}
+.formula .coeff{color:var(--acc2);}
+.formula .note{font-family:'Rajdhani',sans-serif;font-size:11px;color:var(--text2);margin-top:4px;}
+
+/* THEORY TEXT */
+.theory{font-size:12px;color:var(--text2);line-height:1.9;margin-bottom:12px;}
+.theory strong{color:var(--text);}
+.theory .hl{color:var(--acc1);}
+.theory .hl2{color:var(--acc2);}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:11px;}
+th{background:var(--bg3);color:var(--text2);padding:7px 10px;text-align:left;font-weight:600;letter-spacing:.06em;border-bottom:1px solid var(--border2);text-transform:uppercase;font-size:10px;}
+td{padding:7px 10px;border-bottom:1px solid rgba(26,48,96,0.5);color:var(--text);}
+tr:hover td{background:rgba(0,212,255,0.03);}
+.tag{display:inline-block;padding:1px 7px;border-radius:2px;font-size:9px;font-weight:600;letter-spacing:.05em;}
+.t-blue{background:rgba(0,212,255,0.15);color:var(--acc1);}
+.t-orange{background:rgba(255,107,53,0.15);color:var(--acc2);}
+.t-green{background:rgba(57,255,20,0.12);color:var(--acc3);}
+.t-pink{background:rgba(255,61,154,0.15);color:var(--acc4);}
+.t-gray{background:rgba(106,138,176,0.15);color:var(--text2);}
+
+/* SELECTS */
+select{background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:3px;padding:6px 10px;font-size:11px;font-family:'Rajdhani',sans-serif;width:100%;outline:none;cursor:pointer;letter-spacing:.04em;}
+select:focus{border-color:var(--acc1);}
+
+/* GLOWING DIVIDER */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--acc1),transparent);margin:12px 0;opacity:.3;}
+
+/* CORE VISUAL */
+#core-canvas{display:block;}
+
+/* INFO BOX */
+.info-box{background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-left:3px solid var(--acc1);padding:10px 14px;border-radius:0 4px 4px 0;margin-bottom:12px;}
+.info-box.warn{background:rgba(255,107,53,0.05);border-color:rgba(255,107,53,0.2);border-left-color:var(--acc2);}
+.info-box.good{background:rgba(57,255,20,0.05);border-color:rgba(57,255,20,0.2);border-left-color:var(--acc3);}
+.info-box p{font-size:11px;color:var(--text2);line-height:1.8;}
+.info-box strong{color:var(--text);}
+
+/* LOSS METER */
+.loss-meter{margin-bottom:8px;}
+.loss-meter .lm-label{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:3px;text-transform:uppercase;letter-spacing:.06em;}
+.loss-bar-bg{background:var(--border);border-radius:2px;height:8px;overflow:hidden;}
+.loss-bar{height:100%;border-radius:2px;transition:.6s cubic-bezier(.4,0,.2,1);}
+
+/* EFFICIENCY RING */
+.eff-ring{display:flex;justify-content:center;margin:10px 0;}
+
+/* SCROLL */
+.scroll-y{max-height:380px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) var(--bg);}
+.scroll-y::-webkit-scrollbar{width:4px;}
+.scroll-y::-webkit-scrollbar-track{background:var(--bg);}
+.scroll-y::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+/* TOOLTIP */
+#tooltip{position:fixed;background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-size:10px;font-family:'JetBrains Mono',monospace;padding:6px 10px;border-radius:3px;pointer-events:none;display:none;z-index:999;max-width:200px;line-height:1.6;}
+
+/* PULSE ANIMATION */
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+@keyframes flow{0%{transform:translateX(-100%);}100%{transform:translateX(100vw);}}
+.live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--acc3);animation:pulse 1.5s infinite;margin-right:6px;}
+
+/* EDDY CURRENT ANIMATION */
+@keyframes eddySpin{from{stroke-dashoffset:0;}to{stroke-dashoffset:-200;}}
+@keyframes hyst{0%{d:path("M10,50 Q30,10 50,50 Q70,90 90,50");}50%{d:path("M10,50 Q30,5 50,50 Q70,95 90,50");}100%{d:path("M10,50 Q30,10 50,50 Q70,90 90,50");}}
+
+/* RESPONSIVE */
+@media(max-width:900px){.cols-3{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">
+    <div class="logo-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#00d4ff" stroke-width="1.5" fill="none"/>
+        <path d="M2 17l10 5 10-5" stroke="#ff6b35" stroke-width="1.5" fill="none"/>
+        <path d="M2 12l10 5 10-5" stroke="#39ff14" stroke-width="1.5" fill="none"/>
+      </svg>
+    </div>
+    <div>
+      <div class="header-title">Core Loss Simulator</div>
+      <div class="header-sub">Eddy Current · Hysteresis · Stacking Factor · Steinmetz</div>
+    </div>
+  </div>
+  <div class="header-badges">
+    <span class="badge b-blue">NEC / IEEE STD</span>
+    <span class="badge b-orange">Steinmetz Eq.</span>
+    <span class="badge b-green"><span class="live-dot"></span>LIVE CALC</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('theory')">⚛ Physics</div>
+  <div class="tab" onclick="switchTab('sim')">⚡ Simulator</div>
+  <div class="tab" onclick="switchTab('stacking')">🔲 Stacking Factor</div>
+  <div class="tab" onclick="switchTab('freq')">📈 Frequency Effects</div>
+  <div class="tab" onclick="switchTab('materials')">🧱 Materials DB</div>
+  <div class="tab" onclick="switchTab('design')">🏗 Core Designer</div>
+</div>
+
+<!-- ═══════ TAB 1: PHYSICS ═══════ -->
+<div class="tc active" id="tab-theory">
+<div class="cols-2b">
+<div>
+  <div class="panel">
+    <div class="panel-title"><div class="dot"></div>What Are Core Losses?</div>
+    <p class="theory">When an alternating magnetic field passes through a ferromagnetic core (iron, silicon steel, ferrite), <strong>two unavoidable energy loss mechanisms</strong> occur — <span class="hl">Hysteresis Loss</span> and <span class="hl2">Eddy Current Loss</span>. Together they form <strong>Iron Loss (P_core)</strong> — a major factor in transformer and motor efficiency.</p>
+    <div class="divider"></div>
+    <div class="panel-title orange"><div class="dot"></div>Hysteresis Loss</div>
+    <p class="theory"><strong>Cause:</strong> Magnetic domains in the iron must be realigned every half-cycle. This friction-like resistance to domain wall movement dissipates energy as heat.<br><br>
+    <strong>Key insight:</strong> The area enclosed by the B-H loop equals the energy lost per cycle per unit volume. A wider loop = higher hysteresis loss.<br><br>
+    <strong>Steinmetz Formula (1892):</strong></p>
+    <div class="formula">
+      <span class="var">P_h</span> <span class="eq">=</span> <span class="coeff">K_h</span> · <span class="var">f</span> · <span class="var">B_max</span><sup>n</sup> · <span class="var">V</span><br>
+      <div class="note">K_h = Hysteresis coefficient (material dependent)<br>
+      f = Frequency (Hz) &nbsp;|&nbsp; B_max = Peak flux density (T)<br>
+      n = Steinmetz exponent (1.6–2.0, typically 1.6 for silicon steel)<br>
+      V = Volume of core material (m³)</div>
+    </div>
+    <div class="info-box">
+      <p><strong>Effect of frequency:</strong> P_h ∝ f — doubles when frequency doubles.<br>
+      <strong>Effect of flux density:</strong> P_h ∝ B_max^1.6 — highly sensitive to flux density.<br>
+      <strong>Reduction:</strong> Use grain-oriented silicon steel, reduce B_max, use soft magnetic materials.</p>
+    </div>
+
+    <div class="panel-title" style="margin-top:4px;"><div class="dot"></div>Eddy Current Loss</div>
+    <p class="theory"><strong>Cause:</strong> Changing flux induces voltages (Faraday's law) in the conducting core material. These induced voltages drive circulating currents — <em>eddy currents</em> — through the core resistance, dissipating energy as I²R heat.<br><br>
+    <strong>Key insight:</strong> Laminating the core into thin sheets increases electrical resistance to eddy current paths, dramatically reducing losses.</p>
+    <div class="formula">
+      <span class="var">P_e</span> <span class="eq">=</span> <span class="coeff">K_e</span> · <span class="var">f²</span> · <span class="var">B_max²</span> · <span class="var">t²</span> · <span class="var">V</span> / <span class="var">ρ</span><br>
+      <div class="note">K_e = Eddy current coefficient<br>
+      t = Lamination thickness (m) — CRITICAL parameter<br>
+      ρ = Electrical resistivity of core material (Ω·m)<br>
+      Note: P_e ∝ f² (quadratic) vs P_h ∝ f (linear)</div>
+    </div>
+    <div class="info-box warn">
+      <p><strong>Why laminations work:</strong> Cutting the core into N sheets reduces eddy current path area by 1/N², reducing P_e by 1/N². Typical 0.35 mm laminations vs 10 mm solid core = <strong>~800× reduction in eddy current loss!</strong></p>
+    </div>
+
+    <div class="panel-title green" style="margin-top:4px;"><div class="dot"></div>Total Core Loss (Steinmetz)</div>
+    <div class="formula">
+      <span class="var">P_core</span> <span class="eq">=</span> <span class="var">P_h</span> <span class="eq">+</span> <span class="var">P_e</span><br>
+      <span class="var">P_core</span> <span class="eq">=</span> <span class="coeff">K_h</span>·<span class="var">f</span>·<span class="var">B_max</span><sup>n</sup> <span class="eq">+</span> <span class="coeff">K_e</span>·<span class="var">f²</span>·<span class="var">B_max²</span>·<span class="var">t²</span><br>
+      <div class="note">At low frequency: hysteresis dominates<br>
+      At high frequency: eddy currents dominate (grows faster)<br>
+      Separation possible via Epstein frame testing per IEC 60404-2</div>
+    </div>
+  </div>
+</div>
+
+<div>
+  <div class="panel">
+    <div class="panel-title pink"><div class="dot"></div>B-H Loop — Hysteresis Visualized</div>
+    <div class="cvs-wrap" style="margin-bottom:14px;">
+      <canvas id="bh-canvas" height="280"></canvas>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:120px;">
+        <div class="ctrl"><label>Coercivity (H_c) <span id="hc-val">200</span> A/m</label>
+        <input type="range" class="slider pink" id="hc" min="50" max="2000" value="200" oninput="updateBH()"></div>
+      </div>
+      <div style="flex:1;min-width:120px;">
+        <div class="ctrl"><label>Saturation (B_sat) <span id="bsat-val">1.6</span> T</label>
+        <input type="range" class="slider" id="bsat" min="0.5" max="2.2" step="0.05" value="1.6" oninput="updateBH()"></div>
+      </div>
+    </div>
+    <div class="rcard blue">
+      <div class="rlabel">Loop Area (Energy Loss/Cycle/m³)</div>
+      <div class="rval" id="bh-area">— J/m³</div>
+      <div class="rsub">Wider loop = Higher hysteresis loss</div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="panel-title"><div class="dot"></div>Eddy Current Paths — Core Cross-Section</div>
+    <div class="cvs-wrap">
+      <canvas id="eddy-canvas" height="220"></canvas>
+    </div>
+    <div class="ctrl" style="margin-top:10px;">
+      <label>Lamination Thickness <span id="lam-vis-val">0.35</span> mm</label>
+      <input type="range" class="slider orange" id="lam-vis" min="0.1" max="10" step="0.05" value="0.35" oninput="updateEddyVis()">
+    </div>
+    <div class="rcard orange">
+      <div class="rlabel">Eddy Current Loss Relative to 10mm Solid</div>
+      <div class="rval" id="eddy-rel">— %</div>
+      <div class="rsub">P_e ∝ t² — thinner = dramatically less loss</div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="panel-title green"><div class="dot"></div>Key Research Facts</div>
+    <div class="scroll-y">
+    <div class="info-box good"><p><strong>Grain-Oriented Silicon Steel (GOES):</strong> Rolling aligns grains along the easy magnetisation direction (Goss texture), reducing hysteresis loss by 30–40% vs non-oriented. Used in large power transformers.</p></div>
+    <div class="info-box"><p><strong>Amorphous Metals:</strong> No crystal structure means no domain walls to move → hysteresis loss ~75% lower than silicon steel. Used in distribution transformers where idle losses matter most.</p></div>
+    <div class="info-box warn"><p><strong>Ferrite Cores:</strong> High resistivity (10⁶ × higher than silicon steel) makes eddy currents negligible — ideal for high-frequency applications (switching power supplies, RF transformers, >10kHz).</p></div>
+    <div class="info-box good"><p><strong>Nanocrystalline Materials:</strong> Ultra-fine grain structure gives best-of-both-worlds: low hysteresis (like amorphous) AND low eddy currents. Used in precision current transformers.</p></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════ TAB 2: SIMULATOR ═══════ -->
+<div class="tc" id="tab-sim">
+<div class="cols-3">
+<!-- LEFT: CONTROLS -->
+<div>
+  <div class="panel">
+    <div class="panel-title"><div class="dot"></div>Core Parameters</div>
+    <div class="ctrl"><label>Material <span></span></label>
+    <select id="s-mat" onchange="loadMaterial()">
+      <option value="siSteel">Silicon Steel (3% Si, GO)</option>
+      <option value="siSteelNO">Silicon Steel (NO)</option>
+      <option value="solidIron">Solid Iron (Pure)</option>
+      <option value="castIron">Cast Iron</option>
+      <option value="amorphous">Amorphous Metal (2605SA1)</option>
+      <option value="ferrite">Ferrite (MnZn)</option>
+      <option value="nanocrystal">Nanocrystalline</option>
+      <option value="custom">Custom</option>
+    </select></div>
+
+    <div class="ctrl"><label>Frequency <span id="sv-f">50</span> Hz</label>
+    <input type="range" class="slider" id="s-f" min="1" max="2000" value="50" oninput="runSim()"></div>
+    <div class="ctrl"><label>Peak Flux Density B_max <span id="sv-b">1.2</span> T</label>
+    <input type="range" class="slider orange" id="s-b" min="0.1" max="2.2" step="0.05" value="1.2" oninput="runSim()"></div>
+    <div class="ctrl"><label>Core Volume <span id="sv-v">0.001</span> m³</label>
+    <input type="range" class="slider green" id="s-v" min="0.0001" max="0.05" step="0.0001" value="0.001" oninput="runSim()"></div>
+
+    <div class="divider"></div>
+    <div class="panel-title orange"><div class="dot"></div>Lamination Settings</div>
+    <div class="ctrl"><label>Lamination Thickness <span id="sv-t">0.35</span> mm</label>
+    <input type="range" class="slider orange" id="s-t" min="0.05" max="10" step="0.05" value="0.35" oninput="runSim()"></div>
+    <div class="ctrl"><label>Stacking Factor <span id="sv-sf">0.96</span></label>
+    <input type="range" class="slider pink" id="s-sf" min="0.7" max="1.0" step="0.01" value="0.96" oninput="runSim()"></div>
+
+    <div class="divider"></div>
+    <div class="panel-title green"><div class="dot"></div>Material Coefficients</div>
+    <div class="ctrl"><label>K_h (Hysteresis coeff) <span id="sv-kh">0.012</span></label>
+    <input type="range" class="slider" id="s-kh" min="0.001" max="0.1" step="0.001" value="0.012" oninput="runSim()"></div>
+    <div class="ctrl"><label>K_e (Eddy coeff) <span id="sv-ke">0.0015</span></label>
+    <input type="range" class="slider orange" id="s-ke" min="0.0001" max="0.02" step="0.0001" value="0.0015" oninput="runSim()"></div>
+    <div class="ctrl"><label>Steinmetz exp n <span id="sv-n">1.6</span></label>
+    <input type="range" class="slider pink" id="s-n" min="1.4" max="2.5" step="0.05" value="1.6" oninput="runSim()"></div>
+    <div class="ctrl"><label>Resistivity ρ × 10⁻⁷ Ω·m <span id="sv-rho">4.5</span></label>
+    <input type="range" class="slider green" id="s-rho" min="0.1" max="150" step="0.1" value="4.5" oninput="runSim()"></div>
+  </div>
+</div>
+
+<!-- MIDDLE: CHARTS -->
+<div>
+  <div class="cols-2" style="gap:10px;margin-bottom:14px;">
+    <div class="rcard blue" style="margin:0;"><div class="rlabel">Hysteresis Loss</div><div class="rval" id="r-ph">—</div><div class="rsub" id="r-ph-s">—</div></div>
+    <div class="rcard orange" style="margin:0;"><div class="rlabel">Eddy Current Loss</div><div class="rval" id="r-pe">—</div><div class="rsub" id="r-pe-s">—</div></div>
+    <div class="rcard green" style="margin:0;"><div class="rlabel">Total Core Loss</div><div class="rval" id="r-pt">—</div><div class="rsub" id="r-pt-s">—</div></div>
+    <div class="rcard pink" style="margin:0;"><div class="rlabel">Loss Density</div><div class="rval" id="r-pd">—</div><div class="rsub">W/kg</div></div>
+  </div>
+
+  <!-- Loss breakdown meter -->
+  <div class="panel" style="padding:12px;">
+    <div class="loss-meter">
+      <div class="lm-label"><span>Hysteresis</span><span id="ph-pct">—%</span></div>
+      <div class="loss-bar-bg"><div class="loss-bar" id="ph-bar" style="width:0%;background:var(--acc1);"></div></div>
+    </div>
+    <div class="loss-meter" style="margin-top:6px;">
+      <div class="lm-label"><span>Eddy Current</span><span id="pe-pct">—%</span></div>
+      <div class="loss-bar-bg"><div class="loss-bar" id="pe-bar" style="width:0%;background:var(--acc2);"></div></div>
+    </div>
+  </div>
+
+  <div class="cvs-wrap" style="margin-bottom:12px;">
+    <div class="cvs-title">LOSS vs FREQUENCY (up to 2×current)</div>
+    <canvas id="freq-chart" height="180"></canvas>
+  </div>
+  <div class="cvs-wrap">
+    <div class="cvs-title">LOSS vs FLUX DENSITY B_max</div>
+    <canvas id="bmax-chart" height="180"></canvas>
+  </div>
+</div>
+
+<!-- RIGHT: CORE VISUAL + ANALYSIS -->
+<div>
+  <div class="panel">
+    <div class="panel-title"><div class="dot"></div>Core Cross-Section</div>
+    <div class="cvs-wrap"><canvas id="core-vis" height="200"></canvas></div>
+    <div style="margin-top:10px;">
+      <div class="rcard blue" style="margin-bottom:6px;">
+        <div class="rlabel">Active Iron Area</div>
+        <div class="rval" id="r-area">—</div>
+        <div class="rsub">Stacking factor × gross area</div>
+      </div>
+      <div class="rcard orange">
+        <div class="rlabel">Effective Core Density</div>
+        <div class="rval" id="r-den">—</div>
+        <div class="rsub">Accounting for stacking gaps</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title orange"><div class="dot"></div>Solid vs Laminated</div>
+    <div class="rcard orange" style="margin-bottom:6px;">
+      <div class="rlabel">Solid Iron Loss (same size)</div>
+      <div class="rval" id="r-solid">—</div>
+    </div>
+    <div class="rcard green">
+      <div class="rlabel">Loss Reduction vs Solid</div>
+      <div class="rval" id="r-reduct">—</div>
+      <div class="rsub">Benefit of lamination</div>
+    </div>
+    <div class="divider"></div>
+    <div class="panel-title green"><div class="dot"></div>Efficiency Impact</div>
+    <div class="rcard green">
+      <div class="rlabel">Core Loss as % of 10kVA Base</div>
+      <div class="rval" id="r-eff">—</div>
+    </div>
+    <div id="eff-note" class="info-box" style="margin-top:8px;"></div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════ TAB 3: STACKING FACTOR ═══════ -->
+<div class="tc" id="tab-stacking">
+<div class="cols-2b">
+<div>
+  <div class="panel">
+    <div class="panel-title"><div class="dot"></div>What is Stacking Factor?</div>
+    <p class="theory"><strong>Stacking Factor (k_s)</strong> is the ratio of the volume of actual iron to the gross (total) volume of the laminated core assembly.<br><br>
+    When laminations are stacked, the insulating coating between sheets and surface irregularities mean the total stack height is greater than the sum of iron thicknesses alone.</p>
+    <div class="formula">
+      <span class="var">k_s</span> <span class="eq">=</span> <span class="var">V_iron</span> / <span class="var">V_gross</span> <span class="eq">=</span> <span class="var">t_iron</span> / (<span class="var">t_iron</span> <span class="eq">+</span> <span class="var">t_insulation</span>)<br>
+      <div class="note">Typical values: 0.90–0.97 for silicon steel laminations<br>
+      Thicker laminations → higher k_s (less coating proportion)<br>
+      Thinner laminations → lower k_s (more coating proportion)</div>
+    </div>
+    <div class="divider"></div>
+    <div class="panel-title orange"><div class="dot"></div>Interactive Stack Calculator</div>
+    <div class="ctrl"><label>Lamination Thickness t_iron <span id="sk-t">0.35</span> mm</label>
+    <input type="range" class="slider orange" id="sk-t-sl" min="0.05" max="3" step="0.05" value="0.35" oninput="calcStack()"></div>
+    <div class="ctrl"><label>Insulation Coating t_ins <span id="sk-ins">0.01</span> mm</label>
+    <input type="range" class="slider" id="sk-ins-sl" min="0.005" max="0.1" step="0.005" value="0.01" oninput="calcStack()"></div>
+    <div class="ctrl"><label>Number of Laminations <span id="sk-n">100</span></label>
+    <input type="range" class="slider green" id="sk-n-sl" min="10" max="500" value="100" oninput="calcStack()"></div>
+    <div class="ctrl"><label>Core Width <span id="sk-w">50</span> mm</label>
+    <input type="range" class="slider pink" id="sk-w-sl" min="10" max="200" value="50" oninput="calcStack()"></div>
+
+    <div class="cols-2" style="gap:8px;margin-top:10px;">
+      <div class="rcard blue" style="margin:0;"><div class="rlabel">Stacking Factor k_s</div><div class="rval" id="sk-ks">—</div></div>
+      <div class="rcard orange" style="margin:0;"><div class="rlabel">Total Stack Height</div><div class="rval" id="sk-ht">—</div></div>
+      <div class="rcard green" style="margin:0;"><div class="rlabel">Net Iron Thickness</div><div class="rval" id="sk-net">—</div></div>
+      <div class="rcard pink" style="margin:0;"><div class="rlabel">Insulation Loss</div><div class="rval" id="sk-insloss">—</div></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="panel-title green"><div class="dot"></div>Effect on Core Loss</div>
+    <p class="theory">Stacking factor affects core loss in two ways: <strong>Effective flux density</strong> increases if B_max is based on gross area (B_eff = B_gross / k_s), and <strong>effective iron volume</strong> = k_s × gross volume.</p>
+    <div class="formula">
+      <span class="var">P_core_actual</span> <span class="eq">=</span> <span class="var">P_core</span> × <span class="var">k_s</span><br>
+      <span class="var">B_eff</span> <span class="eq">=</span> <span class="var">B_applied</span> / <span class="var">k_s</span><br>
+      <div class="note">Lower k_s → higher effective B_eff for same applied flux<br>
+      → increases P_h (exponential) more than P_e is reduced</div>
+    </div>
+    <div id="sk-verdict" class="info-box" style="margin-top:8px;"></div>
+  </div>
+</div>
+
+<div>
+  <div class="panel">
+    <div class="panel-title"><div class="dot"></div>Lamination Stack Visualization</div>
+    <div class="cvs-wrap" style="margin-bottom:12px;">
+      <canvas id="stack-vis" height="300"></canvas>
+    </div>
+    <div class="panel-title orange"><div class="dot"></div>Industry Standard Lamination Grades</div>
+    <table>
+      <tr><th>Grade</th><th>Thickness</th><th>k_s typical</th><th>Application</th><th>Loss W/kg @1.5T,50Hz</th></tr>
+      <tr><td>M-3 GOES</td><td>0.23 mm</td><td>0.94–0.95</td><td>Large power transformers</td><td><span class="tag t-green">0.80–0.95</span></td></tr>
+      <tr><td>M-6 GOES</td><td>0.35 mm</td><td>0.95–0.96</td><td>Distribution transformers</td><td><span class="tag t-green">1.0–1.2</span></td></tr>
+      <tr><td>M-19 NO</td><td>0.47 mm</td><td>0.95–0.97</td><td>Motors, generators</td><td><span class="tag t-blue">2.0–2.5</span></td></tr>
+      <tr><td>M-36 NO</td><td>0.47 mm</td><td>0.95–0.97</td><td>Industrial motors</td><td><span class="tag t-orange">2.8–3.5</span></td></tr>
+      <tr><td>M-45 NO</td><td>0.64 mm</td><td>0.96–0.97</td><td>Large motors</td><td><span class="tag t-orange">3.5–4.5</span></td></tr>
+      <tr><td>2605SA1 Amor.</td><td>0.025 mm</td><td>0.82–0.84</td><td>Distribution xfmr</td><td><span class="tag t-green">0.12–0.18</span></td></tr>
+      <tr><td>Vitroperm 500F</td><td>0.018 mm</td><td>0.80–0.82</td><td>High-freq transformers</td><td><span class="tag t-green">&lt;0.05</span></td></tr>
+    </table>
+    <div class="info-box" style="margin-top:10px;">
+      <p><strong>Stacking factor vs thickness:</strong> Thinner laminations reduce eddy currents but also reduce k_s due to higher proportion of insulation coating — there is an engineering trade-off optimized per application frequency.</p>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════ TAB 4: FREQUENCY EFFECTS ═══════ -->
+<div class="tc" id="tab-freq">
+<div class="cols-2b">
+<div>
+  <div class="panel">
+    <div class="panel-title"><div class="dot"></div>Frequency Effect on Core Losses</div>
+    <p class="theory">This is perhaps the most critical design consideration. The two loss components scale <strong>differently</strong> with frequency:<br><br>
+    • <span class="hl">P_h ∝ f¹</span> — linear relationship (Hysteresis)<br>
+    • <span class="hl2">P_e ∝ f²</span> — quadratic relationship (Eddy current)<br><br>
+    At low frequencies, hysteresis dominates. As frequency rises, eddy currents take over and grow much faster. This defines material selection for different applications.</p>
+
+    <div class="divider"></div>
+    <div class="panel-title orange"><div class="dot"></div>Frequency Sweep Controls</div>
+    <div class="ctrl"><label>Frequency Range Max <span id="fq-max">1000</span> Hz</label>
+    <input type="range" class="slider" id="fq-max-sl" min="100" max="100000" value="1000" oninput="freqSweep()"></div>
+    <div class="ctrl"><label>B_max <span id="fq-b">1.2</span> T</label>
+    <input type="range" class="slider orange" id="fq-b-sl" min="0.1" max="2.0" step="0.05" value="1.2" oninput="freqSweep()"></div>
+    <div class="ctrl"><label>Lamination Thickness <span id="fq-t">0.35</span> mm</label>
+    <input type="range" class="slider green" id="fq-t-sl" min="0.05" max="5" step="0.05" value="0.35" oninput="freqSweep()"></div>
+
+    <div class="divider"></div>
+    <div class="panel-title green"><div class="dot"></div>Crossover Frequency</div>
+    <div class="rcard blue" style="margin-bottom:8px;">
+      <div class="rlabel">f_crossover (P_h = P_e)</div>
+      <div class="rval" id="fq-cross">—</div>
+      <div class="rsub">Below this: hysteresis dominates · Above: eddy currents dominate</div>
+    </div>
+    <div class="info-box">
+      <p><strong>Practical crossover frequencies:</strong><br>
+      Silicon steel 0.35mm: ~150–300 Hz<br>
+      Silicon steel 0.10mm: ~2–5 kHz<br>
+      Amorphous 0.025mm: ~50–100 kHz<br>
+      Ferrite: Hysteresis dominates up to MHz range</p>
+    </div>
+
+    <div class="divider"></div>
+    <div class="panel-title pink"><div class="dot"></div>Application Frequency Guide</div>
+    <table>
+      <tr><th>Application</th><th>Freq</th><th>Ideal Material</th><th>Dominant Loss</th></tr>
+      <tr><td>Power transformer</td><td>50/60Hz</td><td>GOES M-3/M-6</td><td><span class="tag t-blue">P_h (70–80%)</span></td></tr>
+      <tr><td>Induction motor</td><td>50–400Hz</td><td>NO silicon steel</td><td><span class="tag t-blue">P_h+P_e mix</span></td></tr>
+      <tr><td>Aircraft motor</td><td>400 Hz</td><td>Thin NO (0.2mm)</td><td><span class="tag t-orange">P_e growing</span></td></tr>
+      <tr><td>Inverter drive</td><td>1–20kHz</td><td>Amorphous/Nanocryst.</td><td><span class="tag t-orange">P_e dominant</span></td></tr>
+      <tr><td>SMPS transformer</td><td>20–500kHz</td><td>Ferrite (MnZn/NiZn)</td><td><span class="tag t-pink">P_e only</span></td></tr>
+      <tr><td>RF inductor</td><td>>1 MHz</td><td>NiZn Ferrite/Air</td><td><span class="tag t-pink">Proximity/skin</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<div>
+  <div class="panel">
+    <div class="panel-title"><div class="dot"></div>Loss vs Frequency Chart</div>
+    <div class="cvs-wrap" style="margin-bottom:12px;">
+      <canvas id="freq-sweep-chart" height="260"></canvas>
+    </div>
+    <div class="panel-title orange" style="margin-top:4px;"><div class="dot"></div>Skin Effect & Flux Penetration</div>
+    <p class="theory">At high frequencies, induced eddy currents create their own opposing flux, causing the <strong>skin effect</strong> — actual flux penetrates only a shallow depth (skin depth δ) from the surface.</p>
+    <div class="formula">
+      <span class="var">δ</span> <span class="eq">=</span> √(<span class="var">ρ</span> / (<span class="var">π</span> · <span class="var">f</span> · <span class="var">μ</span>))<br>
+      <div class="note">δ = skin depth (m) &nbsp;|&nbsp; ρ = resistivity (Ω·m)<br>
+      μ = permeability (H/m) &nbsp;|&nbsp; f = frequency (Hz)<br>
+      Lamination should be ≤ 2δ for full flux utilization</div>
+    </div>
+    <div class="ctrl">
+      <label>Frequency for skin depth calc <span id="sd-f">50</span> Hz</label>
+      <input type="range" class="slider" id="sd-f-sl" min="1" max="100000" value="50" oninput="calcSkinDepth()">
+    </div>
+    <div class="cols-2" style="gap:8px;margin-top:8px;">
+      <div class="rcard blue" style="margin:0;"><div class="rlabel">Skin Depth δ (silicon steel)</div><div class="rval" id="sd-si">—</div></div>
+      <div class="rcard orange" style="margin:0;"><div class="rlabel">Skin Depth δ (iron)</div><div class="rval" id="sd-iron">—</div></div>
+      <div class="rcard green" style="margin:0;"><div class="rlabel">Skin Depth δ (amorphous)</div><div class="rval" id="sd-amor">—</div></div>
+      <div class="rcard pink" style="margin:0;"><div class="rlabel">Optimal max lam. thickness</div><div class="rval" id="sd-opt">—</div></div>
+    </div>
+    <div class="cvs-wrap" style="margin-top:12px;">
+      <div class="cvs-title">SKIN DEPTH vs FREQUENCY</div>
+      <canvas id="skin-chart" height="160"></canvas>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════ TAB 5: MATERIALS ═══════ -->
+<div class="tc" id="tab-materials">
+<div class="cols-2">
+<div>
+  <div class="panel">
+    <div class="panel-title"><div class="dot"></div>Core Material Database</div>
+    <p class="theory" style="margin-bottom:12px;">Select a material to see full properties, loss curves, and where it's used.</p>
+    <select id="mat-sel" onchange="showMaterial()" style="margin-bottom:12px;">
+      <option value="siSteel">Silicon Steel — Grain Oriented (M-6, 0.35mm)</option>
+      <option value="siSteelNO">Silicon Steel — Non-Oriented (M-19)</option>
+      <option value="solidIron">Pure Iron (Solid)</option>
+      <option value="castIron">Cast Iron</option>
+      <option value="amorphous">Amorphous Metal (Allied Signal 2605SA1)</option>
+      <option value="nanocrystal">Nanocrystalline (Vitroperm 500F)</option>
+      <option value="mnznFerrite">MnZn Ferrite (N87 type)</option>
+      <option value="niznFerrite">NiZn Ferrite (high-freq)</option>
+    </select>
+    <div id="mat-detail"></div>
+  </div>
+</div>
+<div>
+  <div class="panel">
+    <div class="panel-title orange"><div class="dot"></div>Loss Comparison at 50Hz, 1.5T</div>
+    <div class="cvs-wrap" style="margin-bottom:12px;">
+      <canvas id="mat-compare" height="260"></canvas>
+    </div>
+    <div class="panel-title green"><div class="dot"></div>B_max vs Loss Density Chart</div>
+    <div class="cvs-wrap">
+      <canvas id="mat-bmax" height="200"></canvas>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════ TAB 6: CORE DESIGNER ═══════ -->
+<div class="tc" id="tab-design">
+<div class="cols-2b">
+<div>
+  <div class="panel">
+    <div class="panel-title"><div class="dot"></div>Core Design Parameters</div>
+    <div class="ctrl"><label>Application Type</label>
+    <select id="d-app" onchange="designCore()">
+      <option value="xfmr50">Power Transformer (50Hz)</option>
+      <option value="xfmr60">Power Transformer (60Hz)</option>
+      <option value="motor50">Induction Motor (50Hz)</option>
+      <option value="motor400">Aircraft Motor (400Hz)</option>
+      <option value="smps">SMPS Transformer (100kHz)</option>
+    </select></div>
+    <div class="ctrl"><label>Rated Power <span id="d-kva">10</span> kVA</label>
+    <input type="range" class="slider" id="d-kva-sl" min="0.1" max="1000" step="0.1" value="10" oninput="designCore()"></div>
+    <div class="ctrl"><label>Target Efficiency <span id="d-eff">98</span>%</label>
+    <input type="range" class="slider green" id="d-eff-sl" min="90" max="99.5" step="0.1" value="98" oninput="designCore()"></div>
+    <div class="ctrl"><label>Core Material</label>
+    <select id="d-mat" onchange="designCore()">
+      <option value="siSteel">Silicon Steel GO (M-6)</option>
+      <option value="siSteelNO">Silicon Steel NO (M-19)</option>
+      <option value="amorphous">Amorphous 2605SA1</option>
+      <option value="ferrite">MnZn Ferrite</option>
+    </select></div>
+    <div class="ctrl"><label>Target B_max <span id="d-b">1.2</span> T</label>
+    <input type="range" class="slider orange" id="d-b-sl" min="0.1" max="1.9" step="0.05" value="1.2" oninput="designCore()"></div>
+
+    <div class="divider"></div>
+    <div class="panel-title orange"><div class="dot"></div>Design Results</div>
+    <div id="design-results"></div>
+  </div>
+</div>
+<div>
+  <div class="panel">
+    <div class="panel-title"><div class="dot"></div>Core Design Recommendations</div>
+    <div id="design-rec"></div>
+    <div class="divider"></div>
+    <div class="panel-title green"><div class="dot"></div>Loss Budget Breakdown</div>
+    <div class="cvs-wrap" style="margin-bottom:12px;">
+      <canvas id="design-chart" height="220"></canvas>
+    </div>
+    <div id="design-notes"></div>
+  </div>
+</div>
+</div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  MATERIAL DATABASE
+// ══════════════════════════════════════════
+var MATS={
+  siSteel:{name:'Silicon Steel GO',Kh:0.0095,Ke:0.0012,n:1.65,rho:4.5e-7,mu_r:8000,Bsat:2.0,lam:0.35,ks:0.96,density:7650,color:'#00d4ff',desc:'Grain-oriented 3% Si steel. Easy magnetisation axis aligned with rolling direction. Premium transformer material.',uses:'Large power transformers, distribution transformers',pros:'Lowest hysteresis loss in direction, high saturation',cons:'Anisotropic — poor in motors, expensive'},
+  siSteelNO:{name:'Silicon Steel NO',Kh:0.018,Ke:0.0018,n:1.7,rho:4.8e-7,mu_r:5000,Bsat:1.9,lam:0.47,ks:0.96,density:7650,color:'#58a6ff',desc:'Non-oriented 2–3.5% Si steel. Uniform properties in all directions. Standard motor/generator material.',uses:'Induction motors, generators, small transformers',pros:'Isotropic, cost-effective, good stamping properties',cons:'Higher loss than GO, lower permeability'},
+  solidIron:{name:'Solid Iron (Pure)',Kh:0.035,Ke:0.15,n:1.8,rho:1.0e-7,mu_r:4000,Bsat:2.15,lam:10,ks:1.0,density:7870,color:'#888',desc:'Solid pure iron. Very low resistivity means massive eddy currents. ONLY suitable for DC applications.',uses:'DC magnets, pole cores (DC machines)',pros:'Highest saturation flux density, cheap',cons:'MASSIVE eddy current loss at AC — unusable for AC'},
+  castIron:{name:'Cast Iron',Kh:0.045,Ke:0.2,n:1.9,rho:1.1e-7,mu_r:200,Bsat:1.0,lam:10,ks:1.0,density:7200,color:'#666',desc:'Low permeability, high losses. Used only where structural strength is needed, not for magnetic circuits.',uses:'Motor frames (structural only), yoke support',pros:'Strong, cheap, easy to cast',cons:'Very poor magnetic properties, high losses'},
+  amorphous:{name:'Amorphous Metal 2605SA1',Kh:0.0008,Ke:0.00005,n:1.5,rho:1.3e-6,mu_r:300000,Bsat:1.56,lam:0.025,ks:0.83,density:7180,color:'#39ff14',desc:'Rapidly quenched from melt — no crystal structure, no grain boundaries. Extraordinary low losses. Brittle and thin.',uses:'Distribution transformers, high-efficiency inductors',pros:'~75% lower loss than silicon steel, excellent for idle-heavy loads',cons:'Brittle, difficult to cut/punch, lower k_s'},
+  ferrite:{name:'MnZn Ferrite (N87)',Kh:0.0015,Ke:0.0000008,n:2.1,rho:5.0,mu_r:2300,Bsat:0.49,lam:0.001,ks:1.0,density:4700,color:'#ff6b35',desc:'Ceramic magnetic material. Extremely high resistivity virtually eliminates eddy currents. Optimised for 20kHz–1MHz.',uses:'SMPS transformers, EMI chokes, RF inductors',pros:'Near-zero eddy current loss at kHz, low cost, light',cons:'Low Bsat, brittle, poor below 10kHz'},
+  nanocrystal:{name:'Nanocrystalline Vitroperm 500F',Kh:0.0006,Ke:0.00003,n:1.5,rho:1.15e-6,mu_r:100000,Bsat:1.2,lam:0.018,ks:0.80,density:7350,color:'#ff3d9a',desc:'Amorphous ribbon crystallised to ~10nm grain size. Best combination of low hysteresis AND low eddy currents.',uses:'Precision current transformers, high-freq power transformers, common mode chokes',pros:'Outstanding permeability, very low losses, excellent HF',cons:'Very expensive, fragile, strict thermal limits'},
+  mnznFerrite:{name:'MnZn Ferrite',Kh:0.0015,Ke:0.0000008,n:2.1,rho:5.0,mu_r:2300,Bsat:0.49,lam:0.001,ks:1.0,density:4700,color:'#ff6b35',desc:'MnZn ferrite optimised for 20kHz–1MHz power applications.',uses:'SMPS transformers, power inductors',pros:'Low eddy loss at high freq',cons:'Low Bsat, brittle'},
+  niznFerrite:{name:'NiZn Ferrite',Kh:0.002,Ke:0.0000003,n:2.2,rho:1000,mu_r:800,Bsat:0.35,lam:0.001,ks:1.0,density:5100,color:'#d29922',desc:'Higher resistivity than MnZn, suitable above 1MHz.',uses:'RF inductors, EMI suppression, >1MHz',pros:'Suitable above 1MHz, good for RF',cons:'Lower permeability and Bsat than MnZn'},
+  custom:{name:'Custom',Kh:0.012,Ke:0.0015,n:1.6,rho:4.5e-7,mu_r:5000,Bsat:1.8,lam:0.35,ks:0.96,density:7650,color:'#c9d1d9',desc:'User-defined material coefficients.',uses:'Custom application',pros:'Configurable',cons:'User responsibility'}
+};
+
+// ══════════════════════════════════════════
+//  UTILITY
+// ══════════════════════════════════════════
+function fmt(v,d){
+  if(d===undefined)d=2;
+  if(Math.abs(v)>=1000) return (v/1000).toFixed(d)+' k';
+  if(Math.abs(v)<0.001) return (v*1000).toFixed(d)+' m';
+  return v.toFixed(d)+' ';
+}
+function fmtW(v){
+  if(v>=1000) return (v/1000).toFixed(2)+' kW';
+  if(v>=1) return v.toFixed(2)+' W';
+  return (v*1000).toFixed(1)+' mW';
+}
+
+// ══════════════════════════════════════════
+//  TAB SWITCH
+// ══════════════════════════════════════════
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tc').forEach(t=>t.classList.remove('active'));
+  var tabs=['theory','sim','stacking','freq','materials','design'];
+  document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  if(id==='sim') runSim();
+  if(id==='stacking') calcStack();
+  if(id==='freq') freqSweep();
+  if(id==='materials') showMaterial();
+  if(id==='design') designCore();
+}
+
+// ══════════════════════════════════════════
+//  CANVAS UTILS
+// ══════════════════════════════════════════
+function resizeCvs(id){
+  var c=document.getElementById(id);
+  var w=c.parentElement.clientWidth;
+  c.width=w; return c;
+}
+
+function drawGrid(ctx,w,h,col){
+  ctx.strokeStyle=col||'rgba(26,48,96,0.4)';ctx.lineWidth=0.5;
+  for(var x=0;x<w;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+  for(var y=0;y<h;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+}
+
+function drawAxes(ctx,ox,oy,w,h,xl,yl){
+  ctx.strokeStyle='rgba(200,216,240,0.3)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ox+w,oy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ox,oy-h);ctx.stroke();
+  ctx.fillStyle='rgba(200,216,240,0.5)';ctx.font='10px JetBrains Mono,monospace';
+  ctx.fillText(xl,ox+w-20,oy+14);
+  ctx.save();ctx.translate(ox-20,oy-h+20);ctx.rotate(-Math.PI/2);ctx.fillText(yl,0,0);ctx.restore();
+}
+
+// ══════════════════════════════════════════
+//  BH LOOP
+// ══════════════════════════════════════════
+function updateBH(){
+  var hc=parseFloat(document.getElementById('hc').value);
+  var bsat=parseFloat(document.getElementById('bsat').value);
+  document.getElementById('hc-val').textContent=hc;
+  document.getElementById('bsat-val').textContent=bsat.toFixed(2);
+  var c=resizeCvs('bh-canvas'); var ctx=c.getContext('2d');
+  var w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+  drawGrid(ctx,w,h);
+  var cx=w/2,cy=h/2;
+  // Axes
+  ctx.strokeStyle='rgba(200,216,240,0.25)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(w,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,h);ctx.stroke();
+  ctx.fillStyle='rgba(200,216,240,0.4)';ctx.font='10px JetBrains Mono,monospace';
+  ctx.fillText('H (A/m)',w-56,cy-6);ctx.fillText('B (T)',cx+6,12);
+  // BH loop — S-curve model
+  var sx=cx/(hc*3), sy=(cy-10)/bsat;
+  function Bofh(H){return bsat*Math.tanh(H/(hc*0.5));}
+  function hysterLoop(forward){
+    var pts=[];
+    var Hmax=hc*3;
+    var steps=120;
+    if(forward){
+      for(var i=0;i<=steps;i++){
+        var H=Hmax-2*Hmax*(i/steps);
+        var Bloop=Bofh(H)+(forward?1:-1)*bsat*0.18*(1-Math.abs(H/Hmax));
+        pts.push([H,Bloop]);
+      }
+    } else {
+      for(var i=0;i<=steps;i++){
+        var H=-Hmax+2*Hmax*(i/steps);
+        var Bloop=Bofh(H)-(bsat*0.18*(1-Math.abs(H/Hmax)));
+        pts.push([H,Bloop]);
+      }
+    }
+    return pts;
+  }
+  var loop1=hysterLoop(true), loop2=hysterLoop(false);
+  // Fill loop area
+  ctx.beginPath();
+  loop1.forEach((p,i)=>{var x=cx+p[0]*sx,y=cy-p[1]*sy;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  loop2.forEach(p=>{ctx.lineTo(cx+p[0]*sx,cy-p[1]*sy);});
+  ctx.closePath();
+  ctx.fillStyle='rgba(255,61,154,0.12)';ctx.fill();
+  // Draw loop
+  ctx.strokeStyle='#ff3d9a';ctx.lineWidth=2;
+  ctx.beginPath();
+  loop1.forEach((p,i)=>{var x=cx+p[0]*sx,y=cy-p[1]*sy;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.stroke();
+  ctx.beginPath();
+  loop2.forEach((p,i)=>{var x=cx+p[0]*sx,y=cy-p[1]*sy;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.stroke();
+  // Coercivity label
+  ctx.fillStyle='var(--acc2)';ctx.strokeStyle='#ff6b35';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(cx+hc*sx,cy);ctx.lineTo(cx+hc*sx,cy-10);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-hc*sx,cy);ctx.lineTo(cx-hc*sx,cy+10);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#ff6b35';ctx.font='9px JetBrains Mono,monospace';
+  ctx.fillText('+Hc',cx+hc*sx+2,cy-12);ctx.fillText('-Hc',cx-hc*sx-22,cy+20);
+  ctx.fillStyle='#00d4ff';
+  ctx.fillText('+Br',cx+5,cy-(bsat*0.18+Bofh(0))*sy);
+  // Area approx
+  var area=hc*bsat*0.4;
+  document.getElementById('bh-area').textContent=(area*1000).toFixed(0)+' J/m³';
+}
+
+// ══════════════════════════════════════════
+//  EDDY VISUAL
+// ══════════════════════════════════════════
+function updateEddyVis(){
+  var t=parseFloat(document.getElementById('lam-vis').value);
+  document.getElementById('lam-vis-val').textContent=t.toFixed(2);
+  var c=resizeCvs('eddy-canvas');var ctx=c.getContext('2d');
+  var w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+  // Draw laminations
+  var coreW=Math.min(w-40,400), coreH=h-30;
+  var ox=(w-coreW)/2, oy=15;
+  var tPx=Math.max(2,Math.min(t*8,coreW/2));
+  var nLam=Math.max(1,Math.floor(coreW/tPx));
+  var actualTPx=coreW/nLam;
+  for(var i=0;i<nLam;i++){
+    var x=ox+i*actualTPx;
+    var intensity=Math.min(1,1-(t/10));
+    var r=Math.floor(intensity*255),gb=Math.floor(intensity*100);
+    ctx.fillStyle=`rgba(${r},${gb},200,0.5)`;
+    ctx.fillRect(x+1,oy,actualTPx-1,coreH);
+    ctx.strokeStyle='rgba(0,212,255,0.15)';ctx.lineWidth=0.5;
+    ctx.strokeRect(x+1,oy,actualTPx-1,coreH);
+    // Draw eddy current loops
+    if(actualTPx>6){
+      var midX=x+actualTPx/2;
+      var loops=t<0.5?1:t<2?2:3;
+      for(var l=0;l<loops;l++){
+        var scale=0.6*(l+1)/loops;
+        var ew=(actualTPx-2)*scale*0.8;
+        var eh=coreH*scale*0.7;
+        var elx=midX-ew/2, ely=oy+(coreH-eh)/2;
+        var eddyAlpha=Math.min(0.7,(t/10)*0.8);
+        ctx.strokeStyle=`rgba(255,107,53,${eddyAlpha})`;
+        ctx.lineWidth=0.8;
+        ctx.beginPath();
+        ctx.ellipse(midX,oy+coreH/2,ew/2,eh/2,0,0,Math.PI*2);
+        ctx.stroke();
+        // Arrow
+        ctx.fillStyle=`rgba(255,107,53,${eddyAlpha})`;
+        ctx.beginPath();ctx.moveTo(midX+ew/2,oy+coreH/2-3);ctx.lineTo(midX+ew/2+4,oy+coreH/2);ctx.lineTo(midX+ew/2,oy+coreH/2+3);ctx.fill();
+      }
+    }
+  }
+  // Labels
+  ctx.fillStyle='rgba(200,216,240,0.5)';ctx.font='9px JetBrains Mono,monospace';
+  ctx.fillText('←  '+nLam+' laminations  →',ox,h-5);
+  ctx.fillStyle='#ff6b35';ctx.fillText('Eddy current loops',ox+coreW+5,oy+coreH/2);
+  // Relative loss
+  var relLoss=Math.min(100,(t/10)*(t/10)*100);
+  document.getElementById('eddy-rel').textContent=relLoss.toFixed(1)+'%';
+}
+
+// ══════════════════════════════════════════
+//  LOAD MATERIAL PRESET
+// ══════════════════════════════════════════
+function loadMaterial(){
+  var key=document.getElementById('s-mat').value;
+  var m=MATS[key];
+  if(!m) return;
+  function setSlider(id,val){var el=document.getElementById(id);if(el){el.value=val;el.dispatchEvent(new Event('input'));}}
+  setSlider('s-kh',m.Kh);setSlider('s-ke',m.Ke);setSlider('s-n',m.n);
+  setSlider('s-rho',m.rho*1e7);setSlider('s-t',m.lam);setSlider('s-sf',m.ks);
+  runSim();
+}
+
+// ══════════════════════════════════════════
+//  MAIN SIMULATION
+// ══════════════════════════════════════════
+function g(id){return parseFloat(document.getElementById(id).value)||0;}
+function sv(id,val,dp){
+  var el=document.getElementById(id);
+  if(el) el.textContent=typeof dp==='number'?val.toFixed(dp):val;
+}
+
+function runSim(){
+  var f=g('s-f'), B=g('s-b'), V=g('s-v'), t=g('s-t')/1000, sf=g('s-sf');
+  var Kh=g('s-kh'), Ke=g('s-ke'), n=g('s-n'), rho=g('s-rho')*1e-7;
+  sv('sv-f',f,0);sv('sv-b',B,2);sv('sv-v',V,4);sv('sv-t',t*1000,2);sv('sv-sf',sf,2);
+  sv('sv-kh',Kh,4);sv('sv-ke',Ke,5);sv('sv-n',n,2);sv('sv-rho',rho*1e7,1);
+
+  var Veff=V*sf; // effective iron volume
+  var Ph=Kh*f*Math.pow(B,n)*Veff;
+  var Pe=Ke*f*f*B*B*t*t*Veff/rho;
+  var Pt=Ph+Pe;
+
+  document.getElementById('r-ph').textContent=fmtW(Ph);
+  document.getElementById('r-ph-s').textContent='K_h·f·B^n·V = '+Kh.toFixed(4)+'·'+f+'·'+B.toFixed(2)+'^'+n.toFixed(1);
+  document.getElementById('r-pe').textContent=fmtW(Pe);
+  document.getElementById('r-pe-s').textContent='K_e·f²·B²·t²·V/ρ';
+  document.getElementById('r-pt').textContent=fmtW(Pt);
+  document.getElementById('r-pt-s').textContent='P_h + P_e';
+  var density7650=7650; // kg/m³ approx
+  var mass=Veff*density7650;
+  document.getElementById('r-pd').textContent=(Pt/mass).toFixed(2);
+
+  var phPct=Pt>0?Math.round(Ph/Pt*100):0;
+  var pePct=100-phPct;
+  document.getElementById('ph-pct').textContent=phPct+'%';
+  document.getElementById('pe-pct').textContent=pePct+'%';
+  document.getElementById('ph-bar').style.width=phPct+'%';
+  document.getElementById('pe-bar').style.width=pePct+'%';
+
+  // Area and density
+  var sideLen=Math.cbrt(V)*100;
+  document.getElementById('r-area').textContent=(V/sideLen*1e4*sf).toFixed(1)+' cm²';
+  document.getElementById('r-den').textContent=(7650*sf).toFixed(0)+' kg/m³';
+
+  // Solid iron comparison (t=10mm)
+  var PhSolid=Kh*f*Math.pow(B,n)*V; // same volume
+  var PeSolid=Ke*f*f*B*B*(0.01)*(0.01)*V/rho;
+  var PtSolid=PhSolid+PeSolid;
+  document.getElementById('r-solid').textContent=fmtW(PtSolid);
+  var reduct=PtSolid>0?((PtSolid-Pt)/PtSolid*100):0;
+  document.getElementById('r-reduct').textContent=reduct.toFixed(1)+'%';
+
+  // Efficiency
+  var base=10000;
+  var lossRatio=Pt/base*100;
+  document.getElementById('r-eff').textContent=lossRatio.toFixed(2)+'%';
+  var note='';
+  if(lossRatio<0.5) note='<p><strong style="color:var(--acc3)">✅ Excellent:</strong> Core loss well below 0.5% — highly efficient design.</p>';
+  else if(lossRatio<1.5) note='<p><strong style="color:var(--acc1)">✓ Good:</strong> Core loss acceptable for standard industrial applications.</p>';
+  else if(lossRatio<3) note='<p><strong style="color:var(--acc2)">⚠ Moderate:</strong> Consider thinner laminations or lower B_max to improve efficiency.</p>';
+  else note='<p><strong style="color:#f85149">❌ High:</strong> Core loss is excessive. Redesign recommended — reduce B_max, use better material, or laminate.</p>';
+  document.getElementById('eff-note').innerHTML=note;
+
+  drawFreqChart(f,B,Kh,Ke,n,t,rho,sf,Veff);
+  drawBmaxChart(f,B,Kh,Ke,n,t,rho,sf,Veff);
+  drawCoreVis(sf,t);
+}
+
+function drawFreqChart(f0,B,Kh,Ke,n,t,rho,sf,V){
+  var c=resizeCvs('freq-chart');var ctx=c.getContext('2d');
+  var w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+  drawGrid(ctx,w,h);
+  var pad=36, pw=w-pad-10, ph=h-pad-10;
+  drawAxes(ctx,pad,h-pad,pw,ph,'f (Hz)','P (W)');
+  var fmax=f0*2||100;
+  var points_h=[],points_e=[],points_t=[];
+  var maxP=0;
+  for(var i=0;i<=60;i++){
+    var fi=fmax*(i/60);
+    var ph2=Kh*fi*Math.pow(B,n)*V;
+    var pe2=Ke*fi*fi*B*B*t*t*V/rho;
+    var pt2=ph2+pe2;
+    if(pt2>maxP)maxP=pt2;
+    points_h.push([fi,ph2]);points_e.push([fi,pe2]);points_t.push([fi,pt2]);
+  }
+  if(maxP===0)return;
+  function px(fi){return pad+fi/fmax*pw;}
+  function py(p){return h-pad-p/maxP*ph;}
+  function drawLine(pts,color,dash){
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.setLineDash(dash||[]);
+    ctx.beginPath();pts.forEach((p,i)=>{i?ctx.lineTo(px(p[0]),py(p[1])):ctx.moveTo(px(p[0]),py(p[1]));});
+    ctx.stroke();ctx.setLineDash([]);
+  }
+  drawLine(points_h,'#00d4ff');
+  drawLine(points_e,'#ff6b35');
+  drawLine(points_t,'#39ff14');
+  // Current point
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(px(f0),py(Kh*f0*Math.pow(B,n)*V+Ke*f0*f0*B*B*t*t*V/rho),5,0,Math.PI*2);ctx.fill();
+  // Legend
+  ctx.font='9px JetBrains Mono,monospace';
+  ctx.fillStyle='#00d4ff';ctx.fillText('P_h',pad+5,20);
+  ctx.fillStyle='#ff6b35';ctx.fillText('P_e',pad+30,20);
+  ctx.fillStyle='#39ff14';ctx.fillText('P_total',pad+55,20);
+  // Y axis labels
+  ctx.fillStyle='rgba(200,216,240,0.4)';ctx.font='8px monospace';
+  for(var i=0;i<=4;i++) ctx.fillText((maxP*i/4).toFixed(2)+'W',2,py(maxP*i/4)+3);
+  // X axis labels
+  for(var i=0;i<=4;i++) ctx.fillText(Math.round(fmax*i/4),pad+pw*i/4-10,h-2);
+}
+
+function drawBmaxChart(f,B0,Kh,Ke,n,t,rho,sf,V){
+  var c=resizeCvs('bmax-chart');var ctx=c.getContext('2d');
+  var w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+  drawGrid(ctx,w,h);
+  var pad=36,pw=w-pad-10,ph=h-pad-10;
+  drawAxes(ctx,pad,h-pad,pw,ph,'B_max (T)','P (W)');
+  var Bmax=2.2;
+  var pts_h=[],pts_e=[],pts_t=[];
+  var maxP=0;
+  for(var i=0;i<=60;i++){
+    var Bi=Bmax*(i/60);
+    var ph2=Kh*f*Math.pow(Bi,n)*V;
+    var pe2=Ke*f*f*Bi*Bi*t*t*V/rho;
+    var pt2=ph2+pe2; if(pt2>maxP)maxP=pt2;
+    pts_h.push([Bi,ph2]);pts_e.push([Bi,pe2]);pts_t.push([Bi,pt2]);
+  }
+  if(maxP===0)return;
+  function px(bi){return pad+bi/Bmax*pw;}
+  function py(p){return h-pad-p/maxP*ph;}
+  function drawLine(pts,color){
+    ctx.strokeStyle=color;ctx.lineWidth=2;
+    ctx.beginPath();pts.forEach((p,i)=>{i?ctx.lineTo(px(p[0]),py(p[1])):ctx.moveTo(px(p[0]),py(p[1]));});ctx.stroke();
+  }
+  drawLine(pts_h,'#00d4ff');drawLine(pts_e,'#ff6b35');drawLine(pts_t,'#39ff14');
+  ctx.fillStyle='#fff';ctx.beginPath();
+  var cur_t=Kh*f*Math.pow(B0,n)*V+Ke*f*f*B0*B0*t*t*V/rho;
+  ctx.arc(px(B0),py(cur_t),5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(200,216,240,0.4)';ctx.font='8px monospace';
+  for(var i=0;i<=4;i++) ctx.fillText((maxP*i/4).toFixed(1)+'W',2,py(maxP*i/4)+3);
+  for(var i=0;i<=4;i++) ctx.fillText((Bmax*i/4).toFixed(1),pad+pw*i/4-8,h-2);
+}
+
+function drawCoreVis(sf,t){
+  var c=resizeCvs('core-vis');var ctx=c.getContext('2d');
+  var w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+  // Draw E-I core cross section
+  var cw=w*0.7,ch=h*0.8;
+  var ox=(w-cw)/2,oy=(h-ch)/2;
+  var tPx=Math.max(2,Math.min(t*1000*4,cw/3));
+  var nLam=Math.max(1,Math.floor(cw/tPx));
+  var atPx=cw/nLam;
+  for(var i=0;i<nLam;i++){
+    var x=ox+i*atPx;
+    var g=Math.floor(sf*200);
+    ctx.fillStyle=`rgb(20,${g},${g+55})`;
+    ctx.fillRect(x+0.5,oy,atPx-0.5,ch);
+    if(atPx>3){ctx.strokeStyle='rgba(0,212,255,0.1)';ctx.lineWidth=0.5;ctx.strokeRect(x+0.5,oy,atPx-0.5,ch);}
+  }
+  ctx.strokeStyle='rgba(0,212,255,0.4)';ctx.lineWidth=1.5;ctx.strokeRect(ox,oy,cw,ch);
+  ctx.fillStyle='rgba(0,212,255,0.7)';ctx.font='9px JetBrains Mono,monospace';
+  ctx.fillText(nLam+' lam @ '+( t*1000).toFixed(2)+'mm',ox,oy-3);
+  ctx.fillStyle='rgba(255,107,53,0.7)';ctx.fillText('k_s = '+sf.toFixed(2),ox+cw-70,oy+ch+12);
+}
+
+// ══════════════════════════════════════════
+//  STACKING CALCULATOR
+// ══════════════════════════════════════════
+function calcStack(){
+  var t=g('sk-t-sl'),ins=g('sk-ins-sl'),N=g('sk-n-sl'),W=g('sk-w-sl');
+  sv('sk-t',t,2);sv('sk-ins',ins,3);sv('sk-n',N,0);sv('sk-w',W,0);
+  var ks=t/(t+ins);
+  var totalH=N*(t+ins);
+  var netIron=N*t;
+  var insLoss=(1-ks)*100;
+  sv('sk-ks',ks.toFixed(4));
+  document.getElementById('sk-ht').textContent=totalH.toFixed(1)+' mm';
+  document.getElementById('sk-net').textContent=netIron.toFixed(1)+' mm';
+  document.getElementById('sk-insloss').textContent=insLoss.toFixed(1)+'%';
+
+  var verdict='';
+  if(ks>0.96) verdict='<p><strong style="color:var(--acc3)">✅ Excellent stacking factor</strong> — minimal insulation volume. Suitable for high-performance transformers.</p>';
+  else if(ks>0.93) verdict='<p><strong style="color:var(--acc1)">✓ Good stacking factor</strong> — standard industrial quality. Good balance of loss reduction and manufacturing.</p>';
+  else if(ks>0.88) verdict='<p><strong style="color:var(--acc2)">⚠ Moderate stacking factor</strong> — typical for thinner amorphous or nanocrystalline tapes. Acceptable if eddy current reduction justifies it.</p>';
+  else verdict='<p><strong style="color:#f85149">Low stacking factor</strong> — large proportion of the core volume is non-magnetic. Ensure eddy current reduction benefit outweighs reduced iron volume.</p>';
+  document.getElementById('sk-verdict').innerHTML=verdict;
+  drawStackVis(t,ins,N,W,ks);
+}
+
+function drawStackVis(t,ins,N,W,ks){
+  var c=resizeCvs('stack-vis');var ctx=c.getContext('2d');
+  var cw=c.width,ch=c.height;
+  ctx.clearRect(0,0,cw,ch);
+  drawGrid(ctx,cw,ch);
+  var maxDisplay=Math.min(N,60);
+  var totalMM=(t+ins)*N;
+  var scaleY=(ch-40)/totalMM;
+  var scaleX=(cw-40)/W;
+  var ox=20,oy=20;
+  for(var i=0;i<maxDisplay;i++){
+    var y=oy+i*(t+ins)*scaleY;
+    // Iron
+    var bright=150+Math.round(ks*100);
+    ctx.fillStyle=`rgb(0,${bright},${bright+80})`;
+    ctx.fillRect(ox,y,W*scaleX,t*scaleY);
+    // Insulation
+    ctx.fillStyle='rgba(255,107,53,0.35)';
+    ctx.fillRect(ox,y+t*scaleY,W*scaleX,ins*scaleY);
+  }
+  if(N>maxDisplay){
+    ctx.fillStyle='rgba(200,216,240,0.5)';ctx.font='10px JetBrains Mono,monospace';
+    ctx.fillText('... ('+N+' total)',ox+10,ch-5);
+  }
+  ctx.fillStyle='rgba(0,212,255,0.7)';ctx.font='9px monospace';
+  ctx.fillText('Iron',ox+W*scaleX+4,oy+t*scaleY/2+3);
+  ctx.fillStyle='rgba(255,107,53,0.8)';
+  ctx.fillText('Ins.',ox+W*scaleX+4,oy+t*scaleY+ins*scaleY/2+3);
+  ctx.fillStyle='rgba(200,216,240,0.5)';
+  ctx.fillText('k_s = '+ks.toFixed(3),ox,ch-5);
+  ctx.fillText(W+' mm wide',ox+W*scaleX-40,ch-5);
+}
+
+// ══════════════════════════════════════════
+//  FREQUENCY SWEEP
+// ══════════════════════════════════════════
+function freqSweep(){
+  var fmax=g('fq-max-sl'), B=g('fq-b-sl'), t=g('fq-t-sl')/1000;
+  sv('fq-max',fmax,0);sv('fq-b',B,2);sv('fq-t',t*1000,2);
+  var mat=MATS.siSteel;
+  var Kh=mat.Kh, Ke=mat.Ke, n=mat.n, rho=mat.rho;
+  // Crossover: Kh*f = Ke*f²*B²*t²/rho → f = Kh*rho/(Ke*B²*t²)
+  var fCross=Kh*rho/(Ke*B*B*t*t);
+  document.getElementById('fq-cross').textContent=fCross<fmax?(fCross.toFixed(0)+' Hz'):('>'+fmax+' Hz');
+  drawFreqSweep(fmax,B,t,Kh,Ke,n,rho,fCross);
+  calcSkinDepth();
+}
+
+function drawFreqSweep(fmax,B,t,Kh,Ke,n,rho,fCross){
+  var c=resizeCvs('freq-sweep-chart');var ctx=c.getContext('2d');
+  var w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+  drawGrid(ctx,w,h);
+  var pad=40,pw=w-pad-10,ph=h-pad-20;
+  var V=0.001;
+  var pts_h=[],pts_e=[],pts_t=[];
+  var maxP=0;
+  for(var i=1;i<=80;i++){
+    var fi=fmax*(i/80);
+    var ph=Kh*fi*Math.pow(B,n)*V;
+    var pe=Ke*fi*fi*B*B*t*t*V/rho;
+    var pt=ph+pe; if(pt>maxP)maxP=pt;
+    pts_h.push([fi,ph]);pts_e.push([fi,pe]);pts_t.push([fi,pt]);
+  }
+  if(maxP===0)return;
+  function px(fi){return pad+Math.log10(Math.max(fi,1))/Math.log10(fmax)*pw;}
+  function py(p){return h-pad-p/maxP*ph;}
+  function drawL(pts,col,w2){
+    ctx.strokeStyle=col;ctx.lineWidth=w2||2;
+    ctx.beginPath();pts.forEach((p,i)=>{if(p[1]>0){i?ctx.lineTo(px(p[0]),py(p[1])):ctx.moveTo(px(p[0]),py(p[1]));}});ctx.stroke();
+  }
+  drawL(pts_h,'rgba(0,212,255,0.7)',1.5);
+  drawL(pts_e,'rgba(255,107,53,0.7)',1.5);
+  drawL(pts_t,'#39ff14',2.5);
+  // Crossover line
+  if(fCross>1&&fCross<fmax){
+    ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.setLineDash([4,4]);ctx.lineWidth=1;
+    var xc=px(fCross);
+    ctx.beginPath();ctx.moveTo(xc,pad);ctx.lineTo(xc,h-pad);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='9px monospace';
+    ctx.fillText('f_cross='+Math.round(fCross)+'Hz',xc+3,pad+12);
+  }
+  // Axes labels
+  ctx.fillStyle='rgba(200,216,240,0.4)';ctx.font='8px monospace';
+  [1,10,100,1000,10000,100000].forEach(fi=>{if(fi<=fmax){ctx.fillText(fi<1000?fi:fi/1000+'k',px(fi)-8,h-pad+12);}});
+  ctx.fillText('f (Hz, log)',pw/2+pad,h-4);
+  ctx.fillStyle='rgba(0,212,255,0.7)';ctx.fillText('P_h ∝f¹',5,20);
+  ctx.fillStyle='rgba(255,107,53,0.7)';ctx.fillText('P_e ∝f²',5,32);
+  ctx.fillStyle='#39ff14';ctx.fillText('P_total',5,44);
+}
+
+function calcSkinDepth(){
+  var f=g('sd-f-sl');
+  sv('sd-f',f,0);
+  var mu0=4*Math.PI*1e-7;
+  function delta(rho,mu_r){return Math.sqrt(rho/(Math.PI*f*mu0*mu_r));}
+  var dSi=delta(4.5e-7,8000)*1000; // mm
+  var dIron=delta(1.0e-7,4000)*1000;
+  var dAmor=delta(1.3e-6,300000)*1000;
+  document.getElementById('sd-si').textContent=dSi<0.1?(dSi*1000).toFixed(1)+' μm':dSi.toFixed(3)+' mm';
+  document.getElementById('sd-iron').textContent=dIron<0.1?(dIron*1000).toFixed(1)+' μm':dIron.toFixed(3)+' mm';
+  document.getElementById('sd-amor').textContent=dAmor<0.1?(dAmor*1000).toFixed(1)+' μm':dAmor.toFixed(3)+' mm';
+  document.getElementById('sd-opt').textContent=(dSi*2).toFixed(3)+' mm (Si steel)';
+  drawSkinChart();
+}
+
+function drawSkinChart(){
+  var c=resizeCvs('skin-chart');var ctx=c.getContext('2d');
+  var w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+  drawGrid(ctx,w,h);
+  var pad=36,pw=w-pad-10,ph=h-pad-16;
+  var mu0=4*Math.PI*1e-7;
+  var mats2=[
+    {name:'Si-GO',rho:4.5e-7,mu_r:8000,col:'#00d4ff'},
+    {name:'Iron',rho:1e-7,mu_r:4000,col:'#888'},
+    {name:'Amor.',rho:1.3e-6,mu_r:300000,col:'#39ff14'},
+  ];
+  var fmax=1e6, maxD=0;
+  mats2.forEach(m=>{var d=Math.sqrt(m.rho/(Math.PI*1*mu0*m.mu_r))*1000;if(d>maxD)maxD=d;});
+  maxD=Math.max(maxD,10);
+  mats2.forEach(m=>{
+    var pts=[];
+    for(var i=1;i<=80;i++){
+      var fi=Math.pow(10,i/80*6);
+      var d=Math.sqrt(m.rho/(Math.PI*fi*mu0*m.mu_r))*1000;
+      pts.push([fi,d]);
+    }
+    ctx.strokeStyle=m.col;ctx.lineWidth=1.5;
+    ctx.beginPath();pts.forEach((p,i)=>{
+      var x=pad+Math.log10(p[0])/6*pw;
+      var y=h-pad-Math.min(p[1]/maxD,1)*ph;
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    });ctx.stroke();
+    ctx.fillStyle=m.col;ctx.font='8px monospace';
+    var last=pts[pts.length-1];
+    ctx.fillText(m.name,pad+pw-30,h-pad-Math.min(last[1]/maxD,1)*ph-3);
+  });
+  ctx.fillStyle='rgba(200,216,240,0.4)';ctx.font='8px monospace';
+  ctx.fillText('1Hz',pad,h-2);ctx.fillText('1kHz',pad+pw/2-10,h-2);ctx.fillText('1MHz',pad+pw-18,h-2);
+  ctx.fillText('δ (mm)',2,15);
+}
+
+// ══════════════════════════════════════════
+//  MATERIALS DB
+// ══════════════════════════════════════════
+function showMaterial(){
+  var key=document.getElementById('mat-sel').value;
+  var m=MATS[key]||MATS.siSteel;
+  document.getElementById('mat-detail').innerHTML=
+    '<div class="rcard blue" style="margin-bottom:8px;"><div class="rlabel">Description</div><div style="font-size:11px;color:var(--text);margin-top:4px;">'+m.desc+'</div></div>'+
+    '<div class="rcard orange" style="margin-bottom:8px;"><div class="rlabel">Key Uses</div><div style="font-size:11px;color:var(--text);margin-top:4px;">'+m.uses+'</div></div>'+
+    '<table style="margin-top:8px;">'+
+    '<tr><th>Property</th><th>Value</th></tr>'+
+    '<tr><td>Kh (Hysteresis coeff)</td><td><span class="tag t-blue">'+m.Kh+'</span></td></tr>'+
+    '<tr><td>Ke (Eddy coeff)</td><td><span class="tag t-orange">'+m.Ke+'</span></td></tr>'+
+    '<tr><td>Steinmetz exp n</td><td>'+m.n+'</td></tr>'+
+    '<tr><td>Resistivity ρ</td><td>'+(m.rho*1e6).toFixed(2)+' μΩ·m</td></tr>'+
+    '<tr><td>Relative permeability μ_r</td><td>'+m.mu_r.toLocaleString()+'</td></tr>'+
+    '<tr><td>Saturation B_sat</td><td>'+m.Bsat+' T</td></tr>'+
+    '<tr><td>Lam. thickness</td><td>'+m.lam+' mm</td></tr>'+
+    '<tr><td>Stacking factor k_s</td><td>'+m.ks+'</td></tr>'+
+    '<tr><td>Density</td><td>'+m.density+' kg/m³</td></tr>'+
+    '</table>'+
+    '<div class="info-box good" style="margin-top:10px;"><p><strong>Pros:</strong> '+m.pros+'</p></div>'+
+    '<div class="info-box warn" style="margin-top:6px;"><p><strong>Cons:</strong> '+m.cons+'</p></div>';
+  drawMatCompare();
+  drawMatBmax(key);
+}
+
+function drawMatCompare(){
+  var c=resizeCvs('mat-compare');var ctx=c.getContext('2d');
+  var w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+  var matKeys=['siSteel','siSteelNO','solidIron','amorphous','nanocrystal','mnznFerrite'];
+  var f=50,B=1.5,V=0.001,t_def=0.35/1000;
+  var losses=matKeys.map(k=>{
+    var m=MATS[k];
+    var t=m.lam/1000;
+    var ph=m.Kh*f*Math.pow(B,m.n)*V;
+    var pe=m.Ke*f*f*B*B*t*t*V/m.rho;
+    return {name:m.name.split(' ')[0]+' '+m.name.split(' ')[1],ph,pe,pt:ph+pe,col:m.color};
+  });
+  var maxL=Math.max(...losses.map(l=>l.pt))*1.1||1;
+  var bw=(w-60)/(matKeys.length)-8;
+  var ox=40,oy=10,ph=h-50;
+  ctx.fillStyle='rgba(200,216,240,0.4)';ctx.font='8px monospace';
+  losses.forEach((l,i)=>{
+    var x=ox+i*(bw+8);
+    // Bar bg
+    ctx.fillStyle='rgba(255,255,255,0.04)';ctx.fillRect(x,oy,bw,ph);
+    // Hysteresis
+    var hh=l.ph/maxL*ph;
+    ctx.fillStyle='rgba(0,212,255,0.7)';ctx.fillRect(x,oy+ph-hh,bw,hh);
+    // Eddy
+    var eh=l.pe/maxL*ph;
+    ctx.fillStyle='rgba(255,107,53,0.7)';ctx.fillRect(x,oy+ph-hh-eh,bw,eh);
+    // Label
+    ctx.fillStyle=l.col;
+    var name=l.name.length>8?l.name.substring(0,8):l.name;
+    ctx.save();ctx.translate(x+bw/2,h-6);ctx.rotate(-Math.PI/4);ctx.fillText(name,0,0);ctx.restore();
+    ctx.fillStyle='rgba(200,216,240,0.6)';
+    ctx.fillText(fmtW(l.pt),x,oy+ph-hh-eh-3);
+  });
+  ctx.fillStyle='rgba(200,216,240,0.5)';ctx.font='9px monospace';
+  ctx.fillText('50Hz, 1.5T, 1L',w/2-30,h-2);
+  ctx.fillStyle='rgba(0,212,255,0.7)';ctx.fillRect(ox,oy-8,10,6);ctx.fillText('P_h',ox+12,oy-3);
+  ctx.fillStyle='rgba(255,107,53,0.7)';ctx.fillRect(ox+40,oy-8,10,6);ctx.fillText('P_e',ox+52,oy-3);
+}
+
+function drawMatBmax(selKey){
+  var c=resizeCvs('mat-bmax');var ctx=c.getContext('2d');
+  var w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+  drawGrid(ctx,w,h);
+  var pad=36,pw=w-pad-10,ph_=h-pad-16;
+  var matKeys=['siSteel','siSteelNO','amorphous','nanocrystal','mnznFerrite'];
+  var f=50,maxP=0;
+  var allPts=matKeys.map(k=>{
+    var m=MATS[k];var t=m.lam/1000;
+    var pts=[];
+    for(var i=0;i<=60;i++){
+      var B=m.Bsat*(i/60);
+      var ph=m.Kh*f*Math.pow(B,m.n)*0.001;
+      var pe=m.Ke*f*f*B*B*t*t*0.001/m.rho;
+      var pt=ph+pe;if(pt>maxP)maxP=pt;
+      pts.push([B,pt]);
+    }
+    return {pts,col:m.color,name:m.name.split(' ')[0]};
+  });
+  matKeys.forEach((k,idx)=>{
+    var d=allPts[idx];var m=MATS[k];
+    ctx.strokeStyle=d.col;ctx.lineWidth=k===selKey?2.5:1.2;
+    ctx.beginPath();d.pts.forEach((p,i)=>{
+      if(p[1]>0&&p[0]>0.01){
+        var x=pad+p[0]/m.Bsat*pw;
+        var y=h-pad-p[1]/maxP*ph_;
+        i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      }
+    });ctx.stroke();
+    ctx.fillStyle=d.col;ctx.font='8px monospace';
+    var last=d.pts[d.pts.length-1];
+    ctx.fillText(d.name,pad+pw-35,h-pad-last[1]/maxP*ph_-4);
+  });
+  ctx.fillStyle='rgba(200,216,240,0.4)';ctx.font='8px monospace';
+  ctx.fillText('0',pad-6,h-pad+10);ctx.fillText('B_max →',pad+pw-30,h-pad+10);
+  ctx.fillText('P(W)',2,15);
+}
+
+// ══════════════════════════════════════════
+//  CORE DESIGNER
+// ══════════════════════════════════════════
+function designCore(){
+  var app=document.getElementById('d-app').value;
+  var kva=g('d-kva-sl'), eff=g('d-eff-sl')/100, mat=document.getElementById('d-mat').value, B=g('d-b-sl');
+  sv('d-kva',kva,1);sv('d-eff',eff*100,1);sv('d-b',B,2);
+  var appData={
+    xfmr50:{f:50,label:'Power Transformer 50Hz'},
+    xfmr60:{f:60,label:'Power Transformer 60Hz'},
+    motor50:{f:50,label:'Induction Motor 50Hz'},
+    motor400:{f:400,label:'Aircraft Motor 400Hz'},
+    smps:{f:100000,label:'SMPS 100kHz'}
+  };
+  var ad=appData[app];
+  var f=ad.f;
+  var m=MATS[mat]||MATS.siSteel;
+  var Pw=kva*1000;
+  // Max allowed core loss = (1-eff)*Pw (simplified, core loss ≈ 50% of total losses)
+  var maxCoreLoss=(1-eff)*Pw*0.5;
+  // Required core volume to keep loss ≤ maxCoreLoss
+  var t=m.lam/1000;
+  var Ph_per_m3=m.Kh*f*Math.pow(B,m.n);
+  var Pe_per_m3=m.Ke*f*f*B*B*t*t/m.rho;
+  var Pt_per_m3=Ph_per_m3+Pe_per_m3;
+  var V_needed=maxCoreLoss/Pt_per_m3;
+  // Actual loss at this volume
+  var V_actual=Math.min(V_needed*1.05,1);
+  var Ph=m.Kh*f*Math.pow(B,m.n)*V_actual*m.ks;
+  var Pe=m.Ke*f*f*B*B*t*t*V_actual*m.ks/m.rho;
+  var Pt=Ph+Pe;
+  var lossRatio=Pt/Pw*100;
+  var mass=V_actual*m.density*m.ks;
+
+  document.getElementById('design-results').innerHTML=
+    '<div class="cols-2" style="gap:8px;">'+
+    '<div class="rcard blue" style="margin:0;"><div class="rlabel">Total Core Loss</div><div class="rval">'+fmtW(Pt)+'</div></div>'+
+    '<div class="rcard orange" style="margin:0;"><div class="rlabel">% of Rated Power</div><div class="rval">'+lossRatio.toFixed(2)+'%</div></div>'+
+    '<div class="rcard green" style="margin:0;"><div class="rlabel">Core Volume</div><div class="rval">'+(V_actual*1e6).toFixed(0)+' cm³</div></div>'+
+    '<div class="rcard pink" style="margin:0;"><div class="rlabel">Core Mass</div><div class="rval">'+mass.toFixed(1)+' kg</div></div>'+
+    '</div>';
+
+  var phPct=Pt>0?Ph/Pt*100:0, pePct=100-phPct;
+  var rec='';
+  if(f<=60){
+    rec='<div class="info-box good"><p><strong>Recommended:</strong> '+m.name+' works well at '+f+'Hz. Hysteresis is dominant ('+phPct.toFixed(0)+'%). Grain-oriented steel optimal for transformers. Ensure B_max ≤ 1.7T to avoid saturation knee.</p></div>';
+  } else if(f<=1000){
+    rec='<div class="info-box warn"><p><strong>At '+f+'Hz:</strong> Eddy currents grow rapidly ('+pePct.toFixed(0)+'%). Consider thinner laminations (0.1–0.2mm) or switch to amorphous/nanocrystalline material. Motor designs should use NO silicon steel for isotropy.</p></div>';
+  } else {
+    rec='<div class="info-box warn"><p><strong>At '+f.toLocaleString()+'Hz:</strong> Ferrite or nanocrystalline is mandatory. Silicon steel is essentially unusable above ~5kHz. Eddy currents dominate overwhelmingly ('+pePct.toFixed(0)+'%).</p></div>';
+  }
+  rec+='<div class="info-box" style="margin-top:8px;"><p><strong>Lamination thickness check:</strong> At '+f+'Hz, skin depth in '+m.name+' ≈ '+(Math.sqrt(m.rho/(Math.PI*f*4*Math.PI*1e-7*m.mu_r))*1000).toFixed(3)+' mm. Current lam: '+m.lam+' mm — '+(m.lam/2<=Math.sqrt(m.rho/(Math.PI*f*4*Math.PI*1e-7*m.mu_r))*1000?'<strong style="color:var(--acc3)">✅ Good</strong>':'<strong style="color:#f85149">❌ Too thick — flux not fully penetrating</strong>')+'</p></div>';
+  document.getElementById('design-rec').innerHTML=rec;
+
+  // Chart
+  drawDesignChart(Ph,Pe,kva*1000,eff);
+  document.getElementById('design-notes').innerHTML=
+    '<div class="formula" style="margin-top:10px;">'+
+    '<span class="var">P_h</span> = '+fmtW(Ph)+' ('+phPct.toFixed(0)+'%)<br>'+
+    '<span class="var">P_e</span> = '+fmtW(Pe)+' ('+pePct.toFixed(0)+'%)<br>'+
+    '<span class="var">P_core</span> = '+fmtW(Pt)+' / '+kva+' kVA = '+lossRatio.toFixed(3)+'%'+
+    '</div>';
+}
+
+function drawDesignChart(Ph,Pe,Pw,eff){
+  var c=resizeCvs('design-chart');var ctx=c.getContext('2d');
+  var w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+  // Pie-style
+  var cx=w*0.35,cy=h/2,r=Math.min(h/2-20,80);
+  var copperLoss=(1-eff)*Pw*0.5;
+  var useful=Pw-Ph-Pe-copperLoss;
+  var total=Pw;
+  var segs=[
+    {val:useful,col:'rgba(57,255,20,0.7)',label:'Output'},
+    {val:Ph,col:'rgba(0,212,255,0.7)',label:'P_h'},
+    {val:Pe,col:'rgba(255,107,53,0.7)',label:'P_e'},
+    {val:copperLoss,col:'rgba(255,61,154,0.5)',label:'Copper'}
+  ];
+  var start=0;
+  segs.forEach(s=>{
+    var angle=s.val/total*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,start,start+angle);ctx.closePath();
+    ctx.fillStyle=s.col;ctx.fill();
+    ctx.strokeStyle='var(--bg)';ctx.lineWidth=2;ctx.stroke();
+    start+=angle;
+  });
+  // Legend
+  var lx=w*0.6,ly=20;
+  segs.forEach((s,i)=>{
+    ctx.fillStyle=s.col;ctx.fillRect(lx,ly+i*24,14,12);
+    ctx.fillStyle='rgba(200,216,240,0.7)';ctx.font='10px monospace';
+    ctx.fillText(s.label+': '+fmtW(s.val),lx+18,ly+i*24+10);
+  });
+  ctx.fillStyle='rgba(200,216,240,0.5)';ctx.font='9px monospace';
+  ctx.fillText('Loss Budget',cx-25,h-5);
+}
+
+// ══════════════════════════════════════════
+//  INIT — Run all on load
+// ══════════════════════════════════════════
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    updateBH(); updateEddyVis(); runSim(); calcStack(); freqSweep(); showMaterial(); designCore();
+    // Re-run after layout settles
+    setTimeout(()=>{runSim();drawMatCompare();},300);
+  },100);
+});
+window.addEventListener('resize',()=>{
+  var active=document.querySelector('.tc.active');
+  if(!active) return;
+  var id=active.id.replace('tab-','');
+  if(id==='theory'){updateBH();updateEddyVis();}
+  if(id==='sim'){runSim();}
+  if(id==='stacking'){calcStack();}
+  if(id==='freq'){freqSweep();}
+  if(id==='materials'){showMaterial();}
+  if(id==='design'){designCore();}
+});
+</script>
+</body>
+</html>
