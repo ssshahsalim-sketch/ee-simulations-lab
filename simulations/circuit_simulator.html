@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Circuit Simulator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#080c10;--bg2:#0d1218;--bg3:#111820;--panel:#0a1020;
+  --border:#1c3050;--border2:#2a4878;
+  --green:#00ff88;--blue:#00aaff;--orange:#ff8800;--red:#ff3344;--yellow:#ffdd00;--cyan:#00eeff;--pink:#ff44cc;
+  --text:#b8d4f0;--text2:#5a7a9a;--text3:#2a4060;
+  --glow-green:0 0 12px #00ff8866;--glow-blue:0 0 12px #00aaff66;--glow-orange:0 0 12px #ff880066;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Exo 2',sans-serif;}
+body{display:flex;flex-direction:column;}
+
+/* ── HEADER ── */
+.hdr{background:linear-gradient(90deg,#050a14,#0a1828,#050a14);border-bottom:1px solid var(--border2);
+  padding:0 16px;height:48px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:100;}
+.hdr-left{display:flex;align-items:center;gap:14px;}
+.logo{font-family:'Share Tech Mono',monospace;font-size:18px;color:var(--green);text-shadow:var(--glow-green);letter-spacing:.12em;}
+.logo span{color:var(--blue);text-shadow:var(--glow-blue);}
+.mode-btns{display:flex;gap:4px;}
+.mbtn{font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 10px;border:1px solid var(--border2);
+  border-radius:2px;background:transparent;color:var(--text2);cursor:pointer;letter-spacing:.06em;transition:.15s;}
+.mbtn:hover{border-color:var(--blue);color:var(--blue);}
+.mbtn.active{background:rgba(0,170,255,0.15);border-color:var(--blue);color:var(--blue);box-shadow:var(--glow-blue);}
+.hdr-right{display:flex;align-items:center;gap:8px;}
+.hbtn{font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 12px;border-radius:2px;cursor:pointer;transition:.15s;letter-spacing:.05em;}
+.hbtn-run{background:rgba(0,255,136,0.15);border:1px solid var(--green);color:var(--green);}
+.hbtn-run:hover{background:rgba(0,255,136,0.3);box-shadow:var(--glow-green);}
+.hbtn-run.running{background:rgba(0,255,136,0.25);animation:pulse-glow 1.2s ease-in-out infinite;}
+.hbtn-clear{background:rgba(255,51,68,0.1);border:1px solid var(--red);color:var(--red);}
+.hbtn-clear:hover{background:rgba(255,51,68,0.25);}
+.hbtn-del{background:rgba(255,136,0,0.1);border:1px solid var(--orange);color:var(--orange);}
+.hbtn-del:hover{background:rgba(255,136,0,0.25);}
+@keyframes pulse-glow{0%,100%{box-shadow:0 0 6px #00ff8866;}50%{box-shadow:0 0 18px #00ff88aa;}}
+
+/* ── STATUS BAR ── */
+.status-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:4px 14px;
+  display:flex;gap:16px;align-items:center;flex-shrink:0;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text2);}
+.status-item{display:flex;align-items:center;gap:5px;}
+.status-dot{width:6px;height:6px;border-radius:50%;}
+.sd-green{background:var(--green);box-shadow:var(--glow-green);}
+.sd-orange{background:var(--orange);box-shadow:var(--glow-orange);}
+.sd-red{background:var(--red);}
+.sd-gray{background:#333;}
+.status-val{color:var(--cyan);}
+
+/* ── MAIN LAYOUT ── */
+.workspace{display:flex;flex:1;overflow:hidden;}
+
+/* ── PALETTE ── */
+.palette{width:128px;background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.palette::-webkit-scrollbar{width:3px;}
+.palette::-webkit-scrollbar-thumb{background:var(--border2);}
+.pal-section{padding:8px 6px 4px;}
+.pal-title{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text3);
+  letter-spacing:.1em;text-transform:uppercase;padding:0 2px 5px;border-bottom:1px solid var(--border);}
+.comp-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 4px;
+  margin-top:4px;border:1px solid var(--border);border-radius:3px;cursor:grab;
+  background:var(--bg3);transition:.15s;user-select:none;}
+.comp-btn:hover{border-color:var(--border2);background:#131e2e;}
+.comp-btn:active{cursor:grabbing;}
+.comp-btn svg{display:block;}
+.comp-btn .cname{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);letter-spacing:.04em;}
+.comp-btn[data-type="vdc"]{border-color:rgba(255,221,0,0.3);}
+.comp-btn[data-type="vac"]{border-color:rgba(0,238,255,0.3);}
+.comp-btn[data-type="r"]{border-color:rgba(255,136,0,0.3);}
+.comp-btn[data-type="l"]{border-color:rgba(0,170,255,0.3);}
+.comp-btn[data-type="c"]{border-color:rgba(0,255,136,0.3);}
+.comp-btn[data-type="wire"]{border-color:rgba(180,200,220,0.25);}
+.comp-btn[data-type="gnd"]{border-color:rgba(180,180,180,0.25);}
+.comp-btn[data-type="vmeter"]{border-color:rgba(255,68,204,0.35);}
+.comp-btn[data-type="ameter"]{border-color:rgba(0,255,136,0.35);}
+
+/* ── CANVAS AREA ── */
+.canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg);}
+#cvs{display:block;cursor:crosshair;}
+/* grid pattern */
+.canvas-wrap::before{content:'';position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(44,78,120,0.4) 1px,transparent 1px);
+  background-size:20px 20px;pointer-events:none;}
+
+/* ── PROPERTIES ── */
+.props{width:220px;background:var(--panel);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.props::-webkit-scrollbar{width:3px;}
+.props::-webkit-scrollbar-thumb{background:var(--border2);}
+.props-section{padding:10px 10px 6px;border-bottom:1px solid var(--border);}
+.props-title{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text3);
+  letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;}
+.prop-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.prop-row label{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text2);}
+.prop-row input,.prop-row select{
+  background:var(--bg2);color:var(--cyan);border:1px solid var(--border2);
+  border-radius:2px;padding:3px 6px;font-family:'Share Tech Mono',monospace;font-size:10px;
+  width:100px;outline:none;transition:.15s;}
+.prop-row input:focus,.prop-row select:focus{border-color:var(--blue);box-shadow:0 0 6px #00aaff44;}
+.prop-row select{cursor:pointer;}
+
+/* result cards */
+.rcard{background:var(--bg2);border-radius:3px;padding:8px 10px;margin-bottom:6px;border-left:3px solid;}
+.rcard.v{border-color:var(--pink);}
+.rcard.i{border-color:var(--green);}
+.rcard.p{border-color:var(--orange);}
+.rcard.z{border-color:var(--blue);}
+.rcard.ph{border-color:var(--cyan);}
+.rcard-lbl{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);letter-spacing:.07em;}
+.rcard-val{font-family:'Share Tech Mono',monospace;font-size:14px;margin-top:2px;}
+.rcard.v .rcard-val{color:var(--pink);}
+.rcard.i .rcard-val{color:var(--green);}
+.rcard.p .rcard-val{color:var(--orange);}
+.rcard.z .rcard-val{color:var(--blue);}
+.rcard.ph .rcard-val{color:var(--cyan);}
+.rcard-sub{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text3);margin-top:1px;}
+
+/* analysis table */
+.atbl{width:100%;border-collapse:collapse;font-family:'Share Tech Mono',monospace;font-size:9px;}
+.atbl th{color:var(--text3);padding:3px 5px;text-align:left;border-bottom:1px solid var(--border);}
+.atbl td{color:var(--text);padding:3px 5px;border-bottom:1px solid rgba(28,48,80,0.4);}
+.atbl tr:hover td{background:rgba(0,170,255,0.05);}
+
+/* info box */
+.info-msg{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text3);
+  padding:8px;text-align:center;line-height:1.8;}
+.warn-msg{color:var(--orange);font-family:'Share Tech Mono',monospace;font-size:9px;padding:6px 8px;
+  background:rgba(255,136,0,0.08);border:1px solid rgba(255,136,0,0.3);border-radius:2px;margin:6px;}
+.ok-msg{color:var(--green);font-family:'Share Tech Mono',monospace;font-size:9px;padding:6px 8px;
+  background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.25);border-radius:2px;margin:6px;}
+
+/* rotate btn */
+.rbtn{font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 10px;
+  border:1px solid var(--border2);border-radius:2px;background:var(--bg2);
+  color:var(--text2);cursor:pointer;width:100%;margin-top:4px;transition:.15s;}
+.rbtn:hover{border-color:var(--blue);color:var(--blue);}
+
+/* wire mode indicator */
+.wire-indicator{position:absolute;top:8px;left:50%;transform:translateX(-50%);
+  background:rgba(0,238,255,0.15);border:1px solid var(--cyan);
+  font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);
+  padding:5px 14px;border-radius:2px;pointer-events:none;display:none;z-index:50;
+  box-shadow:0 0 16px #00eeff44;}
+
+/* tooltip */
+#tip{position:fixed;background:#0a1828;border:1px solid var(--border2);
+  font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text);
+  padding:4px 8px;border-radius:2px;pointer-events:none;display:none;z-index:999;}
+
+/* phasor canvas */
+.phasor-wrap{padding:8px;}
+#phasor-cvs{display:block;margin:0 auto;}
+
+/* waveform */
+.wave-wrap{padding:8px;}
+#wave-cvs{display:block;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-left">
+    <div class="logo">⚡ CIRCUIT<span>SIM</span></div>
+    <div class="mode-btns">
+      <button class="mbtn active" id="btn-dc" onclick="setMode('DC')">DC</button>
+      <button class="mbtn" id="btn-ac" onclick="setMode('AC')">AC</button>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <button class="hbtn hbtn-run" id="run-btn" onclick="toggleRun()">▶ ANALYSE</button>
+    <button class="hbtn hbtn-del" onclick="deleteSelected()">✕ DELETE</button>
+    <button class="hbtn hbtn-clear" onclick="clearAll()">⬛ CLEAR</button>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="status-item"><div class="status-dot sd-gray" id="sim-dot"></div><span id="sim-status">IDLE</span></div>
+  <div class="status-item">COMPS: <span class="status-val" id="st-comps">0</span></div>
+  <div class="status-item">WIRES: <span class="status-val" id="st-wires">0</span></div>
+  <div class="status-item">MODE: <span class="status-val" id="st-mode">DC</span></div>
+  <div class="status-item" id="st-freq-wrap" style="display:none">FREQ: <span class="status-val" id="st-freq">50 Hz</span></div>
+  <div class="status-item" style="margin-left:auto;font-size:9px;color:var(--text3)">
+    DRAG to place · Click to select · W=Wire · DEL=Delete · R=Rotate · ESC=Cancel
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="workspace">
+
+<!-- PALETTE -->
+<div class="palette">
+  <div class="pal-section">
+    <div class="pal-title">Sources</div>
+    <div class="comp-btn" data-type="vdc" draggable="true" title="DC Voltage Source">
+      <svg width="50" height="36" viewBox="0 0 50 36">
+        <line x1="5" y1="18" x2="16" y2="18" stroke="#ffdd00" stroke-width="1.5"/>
+        <circle cx="25" cy="18" r="11" fill="none" stroke="#ffdd00" stroke-width="1.5"/>
+        <line x1="21" y1="14" x2="21" y2="22" stroke="#ffdd00" stroke-width="1.5"/>
+        <line x1="18" y1="18" x2="24" y2="18" stroke="#ffdd00" stroke-width="1.5"/>
+        <line x1="27" y1="18" x2="30" y2="18" stroke="#555" stroke-width="1.5"/>
+        <line x1="34" y1="18" x2="45" y2="18" stroke="#ffdd00" stroke-width="1.5"/>
+        <text x="25" y="34" font-size="7" fill="#888" font-family="monospace" text-anchor="middle">+/-</text>
+      </svg>
+      <div class="cname">DC SOURCE</div>
+    </div>
+    <div class="comp-btn" data-type="vac" draggable="true" title="AC Voltage Source">
+      <svg width="50" height="36" viewBox="0 0 50 36">
+        <line x1="5" y1="18" x2="14" y2="18" stroke="#00eeff" stroke-width="1.5"/>
+        <circle cx="25" cy="18" r="11" fill="none" stroke="#00eeff" stroke-width="1.5"/>
+        <path d="M17,18 Q19,11 21,18 Q23,25 25,18 Q27,11 29,18 Q31,25 33,18" fill="none" stroke="#00eeff" stroke-width="1.2"/>
+        <line x1="36" y1="18" x2="45" y2="18" stroke="#00eeff" stroke-width="1.5"/>
+        <text x="25" y="34" font-size="7" fill="#888" font-family="monospace" text-anchor="middle">~</text>
+      </svg>
+      <div class="cname">AC SOURCE</div>
+    </div>
+  </div>
+
+  <div class="pal-section">
+    <div class="pal-title">Components</div>
+    <div class="comp-btn" data-type="r" draggable="true" title="Resistor">
+      <svg width="50" height="32" viewBox="0 0 50 32">
+        <line x1="2" y1="16" x2="10" y2="16" stroke="#ff8800" stroke-width="1.5"/>
+        <rect x="10" y="9" width="30" height="14" fill="none" stroke="#ff8800" stroke-width="1.5" rx="2"/>
+        <polyline points="14,16 17,9 20,23 23,9 26,23 29,9 32,23 35,16" fill="none" stroke="#ff8800" stroke-width="1.2"/>
+        <line x1="40" y1="16" x2="48" y2="16" stroke="#ff8800" stroke-width="1.5"/>
+      </svg>
+      <div class="cname">RESISTOR</div>
+    </div>
+    <div class="comp-btn" data-type="l" draggable="true" title="Inductor">
+      <svg width="50" height="32" viewBox="0 0 50 32">
+        <line x1="2" y1="16" x2="10" y2="16" stroke="#00aaff" stroke-width="1.5"/>
+        <path d="M10,16 Q13,6 16,16 Q19,6 22,16 Q25,6 28,16 Q31,6 34,16 Q37,6 40,16" fill="none" stroke="#00aaff" stroke-width="1.5"/>
+        <line x1="40" y1="16" x2="48" y2="16" stroke="#00aaff" stroke-width="1.5"/>
+      </svg>
+      <div class="cname">INDUCTOR</div>
+    </div>
+    <div class="comp-btn" data-type="c" draggable="true" title="Capacitor">
+      <svg width="50" height="32" viewBox="0 0 50 32">
+        <line x1="2" y1="16" x2="22" y2="16" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="22" y1="6" x2="22" y2="26" stroke="#00ff88" stroke-width="2.5"/>
+        <line x1="28" y1="6" x2="28" y2="26" stroke="#00ff88" stroke-width="2.5"/>
+        <line x1="28" y1="16" x2="48" y2="16" stroke="#00ff88" stroke-width="1.5"/>
+      </svg>
+      <div class="cname">CAPACITOR</div>
+    </div>
+    <div class="comp-btn" data-type="gnd" draggable="true" title="Ground">
+      <svg width="50" height="32" viewBox="0 0 50 32">
+        <line x1="25" y1="4" x2="25" y2="14" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="12" y1="14" x2="38" y2="14" stroke="#aaa" stroke-width="2"/>
+        <line x1="17" y1="19" x2="33" y2="19" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="21" y1="24" x2="29" y2="24" stroke="#aaa" stroke-width="1"/>
+      </svg>
+      <div class="cname">GROUND</div>
+    </div>
+  </div>
+
+  <div class="pal-section">
+    <div class="pal-title">Meters</div>
+    <div class="comp-btn" data-type="vmeter" draggable="true" title="Voltmeter">
+      <svg width="50" height="36" viewBox="0 0 50 36">
+        <line x1="2" y1="18" x2="13" y2="18" stroke="#ff44cc" stroke-width="1.5"/>
+        <circle cx="25" cy="18" r="11" fill="none" stroke="#ff44cc" stroke-width="1.5"/>
+        <text x="25" y="22" font-size="10" fill="#ff44cc" font-family="monospace" text-anchor="middle" font-weight="bold">V</text>
+        <line x1="37" y1="18" x2="48" y2="18" stroke="#ff44cc" stroke-width="1.5"/>
+      </svg>
+      <div class="cname">VOLTMETER</div>
+    </div>
+    <div class="comp-btn" data-type="ameter" draggable="true" title="Ammeter">
+      <svg width="50" height="36" viewBox="0 0 50 36">
+        <line x1="2" y1="18" x2="13" y2="18" stroke="#00ff88" stroke-width="1.5"/>
+        <circle cx="25" cy="18" r="11" fill="none" stroke="#00ff88" stroke-width="1.5"/>
+        <text x="25" y="22" font-size="10" fill="#00ff88" font-family="monospace" text-anchor="middle" font-weight="bold">A</text>
+        <line x1="37" y1="18" x2="48" y2="18" stroke="#00ff88" stroke-width="1.5"/>
+      </svg>
+      <div class="cname">AMMETER</div>
+    </div>
+  </div>
+
+  <div class="pal-section">
+    <div class="pal-title">Tools</div>
+    <div class="comp-btn" data-type="wire" title="Wire Tool (W)" onclick="activateWireTool()">
+      <svg width="50" height="24" viewBox="0 0 50 24">
+        <line x1="2" y1="12" x2="48" y2="12" stroke="#b8d4f0" stroke-width="2" stroke-dasharray="4 2"/>
+        <circle cx="2" cy="12" r="3" fill="#00eeff"/>
+        <circle cx="48" cy="12" r="3" fill="#00eeff"/>
+      </svg>
+      <div class="cname">WIRE [W]</div>
+    </div>
+  </div>
+</div>
+
+<!-- CANVAS -->
+<div class="canvas-wrap" id="canvas-wrap">
+  <canvas id="cvs"></canvas>
+  <div class="wire-indicator" id="wire-ind">● WIRE MODE — Click terminal to start</div>
+</div>
+
+<!-- PROPERTIES -->
+<div class="props">
+  <div class="props-section" id="sel-props">
+    <div class="props-title">Properties</div>
+    <div class="info-msg">Click a component<br>to edit its values</div>
+  </div>
+
+  <div class="props-section">
+    <div class="props-title">Analysis Results</div>
+    <div id="analysis-out">
+      <div class="info-msg">Press ▶ ANALYSE<br>to run circuit analysis</div>
+    </div>
+  </div>
+
+  <div class="props-section" id="ac-section" style="display:none">
+    <div class="props-title">AC Settings</div>
+    <div class="prop-row">
+      <label>Freq (Hz)</label>
+      <input type="number" id="ac-freq" value="50" min="0.1" max="1000000" step="1" onchange="runAnalysis()">
+    </div>
+    <div class="phasor-wrap">
+      <div class="props-title" style="margin-bottom:4px">Phasor Diagram</div>
+      <canvas id="phasor-cvs" width="196" height="120"></canvas>
+    </div>
+    <div class="wave-wrap">
+      <div class="props-title" style="margin-bottom:4px">Waveform Preview</div>
+      <canvas id="wave-cvs" width="196" height="80"></canvas>
+    </div>
+  </div>
+
+  <div class="props-section">
+    <div class="props-title">Component Table</div>
+    <div style="overflow-x:auto;" id="comp-table-wrap">
+      <div class="info-msg">No components</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- workspace -->
+<div id="tip"></div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+var cvs = document.getElementById('cvs');
+var ctx = cvs.getContext('2d');
+var wrap = document.getElementById('canvas-wrap');
+
+var STATE = {
+  mode: 'DC',       // DC | AC
+  running: false,
+  wireMode: false,
+  dragType: null,   // type being dragged from palette
+  selected: null,   // selected component id
+  wireStart: null,  // {compId, terminal} when drawing wire
+  wirePreview: null,// current mouse pos for wire preview
+  panX: 0, panY: 0,
+  zoom: 1,
+  draggingComp: null,
+  dragOffX: 0, dragOffY: 0,
+  nextId: 1
+};
+
+var components = [];
+var wires = [];
+
+// ═══════════════════════════════════════════════════════
+//  COMPONENT DEFINITIONS
+// ═══════════════════════════════════════════════════════
+var COMP_COLORS = {
+  vdc:'#ffdd00', vac:'#00eeff', r:'#ff8800', l:'#00aaff',
+  c:'#00ff88', gnd:'#aaaaaa', vmeter:'#ff44cc', ameter:'#00ff88', wire:'#b8d4f0'
+};
+var COMP_W = 80, COMP_H = 40; // default size
+
+function makeComp(type, x, y) {
+  var defaults = {
+    vdc: {label:'VS1', value:12, unit:'V', props:{voltage:12}},
+    vac: {label:'VS1', value:120, unit:'V', props:{voltage:120, freq:50, phase:0}},
+    r:   {label:'R1',  value:1000, unit:'Ω', props:{resistance:1000}},
+    l:   {label:'L1',  value:10, unit:'mH', props:{inductance:0.01}},
+    c:   {label:'C1',  value:100, unit:'μF', props:{capacitance:0.0001}},
+    gnd: {label:'GND', value:0, unit:'', props:{}},
+    vmeter:{label:'VM1',value:0, unit:'V', props:{}},
+    ameter:{label:'AM1',value:0, unit:'A', props:{}},
+  };
+  var d = defaults[type] || {label:'X', value:0, unit:'', props:{}};
+  // count existing of same type
+  var cnt = components.filter(c=>c.type===type).length + 1;
+  var lbl = d.label.replace(/\d+$/, '') + cnt;
+  return {
+    id: STATE.nextId++,
+    type: type,
+    x: snap(x - COMP_W/2),
+    y: snap(y - COMP_H/2),
+    w: type==='gnd'?40:COMP_W,
+    h: type==='gnd'?36:COMP_H,
+    angle: 0, // 0=horizontal, 90=vertical
+    label: lbl,
+    value: d.value,
+    unit: d.unit,
+    props: Object.assign({}, d.props),
+    // Analysis results
+    result: {V:null, I:null, P:null, Z:null, phase:null}
+  };
+}
+
+// Terminal positions relative to component center
+function getTerminals(comp) {
+  var cx = comp.x + comp.w/2;
+  var cy = comp.y + comp.h/2;
+  if (comp.type === 'gnd') {
+    return [{id:'p', x:cx, y:comp.y, label:'GND'}];
+  }
+  if (comp.angle === 0) {
+    return [
+      {id:'p', x:comp.x,        y:cy, label:'+'},
+      {id:'n', x:comp.x+comp.w, y:cy, label:'-'}
+    ];
+  } else {
+    return [
+      {id:'p', x:cx, y:comp.y,        label:'+'},
+      {id:'n', x:cx, y:comp.y+comp.h, label:'-'}
+    ];
+  }
+}
+
+function snap(v) { return Math.round(v / 20) * 20; }
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS RESIZE
+// ═══════════════════════════════════════════════════════
+function resizeCvs() {
+  cvs.width  = wrap.clientWidth;
+  cvs.height = wrap.clientHeight;
+  draw();
+}
+window.addEventListener('resize', resizeCvs);
+
+// ═══════════════════════════════════════════════════════
+//  COORDINATE UTILS
+// ═══════════════════════════════════════════════════════
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - STATE.panX) / STATE.zoom,
+    y: (sy - STATE.panY) / STATE.zoom
+  };
+}
+function worldToScreen(wx, wy) {
+  return {
+    x: wx * STATE.zoom + STATE.panX,
+    y: wy * STATE.zoom + STATE.panY
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+//  DRAW ENGINE
+// ═══════════════════════════════════════════════════════
+function draw() {
+  var W = cvs.width, H = cvs.height;
+  ctx.clearRect(0,0,W,H);
+
+  ctx.save();
+  ctx.translate(STATE.panX, STATE.panY);
+  ctx.scale(STATE.zoom, STATE.zoom);
+
+  // Draw wires
+  wires.forEach(w => drawWire(w));
+
+  // Wire preview
+  if (STATE.wireMode && STATE.wireStart && STATE.wirePreview) {
+    var sp = getTerminalPos(STATE.wireStart.compId, STATE.wireStart.terminal);
+    if (sp) {
+      ctx.save();
+      ctx.strokeStyle = '#00eeff';
+      ctx.lineWidth = 2 / STATE.zoom;
+      ctx.setLineDash([5/STATE.zoom, 3/STATE.zoom]);
+      ctx.shadowColor = '#00eeff';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(sp.x, sp.y);
+      // Route wire: horizontal then vertical
+      ctx.lineTo(STATE.wirePreview.x, sp.y);
+      ctx.lineTo(STATE.wirePreview.x, STATE.wirePreview.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // Draw components
+  components.forEach(c => drawComp(c));
+
+  ctx.restore();
+}
+
+function drawWire(w) {
+  var p1 = getTerminalPos(w.c1, w.t1);
+  var p2 = getTerminalPos(w.c2, w.t2);
+  if (!p1 || !p2) return;
+
+  var isLive = STATE.running && w.live;
+  var col = isLive ? '#00ff88' : '#3a6090';
+  var lw  = isLive ? 2.5 : 1.5;
+
+  ctx.save();
+  ctx.strokeStyle = col;
+  ctx.lineWidth = lw / STATE.zoom;
+  if (isLive) {
+    ctx.shadowColor = col;
+    ctx.shadowBlur  = 8;
+  }
+
+  // Find mid-points for routing
+  var mx = p2.x, my = p1.y; // L-shape
+
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(mx, my);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.stroke();
+
+  // Junction dots
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.arc(p1.x, p1.y, 3/STATE.zoom, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(p2.x, p2.y, 3/STATE.zoom, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawComp(c) {
+  var isSelected = (c.id === STATE.selected);
+  var col = COMP_COLORS[c.type] || '#aaa';
+  var cx = c.x + c.w/2, cy = c.y + c.h/2;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (c.angle === 90) ctx.rotate(Math.PI/2);
+
+  var hw = c.w/2, hh = c.h/2;
+
+  // Selection glow
+  if (isSelected) {
+    ctx.shadowColor = col; ctx.shadowBlur = 16;
+  }
+
+  // Background pill
+  if (c.type !== 'gnd') {
+    ctx.fillStyle = 'rgba(10,16,32,0.85)';
+    ctx.strokeStyle = isSelected ? col : 'rgba(60,90,130,0.6)';
+    ctx.lineWidth = isSelected ? 1.5/STATE.zoom : 0.8/STATE.zoom;
+    roundRect(ctx, -hw, -hh, c.w, c.h, 4);
+    ctx.fill(); ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+
+  // Draw symbol
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.8 / STATE.zoom;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  switch(c.type) {
+    case 'vdc': drawSymVDC(ctx, hw, hh, col); break;
+    case 'vac': drawSymVAC(ctx, hw, hh, col); break;
+    case 'r':   drawSymR(ctx, hw, hh, col);   break;
+    case 'l':   drawSymL(ctx, hw, hh, col);   break;
+    case 'c':   drawSymC(ctx, hw, hh, col);   break;
+    case 'gnd': drawSymGND(ctx, hh, col);     break;
+    case 'vmeter': drawSymMeter(ctx, hw, hh, col, 'V'); break;
+    case 'ameter': drawSymMeter(ctx, hw, hh, col, 'A'); break;
+  }
+
+  // Label + value
+  if (c.type !== 'gnd') {
+    ctx.fillStyle = col;
+    ctx.font = `bold ${10/STATE.zoom}px Share Tech Mono,monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(c.label, 0, -hh - 6/STATE.zoom);
+    ctx.fillStyle = 'rgba(180,200,220,0.7)';
+    ctx.font = `${9/STATE.zoom}px Share Tech Mono,monospace`;
+    var valStr = formatValue(c);
+    ctx.fillText(valStr, 0, hh + 12/STATE.zoom);
+  }
+
+  // Result overlay
+  if (STATE.running && c.result.V !== null && c.type !== 'gnd') {
+    ctx.fillStyle = 'rgba(0,255,136,0.85)';
+    ctx.font = `bold ${8/STATE.zoom}px Share Tech Mono,monospace`;
+    ctx.textAlign = 'center';
+    var resStr = '';
+    if (c.result.I !== null) resStr = fmtNum(c.result.I)+'A';
+    ctx.fillText(resStr, 0, 2/STATE.zoom);
+  }
+
+  ctx.restore();
+
+  // Draw terminals
+  var terms = getTerminals(c);
+  terms.forEach(t => {
+    var isWireStart = STATE.wireStart && STATE.wireStart.compId === c.id && STATE.wireStart.terminal === t.id;
+    ctx.save();
+    ctx.fillStyle = isWireStart ? '#00eeff' : 'rgba(0,170,255,0.6)';
+    if (isWireStart) { ctx.shadowColor='#00eeff'; ctx.shadowBlur=10; }
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, 4/STATE.zoom, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+// Symbol drawing functions
+function drawSymVDC(ctx, hw, hh, col) {
+  ctx.beginPath();
+  ctx.moveTo(-hw, 0); ctx.lineTo(-hw*0.5, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, hw*0.5, 0, Math.PI*2);
+  ctx.strokeStyle = col; ctx.stroke();
+  // + and - lines
+  ctx.lineWidth *= 1.5;
+  ctx.beginPath(); ctx.moveTo(-hw*0.22, -6); ctx.lineTo(-hw*0.22, 6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-hw*0.22-5, 0); ctx.lineTo(-hw*0.22+5, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hw*0.22-4, 0); ctx.lineTo(hw*0.22+4, 0); ctx.stroke();
+  ctx.lineWidth /= 1.5;
+  ctx.beginPath(); ctx.moveTo(hw*0.5, 0); ctx.lineTo(hw, 0); ctx.stroke();
+}
+function drawSymVAC(ctx, hw, hh, col) {
+  ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.lineTo(-hw*0.5, 0); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, hw*0.5, 0, Math.PI*2); ctx.stroke();
+  // sine wave
+  ctx.beginPath();
+  for (var i = 0; i <= 30; i++) {
+    var t2 = i/30, x2 = (t2-0.5)*hw*0.7;
+    var y2 = -Math.sin(t2*Math.PI*2)*8;
+    i ? ctx.lineTo(x2,y2) : ctx.moveTo(x2,y2);
+  }
+  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hw*0.5, 0); ctx.lineTo(hw, 0); ctx.stroke();
+}
+function drawSymR(ctx, hw, hh, col) {
+  ctx.beginPath(); ctx.moveTo(-hw,0); ctx.lineTo(-hw*0.55,0); ctx.stroke();
+  ctx.strokeRect(-hw*0.55, -hh*0.5, hw*1.1, hh);
+  // zigzag
+  var pts=[[-hw*0.45,0],[-hw*0.32,-hh*0.45],[-hw*0.19,hh*0.45],[-hw*0.06,-hh*0.45],
+           [hw*0.07,hh*0.45],[hw*0.2,-hh*0.45],[hw*0.33,hh*0.45],[hw*0.45,0]];
+  ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+  pts.forEach(p=>ctx.lineTo(p[0],p[1])); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hw*0.55,0); ctx.lineTo(hw,0); ctx.stroke();
+}
+function drawSymL(ctx, hw, hh, col) {
+  ctx.beginPath(); ctx.moveTo(-hw,0); ctx.lineTo(-hw*0.6,0); ctx.stroke();
+  var arcs=5, aw=(hw*1.2)/arcs, start=-hw*0.6;
+  ctx.beginPath(); ctx.moveTo(start,0);
+  for(var i=0;i<arcs;i++) ctx.arc(start+aw*(i+0.5), 0, aw/2, Math.PI, 0);
+  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hw*0.6,0); ctx.lineTo(hw,0); ctx.stroke();
+}
+function drawSymC(ctx, hw, hh, col) {
+  ctx.beginPath(); ctx.moveTo(-hw,0); ctx.lineTo(-4,0); ctx.stroke();
+  ctx.lineWidth *= 2;
+  ctx.beginPath(); ctx.moveTo(-4,-hh*0.7); ctx.lineTo(-4,hh*0.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4,-hh*0.7); ctx.lineTo(4,hh*0.7); ctx.stroke();
+  ctx.lineWidth /= 2;
+  ctx.beginPath(); ctx.moveTo(4,0); ctx.lineTo(hw,0); ctx.stroke();
+}
+function drawSymGND(ctx, hh, col) {
+  ctx.beginPath(); ctx.moveTo(0,-hh); ctx.lineTo(0,0); ctx.stroke();
+  ctx.lineWidth *= 1.5;
+  ctx.beginPath(); ctx.moveTo(-16,0); ctx.lineTo(16,0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-11,6); ctx.lineTo(11,6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-6,12); ctx.lineTo(6,12); ctx.stroke();
+  ctx.lineWidth /= 1.5;
+}
+function drawSymMeter(ctx, hw, hh, col, letter) {
+  ctx.beginPath(); ctx.moveTo(-hw,0); ctx.lineTo(-hw*0.55,0); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,0,hw*0.55,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.font = `bold ${14/STATE.zoom}px Share Tech Mono,monospace`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(letter,0,1/STATE.zoom);
+  ctx.textBaseline='alphabetic';
+  ctx.beginPath(); ctx.moveTo(hw*0.55,0); ctx.lineTo(hw,0); ctx.stroke();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+function getTerminalPos(compId, termId) {
+  var c = components.find(c=>c.id===compId);
+  if (!c) return null;
+  var terms = getTerminals(c);
+  var t = terms.find(t=>t.id===termId);
+  return t ? {x:t.x, y:t.y} : null;
+}
+
+function formatValue(c) {
+  switch(c.type) {
+    case 'vdc': return c.props.voltage+'V DC';
+    case 'vac': return c.props.voltage+'V AC';
+    case 'r':   return fmtR(c.props.resistance);
+    case 'l':   return fmtL(c.props.inductance);
+    case 'c':   return fmtC(c.props.capacitance);
+    case 'vmeter': return c.result.V!==null ? fmtNum(c.result.V)+'V':'—';
+    case 'ameter': return c.result.I!==null ? fmtNum(c.result.I)+'A':'—';
+    default: return '';
+  }
+}
+function fmtR(v){
+  if(v>=1e6) return (v/1e6).toFixed(2)+'MΩ';
+  if(v>=1e3) return (v/1e3).toFixed(2)+'kΩ';
+  return v.toFixed(1)+'Ω';
+}
+function fmtL(v){
+  if(v>=1) return v.toFixed(2)+'H';
+  if(v>=1e-3) return (v*1e3).toFixed(1)+'mH';
+  return (v*1e6).toFixed(0)+'μH';
+}
+function fmtC(v){
+  if(v>=1e-3) return (v*1e3).toFixed(2)+'mF';
+  if(v>=1e-6) return (v*1e6).toFixed(1)+'μF';
+  return (v*1e9).toFixed(0)+'nF';
+}
+function fmtNum(v){
+  if(v===null||v===undefined||isNaN(v)) return '—';
+  var av=Math.abs(v);
+  if(av===0) return '0';
+  if(av>=1e6) return (v/1e6).toFixed(3)+'M';
+  if(av>=1e3) return (v/1e3).toFixed(3)+'k';
+  if(av>=1)   return v.toFixed(3);
+  if(av>=1e-3)return (v*1e3).toFixed(2)+'m';
+  if(av>=1e-6)return (v*1e6).toFixed(2)+'μ';
+  return (v*1e9).toFixed(2)+'n';
+}
+
+// ═══════════════════════════════════════════════════════
+//  HIT TESTING
+// ═══════════════════════════════════════════════════════
+function hitComp(wx, wy) {
+  for (var i = components.length-1; i >= 0; i--) {
+    var c = components[i];
+    var pad = 6;
+    if (wx >= c.x-pad && wx <= c.x+c.w+pad &&
+        wy >= c.y-pad && wy <= c.y+c.h+pad) return c;
+  }
+  return null;
+}
+
+function hitTerminal(wx, wy, radius) {
+  radius = radius || 12;
+  for (var i = components.length-1; i >= 0; i--) {
+    var terms = getTerminals(components[i]);
+    for (var j = 0; j < terms.length; j++) {
+      var t = terms[j];
+      var dx = wx - t.x, dy = wy - t.y;
+      if (Math.sqrt(dx*dx+dy*dy) <= radius) {
+        return {compId: components[i].id, terminal: t.id, x: t.x, y: t.y};
+      }
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  MOUSE / TOUCH EVENTS
+// ═══════════════════════════════════════════════════════
+var isPanning = false, panStartX=0, panStartY=0, panStartPX=0, panStartPY=0;
+
+cvs.addEventListener('mousedown', function(e) {
+  e.preventDefault();
+  var rect = cvs.getBoundingClientRect();
+  var sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  var w = screenToWorld(sx, sy);
+
+  if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    isPanning = true;
+    panStartX = sx; panStartY = sy;
+    panStartPX = STATE.panX; panStartPY = STATE.panY;
+    cvs.style.cursor = 'grabbing';
+    return;
+  }
+
+  if (STATE.wireMode) {
+    var term = hitTerminal(w.x, w.y);
+    if (term) {
+      if (!STATE.wireStart) {
+        STATE.wireStart = term;
+      } else {
+        // Complete wire
+        if (term.compId !== STATE.wireStart.compId) {
+          // Check no duplicate
+          var exists = wires.find(wr =>
+            (wr.c1===STATE.wireStart.compId && wr.t1===STATE.wireStart.terminal &&
+             wr.c2===term.compId && wr.t2===term.terminal) ||
+            (wr.c2===STATE.wireStart.compId && wr.t2===STATE.wireStart.terminal &&
+             wr.c1===term.compId && wr.t1===term.terminal));
+          if (!exists) {
+            wires.push({c1:STATE.wireStart.compId, t1:STATE.wireStart.terminal,
+                        c2:term.compId, t2:term.terminal, live:false});
+          }
+        }
+        STATE.wireStart = null;
+        STATE.wirePreview = null;
+      }
+    }
+    updateStatus();
+    draw();
+    return;
+  }
+
+  // Select / drag
+  var comp = hitComp(w.x, w.y);
+  if (comp) {
+    STATE.selected = comp.id;
+    STATE.draggingComp = comp;
+    STATE.dragOffX = w.x - comp.x;
+    STATE.dragOffY = w.y - comp.y;
+    showProps(comp);
+  } else {
+    STATE.selected = null;
+    clearProps();
+  }
+  draw();
+});
+
+cvs.addEventListener('mousemove', function(e) {
+  var rect = cvs.getBoundingClientRect();
+  var sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  var w = screenToWorld(sx, sy);
+
+  if (isPanning) {
+    STATE.panX = panStartPX + (sx - panStartX);
+    STATE.panY = panStartPY + (sy - panStartY);
+    draw(); return;
+  }
+
+  if (STATE.wireMode && STATE.wireStart) {
+    STATE.wirePreview = {x: snap(w.x), y: snap(w.y)};
+    draw(); return;
+  }
+
+  if (STATE.draggingComp) {
+    STATE.draggingComp.x = snap(w.x - STATE.dragOffX);
+    STATE.draggingComp.y = snap(w.y - STATE.dragOffY);
+    draw(); return;
+  }
+
+  // Hover cursor
+  var term = hitTerminal(w.x, w.y, 14);
+  var comp = hitComp(w.x, w.y);
+  if (STATE.wireMode) {
+    cvs.style.cursor = term ? 'crosshair' : 'default';
+  } else {
+    cvs.style.cursor = comp ? 'move' : 'default';
+  }
+});
+
+cvs.addEventListener('mouseup', function(e) {
+  if (isPanning) { isPanning = false; cvs.style.cursor='crosshair'; }
+  STATE.draggingComp = null;
+  if (STATE.running) runAnalysis();
+});
+
+// Drag from palette
+cvs.addEventListener('dragover', e => e.preventDefault());
+cvs.addEventListener('drop', function(e) {
+  e.preventDefault();
+  var type = e.dataTransfer.getData('compType');
+  if (!type) return;
+  var rect = cvs.getBoundingClientRect();
+  var sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  var w = screenToWorld(sx, sy);
+  var comp = makeComp(type, w.x, w.y);
+  components.push(comp);
+  STATE.selected = comp.id;
+  showProps(comp);
+  updateStatus();
+  draw();
+});
+
+document.querySelectorAll('.comp-btn[draggable]').forEach(btn => {
+  btn.addEventListener('dragstart', function(e) {
+    e.dataTransfer.setData('compType', this.dataset.type);
+  });
+});
+
+// Mouse wheel zoom
+cvs.addEventListener('wheel', function(e) {
+  e.preventDefault();
+  var rect = cvs.getBoundingClientRect();
+  var sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  var zf = e.deltaY < 0 ? 1.1 : 0.9;
+  var newZoom = Math.max(0.3, Math.min(3, STATE.zoom * zf));
+  STATE.panX = sx - (sx - STATE.panX) * (newZoom/STATE.zoom);
+  STATE.panY = sy - (sy - STATE.panY) * (newZoom/STATE.zoom);
+  STATE.zoom = newZoom;
+  draw();
+}, {passive:false});
+
+// Keyboard
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName==='INPUT') return;
+  if (e.key === 'w' || e.key === 'W') { activateWireTool(); return; }
+  if (e.key === 'Escape') { deactivateWireTool(); STATE.selected=null; clearProps(); draw(); }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && STATE.selected) { deleteSelected(); }
+  if (e.key === 'r' || e.key === 'R') { rotateSelected(); }
+});
+
+// ═══════════════════════════════════════════════════════
+//  WIRE TOOL
+// ═══════════════════════════════════════════════════════
+function activateWireTool() {
+  STATE.wireMode = true;
+  STATE.wireStart = null;
+  document.getElementById('wire-ind').style.display = 'block';
+  cvs.style.cursor = 'crosshair';
+}
+function deactivateWireTool() {
+  STATE.wireMode = false;
+  STATE.wireStart = null;
+  STATE.wirePreview = null;
+  document.getElementById('wire-ind').style.display = 'none';
+  cvs.style.cursor = 'crosshair';
+  draw();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PROPERTIES PANEL
+// ═══════════════════════════════════════════════════════
+function showProps(comp) {
+  var el = document.getElementById('sel-props');
+  var col = COMP_COLORS[comp.type] || '#aaa';
+  var html = `<div class="props-title" style="color:${col}">${comp.type.toUpperCase()} — ${comp.label}</div>`;
+
+  html += `<div class="prop-row"><label>Label</label>
+    <input type="text" value="${comp.label}" onchange="updateProp('label',this.value,'${comp.id}')"></div>`;
+
+  switch(comp.type) {
+    case 'vdc':
+      html += propRow('Voltage (V)', comp.props.voltage, 'propNum', comp.id, 'voltage');
+      break;
+    case 'vac':
+      html += propRow('Voltage (V)', comp.props.voltage, 'propNum', comp.id, 'voltage');
+      html += propRow('Phase (°)', comp.props.phase||0, 'propNum', comp.id, 'phase');
+      break;
+    case 'r':
+      html += `<div class="prop-row"><label>Resistance</label>
+        <input type="number" value="${comp.props.resistance}" min="0.001" step="any"
+          onchange="updatePropNum(this.value,'${comp.id}','resistance')"></div>`;
+      html += `<div class="prop-row"><label>Unit</label>
+        <select onchange="convertR(this.value,'${comp.id}')">
+          <option value="1" ${comp._runit===1||!comp._runit?'selected':''}>Ω</option>
+          <option value="1000" ${comp._runit===1000?'selected':''}>kΩ</option>
+          <option value="1000000" ${comp._runit===1000000?'selected':''}>MΩ</option>
+        </select></div>`;
+      break;
+    case 'l':
+      html += `<div class="prop-row"><label>Inductance</label>
+        <input type="number" value="${(comp.props.inductance*1000).toFixed(3)}" min="0.001" step="any"
+          onchange="updatePropNum(this.value/1000,'${comp.id}','inductance')"></div>
+        <div class="prop-row"><label></label><label style="color:var(--text3)">mH</label></div>`;
+      break;
+    case 'c':
+      html += `<div class="prop-row"><label>Capacitance</label>
+        <input type="number" value="${(comp.props.capacitance*1e6).toFixed(3)}" min="0.001" step="any"
+          onchange="updatePropNum(this.value/1e6,'${comp.id}','capacitance')"></div>
+        <div class="prop-row"><label></label><label style="color:var(--text3)">μF</label></div>`;
+      break;
+  }
+
+  html += `<button class="rbtn" onclick="rotateSelected()">↻ Rotate [R]</button>`;
+
+  // Show results if running
+  if (STATE.running && comp.result) {
+    html += `<div style="margin-top:8px"><div class="props-title">Live Readings</div>`;
+    if (comp.result.V !== null)
+      html += `<div class="rcard v"><div class="rcard-lbl">VOLTAGE</div>
+        <div class="rcard-val">${fmtNum(comp.result.V)} V</div></div>`;
+    if (comp.result.I !== null)
+      html += `<div class="rcard i"><div class="rcard-lbl">CURRENT</div>
+        <div class="rcard-val">${fmtNum(comp.result.I)} A</div></div>`;
+    if (comp.result.P !== null)
+      html += `<div class="rcard p"><div class="rcard-lbl">POWER</div>
+        <div class="rcard-val">${fmtNum(comp.result.P)} W</div></div>`;
+    if (comp.result.Z !== null)
+      html += `<div class="rcard z"><div class="rcard-lbl">IMPEDANCE</div>
+        <div class="rcard-val">${fmtNum(comp.result.Z)} Ω</div>
+        <div class="rcard-sub">${comp.result.Zstr||''}</div></div>`;
+    if (comp.result.phase !== null)
+      html += `<div class="rcard ph"><div class="rcard-lbl">PHASE</div>
+        <div class="rcard-val">${comp.result.phase.toFixed(2)}°</div></div>`;
+    html += `</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function propRow(label, val, fn, id, key) {
+  return `<div class="prop-row"><label>${label}</label>
+    <input type="number" value="${val}" step="any" min="0"
+      onchange="${fn}(this.value,'${id}','${key}')"></div>`;
+}
+
+function updateProp(key, val, id) {
+  var comp = components.find(c=>c.id==id);
+  if (comp) { comp[key] = val; if(STATE.running) runAnalysis(); draw(); }
+}
+function updatePropNum(val, id, key) {
+  var comp = components.find(c=>c.id==id);
+  if (comp) { comp.props[key] = parseFloat(val)||0; if(STATE.running) runAnalysis(); draw(); }
+}
+function propNum(val, id, key) { updatePropNum(val, id, key); }
+function convertR(mult, id) {
+  var comp = components.find(c=>c.id==id);
+  if (comp) { comp._runit = parseFloat(mult); }
+}
+
+function clearProps() {
+  document.getElementById('sel-props').innerHTML =
+    '<div class="props-title">Properties</div><div class="info-msg">Click a component<br>to edit its values</div>';
+}
+
+function rotateSelected() {
+  var comp = components.find(c=>c.id===STATE.selected);
+  if (!comp || comp.type==='gnd') return;
+  comp.angle = comp.angle === 0 ? 90 : 0;
+  // Swap w/h
+  var tmp = comp.w; comp.w = comp.h; comp.h = tmp;
+  draw();
+  showProps(comp);
+}
+
+function deleteSelected() {
+  if (!STATE.selected) return;
+  wires = wires.filter(w => w.c1 !== STATE.selected && w.c2 !== STATE.selected);
+  components = components.filter(c => c.id !== STATE.selected);
+  STATE.selected = null;
+  clearProps();
+  updateStatus();
+  if (STATE.running) runAnalysis();
+  draw();
+}
+
+function clearAll() {
+  if (!confirm('Clear all components and wires?')) return;
+  components = []; wires = [];
+  STATE.selected = null;
+  STATE.running = false;
+  STATE.wireMode = false;
+  STATE.wireStart = null;
+  document.getElementById('run-btn').textContent = '▶ ANALYSE';
+  document.getElementById('run-btn').classList.remove('running');
+  clearProps();
+  document.getElementById('analysis-out').innerHTML = '<div class="info-msg">Press ▶ ANALYSE<br>to run circuit analysis</div>';
+  updateStatus();
+  draw();
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODE SWITCHING
+// ═══════════════════════════════════════════════════════
+function setMode(m) {
+  STATE.mode = m;
+  document.getElementById('btn-dc').classList.toggle('active', m==='DC');
+  document.getElementById('btn-ac').classList.toggle('active', m==='AC');
+  document.getElementById('st-mode').textContent = m;
+  document.getElementById('ac-section').style.display = m==='AC' ? 'block':'none';
+  document.getElementById('st-freq-wrap').style.display = m==='AC' ? 'flex':'none';
+  if (STATE.running) runAnalysis();
+  draw();
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATUS UPDATE
+// ═══════════════════════════════════════════════════════
+function updateStatus() {
+  document.getElementById('st-comps').textContent = components.length;
+  document.getElementById('st-wires').textContent = wires.length;
+  updateCompTable();
+}
+
+function updateCompTable() {
+  var wrap = document.getElementById('comp-table-wrap');
+  if (components.length === 0) {
+    wrap.innerHTML = '<div class="info-msg">No components</div>'; return;
+  }
+  var html = '<table class="atbl"><tr><th>ID</th><th>Type</th><th>Value</th>';
+  if(STATE.running) html += '<th>V</th><th>I</th><th>P</th>';
+  html += '</tr>';
+  components.forEach(c => {
+    html += `<tr onclick="selectComp(${c.id})" style="cursor:pointer">
+      <td>${c.label}</td>
+      <td style="color:${COMP_COLORS[c.type]||'#aaa'}">${c.type.toUpperCase()}</td>
+      <td>${formatValue(c)}</td>`;
+    if(STATE.running) {
+      html += `<td style="color:var(--pink)">${c.result.V!==null?fmtNum(c.result.V)+'V':'—'}</td>`;
+      html += `<td style="color:var(--green)">${c.result.I!==null?fmtNum(c.result.I)+'A':'—'}</td>`;
+      html += `<td style="color:var(--orange)">${c.result.P!==null?fmtNum(c.result.P)+'W':'—'}</td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</table>';
+  wrap.innerHTML = html;
+}
+
+function selectComp(id) {
+  STATE.selected = id;
+  var comp = components.find(c=>c.id===id);
+  if (comp) showProps(comp);
+  draw();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CIRCUIT ANALYSIS ENGINE
+// ═══════════════════════════════════════════════════════
+function toggleRun() {
+  STATE.running = !STATE.running;
+  var btn = document.getElementById('run-btn');
+  if (STATE.running) {
+    btn.textContent = '⏹ STOP';
+    btn.classList.add('running');
+    runAnalysis();
+  } else {
+    btn.textContent = '▶ ANALYSE';
+    btn.classList.remove('running');
+    // Clear results
+    components.forEach(c => { c.result = {V:null,I:null,P:null,Z:null,phase:null}; });
+    wires.forEach(w => w.live = false);
+    document.getElementById('analysis-out').innerHTML = '<div class="info-msg">Press ▶ ANALYSE<br>to run circuit analysis</div>';
+  }
+  var dot = document.getElementById('sim-dot');
+  dot.className = 'status-dot ' + (STATE.running ? 'sd-green':'sd-gray');
+  document.getElementById('sim-status').textContent = STATE.running ? 'RUNNING':'IDLE';
+  draw();
+}
+
+function runAnalysis() {
+  if (!STATE.running) return;
+
+  var freq = parseFloat(document.getElementById('ac-freq').value) || 50;
+  var omega = 2 * Math.PI * freq;
+  document.getElementById('st-freq').textContent = freq + ' Hz';
+
+  // Reset results
+  components.forEach(c => { c.result = {V:null,I:null,P:null,Z:null,Zstr:'',phase:null}; });
+  wires.forEach(w => w.live = false);
+
+  // Find source
+  var sources = components.filter(c => c.type==='vdc' || c.type==='vac');
+  var passives = components.filter(c => ['r','l','c'].includes(c.type));
+
+  if (sources.length === 0) {
+    showAnalysisError('No voltage source found. Add a DC or AC source.');
+    draw(); return;
+  }
+
+  // Build topology using graph analysis
+  var result = analyseTopology(sources, passives, freq, omega);
+  if (result.error) {
+    showAnalysisError(result.error);
+    draw(); return;
+  }
+
+  showAnalysisResult(result, freq);
+  updateCompTable();
+  if (STATE.mode === 'AC') {
+    drawPhasor(result);
+    drawWaveform(result, freq);
+  }
+
+  // Selected comp props refresh
+  if (STATE.selected) {
+    var sel = components.find(c=>c.id===STATE.selected);
+    if (sel) showProps(sel);
+  }
+  draw();
+}
+
+function analyseTopology(sources, passives, freq, omega) {
+  // Build adjacency using wires
+  // Assign node numbers via BFS
+  var nodes = {};  // compId_termId -> nodeNum
+  var nodeCount = 0;
+
+  function getNodeKey(cid, tid) { return cid + '_' + tid; }
+  function getOrCreateNode(cid, tid) {
+    var key = getNodeKey(cid, tid);
+    if (nodes[key] === undefined) { nodes[key] = nodeCount++; }
+    return nodes[key];
+  }
+
+  // Create nodes from wires
+  wires.forEach(w => {
+    var k1 = getNodeKey(w.c1, w.t1);
+    var k2 = getNodeKey(w.c2, w.t2);
+    var existN1 = nodes[k1], existN2 = nodes[k2];
+    if (existN1 === undefined && existN2 === undefined) {
+      var n = nodeCount++;
+      nodes[k1] = n; nodes[k2] = n;
+    } else if (existN1 === undefined) {
+      nodes[k1] = existN2;
+    } else if (existN2 === undefined) {
+      nodes[k2] = existN1;
+    } else if (existN1 !== existN2) {
+      // Merge nodes
+      var oldN = existN2, newN = existN1;
+      Object.keys(nodes).forEach(k => { if(nodes[k]===oldN) nodes[k]=newN; });
+    }
+  });
+
+  // Assign isolated terminals
+  components.forEach(c => {
+    getTerminals(c).forEach(t => { getOrCreateNode(c.id, t.id); });
+  });
+
+  // Find ground node
+  var gndComps = components.filter(c=>c.type==='gnd');
+  var gndNode = -1;
+  if (gndComps.length > 0) {
+    gndNode = nodes[getNodeKey(gndComps[0].id, 'p')];
+  }
+
+  // Build simple series/parallel impedance tree
+  // Collect all passive components connected to source
+  var src = sources[0];
+  var srcVoltage = parseFloat(src.props.voltage) || 0;
+  var srcPhase = (parseFloat(src.props.phase) || 0) * Math.PI / 180;
+
+  // Get source nodes
+  var srcNodeP = nodes[getNodeKey(src.id, 'p')];
+  var srcNodeN = nodes[getNodeKey(src.id, 'n')];
+
+  if (srcNodeP === undefined || srcNodeN === undefined) {
+    return {error: 'Source terminals not connected. Add wires from source terminals.'};
+  }
+
+  // Compute impedance of each passive
+  function getImpedance(c) {
+    if (c.type === 'r') return {re: c.props.resistance, im: 0};
+    if (c.type === 'l') {
+      if (STATE.mode === 'DC') return {re: 0, im: 0}; // ideal inductor = short in DC
+      return {re: 0, im: omega * c.props.inductance};
+    }
+    if (c.type === 'c') {
+      if (STATE.mode === 'DC') return {re: 1e12, im: 0}; // open in DC
+      return {re: 0, im: -1/(omega * c.props.capacitance)};
+    }
+    return {re: 0, im: 0};
+  }
+
+  // Build network: find all components between source nodes using BFS
+  // Group components by their node pairs (parallel = same pair, series = chain)
+  var compEdges = []; // {comp, nodeA, nodeB, Z}
+  passives.forEach(c => {
+    var nP = nodes[getNodeKey(c.id, 'p')];
+    var nN = nodes[getNodeKey(c.id, 'n')];
+    if (nP !== undefined && nN !== undefined) {
+      compEdges.push({comp:c, nA:nP, nB:nN, Z:getImpedance(c)});
+    }
+  });
+
+  // Also include meters
+  components.filter(c=>c.type==='vmeter'||c.type==='ameter').forEach(c => {
+    var nP = nodes[getNodeKey(c.id,'p')], nN = nodes[getNodeKey(c.id,'n')];
+    if (nP !== undefined && nN !== undefined)
+      compEdges.push({comp:c, nA:nP, nB:nN, Z:{re:0,im:0}, isMeter:true});
+  });
+
+  if (compEdges.length === 0) {
+    return {error:'No components connected to source. Draw wires between components.'};
+  }
+
+  // Check if circuit is complete (path from srcNodeP back to srcNodeN through components)
+  // Use graph connectivity check
+  var adj = {};
+  function addEdge(a,b) {
+    if(!adj[a]) adj[a]=[];
+    if(!adj[b]) adj[b]=[];
+    adj[a].push(b); adj[b].push(a);
+  }
+  compEdges.forEach(e => addEdge(e.nA, e.nB));
+  // Also add source
+  addEdge(srcNodeP, srcNodeN);
+
+  function connected(start, end) {
+    var visited = new Set(); var queue = [start];
+    while(queue.length) {
+      var n = queue.shift();
+      if(n===end) return true;
+      if(visited.has(n)) continue;
+      visited.add(n);
+      (adj[n]||[]).forEach(nb => queue.push(nb));
+    }
+    return false;
+  }
+
+  if (!connected(srcNodeP, srcNodeN)) {
+    return {error:'Circuit is OPEN — not complete. Connect all components in a closed loop.'};
+  }
+
+  // ─── Compute total impedance using MNA (simplified) ───
+  // For simple circuits: detect series/parallel groupings
+  var totalZ = computeTotalImpedance(compEdges, srcNodeP, srcNodeN);
+
+  if (!totalZ || (totalZ.re === 0 && totalZ.im === 0)) {
+    totalZ = {re:0.001, im:0}; // avoid div by zero
+  }
+
+  var ZMag = Math.sqrt(totalZ.re*totalZ.re + totalZ.im*totalZ.im);
+  var ZPhase = Math.atan2(totalZ.im, totalZ.re) * 180/Math.PI;
+
+  // Total current
+  var Itotal = srcVoltage / ZMag;
+
+  // Current phase angle
+  var IphaseRad = srcPhase - Math.atan2(totalZ.im, totalZ.re);
+
+  // Assign to source
+  src.result.V = srcVoltage;
+  src.result.I = Itotal;
+  src.result.P = srcVoltage * Itotal * Math.cos(IphaseRad);
+  src.result.Z = ZMag;
+  src.result.Zstr = totalZ.re.toFixed(2)+(totalZ.im>=0?'+':'')+totalZ.im.toFixed(2)+'j Ω';
+  src.result.phase = ZPhase;
+
+  // Distribute V and I to each component
+  compEdges.forEach(edge => {
+    var c = edge.comp;
+    if (edge.isMeter) {
+      c.result.V = srcVoltage; c.result.I = Itotal; return;
+    }
+    var Zi = Math.sqrt(edge.Z.re*edge.Z.re + edge.Z.im*edge.Z.im);
+    // Voltage divider for series, same V for parallel
+    var nodeGroup = getTopologyType(edge, compEdges, srcNodeP, srcNodeN);
+    var Vc, Ic, Pc, Zc, phC;
+    if (nodeGroup === 'parallel') {
+      Vc = srcVoltage;
+      Ic = Zi > 0 ? srcVoltage / Zi : Itotal;
+      Pc = Zi > 0 ? (srcVoltage*srcVoltage)/Zi : 0;
+      Zc = Zi;
+      phC = Math.atan2(edge.Z.im, edge.Z.re) * 180/Math.PI;
+    } else {
+      // series
+      Ic = Itotal;
+      Vc = Itotal * Zi;
+      Pc = computePower(c, Ic, omega);
+      Zc = Zi;
+      phC = Math.atan2(edge.Z.im, edge.Z.re) * 180/Math.PI;
+    }
+    c.result.V = Vc;
+    c.result.I = Ic;
+    c.result.P = Pc;
+    c.result.Z = Zc;
+    c.result.Zstr = edge.Z.re.toFixed(2)+(edge.Z.im>=0?'+':'')+edge.Z.im.toFixed(2)+'j';
+    c.result.phase = phC;
+  });
+
+  // Mark wires as live
+  wires.forEach(w => { w.live = true; });
+
+  return {
+    Vtotal: srcVoltage, Itotal, ZMag, ZPhase,
+    Zre: totalZ.re, Zim: totalZ.im,
+    Preal: srcVoltage * Itotal * Math.cos(IphaseRad),
+    Preactive: srcVoltage * Itotal * Math.sin(IphaseRad),
+    Papparent: srcVoltage * Itotal,
+    pf: Math.cos(IphaseRad),
+    freq, omega, mode: STATE.mode
+  };
+}
+
+function computeTotalImpedance(edges, nodeP, nodeN) {
+  // Group edges by node pair
+  var groups = {};
+  edges.forEach(e => {
+    if(e.isMeter) return;
+    var key = [Math.min(e.nA,e.nB), Math.max(e.nA,e.nB)].join('_');
+    if(!groups[key]) groups[key]=[];
+    groups[key].push(e);
+  });
+
+  // Parallel combination within each node pair
+  var branchImpedances = []; // per branch (node-pair group)
+  Object.values(groups).forEach(grp => {
+    // Parallel combine
+    var invRe=0, invIm=0;
+    grp.forEach(e => {
+      var mag2 = e.Z.re*e.Z.re + e.Z.im*e.Z.im;
+      if(mag2 < 1e-30) { invRe += 1e9; }
+      else { invRe += e.Z.re/mag2; invIm += -e.Z.im/mag2; }
+    });
+    var mag2 = invRe*invRe + invIm*invIm;
+    if(mag2 < 1e-30) branchImpedances.push({re:0, im:0, nA:grp[0].nA, nB:grp[0].nB});
+    else branchImpedances.push({re:invRe/mag2, im:-invIm/mag2, nA:grp[0].nA, nB:grp[0].nB});
+  });
+
+  // Series combine all branches
+  var totalRe=0, totalIm=0;
+  branchImpedances.forEach(b => { totalRe+=b.re; totalIm+=b.im; });
+  return {re:totalRe, im:totalIm};
+}
+
+function getTopologyType(edge, allEdges, nodeP, nodeN) {
+  // Check if any other component shares the same node pair (parallel)
+  var same = allEdges.filter(e =>
+    !e.isMeter &&
+    e !== edge &&
+    ((e.nA===edge.nA && e.nB===edge.nB) || (e.nA===edge.nB && e.nB===edge.nA)));
+  return same.length > 0 ? 'parallel' : 'series';
+}
+
+function computePower(c, I, omega) {
+  if (c.type==='r') return I*I*c.props.resistance;
+  if (c.type==='l') return 0; // reactive
+  if (c.type==='c') return 0; // reactive
+  return 0;
+}
+
+// ═══════════════════════════════════════════════════════
+//  ANALYSIS OUTPUT
+// ═══════════════════════════════════════════════════════
+function showAnalysisError(msg) {
+  document.getElementById('analysis-out').innerHTML =
+    `<div class="warn-msg">⚠ ${msg}</div>`;
+}
+
+function showAnalysisResult(r, freq) {
+  var html = '';
+  html += `<div class="ok-msg">✓ Analysis Complete</div>`;
+
+  html += `<div class="rcard v"><div class="rcard-lbl">SOURCE VOLTAGE</div>
+    <div class="rcard-val">${fmtNum(r.Vtotal)} V</div>
+    <div class="rcard-sub">${r.mode} ${r.mode==='AC'?'@ '+freq+' Hz':''}</div></div>`;
+
+  html += `<div class="rcard i"><div class="rcard-lbl">TOTAL CURRENT</div>
+    <div class="rcard-val">${fmtNum(r.Itotal)} A</div></div>`;
+
+  html += `<div class="rcard z"><div class="rcard-lbl">TOTAL IMPEDANCE</div>
+    <div class="rcard-val">${fmtNum(r.ZMag)} Ω</div>
+    <div class="rcard-sub">${r.Zre.toFixed(3)} + ${r.Zim.toFixed(3)}j Ω</div></div>`;
+
+  if (r.mode === 'AC') {
+    html += `<div class="rcard ph"><div class="rcard-lbl">PHASE ANGLE θ</div>
+      <div class="rcard-val">${r.ZPhase.toFixed(2)}°</div>
+      <div class="rcard-sub">${r.ZPhase>1?'Inductive (L>C)':r.ZPhase<-1?'Capacitive (C>L)':'Resistive'}</div></div>`;
+
+    html += `<div class="rcard p"><div class="rcard-lbl">REAL POWER (P)</div>
+      <div class="rcard-val">${fmtNum(r.Preal)} W</div></div>`;
+
+    html += `<div class="rcard" style="border-left:3px solid #8888ff">
+      <div class="rcard-lbl" style="color:var(--text2)">REACTIVE POWER (Q)</div>
+      <div class="rcard-val" style="color:#8888ff">${fmtNum(Math.abs(r.Preactive))} VAR</div>
+      <div class="rcard-sub">${r.Preactive>=0?'Inductive':'Capacitive'}</div></div>`;
+
+    html += `<div class="rcard" style="border-left:3px solid #ddaaff">
+      <div class="rcard-lbl" style="color:var(--text2)">APPARENT POWER (S)</div>
+      <div class="rcard-val" style="color:#ddaaff">${fmtNum(r.Papparent)} VA</div></div>`;
+
+    html += `<div class="rcard ph"><div class="rcard-lbl">POWER FACTOR</div>
+      <div class="rcard-val">${r.pf.toFixed(4)}</div>
+      <div class="rcard-sub">${r.pf>=0.95?'Excellent':r.pf>=0.8?'Good':r.pf>=0.6?'Poor':'Very Poor'}</div></div>`;
+  } else {
+    html += `<div class="rcard p"><div class="rcard-lbl">TOTAL POWER</div>
+      <div class="rcard-val">${fmtNum(r.Preal)} W</div></div>`;
+  }
+
+  document.getElementById('analysis-out').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════
+//  PHASOR DIAGRAM
+// ═══════════════════════════════════════════════════════
+function drawPhasor(r) {
+  var c = document.getElementById('phasor-cvs');
+  var ctx2 = c.getContext('2d');
+  var w=c.width, h=c.height;
+  ctx2.clearRect(0,0,w,h);
+  ctx2.fillStyle='#080c10'; ctx2.fillRect(0,0,w,h);
+
+  var cx=w/2, cy=h/2, maxR=Math.min(cx,cy)-12;
+
+  // Grid circles
+  [0.33,0.67,1].forEach(r2=>{
+    ctx2.strokeStyle='rgba(40,70,110,0.5)'; ctx2.lineWidth=0.5;
+    ctx2.beginPath(); ctx2.arc(cx,cy,maxR*r2,0,Math.PI*2); ctx2.stroke();
+  });
+  // Axes
+  ctx2.strokeStyle='rgba(60,90,130,0.6)'; ctx2.lineWidth=0.8;
+  ctx2.beginPath(); ctx2.moveTo(cx-maxR-5,cy); ctx2.lineTo(cx+maxR+5,cy); ctx2.stroke();
+  ctx2.beginPath(); ctx2.moveTo(cx,cy-maxR-5); ctx2.lineTo(cx,cy+maxR+5); ctx2.stroke();
+  ctx2.fillStyle='rgba(90,120,160,0.5)'; ctx2.font='8px Share Tech Mono,monospace';
+  ctx2.fillText('+Re',cx+maxR-10,cy-3);
+  ctx2.fillText('+Im',cx+3,cy-maxR+8);
+
+  if (!r) return;
+
+  // Voltage phasor (reference = horizontal)
+  drawArrow2(ctx2, cx, cy, cx+maxR, cy, '#ffdd00', 'V');
+
+  // Z phasor
+  var zAngle = r.ZPhase * Math.PI/180;
+  var zx = cx + maxR*Math.cos(-zAngle);
+  var zy = cy + maxR*Math.sin(-zAngle);
+  drawArrow2(ctx2, cx, cy, zx, zy, '#00aaff', 'Z');
+
+  // I phasor (leads V by ZPhase for cap, lags for ind)
+  var ix = cx + maxR*0.8*Math.cos(zAngle);
+  var iy = cy + maxR*0.8*Math.sin(zAngle);
+  drawArrow2(ctx2, cx, cy, ix, iy, '#00ff88', 'I');
+
+  // R, L, C components if available
+  var R_comps = components.filter(c2=>c2.type==='r');
+  var L_comps = components.filter(c2=>c2.type==='l');
+  var C_comps = components.filter(c2=>c2.type==='c');
+  if(R_comps.length>0 && r.ZMag>0) {
+    var totalR = R_comps.reduce((s,c2)=>s+c2.props.resistance,0);
+    var rx = cx + maxR*(totalR/r.ZMag);
+    drawArrow2(ctx2, cx, cy, rx, cy, '#ff8800', 'R', true);
+  }
+}
+
+function drawArrow2(ctx2, x1,y1,x2,y2,col,lbl,dashed) {
+  ctx2.save();
+  ctx2.strokeStyle=col; ctx2.lineWidth=1.5;
+  ctx2.shadowColor=col; ctx2.shadowBlur=6;
+  if(dashed) ctx2.setLineDash([4,3]);
+  ctx2.beginPath(); ctx2.moveTo(x1,y1); ctx2.lineTo(x2,y2); ctx2.stroke();
+  ctx2.setLineDash([]);
+  // Arrowhead
+  var angle=Math.atan2(y2-y1,x2-x1);
+  ctx2.fillStyle=col;
+  ctx2.beginPath();
+  ctx2.moveTo(x2,y2);
+  ctx2.lineTo(x2-8*Math.cos(angle-0.4),y2-8*Math.sin(angle-0.4));
+  ctx2.lineTo(x2-8*Math.cos(angle+0.4),y2-8*Math.sin(angle+0.4));
+  ctx2.closePath(); ctx2.fill();
+  ctx2.fillStyle=col; ctx2.font='9px Share Tech Mono,monospace';
+  ctx2.fillText(lbl, x2+5, y2+4);
+  ctx2.restore();
+}
+
+// ═══════════════════════════════════════════════════════
+//  WAVEFORM
+// ═══════════════════════════════════════════════════════
+function drawWaveform(r, freq) {
+  var c = document.getElementById('wave-cvs');
+  var ctx2 = c.getContext('2d');
+  var w=c.width, h=c.height;
+  ctx2.clearRect(0,0,w,h);
+  ctx2.fillStyle='#080c10'; ctx2.fillRect(0,0,w,h);
+
+  if (!r) return;
+
+  var cy = h/2;
+  // Axes
+  ctx2.strokeStyle='rgba(40,70,110,0.5)'; ctx2.lineWidth=0.5;
+  ctx2.beginPath(); ctx2.moveTo(0,cy); ctx2.lineTo(w,cy); ctx2.stroke();
+
+  function drawSine(phaseRad, amp, col, label) {
+    var maxAmp = Math.min(cy-8, amp);
+    ctx2.strokeStyle=col; ctx2.lineWidth=1.5;
+    ctx2.shadowColor=col; ctx2.shadowBlur=4;
+    ctx2.beginPath();
+    for(var i=0;i<=w;i++) {
+      var t2=i/w * 2; // 2 cycles
+      var y2=cy - maxAmp * Math.sin(2*Math.PI*t2 + phaseRad);
+      i?ctx2.lineTo(i,y2):ctx2.moveTo(i,y2);
+    }
+    ctx2.stroke(); ctx2.shadowBlur=0;
+    ctx2.fillStyle=col; ctx2.font='8px Share Tech Mono,monospace';
+    ctx2.fillText(label, 4, cy - maxAmp - 3);
+  }
+
+  var Vamp = r.Vtotal * Math.SQRT2;
+  var Iamp = r.Itotal * Math.SQRT2;
+  var VscMax = cy - 10;
+  var Isc = Math.min(VscMax * 0.6, VscMax * (Iamp>0 ? Math.min(1, (Iamp*50)/Vamp) : 0.5));
+
+  drawSine(0, VscMax, '#ffdd00', 'V');
+  drawSine(r.ZPhase * Math.PI/180, Isc>4?Isc:VscMax*0.5, '#00ff88', 'I');
+  ctx2.fillStyle='rgba(90,120,160,0.4)'; ctx2.font='7px monospace';
+  ctx2.fillText('2 cycles', w-42, h-3);
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT WITH EXAMPLE CIRCUIT
+// ═══════════════════════════════════════════════════════
+function loadExample() {
+  // Simple example: DC source + two resistors in series
+  var src = makeComp('vdc', 140, 180);
+  src.props.voltage = 12;
+  src.label = 'VS1';
+  components.push(src);
+
+  var r1 = makeComp('r', 300, 180);
+  r1.props.resistance = 1000;
+  r1.label = 'R1';
+  components.push(r1);
+
+  var r2 = makeComp('r', 460, 180);
+  r2.props.resistance = 2000;
+  r2.label = 'R2';
+  components.push(r2);
+
+  var gnd = makeComp('gnd', 140, 240);
+  gnd.label = 'GND';
+  components.push(gnd);
+
+  // Wire: VS1(n) -> R1(p)
+  wires.push({c1:src.id, t1:'n', c2:r1.id, t2:'p', live:false});
+  // Wire: R1(n) -> R2(p)
+  wires.push({c1:r1.id, t1:'n', c2:r2.id, t2:'p', live:false});
+  // Wire: R2(n) back to VS1(p) — via GND
+  wires.push({c1:r2.id, t1:'n', c2:src.id, t2:'p', live:false});
+  // GND on VS1 negative... connect gnd to source
+  wires.push({c1:gnd.id, t1:'p', c2:src.id, t2:'n', live:false});
+
+  STATE.panX = 20; STATE.panY = 60;
+  updateStatus(); draw();
+}
+
+// ═══════════════════════════════════════════════════════
+//  START
+// ═══════════════════════════════════════════════════════
+window.addEventListener('load', function() {
+  resizeCvs();
+  loadExample();
+  setTimeout(resizeCvs, 100);
+});
+</script>
+</body>
+</html>
