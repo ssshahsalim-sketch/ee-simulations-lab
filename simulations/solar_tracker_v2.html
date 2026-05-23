@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SolarSite Pro v2</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f1117;--bg2:#161b27;--bg3:#1e2535;--panel:#131929;
+  --border:#2a3550;--border2:#3a4d70;
+  --solar:#f59e0b;--solar2:#fbbf24;--solar3:#fde68a;
+  --blue:#3b82f6;--green:#10b981;--red:#ef4444;--purple:#8b5cf6;--cyan:#06b6d4;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#4a5568;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
+body{display:flex;flex-direction:column;}
+
+/* TOP BAR */
+.topbar{height:50px;background:linear-gradient(90deg,#080c14,#131929,#080c14);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;z-index:1000;}
+.logo{display:flex;align-items:center;gap:8px;}
+.logo-icon{width:30px;height:30px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 12px #f59e0b55;}
+.logo-text{font-size:14px;font-weight:700;color:#fff;letter-spacing:.02em;}
+.logo-text span{color:var(--solar);}
+.vdiv{width:1px;height:22px;background:var(--border);}
+.step-tabs{display:flex;gap:2px;}
+.stab{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:5px;cursor:pointer;
+  font-size:11px;font-weight:500;color:var(--text2);transition:.15s;border:1px solid transparent;}
+.stab:hover{background:var(--bg3);color:var(--text);}
+.stab.active{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.4);color:var(--solar);}
+.stab.done{color:var(--green);}
+.snum{width:16px;height:16px;border-radius:50%;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;background:var(--bg3);}
+.stab.active .snum{background:var(--solar);color:#000;}
+.stab.done .snum{background:var(--green);color:#000;}
+.topbar-right{margin-left:auto;display:flex;gap:6px;align-items:center;}
+.tbtn{font-size:11px;font-weight:600;padding:5px 12px;border-radius:5px;cursor:pointer;border:none;transition:.15s;font-family:'Inter',sans-serif;}
+.tbtn-pdf{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;}
+.tbtn-pdf:hover{box-shadow:0 0 10px #f59e0b55;}
+.tbtn-pdf:disabled{opacity:.4;cursor:not-allowed;}
+.tbtn-3d{background:rgba(6,182,212,.15);border:1px solid rgba(6,182,212,.4);color:var(--cyan);}
+.tbtn-3d:hover{background:rgba(6,182,212,.25);}
+.tbtn-3d.active{background:rgba(6,182,212,.25);box-shadow:0 0 10px #06b6d444;}
+.tbtn-clear{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);}
+
+/* WORKSPACE */
+.workspace{display:flex;flex:1;overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{width:290px;background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border2);}
+.sec{padding:12px;border-bottom:1px solid var(--border);}
+.sec-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;
+  letter-spacing:.1em;margin-bottom:8px;display:flex;align-items:center;gap:5px;}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border);}
+.frow{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;}
+.frow label{font-size:11px;color:var(--text2);font-weight:500;}
+.finp,.fsel{width:100%;background:var(--bg2);color:var(--text);border:1px solid var(--border2);
+  border-radius:4px;padding:6px 9px;font-size:11px;font-family:'Inter',sans-serif;outline:none;transition:.15s;}
+.finp:focus,.fsel:focus{border-color:var(--solar);}
+.fsel{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;padding-right:24px;}
+.frow-2{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.slider-wrap{display:flex;align-items:center;gap:6px;}
+.slider-wrap input[type=range]{flex:1;-webkit-appearance:none;height:3px;border-radius:2px;background:var(--border2);outline:none;cursor:pointer;}
+.slider-wrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--solar);cursor:pointer;box-shadow:0 0 5px #f59e0b66;}
+.slider-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--solar);min-width:36px;text-align:right;}
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px;}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:7px 9px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.kpi.solar::before{background:var(--solar);}
+.kpi.green::before{background:var(--green);}
+.kpi.blue::before{background:var(--blue);}
+.kpi.purple::before{background:var(--purple);}
+.kpi.cyan::before{background:var(--cyan);}
+.kpi-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+.kpi-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;margin-top:1px;}
+.kpi.solar .kpi-val{color:var(--solar);}
+.kpi.green .kpi-val{color:var(--green);}
+.kpi.blue .kpi-val{color:var(--blue);}
+.kpi.purple .kpi-val{color:var(--purple);}
+.kpi.cyan .kpi-val{color:var(--cyan);}
+.kpi-sub{font-size:9px;color:var(--text3);}
+.alert{border-radius:4px;padding:7px 9px;font-size:10px;margin-bottom:6px;line-height:1.6;}
+.alert.info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#93c5fd;}
+.alert.warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);color:var(--solar3);}
+.alert.ok{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);color:#6ee7b7;}
+.alert.tip{background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);color:#c4b5fd;}
+.alert.cyan{background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.3);color:#a5f3fc;}
+.action-btn{width:100%;padding:8px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;
+  border:none;font-family:'Inter',sans-serif;transition:.15s;margin-top:4px;letter-spacing:.02em;}
+.btn-solar{background:linear-gradient(135deg,var(--solar),#d97706);color:#000;}
+.btn-solar:hover{box-shadow:0 0 12px #f59e0b44;}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2);}
+.btn-outline:hover{border-color:var(--solar);color:var(--solar);}
+.btn-danger{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red);}
+.btn-cyan{background:rgba(6,182,212,.15);border:1px solid rgba(6,182,212,.35);color:var(--cyan);}
+.btn-cyan:hover{background:rgba(6,182,212,.25);}
+.btn-green{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:var(--green);}
+.btn-green:hover{background:rgba(16,185,129,.25);}
+
+/* PANEL CARDS */
+.panel-card{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:8px 9px;cursor:pointer;transition:.15s;margin-bottom:4px;}
+.panel-card:hover{border-color:var(--border2);}
+.panel-card.selected{border-color:var(--solar);background:rgba(245,158,11,.06);}
+.pc-name{font-size:11px;font-weight:600;color:var(--text);}
+.pc-specs{font-size:9px;color:var(--text2);margin-top:2px;line-height:1.6;}
+.badge{display:inline-block;font-size:8px;font-weight:600;padding:1px 5px;border-radius:2px;margin-top:2px;}
+.badge-mono{background:rgba(59,130,246,.2);color:#93c5fd;}
+.badge-poly{background:rgba(16,185,129,.2);color:#6ee7b7;}
+.badge-thin{background:rgba(139,92,246,.2);color:#c4b5fd;}
+.badge-bifacial{background:rgba(245,158,11,.2);color:var(--solar3);}
+
+/* INVERTER CARDS */
+.inv-card{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:8px 9px;cursor:pointer;transition:.15s;margin-bottom:4px;}
+.inv-card:hover{border-color:var(--border2);}
+.inv-card.selected{border-color:var(--cyan);background:rgba(6,182,212,.06);}
+.inv-icon{font-size:18px;margin-bottom:3px;}
+.inv-name{font-size:11px;font-weight:600;color:var(--text);}
+.inv-specs{font-size:9px;color:var(--text2);margin-top:2px;line-height:1.6;}
+
+/* MAP & 3D */
+#main-view{flex:1;position:relative;overflow:hidden;}
+#map{width:100%;height:100%;}
+#canvas3d{position:absolute;inset:0;display:none;background:#0a0f1a;}
+#canvas3d canvas{display:block;width:100%;height:100%;}
+.map-overlay-btns{position:absolute;top:10px;right:10px;z-index:500;display:flex;flex-direction:column;gap:5px;}
+.map-btn{background:var(--panel);border:1px solid var(--border2);border-radius:5px;
+  padding:6px 10px;font-size:10px;font-weight:600;cursor:pointer;color:var(--text);
+  transition:.15s;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);}
+.map-btn:hover{border-color:var(--solar);color:var(--solar);}
+.map-btn.active{background:rgba(245,158,11,.15);border-color:var(--solar);color:var(--solar);}
+.map-btn.cyan-btn{border-color:rgba(6,182,212,.4);color:var(--cyan);}
+.map-btn.cyan-btn.active{background:rgba(6,182,212,.15);}
+
+/* PANEL PLACEMENT TOOLBAR */
+#placement-toolbar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  z-index:600;background:var(--panel);border:1px solid var(--border2);border-radius:8px;
+  padding:8px 12px;display:none;flex-direction:row;gap:8px;align-items:center;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);backdrop-filter:blur(8px);}
+#placement-toolbar.active{display:flex;}
+.pt-label{font-size:10px;color:var(--text2);font-weight:500;}
+.pt-sep{width:1px;height:22px;background:var(--border);}
+.pt-btn{font-size:10px;font-weight:600;padding:4px 10px;border-radius:4px;cursor:pointer;border:none;
+  font-family:'Inter',sans-serif;transition:.15s;}
+.pt-btn.active-tool{background:rgba(245,158,11,.2);border:1px solid var(--solar);color:var(--solar);}
+.pt-btn.inactive-tool{background:var(--bg3);border:1px solid var(--border);color:var(--text2);}
+.pt-btn:hover{border-color:var(--solar);color:var(--solar);}
+
+/* 3D CONTROLS */
+#controls3d{position:absolute;bottom:14px;right:14px;z-index:600;
+  background:var(--panel);border:1px solid var(--border2);border-radius:8px;
+  padding:10px;display:none;flex-direction:column;gap:6px;width:200px;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);}
+#controls3d.visible{display:flex;}
+.c3d-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;}
+.c3d-btn-row{display:flex;gap:4px;}
+.c3d-btn{flex:1;font-size:10px;padding:5px 4px;border-radius:4px;cursor:pointer;border:1px solid var(--border);
+  background:var(--bg3);color:var(--text2);text-align:center;font-weight:500;transition:.15s;}
+.c3d-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.c3d-hint{font-size:9px;color:var(--text3);line-height:1.6;}
+
+/* COMPASS */
+.compass{position:absolute;bottom:70px;right:12px;z-index:500;width:58px;height:58px;
+  background:rgba(13,19,29,.85);border:1px solid var(--border2);border-radius:50%;}
+
+/* RIGHT PANEL */
+.right-panel{width:260px;background:var(--panel);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.right-panel::-webkit-scrollbar{width:3px;}
+.right-panel::-webkit-scrollbar-thumb{background:var(--border2);}
+.chart-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:5px;overflow:hidden;margin-top:5px;}
+.chart-wrap canvas{display:block;width:100%;}
+#az-dial{display:block;margin:0 auto;}
+.prog-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:2px;}
+.prog-fill{height:100%;border-radius:2px;transition:.4s;}
+.info-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(42,53,80,.4);}
+.info-row span:first-child{color:var(--text2);font-size:10px;}
+.info-row span:last-child{font-size:10px;font-weight:600;}
+table.atbl{width:100%;border-collapse:collapse;font-size:10px;}
+table.atbl th{background:var(--bg3);color:var(--text2);padding:5px 7px;text-align:left;font-weight:600;border-bottom:1px solid var(--border2);}
+table.atbl td{padding:5px 7px;border-bottom:1px solid rgba(42,53,80,.3);}
+table.atbl tr:hover td{background:rgba(0,0,0,.2);}
+.leaflet-control-attribution{display:none!important;}
+.leaflet-control-zoom a{background:var(--bg3)!important;color:var(--text)!important;border-color:var(--border2)!important;}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">☀</div>
+    <div class="logo-text">Solar<span>Site</span> Pro <span style="font-size:9px;font-weight:400;color:var(--text3)">v2</span></div>
+  </div>
+  <div class="vdiv"></div>
+  <div class="step-tabs">
+    <div class="stab active" id="stab-1" onclick="goStep(1)"><div class="snum">1</div>Location</div>
+    <div class="stab" id="stab-2" onclick="goStep(2)"><div class="snum">2</div>Site</div>
+    <div class="stab" id="stab-3" onclick="goStep(3)"><div class="snum">3</div>Panels</div>
+    <div class="stab" id="stab-4" onclick="goStep(4)"><div class="snum">4</div>Inverter</div>
+    <div class="stab" id="stab-5" onclick="goStep(5)"><div class="snum">5</div>Optimize</div>
+    <div class="stab" id="stab-6" onclick="goStep(6)"><div class="snum">6</div>Results</div>
+  </div>
+  <div class="topbar-right">
+    <button class="tbtn tbtn-3d" id="btn-toggle3d" onclick="toggle3DView()">⬛ 3D View</button>
+    <button class="tbtn tbtn-clear" onclick="clearAll()">↺ Reset</button>
+    <button class="tbtn tbtn-pdf" id="pdf-btn" onclick="generatePDF()" disabled>⬇ PDF Report</button>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+<!-- ═══ SIDEBAR ═══ -->
+<div class="sidebar" id="sidebar">
+
+<!-- STEP 1 -->
+<div id="step1-panel">
+  <div class="sec">
+    <div class="sec-title">📍 Location</div>
+    <div class="frow">
+      <label>Search Address / City</label>
+      <input class="finp" id="search-inp" placeholder="e.g. Mumbai, India" onkeydown="if(event.key==='Enter')searchLocation()">
+      <button class="action-btn btn-solar" onclick="searchLocation()" style="margin-top:4px">🔍 Search</button>
+    </div>
+    <div class="frow-2">
+      <div class="frow" style="margin:0"><label>Latitude</label><input class="finp" id="inp-lat" type="number" value="19.076" step="0.001" onchange="updateFromLatLng()"></div>
+      <div class="frow" style="margin:0"><label>Longitude</label><input class="finp" id="inp-lng" type="number" value="72.877" step="0.001" onchange="updateFromLatLng()"></div>
+    </div>
+    <div class="alert info" id="loc-info">📌 Click map or search to set location</div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">☀ Solar Resource</div>
+    <div class="kpi-grid">
+      <div class="kpi solar"><div class="kpi-lbl">GHI</div><div class="kpi-val" id="k-ghi">—</div><div class="kpi-sub">kWh/m²/day</div></div>
+      <div class="kpi green"><div class="kpi-lbl">Peak Sun Hrs</div><div class="kpi-val" id="k-sun">—</div><div class="kpi-sub">hrs/day</div></div>
+      <div class="kpi blue"><div class="kpi-lbl">Sunrise</div><div class="kpi-val" id="k-rise">—</div></div>
+      <div class="kpi purple"><div class="kpi-lbl">Sunset</div><div class="kpi-val" id="k-set">—</div></div>
+    </div>
+    <div class="alert tip" id="hem-tip" style="margin-top:6px">Calculating…</div>
+    <button class="action-btn btn-solar" onclick="goStep(2)">→ Draw Installation Area</button>
+  </div>
+</div>
+
+<!-- STEP 2 -->
+<div id="step2-panel" style="display:none">
+  <div class="sec">
+    <div class="sec-title">✏ Draw Area</div>
+    <div class="alert info">Click map to place boundary points. Click first point to close.</div>
+    <div class="kpi-grid">
+      <div class="kpi blue"><div class="kpi-lbl">Area</div><div class="kpi-val" id="k-area">—</div><div class="kpi-sub">m²</div></div>
+      <div class="kpi solar"><div class="kpi-lbl">Est. Panels</div><div class="kpi-val" id="k-fit">—</div></div>
+    </div>
+    <button class="action-btn btn-solar" id="draw-btn" onclick="toggleDrawMode()">✏ Start Drawing</button>
+    <button class="action-btn btn-danger" onclick="clearPolygon()">🗑 Clear Area</button>
+  </div>
+  <div class="sec">
+    <div class="sec-title">🏗 Site Type & Settings</div>
+    <div class="frow">
+      <label>Site Type</label>
+      <select class="fsel" id="sel-site" onchange="updateSiteType()">
+        <option value="ground">Ground Mount</option>
+        <option value="flat-roof">Flat Roof</option>
+        <option value="pitched-roof">Pitched Roof</option>
+        <option value="carport">Carport / Canopy</option>
+      </select>
+    </div>
+    <div class="frow">
+      <label>Building / Structure Height (m)</label>
+      <div class="slider-wrap">
+        <input type="range" id="sl-height" min="0" max="30" step="0.5" value="3" oninput="updateHeight()">
+        <span class="slider-val" id="height-val">3m</span>
+      </div>
+    </div>
+    <div class="frow">
+      <label>Ground Coverage Ratio</label>
+      <div class="slider-wrap">
+        <input type="range" id="sl-gcr" min="25" max="70" value="40" oninput="updateGCR()">
+        <span class="slider-val" id="gcr-val">40%</span>
+      </div>
+    </div>
+    <div class="frow">
+      <label>Row Spacing Factor</label>
+      <div class="slider-wrap">
+        <input type="range" id="sl-row" min="1.0" max="3.5" step="0.1" value="2.0" oninput="updateRow()">
+        <span class="slider-val" id="row-val">2.0×</span>
+      </div>
+    </div>
+    <button class="action-btn btn-cyan" onclick="toggle3DView()">⬛ Preview in 3D</button>
+    <button class="action-btn btn-solar" onclick="goStep(3)">→ Select Panels</button>
+  </div>
+</div>
+
+<!-- STEP 3 -->
+<div id="step3-panel" style="display:none">
+  <div class="sec">
+    <div class="sec-title">🔋 Panel Type</div>
+    <div id="panel-list"></div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">⚙ Panel Specs</div>
+    <div class="frow"><label>Power (Wp)</label><input class="finp" id="inp-wp" type="number" value="415" min="50" max="800" onchange="updatePanelCalc()"></div>
+    <div class="frow"><label>Efficiency (%)</label><input class="finp" id="inp-eff" type="number" value="21.3" step="0.1" onchange="updatePanelCalc()"></div>
+    <div class="frow-2">
+      <div class="frow" style="margin:0"><label>Width (m)</label><input class="finp" id="inp-pw" type="number" value="1.134" step="0.001" onchange="updatePanelCalc()"></div>
+      <div class="frow" style="margin:0"><label>Length (m)</label><input class="finp" id="inp-pl" type="number" value="1.762" step="0.001" onchange="updatePanelCalc()"></div>
+    </div>
+    <div class="frow">
+      <label>System Losses (%)</label>
+      <div class="slider-wrap">
+        <input type="range" id="sl-loss" min="5" max="30" value="14" oninput="updateLoss()">
+        <span class="slider-val" id="loss-val">14%</span>
+      </div>
+    </div>
+    <button class="action-btn btn-solar" onclick="goStep(4)">→ Select Inverter</button>
+  </div>
+</div>
+
+<!-- STEP 4: INVERTER -->
+<div id="step4-panel" style="display:none">
+  <div class="sec">
+    <div class="sec-title">⚡ Inverter Type</div>
+    <div class="inv-card selected" id="inv-string" onclick="selectInverter('string')">
+      <div class="inv-icon">🔌</div>
+      <div class="inv-name">String Inverter</div>
+      <div class="inv-specs">Multiple panels in series → one central inverter.<br>
+        <b>Best for:</b> Large uniform arrays, minimal shading.<br>
+        <b>Efficiency:</b> 97–98% · Lower cost per Wp<br>
+        <b>Monitoring:</b> String-level only</div>
+    </div>
+    <div class="inv-card" id="inv-micro" onclick="selectInverter('micro')">
+      <div class="inv-icon">🔬</div>
+      <div class="inv-name">Microinverter</div>
+      <div class="inv-specs">One inverter per panel — independent MPPT.<br>
+        <b>Best for:</b> Partial shading, complex rooftops.<br>
+        <b>Efficiency:</b> 95–96% per unit · Higher cost<br>
+        <b>Monitoring:</b> Panel-level real-time</div>
+    </div>
+    <div class="inv-card" id="inv-power-opt" onclick="selectInverter('power-opt')">
+      <div class="inv-icon">⚙</div>
+      <div class="inv-name">Power Optimizers + String</div>
+      <div class="inv-specs">DC optimizers per panel + string inverter.<br>
+        <b>Best for:</b> Mixed shading, monitoring needs.<br>
+        <b>Efficiency:</b> 98–99% system · Mid cost<br>
+        <b>Monitoring:</b> Panel-level DC</div>
+    </div>
+    <div class="inv-card" id="inv-hybrid" onclick="selectInverter('hybrid')">
+      <div class="inv-icon">🔋</div>
+      <div class="inv-name">Hybrid Inverter (Solar + Battery)</div>
+      <div class="inv-specs">Grid-tied + battery storage ready.<br>
+        <b>Best for:</b> Energy storage, backup power.<br>
+        <b>Efficiency:</b> 97% · Includes battery management<br>
+        <b>Monitoring:</b> Full system with SoC</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">⚙ Inverter Config</div>
+    <div class="frow"><label>Panels per String</label>
+      <input class="finp" id="inp-string-sz" type="number" value="10" min="1" max="30" onchange="updateInverterCalc()"></div>
+    <div class="frow"><label>Inverter Efficiency (%)</label>
+      <input class="finp" id="inp-inv-eff" type="number" value="97.5" step="0.1" onchange="updateInverterCalc()"></div>
+    <div class="kpi-grid">
+      <div class="kpi cyan"><div class="kpi-lbl">Strings</div><div class="kpi-val" id="r-strings">—</div></div>
+      <div class="kpi green"><div class="kpi-lbl">Inv. Qty</div><div class="kpi-val" id="r-inv-qty">—</div></div>
+      <div class="kpi blue"><div class="kpi-lbl">DC/AC Ratio</div><div class="kpi-val" id="r-dcac">—</div></div>
+      <div class="kpi solar"><div class="kpi-lbl">Inv. Power</div><div class="kpi-val" id="r-inv-power">—</div><div class="kpi-sub">kW</div></div>
+    </div>
+    <div class="alert cyan" id="inv-advice"></div>
+    <button class="action-btn btn-solar" onclick="goStep(5)">→ Optimize Orientation</button>
+  </div>
+</div>
+
+<!-- STEP 5: OPTIMIZE -->
+<div id="step5-panel" style="display:none">
+  <div class="sec">
+    <div class="sec-title">🧭 Panel Placement & Direction</div>
+    <div class="alert cyan">Use toolbar below map to place panels manually or use auto-fill. Drag placed panels to reposition.</div>
+    <div class="frow">
+      <label>Azimuth (° from North)</label>
+      <div class="slider-wrap">
+        <input type="range" id="sl-az" min="0" max="359" value="180" oninput="updateAzimuth()">
+        <span class="slider-val" id="az-val">180°</span>
+      </div>
+    </div>
+    <div class="frow">
+      <label>Tilt Angle (°)</label>
+      <div class="slider-wrap">
+        <input type="range" id="sl-tilt" min="0" max="60" value="20" oninput="updateTilt()">
+        <span class="slider-val" id="tilt-val">20°</span>
+      </div>
+    </div>
+    <div class="frow">
+      <label>Panel Rotation on Map (°)</label>
+      <div class="slider-wrap">
+        <input type="range" id="sl-panel-rot" min="0" max="180" value="0" oninput="updatePanelRotation()">
+        <span class="slider-val" id="panel-rot-val">0°</span>
+      </div>
+    </div>
+    <button class="action-btn btn-solar" onclick="suggestBestOrientation()">✨ Auto-Suggest Best Orientation</button>
+    <div class="alert ok" id="opt-result" style="display:none"></div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">📐 Azimuth Compass</div>
+    <canvas id="az-dial" width="242" height="242"></canvas>
+  </div>
+  <div class="sec">
+    <div class="sec-title">🌡 Temperature</div>
+    <div class="frow"><label>Avg Summer Temp (°C)</label>
+      <input class="finp" id="inp-temp" type="number" value="35" onchange="runCalc()"></div>
+    <div class="alert warn" id="temp-warn"></div>
+    <button class="action-btn btn-solar" onclick="goStep(6)">→ View Results</button>
+  </div>
+</div>
+
+<!-- STEP 6: RESULTS -->
+<div id="step6-panel" style="display:none">
+  <div class="sec">
+    <div class="sec-title">⚡ Energy Output</div>
+    <div class="kpi-grid">
+      <div class="kpi solar"><div class="kpi-lbl">Annual</div><div class="kpi-val" id="r-annual">—</div><div class="kpi-sub">kWh/yr</div></div>
+      <div class="kpi green"><div class="kpi-lbl">Panels</div><div class="kpi-val" id="r-panels">—</div></div>
+      <div class="kpi blue"><div class="kpi-lbl">Peak kWp</div><div class="kpi-val" id="r-peak">—</div></div>
+      <div class="kpi purple"><div class="kpi-lbl">Daily Avg</div><div class="kpi-val" id="r-daily">—</div><div class="kpi-sub">kWh/day</div></div>
+      <div class="kpi cyan"><div class="kpi-lbl">PR</div><div class="kpi-val" id="r-pr">—</div><div class="kpi-sub">%</div></div>
+      <div class="kpi green"><div class="kpi-lbl">CUF</div><div class="kpi-val" id="r-cuf">—</div><div class="kpi-sub">%</div></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">💰 Financial</div>
+    <div class="frow"><label>Electricity Tariff (₹/kWh)</label><input class="finp" id="inp-tariff" type="number" value="8" step="0.5" onchange="runFinancial()"></div>
+    <div class="frow"><label>System Cost (₹/kWp)</label><input class="finp" id="inp-cost" type="number" value="45000" step="1000" onchange="runFinancial()"></div>
+    <div class="kpi-grid">
+      <div class="kpi green"><div class="kpi-lbl">Annual Savings</div><div class="kpi-val" id="r-savings">—</div></div>
+      <div class="kpi blue"><div class="kpi-lbl">Payback</div><div class="kpi-val" id="r-payback">—</div><div class="kpi-sub">years</div></div>
+      <div class="kpi solar"><div class="kpi-lbl">25yr ROI</div><div class="kpi-val" id="r-roi">—</div></div>
+      <div class="kpi purple"><div class="kpi-lbl">CO₂ Saved</div><div class="kpi-val" id="r-co2">—</div><div class="kpi-sub">T/yr</div></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /sidebar -->
+
+<!-- MAIN VIEW -->
+<div id="main-view">
+  <div id="map"></div>
+  <div id="canvas3d"></div>
+
+  <!-- MAP OVERLAY BUTTONS -->
+  <div class="map-overlay-btns">
+    <button class="map-btn" onclick="map.setView([STATE.lat,STATE.lng],18)">⊕ Zoom Site</button>
+    <button class="map-btn cyan-btn" id="draw-overlay-btn" onclick="toggleDrawMode()">✏ Draw Area</button>
+    <button class="map-btn" onclick="autoFillPanels()">⚡ Auto-Fill Panels</button>
+    <button class="map-btn" onclick="clearManualPanels()">🗑 Clear Panels</button>
+  </div>
+
+  <!-- PANEL PLACEMENT TOOLBAR -->
+  <div id="placement-toolbar">
+    <span class="pt-label">PLACEMENT MODE:</span>
+    <button class="pt-btn active-tool" id="tool-place" onclick="setTool('place')">☀ Place Panel</button>
+    <button class="pt-btn inactive-tool" id="tool-move" onclick="setTool('move')">✥ Move</button>
+    <button class="pt-btn inactive-tool" id="tool-delete" onclick="setTool('delete')">✕ Delete</button>
+    <div class="pt-sep"></div>
+    <span class="pt-label">Rot:</span>
+    <button class="pt-btn inactive-tool" onclick="rotatePanelCCW()">↺ -15°</button>
+    <button class="pt-btn inactive-tool" onclick="rotatePanelCW()">↻ +15°</button>
+    <div class="pt-sep"></div>
+    <button class="pt-btn inactive-tool" onclick="deactivatePlacementMode()">✕ Exit</button>
+  </div>
+
+  <!-- 3D CONTROLS -->
+  <div id="controls3d">
+    <div class="c3d-title">3D Controls</div>
+    <div class="c3d-btn-row">
+      <div class="c3d-btn" onclick="resetCamera3D()">⟲ Reset</div>
+      <div class="c3d-btn" onclick="view3DTop()">⊤ Top</div>
+      <div class="c3d-btn" onclick="view3DSouth()">▣ South</div>
+    </div>
+    <div class="c3d-btn-row">
+      <div class="c3d-btn" onclick="animateSun()">☀ Sun Path</div>
+      <div class="c3d-btn" onclick="toggle3DLabels()">🏷 Labels</div>
+    </div>
+    <div class="c3d-hint">🖱 Drag to orbit · Scroll zoom<br>Right-drag to pan · Double-click reset</div>
+    <div class="frow" style="margin:6px 0 0">
+      <label style="font-size:9px">Time of Day</label>
+      <div class="slider-wrap">
+        <input type="range" id="sl-time3d" min="6" max="20" step="0.25" value="12" oninput="update3DTime()">
+        <span class="slider-val" id="time3d-val" style="font-size:9px">12:00</span>
+      </div>
+    </div>
+    <div class="frow" style="margin:4px 0 0">
+      <label style="font-size:9px">Season</label>
+      <select class="fsel" id="sel-season" onchange="update3DTime()" style="font-size:10px">
+        <option value="summer">Summer Solstice</option>
+        <option value="equinox" selected>Equinox</option>
+        <option value="winter">Winter Solstice</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- COMPASS -->
+  <div class="compass"><canvas id="compass-cvs" width="58" height="58"></canvas></div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel">
+  <div class="sec">
+    <div class="sec-title">☀ Monthly Generation</div>
+    <div class="chart-wrap"><canvas id="month-chart" height="110"></canvas></div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">📊 Sun Arc Today</div>
+    <div class="chart-wrap"><canvas id="sun-chart" height="100"></canvas></div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">🔆 Performance</div>
+    <div class="kpi-grid">
+      <div class="kpi solar"><div class="kpi-lbl">Spec.Yield</div><div class="kpi-val" id="r-yield">—</div><div class="kpi-sub">kWh/kWp</div></div>
+      <div class="kpi cyan"><div class="kpi-lbl">LCOE</div><div class="kpi-val" id="r-lcoe">—</div><div class="kpi-sub">₹/kWh</div></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">📉 Loss Breakdown</div>
+    <div id="loss-breakdown"></div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">⚡ Inverter Summary</div>
+    <div id="inv-summary"><div style="font-size:10px;color:var(--text3)">Select inverter in Step 4</div></div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">📋 Placed Panels</div>
+    <div id="panel-table-wrap"><div style="font-size:10px;color:var(--text3)">No panels placed yet</div></div>
+  </div>
+</div>
+
+</div><!-- /workspace -->
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════
+var PANELS=[
+  {id:'mono-perc',name:'Mono PERC',type:'mono',wp:415,eff:21.3,w:1.134,l:1.762,tc:-0.34,co:'JA Solar/Longi',badge:'badge-mono',desc:'Best efficiency for space-limited sites.'},
+  {id:'topcon',name:'TOPCon N-type',type:'mono',wp:445,eff:22.8,w:1.134,l:1.762,tc:-0.30,co:'Jinko/Risen',badge:'badge-mono',desc:'Lowest temp coeff, best low-light.'},
+  {id:'bifacial',name:'Bifacial',type:'bifacial',wp:430,eff:21.0,w:1.134,l:1.762,tc:-0.34,co:'Canadian Solar',badge:'badge-bifacial',desc:'+10-25% rear gain on reflective ground.'},
+  {id:'poly',name:'Polycrystalline',type:'poly',wp:335,eff:17.2,w:0.992,l:1.640,tc:-0.40,co:'Trina Solar',badge:'badge-poly',desc:'Budget option, large ground-mount.'},
+  {id:'thin-cigs',name:'Thin Film (CIGS)',type:'thin',wp:180,eff:14.5,w:1.196,l:0.789,tc:-0.31,co:'First Solar',badge:'badge-thin',desc:'Flexible, excellent low-light.'},
+];
+var INV_DB={
+  'string':     {name:'String Inverter',eff:97.5,costFactor:0.8, icon:'🔌'},
+  'micro':      {name:'Microinverter',  eff:95.5,costFactor:1.8, icon:'🔬'},
+  'power-opt':  {name:'Power Optimizer',eff:98.5,costFactor:1.3, icon:'⚙'},
+  'hybrid':     {name:'Hybrid Inverter',eff:97.0,costFactor:1.5, icon:'🔋'},
+};
+var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+var STATE={
+  step:1, lat:19.076, lng:72.877,
+  drawing:false, polyPoints:[], areaM2:0,
+  gcr:0.40, height:3, rowMult:2.0, systemLoss:0.14,
+  selectedPanel:'mono-perc', selectedInverter:'string',
+  azimuth:180, tilt:20, panelRotation:0,
+  wp:415, eff:21.3, pw:1.134, pl:1.762, tc:-0.34,
+  invEff:97.5, stringSz:10,
+  ghi:5.0, panelCount:0, peakKwp:0, annualKwh:0,
+  calcDone:false, show3D:false, showLabels:true,
+  siteType:'ground',
+  manualPanels:[],  // [{lat,lng,rot,id}]
+  activeTool:'place',
+  placementMode:false,
+  selectedManualPanel:null
+};
+
+// ═══════════════════════════════════════════════════
+//  MAP
+// ═══════════════════════════════════════════════════
+var map=L.map('map',{zoomControl:true,attributionControl:false}).setView([STATE.lat,STATE.lng],17);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{opacity:0.5,maxZoom:21}).addTo(map);
+
+var siteMarker=L.circleMarker([STATE.lat,STATE.lng],{radius:7,color:'#f59e0b',weight:2,fillColor:'#f59e0b',fillOpacity:0.8}).addTo(map);
+var tempPtsLayer=L.layerGroup().addTo(map);
+var polylineLayer=L.layerGroup().addTo(map);
+var polygonFill=null;
+var panelGroup=L.layerGroup().addTo(map);
+var manualPanelGroup=L.layerGroup().addTo(map);
+
+map.on('click',function(e){
+  var lat=e.latlng.lat,lng=e.latlng.lng;
+  if(STATE.drawing){
+    if(STATE.polyPoints.length>=3){
+      var f=STATE.polyPoints[0];
+      var dx=(lat-f[0])*111000,dy=(lng-f[1])*111000*Math.cos(lat*Math.PI/180);
+      if(Math.sqrt(dx*dx+dy*dy)<15){closePolygon();return;}
+    }
+    STATE.polyPoints.push([lat,lng]);
+    updatePolyDraw();
+    return;
+  }
+  if(STATE.placementMode && STATE.activeTool==='place'){
+    placeManualPanel(lat,lng);
+    return;
+  }
+  STATE.lat=lat;STATE.lng=lng;
+  document.getElementById('inp-lat').value=lat.toFixed(5);
+  document.getElementById('inp-lng').value=lng.toFixed(5);
+  siteMarker.setLatLng([lat,lng]);
+  updateSolarData();drawCompass();
+});
+
+// ═══════════════════════════════════════════════════
+//  STEP NAV
+// ═══════════════════════════════════════════════════
+function goStep(n){
+  STATE.step=n;
+  for(var i=1;i<=6;i++){
+    var el=document.getElementById('step'+i+'-panel');
+    if(el)el.style.display=i===n?'block':'none';
+    var tab=document.getElementById('stab-'+i);
+    tab.classList.remove('active','done');
+    if(i===n)tab.classList.add('active');
+    else if(i<n)tab.classList.add('done');
+  }
+  if(n===3)buildPanelList();
+  if(n===5){updateAzimuth();suggestBestOrientation();}
+  if(n===6){runCalc();runFinancial();}
+}
+
+// ═══════════════════════════════════════════════════
+//  SOLAR DATA
+// ═══════════════════════════════════════════════════
+function getGHIData(lat){
+  var a=Math.abs(lat);
+  var m;
+  if(a<=10)       m=[5.1,5.4,5.7,5.5,5.2,4.8,4.6,4.7,5.0,5.2,5.1,4.9];
+  else if(a<=20)  m=[5.5,5.8,6.0,5.8,5.4,4.7,4.5,4.8,5.2,5.6,5.5,5.3];
+  else if(a<=30)  m=[4.8,5.4,6.1,6.3,6.0,5.5,5.3,5.5,5.8,5.5,4.9,4.6];
+  else if(a<=40)  m=[3.4,4.1,5.2,5.9,6.2,6.4,6.3,5.8,5.0,4.1,3.2,2.9];
+  else if(a<=50)  m=[2.0,2.9,4.2,5.2,5.8,6.0,5.9,5.2,4.0,2.8,1.8,1.6];
+  else            m=[0.8,1.8,3.5,4.8,5.6,5.8,5.5,4.5,3.0,1.8,0.8,0.5];
+  if(lat<0)m=m.slice(6).concat(m.slice(0,6));
+  return{monthly:m,annual:m.reduce((a,b)=>a+b,0)/12};
+}
+function getDOY(d){var s=new Date(d.getFullYear(),0,0);return Math.floor((d-s)/86400000);}
+function getSunriseSet(lat,doy){
+  var B=(360/365)*(doy-81)*Math.PI/180;
+  var decl=23.45*Math.sin(B)*Math.PI/180,latR=lat*Math.PI/180;
+  var cosHA=-Math.tan(latR)*Math.tan(decl);
+  if(cosHA>1)return{rise:null,set:null,dayLen:0};
+  if(cosHA<-1)return{rise:0,set:24,dayLen:24};
+  var ha=Math.acos(cosHA)*180/Math.PI;
+  return{rise:12-ha/15,set:12+ha/15,dayLen:ha/7.5};
+}
+function decHr(h){var hr=Math.floor(h),mn=Math.round((h-hr)*60);return String(hr).padStart(2,'0')+':'+String(mn).padStart(2,'0');}
+function calcSunPos(lat,lng,date){
+  var doy=getDOY(date),h=date.getHours()+date.getMinutes()/60;
+  var B=(360/365)*(doy-81)*Math.PI/180;
+  var EoT=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B);
+  var lstm=15*Math.round(lng/15);
+  var lst=h+(4*(lng-lstm)+EoT)/60;
+  var ha=(lst-12)*15;
+  var decl=23.45*Math.sin(B);
+  var latR=lat*Math.PI/180,declR=decl*Math.PI/180,haR=ha*Math.PI/180;
+  var sinAlt=Math.sin(latR)*Math.sin(declR)+Math.cos(latR)*Math.cos(declR)*Math.cos(haR);
+  var alt=Math.asin(Math.max(-1,Math.min(1,sinAlt)))*180/Math.PI;
+  var cosAz=(Math.sin(declR)-Math.sin(latR)*sinAlt)/(Math.cos(latR)*Math.cos(alt*Math.PI/180));
+  var az=Math.acos(Math.max(-1,Math.min(1,cosAz)))*180/Math.PI;
+  if(ha>0)az=360-az;
+  return{altitude:alt,azimuth:az};
+}
+function updateSolarData(){
+  var data=getGHIData(STATE.lat);
+  STATE.ghi=data.annual;
+  var doy=getDOY(new Date());
+  var ss=getSunriseSet(STATE.lat,doy);
+  document.getElementById('k-ghi').textContent=data.annual.toFixed(2);
+  document.getElementById('k-sun').textContent=data.annual.toFixed(1);
+  document.getElementById('k-rise').textContent=ss.rise?decHr(ss.rise):'N/A';
+  document.getElementById('k-set').textContent=ss.set?decHr(ss.set):'N/A';
+  var isN=STATE.lat>=0;
+  document.getElementById('hem-tip').textContent='💡 '+
+    (isN?'Face South (180°)':'Face North (0°)')+', tilt ≈'+
+    Math.round(Math.abs(STATE.lat)*0.9)+'° for max yield.';
+  document.getElementById('loc-info').textContent='📌 '+STATE.lat.toFixed(4)+'°, '+STATE.lng.toFixed(4)+'° | '+
+    (isN?'Northern':'Southern')+' Hemisphere';
+  drawMonthChart(data.monthly,null);drawSunCurve();
+  if(STATE.calcDone)runCalc();
+}
+
+// ═══════════════════════════════════════════════════
+//  DRAWING
+// ═══════════════════════════════════════════════════
+function toggleDrawMode(){
+  STATE.drawing=!STATE.drawing;
+  var b1=document.getElementById('draw-btn'),b2=document.getElementById('draw-overlay-btn');
+  if(STATE.drawing){
+    b1.textContent='⏹ Stop Drawing';b1.className='action-btn btn-danger';
+    b2.textContent='⏹ Stop';b2.classList.add('active');
+    map.getContainer().style.cursor='crosshair';
+  }else{
+    b1.textContent='✏ Start Drawing';b1.className='action-btn btn-solar';
+    b2.textContent='✏ Draw Area';b2.classList.remove('active');
+    map.getContainer().style.cursor='';
+    if(STATE.polyPoints.length>=3)closePolygon();
+  }
+}
+function updatePolyDraw(){
+  polylineLayer.clearLayers();tempPtsLayer.clearLayers();
+  STATE.polyPoints.forEach((p,i)=>{
+    L.circleMarker(p,{radius:i===0?7:4,color:'#f59e0b',weight:2,fillColor:i===0?'#f59e0b':'#fff',fillOpacity:0.9}).addTo(tempPtsLayer);
+  });
+  if(STATE.polyPoints.length>=2)
+    L.polyline(STATE.polyPoints,{color:'#f59e0b',weight:2,dashArray:'5 3',opacity:.9}).addTo(polylineLayer);
+}
+function closePolygon(){
+  STATE.drawing=false;
+  var b1=document.getElementById('draw-btn'),b2=document.getElementById('draw-overlay-btn');
+  if(b1){b1.textContent='✏ Start Drawing';b1.className='action-btn btn-solar';}
+  if(b2){b2.textContent='✏ Draw Area';b2.classList.remove('active');}
+  map.getContainer().style.cursor='';
+  polylineLayer.clearLayers();tempPtsLayer.clearLayers();
+  if(polygonFill){map.removeLayer(polygonFill);polygonFill=null;}
+  polygonFill=L.polygon(STATE.polyPoints,{color:'#f59e0b',weight:2,fillColor:'#f59e0b',fillOpacity:.12}).addTo(map);
+  STATE.areaM2=calcPolyArea(STATE.polyPoints);
+  document.getElementById('k-area').textContent=STATE.areaM2.toFixed(0);
+  updatePanelFit();
+  if(STATE.show3D)build3DScene();
+}
+function calcPolyArea(pts){
+  if(pts.length<3)return 0;
+  var a=0;
+  for(var i=0;i<pts.length;i++){
+    var j=(i+1)%pts.length;
+    var dLat=(pts[j][0]-pts[i][0])*111000;
+    var dLng=(pts[j][1]-pts[i][1])*111000*Math.cos(pts[i][0]*Math.PI/180);
+    a+=pts[i][0]*111000*dLng;
+    a-=pts[j][0]*111000*(pts[j][1]-pts[i][1])*111000*Math.cos(pts[i][0]*Math.PI/180);
+  }
+  return Math.abs(a)/2;
+}
+function clearPolygon(){
+  STATE.polyPoints=[];
+  if(polygonFill){map.removeLayer(polygonFill);polygonFill=null;}
+  polylineLayer.clearLayers();tempPtsLayer.clearLayers();
+  panelGroup.clearLayers();manualPanelGroup.clearLayers();
+  STATE.areaM2=0;STATE.manualPanels=[];
+  document.getElementById('k-area').textContent='—';
+  document.getElementById('k-fit').textContent='—';
+  updatePanelTable();
+}
+
+// ═══════════════════════════════════════════════════
+//  PANEL FIT (auto)
+// ═══════════════════════════════════════════════════
+function updatePanelFit(){
+  var pArea=STATE.pl*STATE.pw;
+  var fit=Math.floor(STATE.areaM2*STATE.gcr/pArea);
+  STATE.panelCount=Math.max(0,fit);
+  document.getElementById('k-fit').textContent=STATE.panelCount;
+  updateInverterCalc();
+}
+function autoFillPanels(){
+  if(STATE.polyPoints.length<3){alert('Draw an area first.');return;}
+  panelGroup.clearLayers();
+  var minLat=Infinity,maxLat=-Infinity,minLng=Infinity,maxLng=-Infinity;
+  STATE.polyPoints.forEach(p=>{minLat=Math.min(minLat,p[0]);maxLat=Math.max(maxLat,p[0]);
+    minLng=Math.min(minLng,p[1]);maxLng=Math.max(maxLng,p[1]);});
+  var mLat=111000,mLng=111000*Math.cos(STATE.lat*Math.PI/180);
+  var rotR=STATE.panelRotation*Math.PI/180;
+  var pW=STATE.pw/mLng,pH=STATE.pl/mLat;
+  var rowSp=pH*STATE.rowMult,colSp=pW*1.05;
+  var placed=0,maxP=STATE.panelCount||200;
+  var lat=maxLat-pH;
+  while(lat>minLat&&placed<maxP){
+    var lng=minLng;
+    while(lng+pW<maxLng&&placed<maxP){
+      var cLat=lat-pH/2,cLng=lng+pW/2;
+      if(pointInPoly([cLat,cLng],STATE.polyPoints)){
+        drawAutoPanel(lat,lng,lat-pH,lng+pW,placed);
+        placed++;
+      }
+      lng+=colSp;
+    }
+    lat-=rowSp;
+  }
+  STATE.panelCount=placed;
+  document.getElementById('k-fit').textContent=placed;
+  updateInverterCalc();
+  if(STATE.calcDone)runCalc();
+  if(STATE.show3D)build3DScene();
+}
+function drawAutoPanel(lat1,lng1,lat2,lng2,idx){
+  var r=L.rectangle([[lat1,lng1],[lat2,lng2]],{
+    color:'#3b82f6',weight:0.5,fillColor:'#1e40af',fillOpacity:0.75
+  });
+  r.bindTooltip(`Auto Panel #${idx+1} | ${STATE.wp}Wp`,{sticky:true});
+  panelGroup.addLayer(r);
+}
+function clearManualPanels(){
+  manualPanelGroup.clearLayers();
+  STATE.manualPanels=[];
+  updatePanelTable();
+}
+function pointInPoly(pt,poly){
+  var x=pt[0],y=pt[1],inside=false;
+  for(var i=0,j=poly.length-1;i<poly.length;j=i++){
+    var xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if(((yi>y)!=(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
+}
+
+// ═══════════════════════════════════════════════════
+//  MANUAL PANEL PLACEMENT
+// ═══════════════════════════════════════════════════
+var nextPanelId=1;
+function activatePlacementMode(){
+  STATE.placementMode=true;
+  document.getElementById('placement-toolbar').classList.add('active');
+  map.getContainer().style.cursor='crosshair';
+  setTool('place');
+}
+function deactivatePlacementMode(){
+  STATE.placementMode=false;
+  document.getElementById('placement-toolbar').classList.remove('active');
+  map.getContainer().style.cursor='';
+  STATE.selectedManualPanel=null;
+}
+function setTool(t){
+  STATE.activeTool=t;
+  ['place','move','delete'].forEach(id=>{
+    var btn=document.getElementById('tool-'+id);
+    if(btn)btn.className='pt-btn '+(id===t?'active-tool':'inactive-tool');
+  });
+  map.getContainer().style.cursor=t==='delete'?'not-allowed':t==='move'?'move':'crosshair';
+}
+function placeManualPanel(lat,lng){
+  var mLat=111000,mLng=111000*Math.cos(lat*Math.PI/180);
+  var rotR=STATE.panelRotation*Math.PI/180;
+  var hw=STATE.pw/2,hl=STATE.pl/2;
+  var corners=[
+    [-hl*Math.cos(rotR)+hw*Math.sin(rotR),-hl*Math.sin(rotR)-hw*Math.cos(rotR)],
+    [ hl*Math.cos(rotR)+hw*Math.sin(rotR), hl*Math.sin(rotR)-hw*Math.cos(rotR)],
+    [ hl*Math.cos(rotR)-hw*Math.sin(rotR), hl*Math.sin(rotR)+hw*Math.cos(rotR)],
+    [-hl*Math.cos(rotR)-hw*Math.sin(rotR),-hl*Math.sin(rotR)+hw*Math.cos(rotR)],
+  ].map(c=>[lat+c[0]/mLat,lng+c[1]/mLng]);
+
+  var pid=nextPanelId++;
+  var poly=L.polygon(corners,{color:'#f59e0b',weight:1.5,fillColor:'#92400e',fillOpacity:0.75});
+  var panel={id:pid,lat,lng,rot:STATE.panelRotation,layer:poly};
+  STATE.manualPanels.push(panel);
+
+  poly.bindTooltip(`Panel M${pid} | ${STATE.wp}Wp | Rot:${STATE.panelRotation}°`,{sticky:true});
+  poly.on('click',function(e){
+    L.DomEvent.stopPropagation(e);
+    if(STATE.activeTool==='delete'){
+      manualPanelGroup.removeLayer(poly);
+      STATE.manualPanels=STATE.manualPanels.filter(p=>p.id!==pid);
+      updatePanelTable();
+      if(STATE.show3D)build3DScene();
+    } else {
+      STATE.selectedManualPanel=pid;
+      poly.setStyle({color:'#fff',weight:2.5});
+    }
+  });
+  manualPanelGroup.addLayer(poly);
+  updatePanelTable();
+  if(STATE.show3D)build3DScene();
+}
+function rotatePanelCW(){STATE.panelRotation=(STATE.panelRotation+15)%180;document.getElementById('sl-panel-rot').value=STATE.panelRotation;document.getElementById('panel-rot-val').textContent=STATE.panelRotation+'°';}
+function rotatePanelCCW(){STATE.panelRotation=((STATE.panelRotation-15)+180)%180;document.getElementById('sl-panel-rot').value=STATE.panelRotation;document.getElementById('panel-rot-val').textContent=STATE.panelRotation+'°';}
+function updatePanelRotation(){STATE.panelRotation=parseInt(document.getElementById('sl-panel-rot').value);document.getElementById('panel-rot-val').textContent=STATE.panelRotation+'°';}
+function updatePanelTable(){
+  var total=STATE.manualPanels.length;
+  var wrap=document.getElementById('panel-table-wrap');
+  if(total===0){wrap.innerHTML='<div style="font-size:10px;color:var(--text3)">No manual panels placed</div>';return;}
+  var html='<table class="atbl"><tr><th>#</th><th>Rot</th><th>Wp</th></tr>';
+  STATE.manualPanels.slice(-10).forEach((p,i)=>{
+    html+=`<tr><td>M${p.id}</td><td>${p.rot}°</td><td>${STATE.wp}</td></tr>`;
+  });
+  if(total>10)html+=`<tr><td colspan="3" style="color:var(--text3)">+${total-10} more...</td></tr>`;
+  html+='</table><div style="font-size:9px;color:var(--text2);margin-top:4px">Total: '+total+' manual + '+
+    (STATE.panelCount)+' auto = '+(total+STATE.panelCount)+' panels</div>';
+  wrap.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════
+//  PANEL LIST
+// ═══════════════════════════════════════════════════
+function buildPanelList(){
+  var html='';
+  PANELS.forEach(p=>{
+    html+=`<div class="panel-card ${p.id===STATE.selectedPanel?'selected':''}" onclick="selectPanel('${p.id}')">
+      <div class="pc-name">${p.name}</div>
+      <div class="pc-specs">${p.wp}Wp · ${p.eff}% · ${p.w}×${p.l}m · Tcoeff:${p.tc}%/°C<br>${p.co}</div>
+      <span class="badge ${p.badge}">${p.type.toUpperCase()}</span>
+      <div style="font-size:9px;color:var(--text3);margin-top:2px">${p.desc}</div>
+    </div>`;
+  });
+  document.getElementById('panel-list').innerHTML=html;
+}
+function selectPanel(id){
+  STATE.selectedPanel=id;
+  var p=PANELS.find(x=>x.id===id);
+  if(p){
+    document.getElementById('inp-wp').value=p.wp;
+    document.getElementById('inp-eff').value=p.eff;
+    document.getElementById('inp-pw').value=p.w;
+    document.getElementById('inp-pl').value=p.l;
+    STATE.wp=p.wp;STATE.eff=p.eff;STATE.pw=p.w;STATE.pl=p.l;STATE.tc=p.tc;
+  }
+  buildPanelList();updatePanelFit();
+  if(STATE.show3D)build3DScene();
+}
+function updatePanelCalc(){
+  STATE.wp=parseFloat(document.getElementById('inp-wp').value)||400;
+  STATE.eff=parseFloat(document.getElementById('inp-eff').value)||20;
+  STATE.pw=parseFloat(document.getElementById('inp-pw').value)||1.134;
+  STATE.pl=parseFloat(document.getElementById('inp-pl').value)||1.762;
+  updatePanelFit();
+}
+
+// ═══════════════════════════════════════════════════
+//  INVERTER
+// ═══════════════════════════════════════════════════
+function selectInverter(type){
+  STATE.selectedInverter=type;
+  var inv=INV_DB[type];
+  STATE.invEff=inv.eff;
+  document.getElementById('inp-inv-eff').value=inv.eff;
+  document.querySelectorAll('.inv-card').forEach(el=>el.classList.remove('selected'));
+  document.getElementById('inv-'+type).classList.add('selected');
+  updateInverterCalc();
+  if(STATE.calcDone)runCalc();
+}
+function updateInverterCalc(){
+  STATE.stringSz=parseInt(document.getElementById('inp-string-sz').value)||10;
+  STATE.invEff=parseFloat(document.getElementById('inp-inv-eff').value)||97.5;
+  var total=STATE.panelCount+STATE.manualPanels.length;
+  if(total===0){['r-strings','r-inv-qty','r-dcac','r-inv-power'].forEach(id=>document.getElementById(id).textContent='—');return;}
+  var strings=Math.ceil(total/STATE.stringSz);
+  var invQty=STATE.selectedInverter==='micro'?total:
+             STATE.selectedInverter==='string'?Math.ceil(strings/2):
+             strings;
+  var dcPower=(total*STATE.wp)/1000;
+  var acPower=dcPower*(STATE.invEff/100);
+  var dcac=(dcPower/Math.max(acPower,0.1)).toFixed(2);
+  document.getElementById('r-strings').textContent=strings;
+  document.getElementById('r-inv-qty').textContent=invQty;
+  document.getElementById('r-dcac').textContent=dcac;
+  document.getElementById('r-inv-power').textContent=acPower.toFixed(2);
+  var inv=INV_DB[STATE.selectedInverter];
+  var advice=parseFloat(dcac)>1.25?'⚠ DC/AC ratio >1.25 — may clip energy. Increase inverter size or reduce panels.':
+             parseFloat(dcac)<0.9?'⚠ DC/AC ratio <0.9 — inverter oversized. Consider smaller inverter.':
+             '✓ DC/AC ratio '+dcac+' is optimal (ideal: 1.1–1.25)';
+  document.getElementById('inv-advice').textContent=advice;
+  document.getElementById('inv-advice').className='alert '+(parseFloat(dcac)>1.25||parseFloat(dcac)<0.9?'warn':'ok');
+  // Inverter summary in right panel
+  document.getElementById('inv-summary').innerHTML=
+    `<div class="info-row"><span>Type</span><span>${inv.icon} ${inv.name}</span></div>
+     <div class="info-row"><span>Efficiency</span><span>${STATE.invEff}%</span></div>
+     <div class="info-row"><span>Quantity</span><span>${invQty} units</span></div>
+     <div class="info-row"><span>AC Output</span><span>${acPower.toFixed(2)} kW</span></div>
+     <div class="info-row"><span>DC/AC Ratio</span><span>${dcac}</span></div>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  ORIENTATION
+// ═══════════════════════════════════════════════════
+function updateAzimuth(){STATE.azimuth=parseFloat(document.getElementById('sl-az').value)||180;document.getElementById('az-val').textContent=STATE.azimuth+'°';drawAzDial();if(STATE.calcDone)runCalc();if(STATE.show3D)update3DPanelTilt();}
+function updateTilt(){STATE.tilt=parseFloat(document.getElementById('sl-tilt').value)||20;document.getElementById('tilt-val').textContent=STATE.tilt+'°';if(STATE.calcDone)runCalc();if(STATE.show3D)update3DPanelTilt();}
+function suggestBestOrientation(){
+  var optAz=STATE.lat>=0?180:0;
+  var optTilt=Math.round(Math.abs(STATE.lat)*0.9);
+  optTilt=Math.max(10,Math.min(40,optTilt));
+  document.getElementById('sl-az').value=optAz;document.getElementById('sl-tilt').value=optTilt;
+  STATE.azimuth=optAz;STATE.tilt=optTilt;
+  document.getElementById('az-val').textContent=optAz+'°';document.getElementById('tilt-val').textContent=optTilt+'°';
+  var el=document.getElementById('opt-result');el.style.display='block';
+  el.textContent='✓ Optimal: '+(optAz===180?'South':'North')+' ('+optAz+'°), tilt '+optTilt+'° for lat '+STATE.lat.toFixed(1)+'°. Gain vs flat: +'+(optTilt*0.6).toFixed(0)+'%';
+  drawAzDial();runCalc();if(STATE.show3D)update3DPanelTilt();
+}
+
+// ═══════════════════════════════════════════════════
+//  ENERGY CALCULATION
+// ═══════════════════════════════════════════════════
+function runCalc(){
+  STATE.calcDone=true;
+  var data=getGHIData(STATE.lat);
+  var tiltR=STATE.tilt*Math.PI/180;
+  var optAz=STATE.lat>=0?180:0;
+  var azDiff=Math.min(Math.abs(STATE.azimuth-optAz),360-Math.abs(STATE.azimuth-optAz));
+  var azF=Math.cos(azDiff*Math.PI/180)*0.15+0.85;
+  var tiltF=1+Math.sin(tiltR)*0.08*Math.cos(Math.abs(STATE.lat)*Math.PI/180);
+  var temp=parseFloat(document.getElementById('inp-temp').value)||35;
+  var tempCorr=1+(STATE.tc/100)*(temp-25);
+  var bifacialG=STATE.selectedPanel==='bifacial'?1.10:1.0;
+  var invF=STATE.invEff/100;
+  var PR=azF*tiltF*tempCorr*(1-STATE.systemLoss)*bifacialG*invF;
+  PR=Math.min(0.92,Math.max(0.55,PR));
+  var total=(STATE.panelCount+STATE.manualPanels.length)||STATE.panelCount;
+  var peakKwp=(total*STATE.wp)/1000;
+  var annKwh=peakKwp*data.annual*365*PR;
+  STATE.peakKwp=peakKwp;STATE.annualKwh=annKwh;STATE.panelCount=total;
+  var monthKwh=data.monthly.map(m=>peakKwp*m*(365/12)*PR);
+  // Update KPIs
+  document.getElementById('r-annual').textContent=annKwh>0?(annKwh/1000).toFixed(1)+'k':'—';
+  document.getElementById('r-panels').textContent=total;
+  document.getElementById('r-peak').textContent=peakKwp.toFixed(2);
+  document.getElementById('r-daily').textContent=annKwh>0?(annKwh/365).toFixed(1):'—';
+  document.getElementById('r-pr').textContent=(PR*100).toFixed(1);
+  var cuf=annKwh>0?annKwh/(peakKwp*8760)*100:0;
+  document.getElementById('r-cuf').textContent=cuf.toFixed(1);
+  var sy=peakKwp>0?annKwh/peakKwp:0;
+  document.getElementById('r-yield').textContent=sy.toFixed(0);
+  var tempLoss=Math.abs((1-tempCorr)*100);
+  document.getElementById('temp-warn').textContent='⚠ At '+temp+'°C: output -'+tempLoss.toFixed(1)+'% vs STC 25°C.';
+  drawMonthChart(data.monthly,monthKwh);drawSunCurve();
+  drawLossBreakdown(azF,tiltF,tempCorr,bifacialG,invF);
+  runFinancial();
+  document.getElementById('pdf-btn').disabled=false;
+}
+function runFinancial(){
+  if(!STATE.annualKwh||STATE.annualKwh===0)return;
+  var tariff=parseFloat(document.getElementById('inp-tariff').value)||8;
+  var cpp=parseFloat(document.getElementById('inp-cost').value)||45000;
+  var inv=INV_DB[STATE.selectedInverter]||INV_DB.string;
+  var totalCost=STATE.peakKwp*cpp*inv.costFactor;
+  var annSav=STATE.annualKwh*tariff;
+  var payback=totalCost/annSav;
+  var roi25=annSav*25-totalCost;
+  var co2=STATE.annualKwh*0.82/1000;
+  var lcoe=totalCost/(STATE.annualKwh*25);
+  document.getElementById('r-savings').textContent=fmtM(annSav);
+  document.getElementById('r-payback').textContent=payback.toFixed(1);
+  document.getElementById('r-roi').textContent=fmtM(roi25);
+  document.getElementById('r-co2').textContent=co2.toFixed(2);
+  document.getElementById('r-lcoe').textContent='₹'+lcoe.toFixed(2);
+}
+function fmtM(v){if(v>=1e7)return'₹'+(v/1e7).toFixed(2)+'Cr';if(v>=1e5)return'₹'+(v/1e5).toFixed(2)+'L';if(v>=1e3)return'₹'+(v/1e3).toFixed(1)+'k';return'₹'+v.toFixed(0);}
+
+// ═══════════════════════════════════════════════════
+//  SLIDERS
+// ═══════════════════════════════════════════════════
+function updateGCR(){STATE.gcr=parseFloat(document.getElementById('sl-gcr').value)/100;document.getElementById('gcr-val').textContent=Math.round(STATE.gcr*100)+'%';updatePanelFit();}
+function updateHeight(){STATE.height=parseFloat(document.getElementById('sl-height').value);document.getElementById('height-val').textContent=STATE.height.toFixed(1)+'m';if(STATE.show3D)build3DScene();}
+function updateRow(){STATE.rowMult=parseFloat(document.getElementById('sl-row').value);document.getElementById('row-val').textContent=STATE.rowMult.toFixed(1)+'×';updatePanelFit();}
+function updateLoss(){STATE.systemLoss=parseFloat(document.getElementById('sl-loss').value)/100;document.getElementById('loss-val').textContent=Math.round(STATE.systemLoss*100)+'%';if(STATE.calcDone)runCalc();}
+function updateSiteType(){STATE.siteType=document.getElementById('sel-site').value;if(STATE.show3D)build3DScene();}
+function updateFromLatLng(){STATE.lat=parseFloat(document.getElementById('inp-lat').value)||0;STATE.lng=parseFloat(document.getElementById('inp-lng').value)||0;map.setView([STATE.lat,STATE.lng],17);siteMarker.setLatLng([STATE.lat,STATE.lng]);updateSolarData();drawCompass();}
+function searchLocation(){
+  var q=document.getElementById('search-inp').value.trim();if(!q)return;
+  fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=1')
+    .then(r=>r.json()).then(data=>{
+      if(data.length>0){STATE.lat=parseFloat(data[0].lat);STATE.lng=parseFloat(data[0].lon);
+        document.getElementById('inp-lat').value=STATE.lat.toFixed(5);document.getElementById('inp-lng').value=STATE.lng.toFixed(5);
+        map.setView([STATE.lat,STATE.lng],17);siteMarker.setLatLng([STATE.lat,STATE.lng]);
+        updateSolarData();drawCompass();}
+      else alert('Location not found.');
+    }).catch(()=>alert('Search failed.'));
+}
+
+// ═══════════════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════════════
+function drawMonthChart(ghiData,kwh){
+  var cvs=document.getElementById('month-chart');var ctx=cvs.getContext('2d');
+  cvs.width=cvs.parentElement.clientWidth;var w=cvs.width,h=cvs.height;
+  ctx.clearRect(0,0,w,h);ctx.fillStyle='#0f1117';ctx.fillRect(0,0,w,h);
+  var pad={t:12,b:22,l:32,r:4};var bw=(w-pad.l-pad.r)/12;
+  var maxG=Math.max(...ghiData)*1.2;
+  for(var i=0;i<=4;i++){var y=pad.t+(h-pad.t-pad.b)*(1-i/4);ctx.strokeStyle='rgba(42,53,80,.5)';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillStyle='#4a5568';ctx.font='7px monospace';ctx.textAlign='right';ctx.fillText((maxG*i/4).toFixed(1),pad.l-2,y+3);}
+  ghiData.forEach((g,i)=>{
+    var x=pad.l+i*bw;var barH=(g/maxG)*(h-pad.t-pad.b);
+    var gr=ctx.createLinearGradient(0,h-pad.b-barH,0,h-pad.b);gr.addColorStop(0,'rgba(245,158,11,.9)');gr.addColorStop(1,'rgba(180,83,9,.4)');
+    ctx.fillStyle=gr;ctx.fillRect(x+2,h-pad.b-barH,bw-4,barH);
+    ctx.fillStyle='#6b7280';ctx.font='7px monospace';ctx.textAlign='center';ctx.fillText(MONTHS[i].charAt(0),x+bw/2,h-3);
+  });
+  if(kwh){var maxK=Math.max(...kwh)*1.2||1;ctx.strokeStyle='#10b981';ctx.lineWidth=1.5;ctx.beginPath();kwh.forEach((k,i)=>{var x=pad.l+(i+.5)*bw,y=h-pad.b-(k/maxK)*(h-pad.t-pad.b);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.stroke();}
+}
+function drawSunCurve(){
+  var cvs=document.getElementById('sun-chart');var ctx=cvs.getContext('2d');
+  cvs.width=cvs.parentElement.clientWidth;var w=cvs.width,h=cvs.height;
+  ctx.clearRect(0,0,w,h);ctx.fillStyle='#0f1117';ctx.fillRect(0,0,w,h);
+  var now=new Date();var doy=getDOY(now);var ss=getSunriseSet(STATE.lat,doy);
+  if(!ss.rise)return;
+  var pad={t:6,b:14,l:4,r:4};var steps=150;var alts=[],maxA=0;
+  for(var i=0;i<=steps;i++){var hh=ss.rise+(ss.set-ss.rise)*(i/steps);var d=new Date();d.setHours(Math.floor(hh),Math.round((hh%1)*60),0);var pos=calcSunPos(STATE.lat,STATE.lng,d);alts.push(Math.max(0,pos.altitude));if(pos.altitude>maxA)maxA=pos.altitude;}
+  if(maxA===0)return;
+  var sky=ctx.createLinearGradient(0,pad.t,0,h-pad.b);sky.addColorStop(0,'#1e3a5f');sky.addColorStop(1,'#0f1117');ctx.fillStyle=sky;ctx.fillRect(pad.l,pad.t,w-pad.l-pad.r,h-pad.t-pad.b);
+  var gr=ctx.createLinearGradient(0,pad.t,0,h-pad.b);gr.addColorStop(0,'rgba(251,191,36,.6)');gr.addColorStop(1,'rgba(251,191,36,0)');
+  ctx.beginPath();ctx.moveTo(pad.l,h-pad.b);
+  alts.forEach((a,i)=>{var x=pad.l+(i/steps)*(w-pad.l-pad.r);var y=h-pad.b-(a/maxA)*(h-pad.t-pad.b);ctx.lineTo(x,y);});
+  ctx.lineTo(w-pad.r,h-pad.b);ctx.closePath();ctx.fillStyle=gr;ctx.fill();
+  ctx.strokeStyle='#fbbf24';ctx.lineWidth=1.5;ctx.beginPath();alts.forEach((a,i)=>{var x=pad.l+(i/steps)*(w-pad.l-pad.r);var y=h-pad.b-(a/maxA)*(h-pad.t-pad.b);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.stroke();
+  ctx.fillStyle='#6b7280';ctx.font='7px monospace';ctx.textAlign='center';ctx.fillText(decHr(ss.rise),pad.l+10,h-2);ctx.fillText('12:00',w/2,h-2);ctx.fillText(decHr(ss.set),w-pad.r-10,h-2);
+  ctx.fillStyle='#fbbf24';ctx.fillText(maxA.toFixed(0)+'° max',w/2,pad.t+9);
+}
+function drawLossBreakdown(azF,tiltF,tempCorr,bifacial,invF){
+  var losses=[
+    {n:'System/Wiring',p:STATE.systemLoss*100,c:'#ef4444'},
+    {n:'Inverter',p:(1-invF)*100,c:'#06b6d4'},
+    {n:'Temperature',p:Math.abs((1-tempCorr)*100),c:'#f97316'},
+    {n:'Azimuth',p:(1-azF)*100,c:'#eab308'},
+    {n:'Tilt',p:Math.max(0,(1-tiltF)*100),c:'#8b5cf6'},
+  ];
+  var html=losses.map(l=>`<div style="margin-bottom:5px"><div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:1px"><span style="color:var(--text2)">${l.n}</span><span style="color:${l.c};font-family:'JetBrains Mono',monospace">${l.p.toFixed(1)}%</span></div><div class="prog-bar"><div class="prog-fill" style="width:${Math.min(100,l.p*4)}%;background:${l.c}"></div></div></div>`).join('');
+  if(bifacial>1)html=`<div class="alert ok" style="margin-bottom:5px;font-size:9px">✓ Bifacial +${((bifacial-1)*100).toFixed(0)}%</div>`+html;
+  document.getElementById('loss-breakdown').innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════
+//  AZIMUTH DIAL
+// ═══════════════════════════════════════════════════
+function drawAzDial(){
+  var cvs=document.getElementById('az-dial');var ctx=cvs.getContext('2d');
+  var w=cvs.width,h=cvs.height,cx=w/2,cy=h/2,R=Math.min(cx,cy)-10;
+  ctx.clearRect(0,0,w,h);
+  var gr=ctx.createRadialGradient(cx,cy,0,cx,cy,R);gr.addColorStop(0,'#1e2535');gr.addColorStop(1,'#131929');
+  ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.fillStyle=gr;ctx.fill();ctx.strokeStyle='#2a3550';ctx.lineWidth=1.5;ctx.stroke();
+  [{d:0,l:'N'},{d:45,l:'NE'},{d:90,l:'E'},{d:135,l:'SE'},{d:180,l:'S'},{d:225,l:'SW'},{d:270,l:'W'},{d:315,l:'NW'}].forEach(({d,l})=>{
+    var ang=(d-90)*Math.PI/180;var isM=['N','E','S','W'].includes(l);
+    ctx.strokeStyle=isM?'#64748b':'#374151';ctx.lineWidth=isM?1.5:.8;
+    ctx.beginPath();ctx.moveTo(cx+R*.8*Math.cos(ang),cy+R*.8*Math.sin(ang));ctx.lineTo(cx+R*.93*Math.cos(ang),cy+R*.93*Math.sin(ang));ctx.stroke();
+    ctx.fillStyle=isM?'#94a3b8':'#4b5563';ctx.font=(isM?'bold ':'')+( isM?'11':'8')+'px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(l,cx+R*.66*Math.cos(ang),cy+R*.66*Math.sin(ang));
+  });
+  var optAz=STATE.lat>=0?180:0;
+  ctx.strokeStyle='rgba(16,185,129,.35)';ctx.lineWidth=8;ctx.beginPath();ctx.arc(cx,cy,R*.88,(optAz-6-90)*Math.PI/180,(optAz+6-90)*Math.PI/180);ctx.stroke();
+  var azR=(STATE.azimuth-90)*Math.PI/180,aL=R*.75;
+  var ax=cx+aL*Math.cos(azR),ay=cy+aL*Math.sin(azR);
+  ctx.strokeStyle='#f59e0b';ctx.lineWidth=3;ctx.lineCap='round';ctx.shadowColor='#f59e0b';ctx.shadowBlur=10;
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ax,ay);ctx.stroke();ctx.shadowBlur=0;
+  ctx.fillStyle='#f59e0b';var al=13,aa=Math.PI/6;ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(ax-al*Math.cos(azR-aa),ay-al*Math.sin(azR-aa));ctx.lineTo(ax-al*Math.cos(azR+aa),ay-al*Math.sin(azR+aa));ctx.closePath();ctx.fill();
+  ctx.fillStyle='#1e2535';ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fill();ctx.fillStyle='#f59e0b';ctx.beginPath();ctx.arc(cx,cy,3,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#f59e0b';ctx.font='bold 13px JetBrains Mono,monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(STATE.azimuth+'°',cx,cy+R*.38);
+  ctx.fillStyle='#64748b';ctx.font='9px Inter,sans-serif';ctx.fillText(azDir(STATE.azimuth),cx,cy+R*.38+13);
+}
+function azDir(az){var d=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];return d[Math.round(az/22.5)%16];}
+function drawCompass(){
+  var cvs=document.getElementById('compass-cvs');var ctx=cvs.getContext('2d');
+  var w=cvs.width,h=cvs.height,cx=w/2,cy=h/2,R=w/2-3;
+  ctx.clearRect(0,0,w,h);
+  ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.fillStyle='rgba(13,19,29,.85)';ctx.fill();ctx.strokeStyle='#2a3550';ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle='#ef4444';ctx.beginPath();ctx.moveTo(cx,cy-R+6);ctx.lineTo(cx-6,cy);ctx.lineTo(cx+6,cy);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#e2e8f0';ctx.beginPath();ctx.moveTo(cx,cy+R-6);ctx.lineTo(cx-6,cy);ctx.lineTo(cx+6,cy);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#ef4444';ctx.font='bold 8px Inter';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('N',cx,cy-R*.5);
+  var azR=(STATE.azimuth-90)*Math.PI/180;ctx.strokeStyle='#f59e0b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx+(R-10)*Math.cos(azR),cy+(R-10)*Math.sin(azR));ctx.lineTo(cx+(R-3)*Math.cos(azR),cy+(R-3)*Math.sin(azR));ctx.stroke();
+}
+
+// ═══════════════════════════════════════════════════
+//  THREE.JS 3D VIEW
+// ═══════════════════════════════════════════════════
+var renderer3D=null,scene3D=null,camera3D=null,animFrame=null;
+var orbitState={dragging:false,lastX:0,lastY:0,theta:45,phi:55,radius:120,target:{x:0,y:0,z:0},rightDrag:false};
+var sunMesh=null,sunLight=null,panelMeshes=[],labelSprites=[];
+var animate3DSun=false,sunAnimTime=8;
+
+function toggle3DView(){
+  STATE.show3D=!STATE.show3D;
+  var btn=document.getElementById('btn-toggle3d');
+  var mapEl=document.getElementById('map');
+  var c3d=document.getElementById('canvas3d');
+  var ctrls=document.getElementById('controls3d');
+  if(STATE.show3D){
+    mapEl.style.display='none';c3d.style.display='block';ctrls.classList.add('visible');
+    btn.classList.add('active');btn.textContent='🗺 Map View';
+    init3D();
+  }else{
+    mapEl.style.display='block';c3d.style.display='none';ctrls.classList.remove('visible');
+    btn.classList.remove('active');btn.textContent='⬛ 3D View';
+    if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}
+  }
+}
+function init3D(){
+  var container=document.getElementById('canvas3d');
+  container.innerHTML='';
+  var W=container.clientWidth,H=container.clientHeight;
+  renderer3D=new THREE.WebGLRenderer({antialias:true});
+  renderer3D.setSize(W,H);renderer3D.shadowMap.enabled=true;renderer3D.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer3D.setClearColor(0x0a0f1a);container.appendChild(renderer3D.domElement);
+  scene3D=new THREE.Scene();
+  scene3D.fog=new THREE.FogExp2(0x0a0f1a,0.008);
+  camera3D=new THREE.PerspectiveCamera(45,W/H,0.1,2000);
+  updateCameraPos();
+  // Lights
+  scene3D.add(new THREE.AmbientLight(0x334466,0.6));
+  sunLight=new THREE.DirectionalLight(0xfff4e0,1.4);
+  sunLight.castShadow=true;sunLight.shadow.mapSize.set(2048,2048);sunLight.shadow.camera.near=0.5;sunLight.shadow.camera.far=500;sunLight.shadow.camera.left=-80;sunLight.shadow.camera.right=80;sunLight.shadow.camera.top=80;sunLight.shadow.camera.bottom=-80;
+  scene3D.add(sunLight);
+  scene3D.add(new THREE.HemisphereLight(0x334466,0x1a2a1a,0.4));
+  build3DScene();
+  addOrbitListeners();
+  render3D();
+}
+function build3DScene(){
+  if(!scene3D)return;
+  // Clear old objects (keep lights)
+  var toRemove=[];scene3D.children.forEach(c=>{if(c.isMesh||c.isGroup||c.isSprite)toRemove.push(c);});
+  toRemove.forEach(c=>scene3D.remove(c));panelMeshes=[];labelSprites=[];
+
+  // Ground plane
+  var siteType=STATE.siteType;
+  var groundGeo=new THREE.PlaneGeometry(200,200);
+  var groundMat=new THREE.MeshLambertMaterial({color:siteType==='ground'?0x1a3a1a:0x3a3a3a});
+  var ground=new THREE.Mesh(groundGeo,groundMat);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene3D.add(ground);
+
+  // Grid
+  var gridHelper=new THREE.GridHelper(200,40,0x2a3a2a,0x1f2f1f);scene3D.add(gridHelper);
+
+  // Calculate area size from polyPoints
+  var aW=20,aL=20;
+  if(STATE.polyPoints.length>=3){
+    var lats=STATE.polyPoints.map(p=>p[0]),lngs=STATE.polyPoints.map(p=>p[1]);
+    aW=Math.max(10,Math.min(80,(Math.max(...lngs)-Math.min(...lngs))*111000*Math.cos(STATE.lat*Math.PI/180)));
+    aL=Math.max(10,Math.min(80,(Math.max(...lats)-Math.min(...lats))*111000));
+  }
+
+  // Building / structure
+  var h=STATE.height||3;
+  if(siteType!=='ground'){
+    var bMat=new THREE.MeshLambertMaterial({color:0x6b7280,transparent:true,opacity:.85});
+    if(siteType==='flat-roof'||siteType==='carport'){
+      var bGeo=new THREE.BoxGeometry(aW+4,h,aL+4);
+      var b=new THREE.Mesh(bGeo,bMat);b.position.set(0,h/2,0);b.castShadow=true;b.receiveShadow=true;scene3D.add(b);
+    }else if(siteType==='pitched-roof'){
+      var wallGeo=new THREE.BoxGeometry(aW+4,h*0.7,aL+4);
+      var wall=new THREE.Mesh(wallGeo,bMat);wall.position.set(0,h*0.35,0);wall.castShadow=true;wall.receiveShadow=true;scene3D.add(wall);
+      var roofGeo=new THREE.ConeGeometry(Math.max(aW,aL)*0.72,h*0.6,4);
+      var roof=new THREE.Mesh(roofGeo,new THREE.MeshLambertMaterial({color:0x8b4513}));
+      roof.position.set(0,h*0.7+h*0.3,0);roof.rotation.y=Math.PI/4;roof.castShadow=true;scene3D.add(roof);
+    }
+  }
+
+  // Solar panels
+  var tiltR=STATE.tilt*Math.PI/180;
+  var azR=(STATE.azimuth-180)*Math.PI/180; // rotation offset for Three.js
+  var pw=STATE.pw,pl=STATE.pl;
+  var rowSp=pl*STATE.rowMult,colSp=pw*1.05;
+  var rows=Math.max(1,Math.floor(aL/rowSp));
+  var cols=Math.max(1,Math.floor(aW/colSp));
+  var panelMat=new THREE.MeshPhongMaterial({color:0x1a237e,specular:0x4488ff,shininess:80,side:THREE.DoubleSide});
+  var cellMat=new THREE.MeshPhongMaterial({color:0x283593,wireframe:false});
+  var frameMat=new THREE.MeshLambertMaterial({color:0x888888});
+  var placedCount=0;
+  for(var r=0;r<rows;r++){
+    for(var c=0;c<cols;c++){
+      if(placedCount>=(STATE.panelCount||100))break;
+      var px=-(cols-1)*colSp/2+c*colSp;
+      var pz=-(rows-1)*rowSp/2+r*rowSp;
+      var py=h+0.2;
+
+      var panelGrp=new THREE.Group();panelGrp.position.set(px,py,pz);
+      panelGrp.rotation.y=azR;
+      // Panel face
+      var panGeo=new THREE.BoxGeometry(pw,0.04,pl);
+      var pan=new THREE.Mesh(panGeo,panelMat);pan.castShadow=true;pan.receiveShadow=true;
+      // Grid lines on panel (cell pattern)
+      var cellGeo=new THREE.EdgesGeometry(new THREE.BoxGeometry(pw*0.95,0.05,pl*0.95));
+      var cells=new THREE.LineSegments(cellGeo,new THREE.LineBasicMaterial({color:0x3949ab,linewidth:1}));
+      cells.position.y=0.03;pan.add(cells);
+      // Frame
+      var frameGeo=new THREE.BoxGeometry(pw,0.06,pl);
+      var frame=new THREE.Mesh(frameGeo,frameMat);frame.position.y=-0.01;
+      panelGrp.add(frame);panelGrp.add(pan);
+      // Tilt
+      panelGrp.rotation.x=-tiltR;
+      // Mount leg
+      var legGeo=new THREE.CylinderGeometry(0.03,0.03,Math.max(0.2,py*0.5));
+      var leg=new THREE.Mesh(legGeo,frameMat);leg.position.set(0,-Math.max(0.2,py*0.25),0);panelGrp.add(leg);
+      scene3D.add(panelGrp);panelMeshes.push(panelGrp);
+      placedCount++;
+    }
+    if(placedCount>=(STATE.panelCount||100))break;
+  }
+
+  // Manual panels (from map)
+  STATE.manualPanels.forEach((mp,idx)=>{
+    var mPgrp=new THREE.Group();
+    var offX=(mp.lng-STATE.lng)*111000*Math.cos(STATE.lat*Math.PI/180);
+    var offZ=-(mp.lat-STATE.lat)*111000;
+    mPgrp.position.set(Math.max(-80,Math.min(80,offX)),h+0.2,Math.max(-80,Math.min(80,offZ)));
+    var mAzR=(mp.rot-180+STATE.azimuth-180)*Math.PI/180;
+    mPgrp.rotation.y=mAzR;mPgrp.rotation.x=-tiltR;
+    var mPan=new THREE.Mesh(new THREE.BoxGeometry(pw,0.04,pl),new THREE.MeshPhongMaterial({color:0xb45309,specular:0xffaa00,shininess:60}));
+    mPan.castShadow=true;mPgrp.add(mPan);scene3D.add(mPgrp);panelMeshes.push(mPgrp);
+  });
+
+  // Sun position indicator
+  updateSunPosition3D();
+
+  // Axis helper
+  var axes=new THREE.AxesHelper(8);axes.position.set(-aW/2-5,h,aL/2+5);scene3D.add(axes);
+}
+function updateSunPosition3D(){
+  if(!scene3D)return;
+  if(sunMesh){scene3D.remove(sunMesh);}
+  var timeVal=parseFloat(document.getElementById('sl-time3d').value)||12;
+  var season=document.getElementById('sel-season').value;
+  var now=new Date();
+  var doy=season==='summer'?172:season==='winter'?355:80;
+  var d=new Date(now.getFullYear(),0,doy);d.setHours(Math.floor(timeVal),Math.round((timeVal%1)*60),0);
+  var pos=calcSunPos(STATE.lat,STATE.lng,d);
+  var altR=pos.altitude*Math.PI/180;var azR2=(pos.azimuth-180)*Math.PI/180;
+  var dist=100;
+  var sx=dist*Math.cos(altR)*Math.sin(azR2);
+  var sy=Math.max(5,dist*Math.sin(altR));
+  var sz=-dist*Math.cos(altR)*Math.cos(azR2);
+  sunLight.position.set(sx,sy,sz);sunLight.intensity=Math.max(0,Math.sin(altR))*1.4;
+  var sunGeo=new THREE.SphereGeometry(4,16,16);
+  var sunMat=new THREE.MeshBasicMaterial({color:0xffd700});
+  sunMesh=new THREE.Mesh(sunGeo,sunMat);sunMesh.position.set(sx,sy,sz);
+  scene3D.add(sunMesh);
+  // Sun rays glow
+  if(sunLight.intensity>0.1){
+    var rayMat=new THREE.LineBasicMaterial({color:0xffd700,transparent:true,opacity:.15});
+    for(var i=0;i<8;i++){
+      var ang2=i/8*Math.PI*2;var rLen=20;
+      var rGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(sx,sy,sz),new THREE.Vector3(sx+Math.cos(ang2)*rLen,sy-5,sz+Math.sin(ang2)*rLen)]);
+      scene3D.add(new THREE.Line(rGeo,rayMat));
+    }
+  }
+}
+function update3DTime(){
+  var v=parseFloat(document.getElementById('sl-time3d').value)||12;
+  document.getElementById('time3d-val').textContent=decHr(v);
+  if(scene3D)updateSunPosition3D();
+}
+function update3DPanelTilt(){
+  if(!scene3D)return;
+  var tiltR=STATE.tilt*Math.PI/180;
+  var azR=(STATE.azimuth-180)*Math.PI/180;
+  panelMeshes.forEach(p=>{p.rotation.x=-tiltR;p.rotation.y=azR;});
+}
+function toggle3DLabels(){STATE.showLabels=!STATE.showLabels;}
+function animateSun(){
+  animate3DSun=!animate3DSun;
+  if(animate3DSun)sunAnimLoop();
+}
+function sunAnimLoop(){
+  if(!animate3DSun||!STATE.show3D)return;
+  sunAnimTime=(sunAnimTime+0.1)%24;
+  document.getElementById('sl-time3d').value=sunAnimTime;
+  document.getElementById('time3d-val').textContent=decHr(sunAnimTime);
+  updateSunPosition3D();
+  setTimeout(sunAnimLoop,80);
+}
+
+// Orbit controls
+function updateCameraPos(){
+  if(!camera3D)return;
+  var tR=orbitState.phi*Math.PI/180;var pR=orbitState.theta*Math.PI/180;
+  var r=orbitState.radius;
+  camera3D.position.set(orbitState.target.x+r*Math.sin(tR)*Math.sin(pR),orbitState.target.y+r*Math.cos(tR),orbitState.target.z+r*Math.sin(tR)*Math.cos(pR));
+  camera3D.lookAt(orbitState.target.x,orbitState.target.y,orbitState.target.z);
+}
+function addOrbitListeners(){
+  var el=renderer3D.domElement;
+  el.addEventListener('mousedown',function(e){orbitState.dragging=true;orbitState.lastX=e.clientX;orbitState.lastY=e.clientY;orbitState.rightDrag=e.button===2;e.preventDefault();});
+  el.addEventListener('contextmenu',function(e){e.preventDefault();});
+  window.addEventListener('mousemove',function(e){
+    if(!orbitState.dragging||!STATE.show3D)return;
+    var dx=e.clientX-orbitState.lastX,dy=e.clientY-orbitState.lastY;
+    orbitState.lastX=e.clientX;orbitState.lastY=e.clientY;
+    if(orbitState.rightDrag){orbitState.target.x-=dx*0.15;orbitState.target.z-=dy*0.15;}
+    else{orbitState.theta=Math.max(5,Math.min(89,orbitState.theta-dy*0.4));orbitState.phi+=dx*0.4;}
+    updateCameraPos();
+  });
+  window.addEventListener('mouseup',function(){orbitState.dragging=false;});
+  el.addEventListener('wheel',function(e){orbitState.radius=Math.max(10,Math.min(400,orbitState.radius+e.deltaY*0.1));updateCameraPos();e.preventDefault();},{passive:false});
+  el.addEventListener('dblclick',function(){resetCamera3D();});
+}
+function resetCamera3D(){orbitState={dragging:false,lastX:0,lastY:0,theta:45,phi:55,radius:120,target:{x:0,y:0,z:0},rightDrag:false};updateCameraPos();}
+function view3DTop(){orbitState.theta=10;orbitState.phi=180;orbitState.radius=100;updateCameraPos();}
+function view3DSouth(){orbitState.theta=30;orbitState.phi=0;orbitState.radius=100;updateCameraPos();}
+function render3D(){
+  if(!STATE.show3D){return;}
+  animFrame=requestAnimationFrame(render3D);
+  renderer3D.render(scene3D,camera3D);
+}
+window.addEventListener('resize',function(){
+  if(renderer3D&&STATE.show3D){var c=document.getElementById('canvas3d');renderer3D.setSize(c.clientWidth,c.clientHeight);camera3D.aspect=c.clientWidth/c.clientHeight;camera3D.updateProjectionMatrix();}
+});
+
+// ═══════════════════════════════════════════════════
+//  PDF REPORT
+// ═══════════════════════════════════════════════════
+async function generatePDF(){
+  if(!STATE.calcDone){alert('Complete analysis first.');return;}
+  var btn=document.getElementById('pdf-btn');btn.textContent='⏳ Generating…';btn.disabled=true;
+  var data=getGHIData(STATE.lat);
+  var panel=PANELS.find(p=>p.id===STATE.selectedPanel)||PANELS[0];
+  var inv=INV_DB[STATE.selectedInverter]||INV_DB.string;
+  var tariff=parseFloat(document.getElementById('inp-tariff').value)||8;
+  var cpp=parseFloat(document.getElementById('inp-cost').value)||45000;
+  var totalCost=STATE.peakKwp*cpp*inv.costFactor;
+  var annSav=STATE.annualKwh*tariff;var payback=totalCost/annSav;var co2=STATE.annualKwh*0.82/1000;
+  var total=STATE.panelCount+STATE.manualPanels.length;
+  var now=new Date();
+  var monthRows=data.monthly.map((g,i)=>{
+    var kwh=STATE.peakKwp*g*(365/12)*0.8;
+    return`<tr><td>${MONTHS[i]}</td><td>${g.toFixed(2)}</td><td>${(kwh/1000).toFixed(2)}</td><td>₹${(kwh*tariff).toFixed(0)}</td></tr>`;
+  }).join('');
+  var maxG=Math.max(...data.monthly);
+  var bars=data.monthly.map(g=>`<div style="flex:1;background:linear-gradient(to top,#d97706,#fbbf24);height:${g/maxG*100}%;border-radius:2px 2px 0 0;min-height:3px"></div>`).join('');
+  var html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+    *{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Inter',sans-serif;color:#1a202c;font-size:11px;}
+    .page{padding:24px 28px;max-width:780px;margin:0 auto;}
+    .hdr{background:linear-gradient(135deg,#0f1117,#1e2535);color:#fff;padding:20px 24px;border-radius:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}
+    h1{font-size:20px;font-weight:700;color:#f59e0b;}
+    h2{font-size:13px;font-weight:700;border-bottom:2px solid #f59e0b;padding-bottom:4px;margin:16px 0 8px;}
+    .grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+    .kc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:8px 10px;border-left:4px solid;}
+    .kc.s{border-left-color:#f59e0b;}.kc.g{border-left-color:#10b981;}.kc.b{border-left-color:#3b82f6;}.kc.p{border-left-color:#8b5cf6;}.kc.c{border-left-color:#06b6d4;}
+    .kl{font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;}
+    .kv{font-size:16px;font-weight:700;margin-top:1px;}
+    .kc.s .kv{color:#d97706;}.kc.g .kv{color:#059669;}.kc.b .kv{color:#2563eb;}.kc.p .kv{color:#7c3aed;}.kc.c .kv{color:#0891b2;}
+    .ks{font-size:8px;color:#9ca3af;}
+    table{width:100%;border-collapse:collapse;font-size:10px;margin-top:4px;}
+    th{background:#1e2535;color:#e2e8f0;padding:6px 8px;text-align:left;font-weight:600;}td{padding:5px 8px;border-bottom:1px solid #f1f5f9;}tr:nth-child(even) td{background:#f8fafc;}
+    .alert{border-radius:4px;padding:7px 10px;font-size:10px;margin-bottom:8px;line-height:1.6;}
+    .ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;}.warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;}
+    .bar-row{display:flex;align-items:flex-end;height:70px;gap:2px;padding:4px 0;}
+    .foot{margin-top:20px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:8px;color:#9ca3af;display:flex;justify-content:space-between;}
+    .ir{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9;font-size:10px;}
+    .ir span:first-child{color:#6b7280;}.ir span:last-child{font-weight:600;}
+  </style></head><body><div class="page">
+  <div class="hdr">
+    <div><div style="font-size:10px;color:#f59e0b;font-weight:600;letter-spacing:.1em">☀ SOLAR SITE ANALYSIS REPORT v2</div>
+    <h1>Solar Installation Feasibility Report</h1>
+    <div style="color:#94a3b8;font-size:10px">${now.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div></div>
+    <div style="text-align:right"><div style="color:#94a3b8;font-size:9px">Coordinates</div>
+    <div style="color:#f59e0b;font-size:12px;font-weight:700">${STATE.lat.toFixed(4)}°, ${STATE.lng.toFixed(4)}°</div>
+    <div style="color:#64748b;font-size:9px;margin-top:2px">${STATE.lat>=0?'Northern':'Southern'} Hemisphere</div></div>
+  </div>
+  <h2>1. Site & Solar Resource</h2>
+  <div class="grid4">
+    <div class="kc s"><div class="kl">GHI</div><div class="kv">${data.annual.toFixed(2)}</div><div class="ks">kWh/m²/day</div></div>
+    <div class="kc g"><div class="kl">Site Area</div><div class="kv">${STATE.areaM2.toFixed(0)}</div><div class="ks">m²</div></div>
+    <div class="kc b"><div class="kl">Site Type</div><div class="kv">${STATE.siteType}</div></div>
+    <div class="kc p"><div class="kl">GCR</div><div class="kv">${(STATE.gcr*100).toFixed(0)}%</div></div>
+  </div>
+  <h2>2. System Configuration</h2>
+  <div class="grid2">
+    <div>
+      <div class="ir"><span>Panel Type</span><span>${panel.name}</span></div>
+      <div class="ir"><span>Panel Power</span><span>${STATE.wp} Wp</span></div>
+      <div class="ir"><span>Efficiency</span><span>${STATE.eff}%</span></div>
+      <div class="ir"><span>Size</span><span>${STATE.pw}×${STATE.pl}m</span></div>
+      <div class="ir"><span>Auto Panels</span><span>${STATE.panelCount}</span></div>
+      <div class="ir"><span>Manual Panels</span><span>${STATE.manualPanels.length}</span></div>
+      <div class="ir"><span>Total Panels</span><span>${total}</span></div>
+    </div>
+    <div>
+      <div class="ir"><span>Inverter Type</span><span>${inv.icon} ${inv.name}</span></div>
+      <div class="ir"><span>Inv. Efficiency</span><span>${STATE.invEff}%</span></div>
+      <div class="ir"><span>String Size</span><span>${STATE.stringSz} panels</span></div>
+      <div class="ir"><span>Azimuth</span><span>${STATE.azimuth}° (${azDir(STATE.azimuth)})</span></div>
+      <div class="ir"><span>Tilt</span><span>${STATE.tilt}°</span></div>
+      <div class="ir"><span>Peak Power</span><span>${STATE.peakKwp.toFixed(2)} kWp</span></div>
+    </div>
+  </div>
+  <h2>3. Energy Production</h2>
+  <div class="grid4">
+    <div class="kc s"><div class="kl">Annual Energy</div><div class="kv">${(STATE.annualKwh/1000).toFixed(1)}k</div><div class="ks">kWh/yr</div></div>
+    <div class="kc g"><div class="kl">Daily Avg</div><div class="kv">${(STATE.annualKwh/365).toFixed(1)}</div><div class="ks">kWh/day</div></div>
+    <div class="kc b"><div class="kl">Spec. Yield</div><div class="kv">${(STATE.annualKwh/STATE.peakKwp).toFixed(0)}</div><div class="ks">kWh/kWp/yr</div></div>
+    <div class="kc p"><div class="kl">System Losses</div><div class="kv">${(STATE.systemLoss*100).toFixed(0)}%</div></div>
+  </div>
+  <div class="bar-row">${bars}</div>
+  <div style="display:flex;gap:2px">${MONTHS.map(m=>`<div style="flex:1;text-align:center;font-size:7px;color:#6b7280">${m.charAt(0)}</div>`).join('')}</div>
+  <h2>4. Monthly Table</h2>
+  <table><tr><th>Month</th><th>GHI kWh/m²</th><th>Energy MWh</th><th>Savings ₹</th></tr>
+  ${monthRows}
+  <tr style="font-weight:700;background:#1e2535;color:#e2e8f0"><td>ANNUAL</td><td>${(data.annual*365).toFixed(0)}</td><td>${(STATE.annualKwh/1000).toFixed(2)}</td><td>₹${(STATE.annualKwh*tariff).toFixed(0)}</td></tr></table>
+  <h2>5. Financial Analysis</h2>
+  <div class="grid4">
+    <div class="kc s"><div class="kl">System Cost</div><div class="kv">₹${(totalCost/100000).toFixed(1)}L</div></div>
+    <div class="kc g"><div class="kl">Annual Savings</div><div class="kv">${fmtM(annSav)}</div></div>
+    <div class="kc b"><div class="kl">Payback</div><div class="kv">${payback.toFixed(1)}yr</div></div>
+    <div class="kc p"><div class="kl">25yr ROI</div><div class="kv">${fmtM(annSav*25-totalCost)}</div></div>
+  </div>
+  <div class="grid2">
+    <div class="kc c"><div class="kl">CO₂ Offset/yr</div><div class="kv">${co2.toFixed(2)} T</div></div>
+    <div class="kc g"><div class="kl">LCOE</div><div class="kv">₹${(totalCost/(STATE.annualKwh*25)).toFixed(2)}/kWh</div></div>
+  </div>
+  <h2>6. Recommendations</h2>
+  <div class="alert ok">✓ Panel direction ${STATE.azimuth}° (${azDir(STATE.azimuth)}) — ${Math.abs(STATE.azimuth-(STATE.lat>=0?180:0))<20?'Excellent orientation':'Consider adjusting toward '+(STATE.lat>=0?'180° South':'0° North')+' for maximum yield'}.</div>
+  <div class="alert ok">✓ Inverter: ${inv.name} selected. ${STATE.selectedInverter==='micro'?'Panel-level monitoring enables per-panel diagnostics.':STATE.selectedInverter==='hybrid'?'Battery-ready system provides backup power capability.':'String-level monitoring suitable for uniform array.'}</div>
+  <div class="alert warn">⚠ Temp correction at ${document.getElementById('inp-temp').value||35}°C reduces output by ${Math.abs((STATE.tc/100)*((parseFloat(document.getElementById('inp-temp').value)||35)-25)*100).toFixed(1)}%. Ensure ventilation gap ≥10cm from roof surface.</div>
+  <div class="alert warn">⚠ ${STATE.manualPanels.length>0?'Site includes '+STATE.manualPanels.length+' manually placed panels in custom positions/orientations.':'All panels auto-placed with uniform '+(STATE.panelRotation)+'° rotation and '+STATE.tilt+'° tilt.'}</div>
+  <div class="foot"><span>SolarSite Pro v2 — Solar Planning Tool</span><span>Data: NASA SSE/PVGIS methodology · ${now.toISOString().split('T')[0]}</span></div>
+  </div></body></html>`;
+  var win=window.open('','_blank','width=900,height=800');win.document.write(html);win.document.close();
+  win.onload=function(){setTimeout(()=>{win.print();},600);};
+  btn.textContent='⬇ PDF Report';btn.disabled=false;
+}
+
+// ═══════════════════════════════════════════════════
+//  CLEAR ALL
+// ═══════════════════════════════════════════════════
+function clearAll(){
+  if(!confirm('Reset all?'))return;
+  clearPolygon();STATE.calcDone=false;STATE.annualKwh=0;STATE.peakKwp=0;STATE.panelCount=0;STATE.manualPanels=[];
+  document.getElementById('pdf-btn').disabled=true;
+  if(STATE.show3D)toggle3DView();
+  deactivatePlacementMode();
+  goStep(1);
+}
+
+// ═══════════════════════════════════════════════════
+//  STEP 5 — activate placement mode on enter
+// ═══════════════════════════════════════════════════
+var _origGoStep=goStep;
+goStep=function(n){
+  _origGoStep(n);
+  if(n===5){
+    activatePlacementMode();
+    if(STATE.show3D)build3DScene();
+  }else{
+    // keep placement mode if on map
+  }
+};
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+window.addEventListener('load',function(){
+  updateSolarData();buildPanelList();drawCompass();
+  setTimeout(()=>{STATE.azimuth=180;drawAzDial();drawMonthChart(getGHIData(STATE.lat).monthly,null);drawSunCurve();},200);
+  window.addEventListener('resize',()=>{
+    var d=getGHIData(STATE.lat);drawMonthChart(d.monthly,null);drawSunCurve();
+    if(STATE.step===5)drawAzDial();
+  });
+});
+</script>
+</body>
+</html>
