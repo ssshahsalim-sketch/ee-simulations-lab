@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Megger & Grounding Test Simulator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#050810;--bg2:#090e18;--bg3:#0d1422;--panel:#0a1220;
+  --border:#1a2d50;--border2:#253d6a;
+  --green:#00ff88;--blue:#00aaff;--orange:#ff8800;--red:#ff2244;
+  --yellow:#ffdd00;--cyan:#00eeff;--pink:#ff44cc;--white:#e8f0ff;
+  --text:#b0c8e8;--text2:#5a7a9a;--text3:#2a3f60;
+}
+html,body{height:100%;overflow:hidden;font-family:'Exo 2',sans-serif;background:var(--bg);}
+body{display:flex;flex-direction:column;}
+
+/* animated scan lines */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:9998;}
+
+/* ── HEADER ── */
+.hdr{height:54px;background:linear-gradient(90deg,#030510,#0a1428,#030510);
+  border-bottom:2px solid var(--border2);display:flex;align-items:center;
+  padding:0 18px;gap:14px;flex-shrink:0;position:relative;z-index:100;}
+.hdr::before{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-box{width:38px;height:38px;border:2px solid var(--cyan);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;position:relative;
+  background:rgba(0,238,255,.06);}
+.logo-box::before{content:'Ω';font-size:20px;color:var(--cyan);font-family:'Share Tech Mono';}
+.logo-text{font-family:'Share Tech Mono';font-size:17px;color:var(--white);letter-spacing:.1em;}
+.logo-text span{color:var(--cyan);}
+.hdr-tabs{display:flex;gap:2px;margin-left:8px;}
+.htab{font-family:'Share Tech Mono';font-size:10px;padding:5px 14px;border:1px solid var(--border);
+  border-radius:2px;cursor:pointer;color:var(--text2);transition:.15s;letter-spacing:.06em;}
+.htab:hover{border-color:var(--cyan);color:var(--cyan);}
+.htab.active{background:rgba(0,238,255,.12);border-color:var(--cyan);color:var(--cyan);
+  box-shadow:0 0 10px rgba(0,238,255,.2);}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 8px var(--green);animation:blink 1.4s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-stat{font-family:'Share Tech Mono';font-size:10px;color:var(--text2);}
+.hdr-stat span{color:var(--green);}
+
+/* ── MAIN LAYOUT ── */
+.workspace{display:flex;flex:1;overflow:hidden;}
+
+/* ── LEFT PANEL ── */
+.left-panel{width:320px;background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.left-panel::-webkit-scrollbar{width:3px;}
+.left-panel::-webkit-scrollbar-thumb{background:var(--border2);}
+
+/* ── CENTER ── */
+.center{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.center-top{flex:1;overflow-y:auto;padding:16px;}
+.center-top::-webkit-scrollbar{width:4px;}
+.center-top::-webkit-scrollbar-thumb{background:var(--border2);}
+
+/* ── RIGHT PANEL ── */
+.right-panel{width:300px;background:var(--panel);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.right-panel::-webkit-scrollbar{width:3px;}
+.right-panel::-webkit-scrollbar-thumb{background:var(--border2);}
+
+/* ── SECTIONS ── */
+.sec{padding:13px;border-bottom:1px solid var(--border);}
+.sec-title{font-family:'Share Tech Mono';font-size:10px;color:var(--text3);
+  letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;
+  display:flex;align-items:center;gap:7px;}
+.sec-title::before{content:'';width:3px;height:12px;background:var(--cyan);border-radius:1px;}
+.sec-title.orange::before{background:var(--orange);}
+.sec-title.green::before{background:var(--green);}
+.sec-title.red::before{background:var(--red);}
+
+/* ── FORM CONTROLS ── */
+.frow{margin-bottom:9px;}
+.frow label{font-family:'Share Tech Mono';font-size:10px;color:var(--text2);
+  display:block;margin-bottom:4px;letter-spacing:.04em;}
+.fsel,.finp{width:100%;background:var(--bg2);color:var(--cyan);border:1px solid var(--border2);
+  border-radius:3px;padding:7px 10px;font-family:'Share Tech Mono';font-size:11px;
+  outline:none;transition:.15s;letter-spacing:.04em;}
+.fsel:focus,.finp:focus{border-color:var(--cyan);box-shadow:0 0 8px rgba(0,238,255,.2);}
+.fsel{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300eeff'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;}
+.finp-row{display:flex;gap:6px;align-items:center;}
+.finp-row .finp{flex:1;}
+.unit-lbl{font-family:'Share Tech Mono';font-size:10px;color:var(--text3);white-space:nowrap;}
+.frow-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+/* ── SLIDER ── */
+.slider-wrap{display:flex;align-items:center;gap:7px;}
+.slider-wrap input[type=range]{flex:1;-webkit-appearance:none;height:3px;
+  background:var(--border2);border-radius:2px;outline:none;cursor:pointer;}
+.slider-wrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;
+  width:14px;height:14px;border-radius:50%;background:var(--cyan);cursor:pointer;
+  box-shadow:0 0 7px var(--cyan);}
+.sval{font-family:'Share Tech Mono';font-size:11px;color:var(--cyan);min-width:52px;text-align:right;}
+
+/* ── ACTION BUTTONS ── */
+.abtn{width:100%;padding:9px;border-radius:3px;font-family:'Share Tech Mono';
+  font-size:11px;cursor:pointer;border:none;transition:.15s;letter-spacing:.05em;margin-top:5px;}
+.abtn-test{background:linear-gradient(135deg,rgba(0,238,255,.2),rgba(0,170,255,.15));
+  border:1px solid var(--cyan);color:var(--cyan);}
+.abtn-test:hover{background:rgba(0,238,255,.3);box-shadow:0 0 14px rgba(0,238,255,.3);}
+.abtn-reset{background:rgba(255,34,68,.1);border:1px solid rgba(255,34,68,.3);color:var(--red);}
+.abtn-ref{background:rgba(255,136,0,.1);border:1px solid rgba(255,136,0,.3);color:var(--orange);}
+.abtn-ref:hover{background:rgba(255,136,0,.2);}
+
+/* ── KPI CARDS ── */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:4px;
+  padding:9px 11px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.kpi.cyan::before{background:var(--cyan);}
+.kpi.green::before{background:var(--green);}
+.kpi.orange::before{background:var(--orange);}
+.kpi.red::before{background:var(--red);}
+.kpi.yellow::before{background:var(--yellow);}
+.kpi.pink::before{background:var(--pink);}
+.kpi-lbl{font-family:'Share Tech Mono';font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;}
+.kpi-val{font-family:'Share Tech Mono';font-size:16px;font-weight:500;margin-top:2px;}
+.kpi.cyan .kpi-val{color:var(--cyan);}
+.kpi.green .kpi-val{color:var(--green);}
+.kpi.orange .kpi-val{color:var(--orange);}
+.kpi.red .kpi-val{color:var(--red);}
+.kpi.yellow .kpi-val{color:var(--yellow);}
+.kpi.pink .kpi-val{color:var(--pink);}
+.kpi-sub{font-size:9px;color:var(--text3);margin-top:1px;font-family:'Share Tech Mono';}
+
+/* ── RESULT VERDICT ── */
+.verdict{border-radius:4px;padding:12px 14px;margin:10px 0;font-family:'Share Tech Mono';}
+.verdict.pass{background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.35);border-left:4px solid var(--green);}
+.verdict.fail{background:rgba(255,34,68,.07);border:1px solid rgba(255,34,68,.35);border-left:4px solid var(--red);}
+.verdict.warn{background:rgba(255,136,0,.07);border:1px solid rgba(255,136,0,.35);border-left:4px solid var(--orange);}
+.verdict.info{background:rgba(0,238,255,.05);border:1px solid rgba(0,238,255,.25);border-left:4px solid var(--cyan);}
+.verdict-title{font-size:13px;font-weight:700;letter-spacing:.08em;}
+.verdict.pass .verdict-title{color:var(--green);}
+.verdict.fail .verdict-title{color:var(--red);}
+.verdict.warn .verdict-title{color:var(--orange);}
+.verdict.info .verdict-title{color:var(--cyan);}
+.verdict-body{font-size:10px;color:var(--text);line-height:1.9;margin-top:5px;}
+
+/* ── METER DISPLAY ── */
+.meter-wrap{position:relative;width:100%;background:var(--bg2);border:1px solid var(--border2);
+  border-radius:6px;overflow:hidden;padding:14px;margin-bottom:10px;}
+.meter-title{font-family:'Share Tech Mono';font-size:9px;color:var(--text3);letter-spacing:.1em;
+  text-transform:uppercase;margin-bottom:8px;}
+.meter-display{font-family:'Share Tech Mono';font-size:28px;color:var(--cyan);
+  text-align:center;letter-spacing:.06em;text-shadow:0 0 16px var(--cyan);}
+.meter-unit{font-size:12px;color:var(--text2);margin-left:4px;}
+.meter-scale{display:flex;justify-content:space-between;margin-top:6px;}
+.scale-lbl{font-family:'Share Tech Mono';font-size:8px;color:var(--text3);}
+
+/* ── GAUGE SVG ── */
+.gauge-wrap{display:flex;justify-content:center;margin:6px 0;}
+
+/* ── INFO CARDS ── */
+.info-card{background:var(--bg2);border:1px solid var(--border);border-radius:4px;
+  padding:10px 12px;margin-bottom:7px;}
+.info-card.green{border-left:3px solid var(--green);}
+.info-card.red{border-left:3px solid var(--red);}
+.info-card.orange{border-left:3px solid var(--orange);}
+.info-card.cyan{border-left:3px solid var(--cyan);}
+.info-card.yellow{border-left:3px solid var(--yellow);}
+.info-card .ic-title{font-family:'Share Tech Mono';font-size:10px;font-weight:600;color:var(--white);margin-bottom:3px;}
+.info-card .ic-body{font-size:10px;color:var(--text2);line-height:1.8;}
+
+/* ── TABLE ── */
+.data-table{width:100%;border-collapse:collapse;font-family:'Share Tech Mono';font-size:10px;}
+.data-table th{background:var(--bg3);color:var(--text2);padding:6px 9px;text-align:left;
+  font-weight:600;border-bottom:1px solid var(--border2);letter-spacing:.05em;}
+.data-table td{padding:6px 9px;border-bottom:1px solid rgba(26,45,80,.5);color:var(--text);}
+.data-table tr:hover td{background:rgba(0,238,255,.03);}
+.td-pass{color:var(--green);}
+.td-fail{color:var(--red);}
+.td-warn{color:var(--orange);}
+
+/* ── PROGRESS BAR ── */
+.prog-wrap{margin-bottom:7px;}
+.prog-lbl{display:flex;justify-content:space-between;font-family:'Share Tech Mono';
+  font-size:9px;color:var(--text2);margin-bottom:3px;}
+.prog-bg{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:3px;transition:.6s;}
+
+/* ── TAB CONTENT ── */
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* ── REFERENCE TABLE ── */
+.ref-section{overflow-x:auto;}
+
+/* ── WAVEFORM CANVAS ── */
+.canvas-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+.canvas-wrap canvas{display:block;width:100%;}
+
+/* ── STATUS BAR ── */
+.statusbar{height:28px;background:var(--bg2);border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;gap:16px;flex-shrink:0;}
+.sb-item{font-family:'Share Tech Mono';font-size:9px;color:var(--text3);}
+.sb-item span{color:var(--cyan);}
+
+/* ── PI INDEX ── */
+.pi-scale{display:flex;height:16px;border-radius:3px;overflow:hidden;margin:6px 0;font-size:8px;}
+.pi-seg{display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono';
+  font-weight:600;flex:1;}
+
+/* ── TOOLTIP ── */
+#tooltip{position:fixed;background:var(--bg3);border:1px solid var(--border2);
+  font-family:'Share Tech Mono';font-size:9px;color:var(--white);
+  padding:5px 9px;border-radius:2px;pointer-events:none;display:none;z-index:9999;
+  line-height:1.7;max-width:220px;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="logo">
+    <div class="logo-box"></div>
+    <div class="logo-text">MEGGER<span>SIM</span></div>
+  </div>
+  <div class="hdr-tabs">
+    <div class="htab active" onclick="switchTab('ir')">Insulation Resistance</div>
+    <div class="htab" onclick="switchTab('ground')">Grounding / Earth</div>
+    <div class="htab" onclick="switchTab('pi')">PI / DAR Index</div>
+    <div class="htab" onclick="switchTab('ref')">Reference Tables</div>
+    <div class="htab" onclick="switchTab('guide')">Field Guide</div>
+  </div>
+  <div class="hdr-right">
+    <div class="live-dot"></div>
+    <div class="hdr-stat">STATUS: <span id="hdr-status">READY</span></div>
+    <div class="hdr-stat">TESTS: <span id="hdr-tests">0</span></div>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+<!-- ══════ LEFT PANEL ══════ -->
+<div class="left-panel">
+
+  <!-- IR TEST CONFIG -->
+  <div class="sec" id="ir-config">
+    <div class="sec-title">Test Configuration</div>
+    <div class="frow">
+      <label>Equipment Type</label>
+      <select class="fsel" id="ir-equip" onchange="onEquipChange()">
+        <optgroup label="Cables">
+          <option value="cable-lv">LV Cable (≤1kV)</option>
+          <option value="cable-mv">MV Cable (1–33kV)</option>
+          <option value="cable-hv">HV Cable (&gt;33kV)</option>
+        </optgroup>
+        <optgroup label="Rotating Machines">
+          <option value="motor-lv">LV Motor / Generator (≤1kV)</option>
+          <option value="motor-mv">MV Motor / Generator (1–6.6kV)</option>
+          <option value="motor-hv">HV Motor / Generator (&gt;6.6kV)</option>
+        </optgroup>
+        <optgroup label="Transformers">
+          <option value="xfmr-dist">Distribution Transformer (≤11kV)</option>
+          <option value="xfmr-power">Power Transformer (&gt;11kV)</option>
+        </optgroup>
+        <optgroup label="Switchgear">
+          <option value="swgr-lv">LV Switchgear / MCC</option>
+          <option value="swgr-mv">MV Switchgear</option>
+          <option value="busbar">Busbar / Buduct</option>
+        </optgroup>
+        <optgroup label="Other">
+          <option value="panel-ctrl">Control Panel / Wiring</option>
+          <option value="bushing">Transformer Bushing</option>
+          <option value="capacitor">Power Capacitor</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="frow">
+      <label>Application / Location</label>
+      <select class="fsel" id="ir-app">
+        <option value="residential">Residential / Commercial</option>
+        <option value="industrial">Industrial / Factory</option>
+        <option value="distribution">Distribution Network</option>
+        <option value="substation">Substation / Grid</option>
+        <option value="generation">Generation (Power Plant)</option>
+        <option value="offshore">Offshore / Marine</option>
+        <option value="hazardous">Hazardous Area (ATEX)</option>
+      </select>
+    </div>
+    <div class="frow-2">
+      <div class="frow" style="margin:0">
+        <label>Test Voltage (V)</label>
+        <select class="fsel" id="ir-voltage" onchange="updateMinIR()">
+          <option value="500">500V</option>
+          <option value="1000" selected>1000V</option>
+          <option value="2500">2500V</option>
+          <option value="5000">5000V</option>
+          <option value="10000">10000V</option>
+        </select>
+      </div>
+      <div class="frow" style="margin:0">
+        <label>Temp (°C)</label>
+        <input class="finp" id="ir-temp" type="number" value="25" min="-20" max="80" onchange="updateMinIR()">
+      </div>
+    </div>
+    <div class="frow">
+      <label>Ambient Humidity (%)</label>
+      <div class="slider-wrap">
+        <input type="range" id="sl-humid" min="0" max="100" value="60" oninput="updateHumidity()">
+        <span class="sval" id="humid-val">60%</span>
+      </div>
+    </div>
+    <div class="frow">
+      <label>Measured IR Value</label>
+      <div class="finp-row">
+        <input class="finp" id="ir-value" type="number" value="" placeholder="Enter reading" step="any" oninput="runIRTest()">
+        <select class="fsel" id="ir-unit" onchange="runIRTest()" style="width:80px">
+          <option value="1">MΩ</option>
+          <option value="1000">GΩ</option>
+          <option value="0.001">kΩ</option>
+        </select>
+      </div>
+    </div>
+    <button class="abtn abtn-test" onclick="runIRTest()">⚡ ANALYSE INSULATION</button>
+    <button class="abtn abtn-reset" onclick="resetIR()">↺ RESET</button>
+  </div>
+
+  <!-- GROUND TEST CONFIG -->
+  <div class="sec" id="ground-config" style="display:none">
+    <div class="sec-title orange">Ground Test Input</div>
+    <div class="frow">
+      <label>Grounding System Type</label>
+      <select class="fsel" id="gnd-type" onchange="updateGndStd()">
+        <option value="electrode">Earth Electrode (Single Rod)</option>
+        <option value="plate">Earth Plate</option>
+        <option value="ring">Ring Earth Electrode</option>
+        <option value="mesh">Earthing Mesh / Grid</option>
+        <option value="strip">Earth Strip / Conductor</option>
+        <option value="chemical">Chemical Earth Electrode</option>
+        <option value="driven">Driven Rod Array</option>
+      </select>
+    </div>
+    <div class="frow">
+      <label>Application / Installation</label>
+      <select class="fsel" id="gnd-app" onchange="updateGndStd()">
+        <option value="residential">Residential (IS 3043)</option>
+        <option value="commercial">Commercial Building</option>
+        <option value="industrial">Industrial / Factory</option>
+        <option value="distribution">Distribution Transformer</option>
+        <option value="substation">Substation / Grid (IEEE 80)</option>
+        <option value="generation">Generation Plant</option>
+        <option value="lightning">Lightning Protection</option>
+        <option value="telecom">Telecom / Data Centre</option>
+        <option value="hospital">Hospital / Critical</option>
+      </select>
+    </div>
+    <div class="frow">
+      <label>Soil Type</label>
+      <select class="fsel" id="gnd-soil" onchange="updateSoilRes()">
+        <option value="wet-clay">Wet Clay / Loam (10–50 Ω·m)</option>
+        <option value="clay">Clay / Garden Soil (50–100 Ω·m)</option>
+        <option value="loam">Sandy Loam (100–200 Ω·m)</option>
+        <option value="sand">Sand (200–1000 Ω·m)</option>
+        <option value="gravel">Gravel / Crushed Rock (1000–5000 Ω·m)</option>
+        <option value="rock">Solid Rock (&gt;5000 Ω·m)</option>
+        <option value="bentonite">Bentonite Treated (5–20 Ω·m)</option>
+      </select>
+    </div>
+    <div class="frow">
+      <label>Season / Moisture Condition</label>
+      <select class="fsel" id="gnd-season">
+        <option value="wet">Wet Season / After Rain (best)</option>
+        <option value="normal" selected>Normal (average)</option>
+        <option value="dry">Dry Season (worst-case)</option>
+      </select>
+    </div>
+    <div class="frow">
+      <label>Measured Earth Resistance (Ω)</label>
+      <div class="finp-row">
+        <input class="finp" id="gnd-value" type="number" value="" placeholder="Enter Ω reading" step="any" oninput="runGndTest()">
+        <span class="unit-lbl">Ω</span>
+      </div>
+    </div>
+    <div class="kpi-grid" style="margin-bottom:8px">
+      <div class="kpi cyan"><div class="kpi-lbl">Std Min Required</div><div class="kpi-val" id="gnd-req">—</div><div class="kpi-sub">Ω max</div></div>
+      <div class="kpi orange"><div class="kpi-lbl">Soil Resistivity</div><div class="kpi-val" id="gnd-soil-val">—</div><div class="kpi-sub">Ω·m</div></div>
+    </div>
+    <button class="abtn abtn-test" onclick="runGndTest()">⚡ ANALYSE GROUNDING</button>
+    <button class="abtn abtn-reset" onclick="resetGnd()">↺ RESET</button>
+  </div>
+
+  <!-- PI/DAR CONFIG -->
+  <div class="sec" id="pi-config" style="display:none">
+    <div class="sec-title">PI / DAR Test Input</div>
+    <div class="frow">
+      <label>Equipment Type</label>
+      <select class="fsel" id="pi-equip">
+        <option value="motor">Motor / Generator</option>
+        <option value="transformer">Transformer Winding</option>
+        <option value="cable">HV Cable</option>
+        <option value="switchgear">Switchgear</option>
+      </select>
+    </div>
+    <div class="frow-2">
+      <div class="frow" style="margin:0"><label>R at 1 min (MΩ)</label>
+        <input class="finp" id="pi-r1" type="number" placeholder="R60s" step="any" oninput="runPITest()"></div>
+      <div class="frow" style="margin:0"><label>R at 10 min (MΩ)</label>
+        <input class="finp" id="pi-r10" type="number" placeholder="R600s" step="any" oninput="runPITest()"></div>
+    </div>
+    <div class="frow-2">
+      <div class="frow" style="margin:0"><label>R at 30s (MΩ)</label>
+        <input class="finp" id="pi-r30" type="number" placeholder="For DAR" step="any" oninput="runPITest()"></div>
+      <div class="frow" style="margin:0"><label>Test Voltage (V)</label>
+        <select class="fsel" id="pi-volt">
+          <option value="500">500V</option>
+          <option value="1000" selected>1000V</option>
+          <option value="2500">2500V</option>
+          <option value="5000">5000V</option>
+        </select>
+      </div>
+    </div>
+    <button class="abtn abtn-test" onclick="runPITest()">⚡ CALCULATE PI & DAR</button>
+    <button class="abtn abtn-reset" onclick="resetPI()">↺ RESET</button>
+  </div>
+
+</div><!-- /left-panel -->
+
+<!-- ══════ CENTER ══════ -->
+<div class="center">
+<div class="center-top">
+
+<!-- ─── IR TAB ─── -->
+<div class="tab-content active" id="tab-ir">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <!-- Gauge + Result -->
+    <div>
+      <div class="meter-wrap">
+        <div class="meter-title">INSULATION RESISTANCE METER</div>
+        <div class="gauge-wrap"><canvas id="ir-gauge" width="220" height="130"></canvas></div>
+        <div class="meter-display" id="ir-display">— <span class="meter-unit">MΩ</span></div>
+        <div class="meter-scale">
+          <span class="scale-lbl">0</span><span class="scale-lbl">DANGER</span>
+          <span class="scale-lbl">MARGINAL</span><span class="scale-lbl">GOOD</span>
+          <span class="scale-lbl">EXCELLENT</span>
+        </div>
+      </div>
+      <div id="ir-verdict"><div class="verdict info"><div class="verdict-title">⊙ AWAITING TEST</div><div class="verdict-body">Enter insulation resistance value in the left panel and press ANALYSE to evaluate against standards.</div></div></div>
+    </div>
+    <!-- KPIs + details -->
+    <div>
+      <div class="kpi-grid">
+        <div class="kpi cyan"><div class="kpi-lbl">Minimum Required</div><div class="kpi-val" id="k-min">—</div><div class="kpi-sub">MΩ</div></div>
+        <div class="kpi green"><div class="kpi-lbl">Measured Value</div><div class="kpi-val" id="k-meas">—</div><div class="kpi-sub">MΩ</div></div>
+        <div class="kpi orange"><div class="kpi-lbl">Temp Corrected</div><div class="kpi-val" id="k-tempcorr">—</div><div class="kpi-sub">MΩ @ 40°C</div></div>
+        <div class="kpi yellow"><div class="kpi-lbl">Safety Margin</div><div class="kpi-val" id="k-margin">—</div><div class="kpi-sub">× above min</div></div>
+        <div class="kpi pink"><div class="kpi-lbl">Humidity Derate</div><div class="kpi-val" id="k-humid-d">—</div><div class="kpi-sub">%</div></div>
+        <div class="kpi cyan"><div class="kpi-lbl">Standard</div><div class="kpi-val" id="k-std" style="font-size:11px">—</div></div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="info-card cyan">
+          <div class="ic-title">Test Voltage Requirement</div>
+          <div class="ic-body" id="ic-voltage">Select equipment type to see voltage requirements.</div>
+        </div>
+        <div class="info-card orange">
+          <div class="ic-title">Temperature Correction</div>
+          <div class="ic-body" id="ic-temp">IR doubles for every 10°C decrease, halves for every 10°C increase.<br>Correction factor applied to normalize to 40°C reference.</div>
+        </div>
+        <div class="info-card green" id="ic-action-card">
+          <div class="ic-title">Recommended Action</div>
+          <div class="ic-body" id="ic-action">Run test first.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IR Waveform -->
+  <div class="canvas-wrap" style="margin-top:12px">
+    <canvas id="ir-wave" height="90"></canvas>
+  </div>
+
+  <!-- IR Reference mini table -->
+  <div style="margin-top:12px">
+    <div class="sec-title" style="margin-bottom:6px;padding:0">Quick Reference — Min IR Values</div>
+    <div style="overflow-x:auto">
+    <table class="data-table" id="quick-ref-table">
+      <tr><th>Equipment</th><th>Test V</th><th>Min IR (MΩ)</th><th>Standard</th><th>Note</th></tr>
+      <tr><td>LV Cable (≤1kV)</td><td>1000V</td><td class="td-pass">1 MΩ/km</td><td>IEC 60502</td><td>New: ≥100 MΩ</td></tr>
+      <tr><td>MV Cable (1–33kV)</td><td>2500–5000V</td><td class="td-pass">50–100 MΩ</td><td>IEC 60502-2</td><td>New: GΩ range</td></tr>
+      <tr><td>LV Motor (≤1kV)</td><td>500–1000V</td><td class="td-warn">1 MΩ</td><td>IEEE 43-2013</td><td>Rated kV + 1 MΩ rule</td></tr>
+      <tr><td>MV Motor (1–6.6kV)</td><td>1000–2500V</td><td class="td-warn">5–10 MΩ</td><td>IEEE 43-2013</td><td>Min at operating temp</td></tr>
+      <tr><td>Distribution Xfmr</td><td>2500–5000V</td><td class="td-pass">1000 MΩ</td><td>IEC 60076</td><td>HV-LV-E</td></tr>
+      <tr><td>Power Transformer</td><td>5000–10000V</td><td class="td-pass">10000 MΩ</td><td>IEC 60076</td><td>PI &gt; 2.0 required</td></tr>
+      <tr><td>LV Switchgear</td><td>500–1000V</td><td class="td-warn">1 MΩ</td><td>IEC 60439</td><td>Phase-earth, phase-phase</td></tr>
+      <tr><td>Control Panel</td><td>500V</td><td class="td-warn">1 MΩ</td><td>IEC 60364-6</td><td>Before energising</td></tr>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ─── GROUND TAB ─── -->
+<div class="tab-content" id="tab-ground">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div>
+      <div class="meter-wrap">
+        <div class="meter-title">EARTH RESISTANCE METER</div>
+        <div class="gauge-wrap"><canvas id="gnd-gauge" width="220" height="130"></canvas></div>
+        <div class="meter-display" id="gnd-display">— <span class="meter-unit">Ω</span></div>
+        <div class="meter-scale">
+          <span class="scale-lbl">0</span><span class="scale-lbl" style="color:var(--green)">EXCELLENT</span>
+          <span class="scale-lbl" style="color:var(--yellow)">GOOD</span>
+          <span class="scale-lbl" style="color:var(--orange)">MARGINAL</span>
+          <span class="scale-lbl" style="color:var(--red)">FAIL</span>
+        </div>
+      </div>
+      <div id="gnd-verdict"><div class="verdict info"><div class="verdict-title">⊙ AWAITING TEST</div><div class="verdict-body">Enter earth resistance value and select application to evaluate grounding quality.</div></div></div>
+    </div>
+    <div>
+      <div class="kpi-grid">
+        <div class="kpi orange"><div class="kpi-lbl">Required Max</div><div class="kpi-val" id="g-req">—</div><div class="kpi-sub">Ω</div></div>
+        <div class="kpi green"><div class="kpi-lbl">Measured</div><div class="kpi-val" id="g-meas">—</div><div class="kpi-sub">Ω</div></div>
+        <div class="kpi cyan"><div class="kpi-lbl">Soil Resistivity</div><div class="kpi-val" id="g-soil">—</div><div class="kpi-sub">Ω·m</div></div>
+        <div class="kpi yellow"><div class="kpi-lbl">Safety Factor</div><div class="kpi-val" id="g-margin">—</div><div class="kpi-sub">× below limit</div></div>
+        <div class="kpi pink"><div class="kpi-lbl">Season Factor</div><div class="kpi-val" id="g-season">—</div><div class="kpi-sub">multiplier</div></div>
+        <div class="kpi cyan"><div class="kpi-lbl">Worst-Case Est.</div><div class="kpi-val" id="g-worst">—</div><div class="kpi-sub">Ω (dry season)</div></div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="info-card orange">
+          <div class="ic-title">Standard Applied</div>
+          <div class="ic-body" id="ic-gnd-std">Select application type to see applicable standard.</div>
+        </div>
+        <div class="info-card cyan">
+          <div class="ic-title">Soil Improvement Methods</div>
+          <div class="ic-body" id="ic-soil-imp">Bentonite backfill, chemical electrodes, longer/deeper rods, mesh grids.</div>
+        </div>
+        <div class="info-card green">
+          <div class="ic-title">Grounding Recommendation</div>
+          <div class="ic-body" id="ic-gnd-action">Run test first.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ground Reference Table -->
+  <div style="margin-top:12px">
+    <div class="sec-title" style="margin-bottom:6px;padding:0">Earth Resistance Requirements by Application</div>
+    <div style="overflow-x:auto">
+    <table class="data-table">
+      <tr><th>Application</th><th>Max Resistance (Ω)</th><th>Standard</th><th>Test Method</th></tr>
+      <tr><td>Residential (Single Phase)</td><td class="td-warn">10 Ω</td><td>IS 3043 / BS 7430</td><td>Fall of Potential</td></tr>
+      <tr><td>Residential (3-Phase)</td><td class="td-pass">5 Ω</td><td>IS 3043</td><td>Fall of Potential</td></tr>
+      <tr><td>Industrial Factory</td><td class="td-pass">1–2 Ω</td><td>IS 3043 / IEEE 142</td><td>Fall of Potential</td></tr>
+      <tr><td>Distribution Transformer</td><td class="td-warn">2 Ω</td><td>IS 3043 / IEC 60364</td><td>Clamp Meter / FoP</td></tr>
+      <tr><td>HV/MV Substation</td><td class="td-pass">0.5 Ω</td><td>IEEE 80 / IS 3043</td><td>Fall of Potential</td></tr>
+      <tr><td>Generation Plant</td><td class="td-pass">0.5 Ω</td><td>IEEE 80 / IEC 61936</td><td>Fall of Potential</td></tr>
+      <tr><td>Lightning Protection</td><td class="td-warn">10 Ω</td><td>IEC 62305 / IS 2309</td><td>Dedicated earth rod test</td></tr>
+      <tr><td>Telecom / Data Centre</td><td class="td-pass">1 Ω</td><td>ITU-T K.27 / TIA-607</td><td>4-wire Kelvin</td></tr>
+      <tr><td>Hospital / Critical</td><td class="td-pass">1 Ω</td><td>IEC 60364-7-710</td><td>Low-resistance Ohmmeter</td></tr>
+      <tr><td>Hazardous Area</td><td class="td-pass">1 Ω</td><td>IEC 60079-14</td><td>Dedicated test</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <!-- Soil Resistivity Table -->
+  <div style="margin-top:12px">
+    <div class="sec-title" style="margin-bottom:6px;padding:0">Soil Resistivity Reference (Ω·m)</div>
+    <div style="overflow-x:auto">
+    <table class="data-table">
+      <tr><th>Soil Type</th><th>Dry (Ω·m)</th><th>Moist (Ω·m)</th><th>Wet (Ω·m)</th><th>Difficulty</th></tr>
+      <tr><td>Wet Clay / Mud</td><td>50–100</td><td>20–50</td><td class="td-pass">10–20</td><td class="td-pass">Easy</td></tr>
+      <tr><td>Clay / Loam</td><td>100–200</td><td>50–100</td><td class="td-pass">30–50</td><td class="td-pass">Easy</td></tr>
+      <tr><td>Sandy Loam</td><td>500–1000</td><td>150–300</td><td class="td-warn">100–150</td><td class="td-warn">Moderate</td></tr>
+      <tr><td>Sand (Dry)</td><td>1000–5000</td><td>300–1000</td><td class="td-warn">200–500</td><td class="td-warn">Hard</td></tr>
+      <tr><td>Gravel / Crushed Rock</td><td>5000–10000</td><td>1000–5000</td><td class="td-fail">&gt;500</td><td class="td-fail">Very Hard</td></tr>
+      <tr><td>Solid Rock (Granite)</td><td>&gt;10000</td><td>1000–5000</td><td class="td-fail">&gt;1000</td><td class="td-fail">Extremely Hard</td></tr>
+      <tr><td>Bentonite Treated</td><td>10–30</td><td>5–15</td><td class="td-pass">3–10</td><td class="td-pass">Very Easy</td></tr>
+      <tr><td>Sea Water</td><td>—</td><td>—</td><td class="td-pass">0.1–1</td><td class="td-pass">Excellent</td></tr>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PI/DAR TAB ─── -->
+<div class="tab-content" id="tab-pi">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div>
+      <div class="meter-wrap">
+        <div class="meter-title">POLARIZATION INDEX (PI = R10min / R1min)</div>
+        <div class="meter-display" id="pi-display" style="font-size:36px">—</div>
+        <div style="margin-top:8px">
+          <div class="pi-scale">
+            <div class="pi-seg" style="background:#ff2244;color:#fff;flex:1">Danger<br>&lt;1</div>
+            <div class="pi-seg" style="background:#ff8800;color:#000;flex:1">Poor<br>1–1.5</div>
+            <div class="pi-seg" style="background:#ffdd00;color:#000;flex:1.5">Question<br>1.5–2</div>
+            <div class="pi-seg" style="background:#00ff88;color:#000;flex:2">Good<br>2–4</div>
+            <div class="pi-seg" style="background:#00aaff;color:#fff;flex:1.5">Excellent<br>&gt;4</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-family:'Share Tech Mono';font-size:8px;color:var(--text3);margin-top:3px">
+            <span>0</span><span>1.0</span><span>1.5</span><span>2.0</span><span>4.0</span><span>∞</span>
+          </div>
+        </div>
+      </div>
+      <div class="meter-wrap" style="margin-top:8px">
+        <div class="meter-title">DIELECTRIC ABSORPTION RATIO (DAR = R1min / R30s)</div>
+        <div class="meter-display" id="dar-display" style="font-size:36px">—</div>
+        <div class="pi-scale" style="margin-top:8px">
+          <div class="pi-seg" style="background:#ff2244;color:#fff;flex:1.25">Danger<br>&lt;1.25</div>
+          <div class="pi-seg" style="background:#ff8800;color:#000;flex:0.75">Doubt<br>1.25–1.6</div>
+          <div class="pi-seg" style="background:#00ff88;color:#000;flex:2">Good<br>&gt;1.6</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div id="pi-verdict"><div class="verdict info"><div class="verdict-title">⊙ ENTER READINGS</div><div class="verdict-body">Enter R30s, R1min, R10min values. PI and DAR will be calculated automatically.</div></div></div>
+      <div class="kpi-grid" style="margin-top:8px">
+        <div class="kpi cyan"><div class="kpi-lbl">PI Index</div><div class="kpi-val" id="k-pi">—</div></div>
+        <div class="kpi green"><div class="kpi-lbl">DAR Ratio</div><div class="kpi-val" id="k-dar">—</div></div>
+        <div class="kpi orange"><div class="kpi-lbl">PI Rating</div><div class="kpi-val" id="k-pi-rating" style="font-size:12px">—</div></div>
+        <div class="kpi yellow"><div class="kpi-lbl">DAR Rating</div><div class="kpi-val" id="k-dar-rating" style="font-size:12px">—</div></div>
+      </div>
+      <div class="info-card cyan" style="margin-top:8px">
+        <div class="ic-title">What PI & DAR Tell You</div>
+        <div class="ic-body">
+          <b style="color:var(--cyan)">PI (Polarization Index):</b> Ratio of 10-min to 1-min IR. Shows if insulation is absorbing charge (good) or leaking (contaminated/wet).<br><br>
+          <b style="color:var(--yellow)">DAR:</b> Quick test — ratio of 1-min to 30-sec readings. Useful for field screening when full PI test is not possible.<br><br>
+          <b style="color:var(--orange)">Key:</b> High PI = dry, clean insulation. Low PI = moisture, carbon tracking, or physical damage.
+        </div>
+      </div>
+      <div class="info-card orange" style="margin-top:6px" id="pi-action-card">
+        <div class="ic-title">Recommended Action</div>
+        <div class="ic-body" id="pi-action">Calculate PI/DAR first.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PI Table -->
+  <div style="margin-top:12px">
+    <div class="sec-title" style="margin-bottom:6px;padding:0">PI Classification (IEEE 43-2013)</div>
+    <table class="data-table">
+      <tr><th>PI Value</th><th>Classification</th><th>Insulation Condition</th><th>Action</th></tr>
+      <tr><td class="td-fail">&lt; 1.0</td><td class="td-fail">DANGEROUS</td><td>Completely wet, contaminated, or failed</td><td>Do NOT energise. Full refurbishment required.</td></tr>
+      <tr><td class="td-fail">1.0 – 1.5</td><td class="td-warn">POOR</td><td>Wet, dirty, or deteriorated insulation</td><td>Dry out, clean, investigate. Do not energise without review.</td></tr>
+      <tr><td class="td-warn">1.5 – 2.0</td><td class="td-warn">QUESTIONABLE</td><td>Some contamination or beginning moisture</td><td>Investigate further. May operate but schedule maintenance.</td></tr>
+      <tr><td class="td-pass">2.0 – 4.0</td><td class="td-pass">GOOD</td><td>Normal dry insulation</td><td>Safe to operate. Continue periodic monitoring.</td></tr>
+      <tr><td class="td-pass">&gt; 4.0</td><td class="td-pass">EXCELLENT</td><td>Very clean, dry insulation</td><td>Excellent condition. Standard monitoring schedule.</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ─── REFERENCE TAB ─── -->
+<div class="tab-content" id="tab-ref">
+  <div class="sec-title" style="padding:0;margin-bottom:10px">Complete Testing Standards Reference</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div>
+      <div class="info-card cyan">
+        <div class="ic-title">IEEE 43-2013 — Motor/Generator IR</div>
+        <div class="ic-body">
+          Minimum IR (MΩ) = kV rating + 1<br>
+          (e.g. 6.6kV motor: min 7.7 MΩ)<br><br>
+          At operating temp, minimum recommended:<br>
+          • Stator windings ≥ 100 MΩ (machines &gt;1kV, new)<br>
+          • In-service acceptable: ≥ 5 MΩ<br>
+          • PI required: ≥ 2.0 for all machines &gt;1kV<br>
+          • Test at rated voltage × 2 + 1000V (Hi-pot)
+        </div>
+      </div>
+      <div class="info-card orange">
+        <div class="ic-title">IEC 60076 — Transformer IR</div>
+        <div class="ic-body">
+          HV Winding to ground + LV:<br>
+          • &lt;72.5kV: min 1000 MΩ at 2500V<br>
+          • 72.5–170kV: min 3000 MΩ at 5000V<br>
+          • &gt;170kV: min 10000 MΩ at 10kV<br><br>
+          Temperature correction critical:<br>
+          IR doubles every 10°C drop in temp.<br>
+          PI ≥ 1.5 (acceptance), ≥ 2.0 preferred.
+        </div>
+      </div>
+      <div class="info-card green">
+        <div class="ic-title">IEC 60502 — Cable IR</div>
+        <div class="ic-body">
+          LV Cable (0.6/1kV): ≥ 50 MΩ (new installed)<br>
+          MV Cable (3.6/6kV): ≥ 500 MΩ<br>
+          MV Cable (12/20kV): ≥ 5000 MΩ<br>
+          HV Cable (36/60kV): ≥ 10000 MΩ<br><br>
+          In-service aged cables: 1 MΩ/km minimum.<br>
+          Note: Length reduces IR (parallel paths).<br>
+          IR per km = measured × length(km).
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="info-card yellow">
+        <div class="ic-title">IS 3043 / IEEE 80 — Grounding</div>
+        <div class="ic-body">
+          IS 3043 (India) requirements:<br>
+          • Residential: ≤ 10 Ω (1-ph), ≤ 5 Ω (3-ph)<br>
+          • Industrial: ≤ 1–2 Ω<br>
+          • HV Station: ≤ 1 Ω<br>
+          • EHV Station: ≤ 0.5 Ω<br><br>
+          IEEE 80 safety criteria:<br>
+          Touch voltage ≤ 50V (wet), ≤ 25V (special)<br>
+          Step voltage limits calculated per body weight.<br>
+          Annual re-testing mandated by standards.
+        </div>
+      </div>
+      <div class="info-card pink">
+        <div class="ic-title">IEC 60364 — LV Installation</div>
+        <div class="ic-body">
+          New LV installations (before commissioning):<br>
+          • Between live conductors: ≥ 1 MΩ<br>
+          • Between live and earth: ≥ 1 MΩ<br>
+          • SELV/PELV circuits: ≥ 0.5 MΩ<br>
+          • Special locations (bathroom): ≥ 0.5 MΩ<br><br>
+          Test voltage: 500V DC (circuits ≤500V AC)<br>
+          Test voltage: 1000V DC (circuits 500–1000V AC)
+        </div>
+      </div>
+      <div class="info-card cyan">
+        <div class="ic-title">Safety Precautions (Critical)</div>
+        <div class="ic-body">
+          ⚠ ALWAYS isolate and lock-out before testing<br>
+          ⚠ Discharge cables/caps before and after<br>
+          ⚠ Never touch test leads during HV megger test<br>
+          ⚠ Ground all phases before test (except test phase)<br>
+          ⚠ Wait 4× test duration for discharge after test<br>
+          ⚠ Remove surge arresters before HV test<br>
+          ⚠ Disconnect sensitive electronics (VFD, meters)<br>
+          ✓ Use 3-wire test for accurate long cable tests<br>
+          ✓ Record temperature at time of measurement
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── GUIDE TAB ─── -->
+<div class="tab-content" id="tab-guide">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+    <div>
+      <div class="info-card cyan">
+        <div class="ic-title">Megger Test Procedure — IR</div>
+        <div class="ic-body">
+          1. Isolate equipment (LOTO)<br>
+          2. Disconnect all connections to equipment<br>
+          3. Ground all non-test terminals<br>
+          4. Connect megger: Line terminal → line, Earth → frame<br>
+          5. Select correct test voltage (see chart)<br>
+          6. Apply voltage for 60 seconds (1 min) minimum<br>
+          7. Record reading at exactly 1 min<br>
+          8. For PI: also record at 10 min<br>
+          9. Press DISCHARGE before disconnecting<br>
+          10. Record: date, temp, humidity, test voltage, IR value<br><br>
+          <b style="color:var(--orange)">Three-wire test:</b> Connect guard terminal to remove surface leakage — essential for accurate readings on long cables or wet equipment.
+        </div>
+      </div>
+      <div class="info-card orange">
+        <div class="ic-title">Test Voltage Selection Guide</div>
+        <div class="ic-body">
+          Rated voltage → Test voltage:<br>
+          ≤100V → 250V DC<br>
+          100–500V → 500V DC<br>
+          500V–1kV → 1000V DC<br>
+          1kV–6.6kV → 2500V DC<br>
+          6.6kV–33kV → 5000V DC<br>
+          &gt;33kV → 10000V DC<br><br>
+          <b style="color:var(--yellow)">Never exceed:</b> 2 × rated voltage for Hi-pot test on aged equipment. Use step-voltage test for suspect insulation.
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="info-card green">
+        <div class="ic-title">Earth Test Methods</div>
+        <div class="ic-body">
+          <b style="color:var(--green)">Fall of Potential (3-point):</b><br>
+          Most accurate. Current electrode 10× depth away, potential electrode at 62% distance. Measures true earth resistance independent of contact resistance.<br><br>
+          <b style="color:var(--cyan)">Clamp-on Earth Tester:</b><br>
+          Non-intrusive, measures while energised. Best for grid/multiple electrode systems. Cannot measure single isolated rods.<br><br>
+          <b style="color:var(--yellow)">Stakeless Method:</b><br>
+          Two clamps around conductor, no probes needed. Quick screening tool.<br><br>
+          <b style="color:var(--orange)">Selective Method:</b><br>
+          4-wire (Wenner) for soil resistivity mapping before installing earth grid.
+        </div>
+      </div>
+      <div class="info-card yellow">
+        <div class="ic-title">Common Causes of Low IR</div>
+        <div class="ic-body">
+          🔴 Moisture ingress / condensation<br>
+          🔴 Carbon tracking from partial discharge<br>
+          🔴 Physical damage to insulation<br>
+          🔴 Contamination (oil, dust, chemicals)<br>
+          🔴 Overheating / thermal aging<br>
+          🔴 Incorrect cable termination<br>
+          🔴 Galvanic corrosion at joint<br>
+          🔴 Rodent damage (biotic attack)<br>
+          🔴 UV degradation (outdoor cables)<br><br>
+          <b style="color:var(--cyan)">Remedial actions:</b><br>
+          • Dry out with space heaters (motors)<br>
+          • Re-terminate cable ends<br>
+          • Replace section with PD tracking<br>
+          • Apply conformal coating (control wiring)
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="info-card pink">
+        <div class="ic-title">Insulation Classes & Max Temp</div>
+        <div class="ic-body">
+          Class A: 105°C (cotton, paper, varnish)<br>
+          Class B: 130°C (mica, glass fibre)<br>
+          Class F: 155°C (most modern motors)<br>
+          Class H: 180°C (silicone, mica)<br>
+          Class C: &gt;180°C (ceramics, PTFE)<br><br>
+          <b style="color:var(--orange)">Aging rule:</b> Every 10°C above rated temp halves insulation life (Arrhenius law). A motor running 10°C hot at 155°C instead of 145°C has only half the expected lifespan.<br><br>
+          <b style="color:var(--cyan)">Testing schedule:</b><br>
+          New install: before commissioning<br>
+          Routine: annually or per outage<br>
+          Post-fault: immediately after tripping<br>
+          Predictive: quarterly trend analysis
+        </div>
+      </div>
+      <div class="info-card green">
+        <div class="ic-title">Trending & Condition Assessment</div>
+        <div class="ic-body">
+          Keep historical records of all IR tests.<br>
+          A sudden drop of &gt;50% from last reading is alarming even if still above minimum.<br><br>
+          <b style="color:var(--green)">Green flag:</b> Rising or stable trend<br>
+          <b style="color:var(--yellow)">Yellow flag:</b> Gradual decline, plan maintenance<br>
+          <b style="color:var(--red)">Red flag:</b> Rapid decline, immediate action<br><br>
+          IEEE 43 recommends plotting IR values on semi-log paper to identify trends. Temperature must always be corrected to 40°C for comparison across measurements.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /center-top -->
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="sb-item">LAST TEST: <span id="sb-time">—</span></div>
+  <div class="sb-item">EQUIP: <span id="sb-equip">—</span></div>
+  <div class="sb-item">RESULT: <span id="sb-result">—</span></div>
+  <div class="sb-item">STD: <span id="sb-std">—</span></div>
+  <div class="sb-item" style="margin-left:auto">© MeggerSIM — Research-based electrical testing simulator</div>
+</div>
+</div><!-- /center -->
+
+<!-- ══════ RIGHT PANEL ══════ -->
+<div class="right-panel">
+  <div class="sec">
+    <div class="sec-title green">Test History Log</div>
+    <div id="test-log" style="font-family:'Share Tech Mono';font-size:9px;color:var(--text2);line-height:1.8;max-height:280px;overflow-y:auto;">
+      <div style="color:var(--text3)">No tests recorded yet.</div>
+    </div>
+    <button class="abtn abtn-reset" onclick="clearLog()" style="margin-top:6px">🗑 Clear Log</button>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Equipment Min IR</div>
+    <div id="req-display">
+      <div class="info-card cyan">
+        <div class="ic-title" id="req-equip-name">Select Equipment</div>
+        <div class="ic-body" id="req-details">Equipment minimum IR and test voltage requirements will appear here.</div>
+      </div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title orange">Humidity Effect on IR</div>
+    <div id="humidity-chart">
+      <div class="canvas-wrap"><canvas id="humid-cvs" height="100"></canvas></div>
+    </div>
+    <div class="info-card orange" style="margin-top:6px">
+      <div class="ic-title">Humidity Correction</div>
+      <div class="ic-body">High humidity (>75%) can reduce IR readings by 50-90%. Always record humidity and prefer testing in dry conditions. IR rises rapidly when equipment is dried.</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Temp Correction Chart</div>
+    <div class="canvas-wrap"><canvas id="temp-cvs" height="100"></canvas></div>
+    <div class="info-card cyan" style="margin-top:6px">
+      <div class="ic-title">Temperature Correction Factor</div>
+      <div class="ic-body" id="temp-corr-detail">IR doubles for every 10°C decrease in temperature. All readings should be normalized to 40°C for comparison.</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /workspace -->
+<div id="tooltip"></div>
+
+<script>
+'use strict';
+var testCount=0;
+var testLog=[];
+
+// ═══════════════════════════════════════
+//  IR STANDARDS DATABASE
+// ═══════════════════════════════════════
+var IR_DB={
+  'cable-lv':     {name:'LV Cable ≤1kV',      minMOhm:50,    testV:1000, std:'IEC 60502',       newMinMOhm:100,   note:'In-service: 1 MΩ/km. New: ≥100 MΩ. Length reduces IR.'},
+  'cable-mv':     {name:'MV Cable 1-33kV',     minMOhm:500,   testV:2500, std:'IEC 60502-2',     newMinMOhm:5000,  note:'Test at 2500V–5000V DC. 3-core: test each phase to others+earth.'},
+  'cable-hv':     {name:'HV Cable >33kV',      minMOhm:5000,  testV:10000,std:'IEC 60502-2',     newMinMOhm:50000, note:'Specialist test required. VLF testing preferred for XLPE.'},
+  'motor-lv':     {name:'LV Motor ≤1kV',       minMOhm:1,     testV:500,  std:'IEEE 43-2013',    newMinMOhm:100,   note:'Rule: rated kV + 1 MΩ min. PI ≥ 2.0 recommended.'},
+  'motor-mv':     {name:'MV Motor 1-6.6kV',    minMOhm:7,     testV:2500, std:'IEEE 43-2013',    newMinMOhm:1000,  note:'Min = rated kV + 1 = 7.6 MΩ. PI test mandatory.'},
+  'motor-hv':     {name:'HV Motor >6.6kV',     minMOhm:100,   testV:5000, std:'IEEE 43-2013',    newMinMOhm:5000,  note:'PI > 2.0 required. Step-voltage test recommended.'},
+  'xfmr-dist':    {name:'Distribution Xfmr',   minMOhm:1000,  testV:2500, std:'IEC 60076',       newMinMOhm:10000, note:'HV-Earth, LV-Earth, HV-LV all tested. Ratio method preferred.'},
+  'xfmr-power':   {name:'Power Transformer',   minMOhm:10000, testV:5000, std:'IEC 60076',       newMinMOhm:100000,note:'PI ≥ 1.5 (acceptance), ≥ 2.0 (preferred). C2H2 indicates PD if low IR.'},
+  'swgr-lv':      {name:'LV Switchgear/MCC',   minMOhm:1,     testV:1000, std:'IEC 60439',       newMinMOhm:10,    note:'Phase-earth and phase-phase. Remove electronics first.'},
+  'swgr-mv':      {name:'MV Switchgear',        minMOhm:100,   testV:2500, std:'IEC 62271',       newMinMOhm:1000,  note:'Include bus, contacts, insulators. Compare across phases.'},
+  'busbar':       {name:'Busbar / Buduct',      minMOhm:1,     testV:1000, std:'IEC 60439',       newMinMOhm:5,     note:'Each section tested independently. Joints are critical points.'},
+  'panel-ctrl':   {name:'Control Panel',        minMOhm:1,     testV:500,  std:'IEC 60364-6',     newMinMOhm:2,     note:'500V DC test for ≤500V circuits. Remove PLCs/electronics.'},
+  'bushing':      {name:'Transformer Bushing',  minMOhm:5000,  testV:5000, std:'IEC 60137',       newMinMOhm:50000, note:'tan δ test preferred. Low IR indicates moisture or PD damage.'},
+  'capacitor':    {name:'Power Capacitor',      minMOhm:1000,  testV:2500, std:'IEC 60871',       newMinMOhm:10000, note:'Discharge fully before and after. Test element-to-can.'},
+};
+
+// ═══════════════════════════════════════
+//  GROUND STANDARDS DATABASE
+// ═══════════════════════════════════════
+var GND_DB={
+  residential: {name:'Residential',maxOhm:10,  std:'IS 3043 / BS 7430',  note:'Single phase: ≤10Ω. 3-phase: ≤5Ω. TT system requires RCD backup if earth resistance high.'},
+  commercial:  {name:'Commercial', maxOhm:5,   std:'IS 3043 / IEC 60364',note:'Multiple earth points recommended. Test after installation and annually.'},
+  industrial:  {name:'Industrial', maxOhm:2,   std:'IS 3043 / IEEE 142', note:'Motor frames, cable trays, equipment all bonded. Mesh earthing preferred.'},
+  distribution:{name:'Dist. Transformer',maxOhm:2, std:'IS 3043',        note:'Neutral earthing critical. Both HV and LV systems independently earthed.'},
+  substation:  {name:'Substation', maxOhm:0.5, std:'IEEE 80 / IS 3043',  note:'Touch/step potential limits govern design, not just resistance. Mesh grid required.'},
+  generation:  {name:'Generation Plant',maxOhm:0.5,std:'IEEE 80 / IEC 61936',note:'Generator neutral earthing separate from safety earth. Low impedance path essential.'},
+  lightning:   {name:'Lightning Protection',maxOhm:10,std:'IEC 62305 / IS 2309',note:'Down-conductor earth separate from supply earth. Test during dry season for worst case.'},
+  telecom:     {name:'Telecom/DC',  maxOhm:1,   std:'ITU-T K.27 / TIA-607',note:'Single-point grounding. Isolated ground for sensitive equipment. Separate from power earth.'},
+  hospital:    {name:'Hospital/Critical',maxOhm:1,std:'IEC 60364-7-710', note:'Equipotential bonding of all metalwork. Local supplementary equipotential bonding mandatory.'},
+};
+
+var SOIL_DB={
+  'wet-clay': {res:25,  label:'Wet Clay / Loam',         range:'10–50 Ω·m'},
+  'clay':     {res:75,  label:'Clay / Garden Soil',      range:'50–100 Ω·m'},
+  'loam':     {res:150, label:'Sandy Loam',               range:'100–200 Ω·m'},
+  'sand':     {res:500, label:'Sand (Dry)',               range:'200–1000 Ω·m'},
+  'gravel':   {res:3000,label:'Gravel / Crushed Rock',   range:'1000–5000 Ω·m'},
+  'rock':     {res:10000,label:'Solid Rock',              range:'>5000 Ω·m'},
+  'bentonite':{res:12,  label:'Bentonite Treated',        range:'5–20 Ω·m'},
+};
+var SEASON_FACTOR={wet:0.7,normal:1.0,dry:1.8};
+
+// ═══════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════
+function switchTab(id){
+  document.querySelectorAll('.htab').forEach((t,i)=>{
+    t.classList.remove('active');
+    if(['ir','ground','pi','ref','guide'][i]===id)t.classList.add('active');
+  });
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  // Show/hide left panel sections
+  document.getElementById('ir-config').style.display      = id==='ir'    ?'block':'none';
+  document.getElementById('ground-config').style.display  = id==='ground'?'block':'none';
+  document.getElementById('pi-config').style.display      = id==='pi'    ?'block':'none';
+  drawHumidChart();drawTempChart();
+  if(id==='ir')updateMinIR();
+  if(id==='ground')updateGndStd();
+}
+
+// ═══════════════════════════════════════
+//  IR TEST ENGINE
+// ═══════════════════════════════════════
+function updateMinIR(){
+  var eq=document.getElementById('ir-equip').value;
+  var db=IR_DB[eq];
+  if(!db)return;
+  document.getElementById('k-min').textContent=formatMR(db.minMOhm);
+  document.getElementById('k-std').textContent=db.std;
+  document.getElementById('ic-voltage').textContent=
+    'Recommended test voltage: '+db.testV+'V DC\n'+
+    'Min IR (in-service): '+formatMR(db.minMOhm)+' MΩ\n'+
+    'Min IR (new/acceptance): '+formatMR(db.newMinMOhm)+' MΩ\n'+db.note;
+  // Update right panel
+  document.getElementById('req-equip-name').textContent=db.name;
+  document.getElementById('req-details').textContent=
+    '▸ Test Voltage: '+db.testV+' V DC\n'+
+    '▸ In-service min: '+formatMR(db.minMOhm)+' MΩ\n'+
+    '▸ Acceptance min: '+formatMR(db.newMinMOhm)+' MΩ\n'+
+    '▸ Standard: '+db.std+'\n▸ '+db.note;
+  document.getElementById('ir-voltage').value=db.testV<=10000?db.testV:10000;
+}
+function formatMR(v){
+  if(v>=1000000)return(v/1000000).toFixed(0)+'T';
+  if(v>=1000)return(v/1000).toFixed(0)+'k';
+  return v.toFixed(0);
+}
+
+function onEquipChange(){updateMinIR();runIRTest();}
+
+function getTempCorrFactor(tempC){
+  // IEEE 43: correction factor relative to 40°C reference
+  // Factor doubles every 10°C below 40°C, halves every 10°C above
+  return Math.pow(2,(40-tempC)/10);
+}
+
+function getHumidityDerate(humid){
+  // Research-based: above 70% humidity starts reducing surface IR
+  if(humid<=60)return 1.0;
+  if(humid<=70)return 0.9;
+  if(humid<=80)return 0.7;
+  if(humid<=90)return 0.5;
+  return 0.3;
+}
+
+function updateHumidity(){
+  var h=document.getElementById('sl-humid').value;
+  document.getElementById('humid-val').textContent=h+'%';
+  drawHumidChart();
+  runIRTest();
+}
+
+function runIRTest(){
+  var val=parseFloat(document.getElementById('ir-value').value);
+  var unit=parseFloat(document.getElementById('ir-unit').value);
+  var eq=document.getElementById('ir-equip').value;
+  var app=document.getElementById('ir-app').value;
+  var tempC=parseFloat(document.getElementById('ir-temp').value)||25;
+  var humid=parseFloat(document.getElementById('sl-humid').value)||60;
+  var db=IR_DB[eq];
+  if(!db)return;
+  if(isNaN(val)||val<=0){
+    document.getElementById('ir-display').innerHTML='— <span class="meter-unit">MΩ</span>';
+    drawIRGauge(0,db.minMOhm);
+    return;
+  }
+  var measMOhm=val*unit;
+  var tempF=getTempCorrFactor(tempC);
+  var corrected=measMOhm*tempF;
+  var humidF=getHumidityDerate(humid);
+  var adjMin=db.minMOhm/humidF;
+  var margin=corrected/db.minMOhm;
+
+  // Application-specific multiplier
+  var appMult={residential:1,industrial:1.5,distribution:2,substation:3,generation:3,offshore:2,hazardous:3}[app]||1;
+  var effectiveMin=db.minMOhm*appMult;
+
+  var pass=corrected>=effectiveMin;
+  var warn=corrected>=effectiveMin*0.5&&corrected<effectiveMin;
+
+  // Display
+  document.getElementById('ir-display').innerHTML=formatMOhm(measMOhm)+' <span class="meter-unit">MΩ</span>';
+  document.getElementById('k-min').textContent=formatMR(effectiveMin)+' MΩ';
+  document.getElementById('k-meas').textContent=formatMOhm(measMOhm)+' MΩ';
+  document.getElementById('k-tempcorr').textContent=formatMOhm(corrected)+' MΩ';
+  document.getElementById('k-margin').textContent=margin.toFixed(1)+'×';
+  document.getElementById('k-humid-d').textContent=Math.round((1-humidF)*100)+'%';
+  document.getElementById('k-std').textContent=db.std;
+
+  // Verdict
+  var vEl=document.getElementById('ir-verdict');
+  var action='';
+  if(pass&&margin>=5){
+    vEl.innerHTML='<div class="verdict pass"><div class="verdict-title">✔ PASS — EXCELLENT INSULATION</div><div class="verdict-body">Measured IR of '+formatMOhm(measMOhm)+' MΩ (temp corrected: '+formatMOhm(corrected)+' MΩ) is '+margin.toFixed(1)+'× above the minimum requirement of '+formatMR(effectiveMin)+' MΩ for '+app+' application.<br>Equipment insulation is in excellent condition. Continue standard monitoring schedule.</div></div>';
+    action='✓ Equipment is SAFE TO ENERGISE. Maintain periodic IR testing schedule. Record as baseline for trend analysis.';
+    document.getElementById('ic-action-card').className='info-card green';
+  } else if(pass&&margin>=2){
+    vEl.innerHTML='<div class="verdict pass"><div class="verdict-title">✔ PASS — GOOD INSULATION</div><div class="verdict-body">Measured IR of '+formatMOhm(measMOhm)+' MΩ meets the minimum '+formatMR(effectiveMin)+' MΩ requirement for '+db.name+' in '+app+' application ('+db.std+').<br>Temp correction at '+tempC+'°C: factor '+tempF.toFixed(2)+'×. Result ACCEPTABLE.</div></div>';
+    action='✓ Safe to energise. Document reading and schedule next test. Monitor for declining trend over time.';
+    document.getElementById('ic-action-card').className='info-card green';
+  } else if(warn){
+    vEl.innerHTML='<div class="verdict warn"><div class="verdict-title">⚠ MARGINAL — FURTHER INVESTIGATION</div><div class="verdict-body">Measured IR of '+formatMOhm(measMOhm)+' MΩ is BELOW the recommended minimum of '+formatMR(effectiveMin)+' MΩ for '+app+' application but above 50% of limit.<br>Possible causes: moisture, contamination, or aging. Perform PI test and trending analysis.</div></div>';
+    action='⚠ Do not energise without further investigation. Perform PI/DAR test. Check for moisture and contamination. Dry-out may be sufficient — re-test after drying.';
+    document.getElementById('ic-action-card').className='info-card orange';
+  } else {
+    vEl.innerHTML='<div class="verdict fail"><div class="verdict-title">✘ FAIL — INSULATION BREAKDOWN</div><div class="verdict-body">Measured IR of '+formatMOhm(measMOhm)+' MΩ is CRITICALLY BELOW the minimum '+formatMR(effectiveMin)+' MΩ required for '+db.name+' in '+app+' application.<br>⛔ DO NOT ENERGISE. Insulation has failed or is severely compromised. Immediate action required.</div></div>';
+    action='⛔ DANGER — DO NOT ENERGISE. Investigate root cause: moisture ingress, physical damage, or insulation failure. Full refurbishment or replacement required before returning to service.';
+    document.getElementById('ic-action-card').className='info-card red';
+  }
+  document.getElementById('ic-action').textContent=action;
+  drawIRGauge(measMOhm,effectiveMin);
+  drawIRWave(measMOhm,effectiveMin);
+  logTest(db.name, measMOhm+' MΩ', pass?'PASS':warn?'WARN':'FAIL', db.std);
+  updateStatusBar(db.name, pass?'PASS':warn?'WARN':'FAIL', db.std);
+}
+
+function formatMOhm(v){
+  if(v>=1e6)return(v/1e6).toFixed(2)+'T';
+  if(v>=1000)return(v/1000).toFixed(2)+'G';
+  if(v>=1)return v.toFixed(2);
+  return(v*1000).toFixed(0)+'k';
+}
+
+function resetIR(){
+  document.getElementById('ir-value').value='';
+  document.getElementById('ir-display').innerHTML='— <span class="meter-unit">MΩ</span>';
+  document.getElementById('ir-verdict').innerHTML='<div class="verdict info"><div class="verdict-title">⊙ RESET</div><div class="verdict-body">Enter a new reading to test.</div></div>';
+  ['k-min','k-meas','k-tempcorr','k-margin','k-humid-d'].forEach(id=>document.getElementById(id).textContent='—');
+  drawIRGauge(0,1);
+}
+
+// ═══════════════════════════════════════
+//  GROUND TEST ENGINE
+// ═══════════════════════════════════════
+function updateGndStd(){
+  var app=document.getElementById('gnd-app').value;
+  var soil=document.getElementById('gnd-soil').value;
+  var db=GND_DB[app]||GND_DB.residential;
+  var soilDb=SOIL_DB[soil]||SOIL_DB.clay;
+  document.getElementById('gnd-req').textContent=db.maxOhm+' Ω';
+  document.getElementById('gnd-soil-val').textContent=soilDb.res+' Ω·m';
+  document.getElementById('ic-gnd-std').textContent=
+    db.name+' — '+db.std+'\n'+db.note;
+  updateSoilRes();
+  runGndTest();
+}
+function updateSoilRes(){
+  var soil=document.getElementById('gnd-soil').value;
+  var soilDb=SOIL_DB[soil]||SOIL_DB.clay;
+  document.getElementById('gnd-soil-val').textContent=soilDb.res+' Ω·m';
+  var imp='';
+  if(soilDb.res>1000)imp='Very high resistivity — bentonite backfill, multiple rods, or deep electrode essential.';
+  else if(soilDb.res>300)imp='Moderately high — use chemical earth electrodes or additional rods in parallel.';
+  else if(soilDb.res>100)imp='Moderate — standard earthing generally achievable with 2–3 rods.';
+  else imp='Low resistivity — good earthing conditions. Standard rod earthing is sufficient.';
+  document.getElementById('ic-soil-imp').textContent=imp;
+}
+function runGndTest(){
+  var val=parseFloat(document.getElementById('gnd-value').value);
+  var app=document.getElementById('gnd-app').value;
+  var soil=document.getElementById('gnd-soil').value;
+  var season=document.getElementById('gnd-season').value;
+  var db=GND_DB[app]||GND_DB.residential;
+  var soilDb=SOIL_DB[soil]||SOIL_DB.clay;
+  var sf=SEASON_FACTOR[season]||1;
+  if(isNaN(val)||val<0){
+    document.getElementById('gnd-display').innerHTML='— <span class="meter-unit">Ω</span>';
+    drawGndGauge(0,db.maxOhm);return;
+  }
+  var worstCase=val*SEASON_FACTOR.dry/sf;
+  var margin=db.maxOhm/val;
+  var pass=val<=db.maxOhm;
+  var warn=val<=db.maxOhm*2&&val>db.maxOhm;
+  document.getElementById('gnd-display').innerHTML=val.toFixed(2)+' <span class="meter-unit">Ω</span>';
+  document.getElementById('g-req').textContent=db.maxOhm+' Ω';
+  document.getElementById('g-meas').textContent=val.toFixed(2)+' Ω';
+  document.getElementById('g-soil').textContent=soilDb.res+' Ω·m';
+  document.getElementById('g-margin').textContent=pass?margin.toFixed(1)+'×':'FAIL';
+  document.getElementById('g-season').textContent=sf+'×';
+  document.getElementById('g-worst').textContent=worstCase.toFixed(2)+' Ω';
+  var vEl=document.getElementById('gnd-verdict');
+  var action='';
+  if(pass&&margin>=4){
+    vEl.innerHTML='<div class="verdict pass"><div class="verdict-title">✔ PASS — EXCELLENT GROUNDING</div><div class="verdict-body">Measured earth resistance of '+val.toFixed(2)+' Ω is '+margin.toFixed(1)+'× below the maximum '+db.maxOhm+' Ω for '+db.name+' ('+db.std+').<br>Worst-case dry season estimate: '+worstCase.toFixed(2)+' Ω — still within limits. Excellent grounding system.</div></div>';
+    action='✓ Grounding is EXCELLENT. Annual re-testing recommended. Maintain electrode and connections free of corrosion.';
+  } else if(pass){
+    vEl.innerHTML='<div class="verdict pass"><div class="verdict-title">✔ PASS — ACCEPTABLE GROUNDING</div><div class="verdict-body">Measured '+val.toFixed(2)+' Ω meets the maximum '+db.maxOhm+' Ω requirement for '+db.name+' ('+db.std+').<br>⚠ Dry season worst-case: '+worstCase.toFixed(2)+' Ω — '+(worstCase>db.maxOhm?'MAY EXCEED LIMIT — add parallel electrodes.':'still within limit.')+'</div></div>';
+    action=worstCase>db.maxOhm?'⚠ Passes in current season but may fail dry season. Add parallel electrodes or use chemical earth treatment to improve.':'✓ Acceptable. Monitor annually and especially after dry periods.';
+  } else if(warn){
+    vEl.innerHTML='<div class="verdict warn"><div class="verdict-title">⚠ MARGINAL — IMPROVEMENT REQUIRED</div><div class="verdict-body">Measured '+val.toFixed(2)+' Ω EXCEEDS the maximum '+db.maxOhm+' Ω for '+db.name+' ('+db.std+').<br>Safety risk for fault current dissipation. Step/touch potentials may be hazardous.</div></div>';
+    action='⚠ Grounding does NOT meet the standard. Install additional electrodes in parallel, use bentonite treatment, or drive deeper rods. Re-test before energising system.';
+  } else {
+    vEl.innerHTML='<div class="verdict fail"><div class="verdict-title">✘ FAIL — UNSAFE GROUNDING</div><div class="verdict-body">Measured '+val.toFixed(2)+' Ω is '+( val/db.maxOhm).toFixed(1)+'× above the maximum '+db.maxOhm+' Ω limit for '+db.name+' ('+db.std+').<br>⛔ DANGEROUS. Equipment not safely grounded. Fault current cannot dissipate safely. Risk of lethal touch potential.</div></div>';
+    action='⛔ CRITICAL FAILURE. Do not energise equipment. Complete earthing system redesign required. Consult earthing engineer for mesh/grid design per IEEE 80.';
+  }
+  document.getElementById('ic-gnd-action').textContent=action;
+  drawGndGauge(val,db.maxOhm);
+  logTest('Earth: '+db.name, val.toFixed(2)+' Ω', pass?'PASS':warn?'WARN':'FAIL', db.std);
+  updateStatusBar('Earth/'+db.name, pass?'PASS':warn?'WARN':'FAIL', db.std);
+}
+function resetGnd(){
+  document.getElementById('gnd-value').value='';
+  document.getElementById('gnd-display').innerHTML='— <span class="meter-unit">Ω</span>';
+  document.getElementById('gnd-verdict').innerHTML='<div class="verdict info"><div class="verdict-title">⊙ RESET</div><div class="verdict-body">Enter a new reading.</div></div>';
+  ['g-req','g-meas','g-soil','g-margin','g-season','g-worst'].forEach(id=>document.getElementById(id).textContent='—');
+}
+
+// ═══════════════════════════════════════
+//  PI / DAR ENGINE
+// ═══════════════════════════════════════
+function runPITest(){
+  var r30=parseFloat(document.getElementById('pi-r30').value);
+  var r1=parseFloat(document.getElementById('pi-r1').value);
+  var r10=parseFloat(document.getElementById('pi-r10').value);
+  var eq=document.getElementById('pi-equip').value;
+  if(isNaN(r1)||r1<=0)return;
+  var pi=r10/r1;
+  var dar=r1/r30;
+  var piRating='', darRating='', verdict='', piClass='';
+  if(pi<1)      {piRating='DANGEROUS'; piClass='fail';}
+  else if(pi<1.5){piRating='POOR';     piClass='fail';}
+  else if(pi<2)  {piRating='QUESTIONABLE'; piClass='warn';}
+  else if(pi<4)  {piRating='GOOD';     piClass='pass';}
+  else           {piRating='EXCELLENT';piClass='pass';}
+
+  var darRatingClass='pass';
+  if(isNaN(dar)||dar<1.25){darRating='POOR'; darRatingClass='fail';}
+  else if(dar<1.6)        {darRating='MARGINAL'; darRatingClass='warn';}
+  else                    {darRating='GOOD'; darRatingClass='pass';}
+
+  var piStr=isNaN(pi)?'—':pi.toFixed(2);
+  var darStr=isNaN(dar)?'—':dar.toFixed(2);
+  document.getElementById('pi-display').textContent=isNaN(pi)?'—':pi.toFixed(2);
+  document.getElementById('dar-display').textContent=isNaN(dar)?'—':dar.toFixed(2);
+  document.getElementById('k-pi').textContent=piStr;
+  document.getElementById('k-dar').textContent=darStr;
+  document.getElementById('k-pi-rating').textContent=piRating;
+  document.getElementById('k-dar-rating').textContent=darRating;
+  document.getElementById('k-pi-rating').style.color=piClass==='pass'?'var(--green)':piClass==='warn'?'var(--orange)':'var(--red)';
+  document.getElementById('k-dar-rating').style.color=darRatingClass==='pass'?'var(--green)':darRatingClass==='warn'?'var(--orange)':'var(--red)';
+
+  var vEl=document.getElementById('pi-verdict');
+  var action='';
+  if(piClass==='pass'){
+    vEl.innerHTML='<div class="verdict pass"><div class="verdict-title">✔ PASS — PI: '+piStr+' ('+piRating+')</div><div class="verdict-body">Insulation is in '+piRating.toLowerCase()+' condition. PI of '+piStr+' indicates dry, clean insulation with good dielectric absorption characteristics.<br>DAR: '+darStr+' ('+darRating+'). Safe to energise.</div></div>';
+    action='✓ Insulation is in good condition. Safe to energise. Continue scheduled PI testing per maintenance plan.';
+  } else if(piClass==='warn'){
+    vEl.innerHTML='<div class="verdict warn"><div class="verdict-title">⚠ MARGINAL — PI: '+piStr+' ('+piRating+')</div><div class="verdict-body">PI of '+piStr+' is below the recommended 2.0. Possible contamination or beginning of moisture ingress. Some deterioration evident. Investigate before long-term operation.</div></div>';
+    action='⚠ Investigate for moisture or contamination. Drying out and re-testing recommended before return to full-time service.';
+  } else {
+    vEl.innerHTML='<div class="verdict fail"><div class="verdict-title">✘ FAIL — PI: '+piStr+' ('+piRating+')</div><div class="verdict-body">PI of '+piStr+' indicates severely compromised insulation — wet, contaminated, or physically damaged.<br>⛔ DO NOT ENERGISE. Insulation resistance is not rising over time, indicating active conduction path (moisture/carbon tracking).</div></div>';
+    action='⛔ DO NOT ENERGISE. Perform full inspection, drying, and cleaning. If PI remains low after drying, rewind or replace required.';
+  }
+  document.getElementById('pi-action').textContent=action;
+  document.getElementById('pi-action-card').className='info-card '+(piClass==='pass'?'green':piClass==='warn'?'orange':'red');
+  logTest('PI: '+eq, 'PI='+piStr+' DAR='+darStr, piClass==='pass'?'PASS':piClass==='warn'?'WARN':'FAIL', 'IEEE 43-2013');
+  updateStatusBar(eq, piClass==='pass'?'PASS':'FAIL', 'IEEE 43');
+}
+function resetPI(){
+  ['pi-r30','pi-r1','pi-r10'].forEach(id=>{document.getElementById(id).value='';});
+  ['pi-display','dar-display'].forEach(id=>{document.getElementById(id).textContent='—';});
+  ['k-pi','k-dar','k-pi-rating','k-dar-rating'].forEach(id=>{document.getElementById(id).textContent='—';});
+  document.getElementById('pi-verdict').innerHTML='<div class="verdict info"><div class="verdict-title">⊙ RESET</div><div class="verdict-body">Enter R30s, R1min, R10min values.</div></div>';
+}
+
+// ═══════════════════════════════════════
+//  GAUGE DRAWING
+// ═══════════════════════════════════════
+function drawGauge(canvasId, value, minBad, minGood, label, unit, colorScale){
+  var cvs=document.getElementById(canvasId);
+  if(!cvs)return;
+  var ctx=cvs.getContext('2d');
+  var w=cvs.width,h=cvs.height,cx=w/2,cy=h-10;
+  ctx.clearRect(0,0,w,h);
+  var R=Math.min(cx,cy)-8;
+  var startA=Math.PI,endA=0;
+  // Background arc
+  ctx.beginPath();ctx.arc(cx,cy,R,startA,endA);
+  ctx.strokeStyle='#1a2d50';ctx.lineWidth=18;ctx.stroke();
+  // Color zones
+  var zones=colorScale;
+  zones.forEach(z=>{
+    var sa=startA+(endA-startA)*z.from;
+    var ea=startA+(endA-startA)*z.to;
+    ctx.beginPath();ctx.arc(cx,cy,R,sa,ea);
+    ctx.strokeStyle=z.col;ctx.lineWidth=14;ctx.stroke();
+  });
+  // Needle
+  if(value>0){
+    var norm=Math.min(1,Math.max(0,value/minGood));
+    var needleA=startA+(endA-startA)*Math.min(1,norm*0.8+(value>=minGood?0.2:0));
+    ctx.save();ctx.translate(cx,cy);
+    ctx.strokeStyle=value>=minGood?'var(--green)':value>=minBad?'var(--orange)':'var(--red)';
+    ctx.lineWidth=3;ctx.lineCap='round';ctx.shadowColor=ctx.strokeStyle;ctx.shadowBlur=8;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo((R-8)*Math.cos(needleA),(R-8)*Math.sin(needleA));ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle=value>=minGood?'var(--green)':value>=minBad?'var(--orange)':'var(--red)';
+    ctx.beginPath();ctx.arc(cx,cy,5,0,Math.PI*2);ctx.fill();
+  }
+}
+
+function drawIRGauge(val,minMOhm){
+  var logVal=val>0?Math.log10(Math.max(val,0.001)):0;
+  var logMin=Math.log10(Math.max(minMOhm,0.001));
+  var logMax=logMin+3;
+  var norm=val>0?Math.min(1,Math.max(0,(logVal-Math.log10(0.001))/(logMax-Math.log10(0.001)))):0;
+  drawGauge('ir-gauge',norm,0.2,0.6,'IR',' MΩ',[
+    {from:0,to:0.15,col:'#ff2244'},{from:0.15,to:0.35,col:'#ff8800'},
+    {from:0.35,to:0.6,col:'#ffdd00'},{from:0.6,to:0.8,col:'#00ff88'},
+    {from:0.8,to:1.0,col:'#00eeff'}
+  ]);
+}
+function drawGndGauge(val,maxOhm){
+  // Low = good for ground (inverse)
+  var norm=val>0?Math.max(0,1-Math.min(1,val/(maxOhm*5))):1;
+  drawGauge('gnd-gauge',norm,0.2,0.6,'GND','Ω',[
+    {from:0,to:0.2,col:'#ff2244'},{from:0.2,to:0.35,col:'#ff8800'},
+    {from:0.35,to:0.55,col:'#ffdd00'},{from:0.55,to:0.75,col:'#00ff88'},
+    {from:0.75,to:1.0,col:'#00eeff'}
+  ]);
+}
+
+// ═══════════════════════════════════════
+//  IR WAVEFORM (simulated capacitive absorption)
+// ═══════════════════════════════════════
+function drawIRWave(val,minV){
+  var cvs=document.getElementById('ir-wave');if(!cvs)return;
+  cvs.width=cvs.parentElement.clientWidth;
+  var ctx=cvs.getContext('2d');var w=cvs.width,h=cvs.height;
+  ctx.clearRect(0,0,w,h);ctx.fillStyle='#090e18';ctx.fillRect(0,0,w,h);
+  var good=val>=minV;
+  // Good: rising curve (absorption charging). Bad: flat/declining.
+  var steps=100;
+  ctx.strokeStyle=good?'var(--green)':'var(--red)';ctx.lineWidth=1.5;
+  ctx.shadowColor=good?'#00ff88':'#ff2244';ctx.shadowBlur=6;
+  ctx.beginPath();
+  for(var i=0;i<=steps;i++){
+    var t=i/steps,x=w*t;
+    var y;
+    if(good){y=h*0.8-h*0.6*(1-Math.exp(-t*3))*(val/Math.max(minV*2,val));}
+    else{y=h*0.4+h*0.1*Math.sin(t*Math.PI*8)*Math.exp(-t*5);}
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();ctx.shadowBlur=0;
+  // Min threshold line
+  ctx.strokeStyle='rgba(255,136,0,.4)';ctx.lineWidth=1;ctx.setLineDash([5,4]);
+  var thY=h*0.25;ctx.beginPath();ctx.moveTo(0,thY);ctx.lineTo(w,thY);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,136,0,.6)';ctx.font='9px Share Tech Mono,monospace';ctx.fillText('MIN THRESHOLD',6,thY-3);
+  ctx.fillStyle='rgba(180,200,230,.5)';ctx.fillText('t = 0',8,h-4);ctx.fillText('t = 60s',w/2-15,h-4);ctx.fillText('t = 600s',w-60,h-4);
+  ctx.fillStyle=good?'rgba(0,255,136,.6)':'rgba(255,34,68,.6)';
+  ctx.fillText(good?'↗ RISING (Absorption — GOOD)':'↔ FLAT / LOW (Conduction — INVESTIGATE)',14,h*0.15);
+}
+
+// ═══════════════════════════════════════
+//  HUMIDITY CHART
+// ═══════════════════════════════════════
+function drawHumidChart(){
+  var cvs=document.getElementById('humid-cvs');if(!cvs)return;
+  cvs.width=cvs.parentElement.clientWidth;
+  var ctx=cvs.getContext('2d');var w=cvs.width,h=cvs.height;
+  ctx.clearRect(0,0,w,h);ctx.fillStyle='#090e18';ctx.fillRect(0,0,w,h);
+  var curH=parseFloat(document.getElementById('sl-humid').value)||60;
+  var points=[[0,1],[40,1],[60,1],[70,.9],[75,.8],[80,.65],[85,.5],[90,.35],[95,.2],[100,.1]];
+  var maxX=100,maxY=1;
+  ctx.strokeStyle='#00eeff';ctx.lineWidth=1.5;
+  ctx.beginPath();points.forEach((p,i)=>{var x=p[0]/maxX*w,y=h-p[1]*h*.85-6;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  // Current humidity marker
+  var cx2=curH/maxX*w;var cf=getHumidityDerate(curH);var cy2=h-cf*h*.85-6;
+  ctx.fillStyle='#ff8800';ctx.shadowColor='#ff8800';ctx.shadowBlur=8;
+  ctx.beginPath();ctx.arc(cx2,cy2,5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='#ff8800';ctx.font='8px Share Tech Mono,monospace';
+  ctx.fillText(curH+'% → -'+Math.round((1-cf)*100)+'%',cx2+6,cy2-2);
+  ctx.fillStyle='var(--text3)';ctx.fillText('0%',3,h-2);ctx.fillText('50%',w/2-8,h-2);ctx.fillText('100%',w-25,h-2);
+  ctx.fillStyle='var(--cyan)';ctx.fillText('IR Derate Factor',6,10);
+}
+
+// ═══════════════════════════════════════
+//  TEMP CORRECTION CHART
+// ═══════════════════════════════════════
+function drawTempChart(){
+  var cvs=document.getElementById('temp-cvs');if(!cvs)return;
+  cvs.width=cvs.parentElement.clientWidth;
+  var ctx=cvs.getContext('2d');var w=cvs.width,h=cvs.height;
+  ctx.clearRect(0,0,w,h);ctx.fillStyle='#090e18';ctx.fillRect(0,0,w,h);
+  var curT=parseFloat(document.getElementById('ir-temp').value)||25;
+  var temps=[0,10,20,30,40,50,60,70,80];
+  var factors=temps.map(t=>getTempCorrFactor(t));
+  var maxF=Math.max(...factors),minF=Math.min(...factors);
+  ctx.strokeStyle='#ff44cc';ctx.lineWidth=1.5;
+  ctx.beginPath();
+  temps.forEach((t,i)=>{var x=t/80*w;var y=h-(factors[i]-minF)/(maxF-minF)*h*.8-6;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  // Reference line at 40°C
+  var rx=40/80*w;ctx.strokeStyle='rgba(255,136,0,.4)';ctx.setLineDash([4,3]);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(rx,0);ctx.lineTo(rx,h);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,136,0,.6)';ctx.font='8px Share Tech Mono,monospace';ctx.fillText('40°C ref',rx+2,10);
+  // Current temp marker
+  var cx3=curT/80*w;var cf3=getTempCorrFactor(curT);var cy3=h-(cf3-minF)/(maxF-minF)*h*.8-6;
+  ctx.fillStyle='#ff8800';ctx.shadowColor='#ff8800';ctx.shadowBlur=8;
+  ctx.beginPath();ctx.arc(cx3,cy3,5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='#ff8800';ctx.font='8px Share Tech Mono,monospace';
+  ctx.fillText(curT+'°C: ×'+cf3.toFixed(2),cx3+6,cy3-2);
+  ctx.fillStyle='var(--text3)';ctx.fillText('0°C',2,h-2);ctx.fillText('40°C',rx-8,h-2);ctx.fillText('80°C',w-22,h-2);
+  ctx.fillStyle='#ff44cc';ctx.fillText('Temp Correction Factor',6,10);
+}
+
+// ═══════════════════════════════════════
+//  LOGGING
+// ═══════════════════════════════════════
+function logTest(equip, val, result, std){
+  testCount++;
+  document.getElementById('hdr-tests').textContent=testCount;
+  var now=new Date();
+  var timeStr=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');
+  var col=result==='PASS'?'var(--green)':result==='WARN'?'var(--orange)':'var(--red)';
+  var entry={time:timeStr,equip,val,result,std};
+  testLog.unshift(entry);if(testLog.length>20)testLog.pop();
+  var html=testLog.map(e=>`<div style="border-bottom:1px solid var(--border);padding:3px 0;">
+    <span style="color:var(--text3)">[${e.time}]</span> ${e.equip}<br>
+    ${e.val} → <span style="color:${e.result==='PASS'?'var(--green)':e.result==='WARN'?'var(--orange)':'var(--red)'}">${e.result}</span>
+    <span style="color:var(--text3)"> | ${e.std}</span></div>`).join('');
+  document.getElementById('test-log').innerHTML=html;
+}
+function clearLog(){testLog=[];document.getElementById('test-log').innerHTML='<div style="color:var(--text3)">Log cleared.</div>';}
+function updateStatusBar(equip,result,std){
+  var now=new Date();
+  document.getElementById('sb-time').textContent=now.toLocaleTimeString();
+  document.getElementById('sb-equip').textContent=equip;
+  document.getElementById('sb-result').textContent=result;
+  document.getElementById('sb-result').style.color=result==='PASS'?'var(--green)':result==='WARN'?'var(--orange)':'var(--red)';
+  document.getElementById('sb-std').textContent=std;
+  document.getElementById('hdr-status').textContent=result;
+  document.getElementById('hdr-status').style.color=result==='PASS'?'var(--green)':result==='WARN'?'var(--orange)':'var(--red)';
+}
+
+// ═══════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════
+window.addEventListener('load',function(){
+  switchTab('ir');
+  updateMinIR();
+  updateGndStd();
+  drawHumidChart();
+  drawTempChart();
+  drawIRGauge(0,1);
+  drawGndGauge(0,10);
+  setTimeout(()=>{drawHumidChart();drawTempChart();},200);
+  window.addEventListener('resize',()=>{drawHumidChart();drawTempChart();if(parseFloat(document.getElementById('ir-value').value)>0)runIRTest();});
+});
+</script>
+</body>
+</html>
