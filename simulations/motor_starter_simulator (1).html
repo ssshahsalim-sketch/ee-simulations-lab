@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Motor Starter Circuit Builder</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#080c10;--bg2:#0d1218;--bg3:#111820;--panel:#0a1020;
+  --border:#1c3050;--border2:#253d6a;
+  --wire:#1a8cff;--wire-live:#00ff88;--wire-gnd:#555;
+  --comp-stroke:#c8d8f0;--comp-fill:#0d1828;
+  --green:#00ff88;--blue:#00aaff;--orange:#ff8800;--red:#ff3344;
+  --yellow:#ffdd00;--cyan:#00eeff;--white:#e8f4ff;
+  --text:#b0c8e8;--text2:#4a6a8a;--text3:#1e3050;
+}
+html,body{height:100%;overflow:hidden;font-family:'Rajdhani',sans-serif;background:var(--bg);}
+body{display:flex;flex-direction:column;}
+
+/* scan lines */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.06) 3px,rgba(0,0,0,.06) 4px);pointer-events:none;z-index:9999;}
+
+/* ── HEADER ── */
+.hdr{height:50px;background:linear-gradient(90deg,#040810,#0c1828,#040810);
+  border-bottom:2px solid var(--border2);display:flex;align-items:center;
+  padding:0 16px;gap:12px;flex-shrink:0;z-index:100;}
+.logo{font-family:'Share Tech Mono';font-size:16px;color:var(--cyan);text-shadow:0 0 12px var(--cyan);letter-spacing:.1em;}
+.logo span{color:var(--yellow);}
+.vd{width:1px;height:22px;background:var(--border2);}
+.phase-btns{display:flex;gap:3px;}
+.pb{font-family:'Share Tech Mono';font-size:10px;padding:4px 12px;border:1px solid var(--border2);
+  border-radius:2px;cursor:pointer;color:var(--text2);transition:.15s;letter-spacing:.05em;}
+.pb:hover{border-color:var(--cyan);color:var(--cyan);}
+.pb.active{background:rgba(0,238,255,.12);border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 8px rgba(0,238,255,.25);}
+.hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.hbtn{font-family:'Share Tech Mono';font-size:10px;padding:5px 14px;border-radius:2px;
+  cursor:pointer;border:none;transition:.15s;letter-spacing:.05em;}
+.hbtn-run{background:rgba(0,255,136,.15);border:1px solid var(--green);color:var(--green);}
+.hbtn-run:hover{background:rgba(0,255,136,.28);}
+.hbtn-run.running{animation:pulse-g 1.2s infinite;}
+.hbtn-stop{background:rgba(255,51,68,.15);border:1px solid var(--red);color:var(--red);}
+.hbtn-clear{background:rgba(255,136,0,.1);border:1px solid var(--orange);color:var(--orange);}
+.hbtn-clear:hover{background:rgba(255,136,0,.22);}
+.sim-status{font-family:'Share Tech Mono';font-size:11px;padding:4px 12px;border-radius:2px;
+  background:rgba(0,0,0,.4);border:1px solid var(--border);}
+.ss-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;background:#333;}
+.ss-dot.live{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse-g 1.2s infinite;}
+.ss-dot.fault{background:var(--red);box-shadow:0 0 6px var(--red);}
+@keyframes pulse-g{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── WORKSPACE ── */
+.workspace{display:flex;flex:1;overflow:hidden;}
+
+/* ── PALETTE ── */
+.palette{width:140px;background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.palette::-webkit-scrollbar{width:3px;}
+.palette::-webkit-scrollbar-thumb{background:var(--border2);}
+.pal-sec{padding:7px 6px 4px;}
+.pal-sec-title{font-family:'Share Tech Mono';font-size:8px;color:var(--text3);
+  letter-spacing:.12em;text-transform:uppercase;padding:0 2px 4px;
+  border-bottom:1px solid var(--border);margin-bottom:5px;}
+.sym-btn{display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 4px;margin-bottom:4px;border:1px solid var(--border);border-radius:3px;
+  cursor:grab;background:var(--bg3);transition:.15s;user-select:none;}
+.sym-btn:hover{border-color:var(--cyan);background:#111c2c;}
+.sym-btn:active{cursor:grabbing;}
+.sym-btn svg{display:block;}
+.sym-name{font-family:'Share Tech Mono';font-size:8px;color:var(--text2);
+  text-align:center;letter-spacing:.03em;line-height:1.3;}
+
+/* ── CANVAS ── */
+.canvas-wrap{flex:1;position:relative;overflow:hidden;}
+#cvs{display:block;cursor:crosshair;}
+/* dot grid */
+.canvas-wrap::before{content:'';position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(28,48,80,.55) 1px,transparent 1px);
+  background-size:20px 20px;pointer-events:none;}
+/* wire mode indicator */
+.wire-ind{position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(0,238,255,.15);border:1px solid var(--cyan);
+  font-family:'Share Tech Mono';font-size:10px;color:var(--cyan);
+  padding:5px 14px;border-radius:2px;pointer-events:none;display:none;z-index:50;
+  letter-spacing:.06em;}
+
+/* ── BOTTOM TOOL BAR ── */
+.toolbar{height:38px;background:var(--panel);border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;}
+.tool-btn{font-family:'Share Tech Mono';font-size:9px;padding:4px 11px;
+  border:1px solid var(--border);border-radius:2px;cursor:pointer;color:var(--text2);
+  background:transparent;transition:.15s;letter-spacing:.05em;}
+.tool-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.tool-btn.active{background:rgba(0,170,255,.15);border-color:var(--blue);color:var(--blue);}
+.tool-sep{width:1px;height:18px;background:var(--border);}
+.tool-info{font-family:'Share Tech Mono';font-size:9px;color:var(--text3);margin-left:auto;}
+
+/* ── RIGHT PANEL ── */
+.right-panel{width:260px;background:var(--panel);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.right-panel::-webkit-scrollbar{width:3px;}
+.right-panel::-webkit-scrollbar-thumb{background:var(--border2);}
+.rp-sec{padding:11px;border-bottom:1px solid var(--border);}
+.rp-title{font-family:'Share Tech Mono';font-size:9px;color:var(--text3);
+  letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;
+  display:flex;align-items:center;gap:5px;}
+.rp-title::before{content:'';width:3px;height:10px;background:var(--cyan);border-radius:1px;}
+.rp-title.orange::before{background:var(--orange);}
+.rp-title.green::before{background:var(--green);}
+.rp-title.red::before{background:var(--red);}
+
+/* PROPERTIES */
+.prop-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.prop-row label{font-family:'Share Tech Mono';font-size:9px;color:var(--text2);}
+.prop-inp,.prop-sel{background:var(--bg2);color:var(--cyan);border:1px solid var(--border2);
+  border-radius:2px;padding:3px 6px;font-family:'Share Tech Mono';font-size:9px;
+  width:100px;outline:none;transition:.15s;}
+.prop-inp:focus,.prop-sel:focus{border-color:var(--cyan);}
+.prop-sel{cursor:pointer;appearance:none;}
+.delbtn{font-family:'Share Tech Mono';font-size:9px;padding:4px 10px;width:100%;
+  border:1px solid rgba(255,51,68,.35);color:var(--red);background:rgba(255,51,68,.08);
+  border-radius:2px;cursor:pointer;margin-top:5px;transition:.15s;}
+.delbtn:hover{background:rgba(255,51,68,.2);}
+.rotbtn{font-family:'Share Tech Mono';font-size:9px;padding:4px 10px;width:100%;
+  border:1px solid var(--border2);color:var(--text2);background:transparent;
+  border-radius:2px;cursor:pointer;margin-top:4px;transition:.15s;}
+.rotbtn:hover{border-color:var(--blue);color:var(--blue);}
+
+/* KPI CARDS */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:7px 9px;}
+.kpi::before{content:'';display:block;width:100%;height:2px;border-radius:1px;margin-bottom:4px;}
+.kpi.cyan::before{background:var(--cyan);}
+.kpi.green::before{background:var(--green);}
+.kpi.orange::before{background:var(--orange);}
+.kpi.red::before{background:var(--red);}
+.kpi.yellow::before{background:var(--yellow);}
+.kpi-lbl{font-family:'Share Tech Mono';font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+.kpi-val{font-family:'Share Tech Mono';font-size:13px;margin-top:2px;}
+.kpi.cyan .kpi-val{color:var(--cyan);}
+.kpi.green .kpi-val{color:var(--green);}
+.kpi.orange .kpi-val{color:var(--orange);}
+.kpi.red .kpi-val{color:var(--red);}
+.kpi.yellow .kpi-val{color:var(--yellow);}
+
+/* LOGIC LOG */
+.log-entry{font-family:'Share Tech Mono';font-size:8px;line-height:1.9;
+  border-bottom:1px solid rgba(28,48,80,.4);padding:2px 0;}
+.le-time{color:var(--text3);}
+.le-ok{color:var(--green);}
+.le-fault{color:var(--red);}
+.le-info{color:var(--cyan);}
+.le-warn{color:var(--orange);}
+
+/* VERDICT */
+.verdict{border-radius:3px;padding:9px 11px;margin:6px 0;font-family:'Share Tech Mono';font-size:9px;}
+.verdict.ok{background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.3);border-left:3px solid var(--green);}
+.verdict.fault{background:rgba(255,51,68,.07);border:1px solid rgba(255,51,68,.3);border-left:3px solid var(--red);}
+.verdict.idle{background:rgba(0,238,255,.05);border:1px solid rgba(0,238,255,.2);border-left:3px solid var(--cyan);}
+.verdict.warn{background:rgba(255,136,0,.07);border:1px solid rgba(255,136,0,.3);border-left:3px solid var(--orange);}
+.vt{font-size:11px;font-weight:600;letter-spacing:.06em;}
+.verdict.ok .vt{color:var(--green);}
+.verdict.fault .vt{color:var(--red);}
+.verdict.idle .vt{color:var(--cyan);}
+.verdict.warn .vt{color:var(--orange);}
+.vb{color:var(--text);line-height:1.8;margin-top:4px;}
+
+/* MINI SCHEMATIC */
+#mini-cvs{display:block;background:var(--bg2);border-radius:3px;}
+
+/* NO-SEL */
+.no-sel{font-family:'Share Tech Mono';font-size:9px;color:var(--text3);
+  font-style:italic;text-align:center;padding:10px 0;}
+
+/* CONTROL BUTTONS (on canvas overlay) */
+.ctrl-overlay{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);
+  display:flex;gap:8px;z-index:50;display:none;}
+.co-btn{font-family:'Share Tech Mono';font-size:11px;padding:7px 20px;border-radius:3px;
+  cursor:pointer;border:none;transition:.15s;letter-spacing:.08em;font-weight:600;}
+.co-start{background:rgba(0,255,136,.2);border:2px solid var(--green);color:var(--green);}
+.co-start:hover{background:rgba(0,255,136,.35);box-shadow:0 0 14px rgba(0,255,136,.4);}
+.co-stop{background:rgba(255,51,68,.2);border:2px solid var(--red);color:var(--red);}
+.co-stop:hover{background:rgba(255,51,68,.35);}
+.co-fault{background:rgba(255,136,0,.15);border:2px solid var(--orange);color:var(--orange);}
+
+/* info msg */
+.info-msg{font-family:'Share Tech Mono';font-size:9px;color:var(--text3);
+  padding:8px;text-align:center;line-height:1.8;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="logo">CIRCUIT<span>BUILDER</span></div>
+  <div class="vd"></div>
+  <div class="phase-btns">
+    <div class="pb active" id="ph-1" onclick="setPhase(1)">1φ SINGLE</div>
+    <div class="pb" id="ph-3" onclick="setPhase(3)">3φ THREE</div>
+  </div>
+  <div class="vd"></div>
+  <div class="sim-status"><span class="ss-dot" id="sim-dot"></span><span id="sim-txt">IDLE</span></div>
+  <div class="hdr-right">
+    <button class="hbtn hbtn-run" id="run-btn" onclick="toggleSim()">▶ SIMULATE</button>
+    <button class="hbtn hbtn-clear" onclick="clearCanvas()">⬛ CLEAR</button>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+<!-- ══ PALETTE ══ -->
+<div class="palette">
+
+  <div class="pal-sec">
+    <div class="pal-sec-title">Power Sources</div>
+    <div class="sym-btn" draggable="true" data-type="bus3" title="3-Phase Bus">
+      <svg width="116" height="40" viewBox="0 0 116 40">
+        <line x1="6" y1="10" x2="110" y2="10" stroke="#ffdd00" stroke-width="3"/>
+        <line x1="6" y1="20" x2="110" y2="20" stroke="#ff4444" stroke-width="3"/>
+        <line x1="6" y1="30" x2="110" y2="30" stroke="#4488ff" stroke-width="3"/>
+        <text x="4" y="9" font-size="6" fill="#aaa" font-family="monospace">L1</text>
+        <text x="4" y="19" font-size="6" fill="#aaa" font-family="monospace">L2</text>
+        <text x="4" y="29" font-size="6" fill="#aaa" font-family="monospace">L3</text>
+      </svg>
+      <div class="sym-name">3φ BUS BAR</div>
+    </div>
+    <div class="sym-btn" draggable="true" data-type="bus1" title="1-Phase Bus">
+      <svg width="116" height="28" viewBox="0 0 116 28">
+        <line x1="6" y1="10" x2="110" y2="10" stroke="#ffdd00" stroke-width="3"/>
+        <line x1="6" y1="20" x2="110" y2="20" stroke="#4488ff" stroke-width="3"/>
+        <text x="4" y="9" font-size="6" fill="#aaa" font-family="monospace">L</text>
+        <text x="4" y="19" font-size="6" fill="#aaa" font-family="monospace">N</text>
+      </svg>
+      <div class="sym-name">1φ BUS BAR</div>
+    </div>
+    <div class="sym-btn" draggable="true" data-type="xfmr" title="Control Transformer">
+      <svg width="116" height="44" viewBox="0 0 116 44">
+        <line x1="2" y1="22" x2="20" y2="22" stroke="#aaa" stroke-width="1.5"/>
+        <path d="M20,22 Q24,14 28,22 Q32,30 36,22 Q40,14 44,22" fill="none" stroke="#00eeff" stroke-width="1.5"/>
+        <line x1="46" y1="12" x2="50" y2="12" stroke="#888" stroke-width="2.5"/><line x1="46" y1="17" x2="50" y2="17" stroke="#888" stroke-width="2.5"/><line x1="46" y1="22" x2="50" y2="22" stroke="#888" stroke-width="2.5"/><line x1="46" y1="27" x2="50" y2="27" stroke="#888" stroke-width="2.5"/>
+        <path d="M50,22 Q54,14 58,22 Q62,30 66,22 Q70,14 74,22 Q78,30 82,22" fill="none" stroke="#ffdd00" stroke-width="1.5"/>
+        <line x1="82" y1="22" x2="114" y2="22" stroke="#aaa" stroke-width="1.5"/>
+        <text x="24" y="40" font-size="7" fill="#888" font-family="monospace">480V</text>
+        <text x="55" y="40" font-size="7" fill="#888" font-family="monospace">120V</text>
+      </svg>
+      <div class="sym-name">CTRL XFMR</div>
+    </div>
+    <div class="sym-btn" draggable="true" data-type="gnd" title="Ground">
+      <svg width="116" height="36" viewBox="0 0 116 36">
+        <line x1="58" y1="4" x2="58" y2="18" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="36" y1="18" x2="80" y2="18" stroke="#aaa" stroke-width="2.5"/>
+        <line x1="42" y1="24" x2="74" y2="24" stroke="#aaa" stroke-width="2"/>
+        <line x1="48" y1="30" x2="68" y2="30" stroke="#aaa" stroke-width="1.5"/>
+      </svg>
+      <div class="sym-name">GROUND</div>
+    </div>
+  </div>
+
+  <div class="pal-sec">
+    <div class="pal-sec-title">Protection</div>
+    <!-- CB (IEC style) -->
+    <div class="sym-btn" draggable="true" data-type="cb" title="Circuit Breaker (IEC)">
+      <svg width="116" height="36" viewBox="0 0 116 36">
+        <line x1="2" y1="18" x2="28" y2="18" stroke="#ccc" stroke-width="1.5"/>
+        <rect x="28" y="8" width="60" height="20" fill="#0d1828" stroke="#c8d8f0" stroke-width="1.5" rx="2"/>
+        <line x1="36" y1="18" x2="50" y2="10" stroke="#c8d8f0" stroke-width="1.5"/>
+        <line x1="50" y1="10" x2="52" y2="10" stroke="#c8d8f0" stroke-width="1.5"/>
+        <line x1="56" y1="18" x2="78" y2="18" stroke="#c8d8f0" stroke-width="1.5"/>
+        <line x1="88" y1="18" x2="114" y2="18" stroke="#ccc" stroke-width="1.5"/>
+      </svg>
+      <div class="sym-name">CIRCUIT BREAKER</div>
+    </div>
+    <!-- MCCB (3-pole) -->
+    <div class="sym-btn" draggable="true" data-type="mccb3" title="3-Pole MCCB">
+      <svg width="116" height="56" viewBox="0 0 116 56">
+        <rect x="22" y="2" width="72" height="52" fill="#0d1828" stroke="#c8d8f0" stroke-width="1.5" rx="3"/>
+        <text x="34" y="16" font-size="7" fill="#c8d8f0" font-family="monospace">MCCB</text>
+        <line x1="2" y1="20" x2="22" y2="20" stroke="#ffdd00" stroke-width="1.5"/>
+        <line x1="94" y1="20" x2="114" y2="20" stroke="#ffdd00" stroke-width="1.5"/>
+        <line x1="2" y1="32" x2="22" y2="32" stroke="#ff4444" stroke-width="1.5"/>
+        <line x1="94" y1="32" x2="114" y2="32" stroke="#ff4444" stroke-width="1.5"/>
+        <line x1="2" y1="44" x2="22" y2="44" stroke="#4488ff" stroke-width="1.5"/>
+        <line x1="94" y1="44" x2="114" y2="44" stroke="#4488ff" stroke-width="1.5"/>
+        <line x1="38" y1="20" x2="52" y2="13" stroke="#c8d8f0" stroke-width="1.5"/>
+        <line x1="38" y1="32" x2="52" y2="25" stroke="#c8d8f0" stroke-width="1.5"/>
+        <line x1="38" y1="44" x2="52" y2="37" stroke="#c8d8f0" stroke-width="1.5"/>
+        <line x1="54" y1="20" x2="80" y2="20" stroke="#c8d8f0" stroke-width="1"/>
+        <line x1="54" y1="32" x2="80" y2="32" stroke="#c8d8f0" stroke-width="1"/>
+        <line x1="54" y1="44" x2="80" y2="44" stroke="#c8d8f0" stroke-width="1"/>
+      </svg>
+      <div class="sym-name">3P MCCB / MCP</div>
+    </div>
+    <!-- Fuse IEC -->
+    <div class="sym-btn" draggable="true" data-type="fuse" title="Fuse (IEC)">
+      <svg width="116" height="30" viewBox="0 0 116 30">
+        <line x1="2" y1="15" x2="28" y2="15" stroke="#ccc" stroke-width="1.5"/>
+        <rect x="28" y="6" width="60" height="18" fill="#0d1828" stroke="#ffdd00" stroke-width="1.5" rx="2"/>
+        <line x1="38" y1="15" x2="78" y2="15" stroke="#ffdd00" stroke-width="1.2" stroke-dasharray="3 2"/>
+        <line x1="88" y1="15" x2="114" y2="15" stroke="#ccc" stroke-width="1.5"/>
+        <text x="50" y="20" font-size="7" fill="#ffdd00" font-family="monospace">FU</text>
+      </svg>
+      <div class="sym-name">FUSE (IEC)</div>
+    </div>
+    <!-- OLR -->
+    <div class="sym-btn" draggable="true" data-type="olr" title="Overload Relay">
+      <svg width="116" height="56" viewBox="0 0 116 56">
+        <rect x="20" y="2" width="76" height="38" fill="#0d1828" stroke="#ff8800" stroke-width="1.5" rx="2"/>
+        <!-- 3 heater zigzags -->
+        <polyline points="30,18 34,10 38,26 42,10 46,18" fill="none" stroke="#ff8800" stroke-width="1.5" stroke-linejoin="round"/>
+        <polyline points="52,18 56,10 60,26 64,10 68,18" fill="none" stroke="#ff8800" stroke-width="1.5" stroke-linejoin="round"/>
+        <polyline points="74,18 78,10 82,26 86,10 90,18" fill="none" stroke="#ff8800" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- NC auxiliary contact -->
+        <line x1="46" y1="48" x2="56" y2="48" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="46" y1="40" x2="46" y2="56" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="60" y1="40" x2="60" y2="56" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="46" y1="48" x2="60" y2="48" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="49" y1="54" x2="57" y2="42" stroke="#00ff88" stroke-width="1"/> <!-- NC slash -->
+        <text x="26" y="56" font-size="7" fill="#ff8800" font-family="monospace">OLR E100</text>
+      </svg>
+      <div class="sym-name">OVLD RELAY</div>
+    </div>
+  </div>
+
+  <div class="pal-sec">
+    <div class="pal-sec-title">Switching</div>
+    <!-- Contactor 3P -->
+    <div class="sym-btn" draggable="true" data-type="contactor3" title="3-Pole Contactor">
+      <svg width="116" height="64" viewBox="0 0 116 64">
+        <rect x="16" y="2" width="84" height="44" fill="#0d1828" stroke="#00aaff" stroke-width="1.5" rx="2"/>
+        <text x="42" y="14" font-size="7" fill="#00aaff" font-family="monospace">M1</text>
+        <!-- 3 NO contacts -->
+        <line x1="2" y1="22" x2="28" y2="22" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="28" y1="14" x2="28" y2="30" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="42" y1="14" x2="42" y2="30" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="26" y1="16" x2="44" y2="28" stroke="#aaa" stroke-width="1.8"/><!-- open -->
+        <line x1="42" y1="22" x2="68" y2="22" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="2" y1="34" x2="28" y2="34" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="28" y1="26" x2="28" y2="42" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="42" y1="26" x2="42" y2="42" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="26" y1="28" x2="44" y2="40" stroke="#aaa" stroke-width="1.8"/>
+        <line x1="42" y1="34" x2="68" y2="34" stroke="#aaa" stroke-width="1.5"/>
+        <!-- Coil -->
+        <circle cx="85" cy="52" r="10" fill="#0d1828" stroke="#4499ff" stroke-width="1.5"/>
+        <text x="80" y="55" font-size="8" fill="#4499ff" font-family="monospace">M1</text>
+        <line x1="75" y1="52" x2="16" y2="52" stroke="#4499ff" stroke-width="1" stroke-dasharray="3 2"/>
+      </svg>
+      <div class="sym-name">CONTACTOR 3P</div>
+    </div>
+    <!-- Contactor Coil -->
+    <div class="sym-btn" draggable="true" data-type="coil" title="Contactor Coil">
+      <svg width="116" height="36" viewBox="0 0 116 36">
+        <line x1="2" y1="18" x2="30" y2="18" stroke="#aaa" stroke-width="1.5"/>
+        <circle cx="58" cy="18" r="16" fill="#0d1828" stroke="#4499ff" stroke-width="1.8"/>
+        <text x="49" y="22" font-size="10" fill="#4499ff" font-family="monospace" font-weight="bold">M1</text>
+        <line x1="74" y1="18" x2="114" y2="18" stroke="#aaa" stroke-width="1.5"/>
+      </svg>
+      <div class="sym-name">COIL M1</div>
+    </div>
+    <!-- M1 AUX NO -->
+    <div class="sym-btn" draggable="true" data-type="aux-no" title="M1 Auxiliary Contact NO">
+      <svg width="116" height="36" viewBox="0 0 116 36">
+        <line x1="2" y1="18" x2="32" y2="18" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="32" y1="8" x2="32" y2="28" stroke="#4499ff" stroke-width="2"/>
+        <line x1="52" y1="8" x2="52" y2="28" stroke="#4499ff" stroke-width="2"/>
+        <line x1="30" y1="10" x2="54" y2="10" stroke="#4499ff" stroke-width="2"/><!-- NO raised bar -->
+        <line x1="52" y1="18" x2="114" y2="18" stroke="#aaa" stroke-width="1.5"/>
+        <text x="38" y="32" font-size="7" fill="#4499ff" font-family="monospace">M1-AUX</text>
+      </svg>
+      <div class="sym-name">M1 AUX (NO)</div>
+    </div>
+    <!-- OL1 NC -->
+    <div class="sym-btn" draggable="true" data-type="ol1-nc" title="OL1 Contact NC">
+      <svg width="116" height="36" viewBox="0 0 116 36">
+        <line x1="2" y1="18" x2="32" y2="18" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="32" y1="8" x2="32" y2="28" stroke="#ff8800" stroke-width="2"/>
+        <line x1="52" y1="8" x2="52" y2="28" stroke="#ff8800" stroke-width="2"/>
+        <line x1="32" y1="18" x2="52" y2="18" stroke="#ff8800" stroke-width="2"/><!-- NC bar -->
+        <line x1="36" y1="24" x2="48" y2="12" stroke="#ff8800" stroke-width="1.2"/><!-- NC slash -->
+        <line x1="52" y1="18" x2="114" y2="18" stroke="#aaa" stroke-width="1.5"/>
+        <text x="36" y="32" font-size="7" fill="#ff8800" font-family="monospace">OL1 NC</text>
+      </svg>
+      <div class="sym-name">OL1 NC</div>
+    </div>
+    <!-- Selector Switch -->
+    <div class="sym-btn" draggable="true" data-type="selector" title="Selector Switch OFF/ON">
+      <svg width="116" height="40" viewBox="0 0 116 40">
+        <line x1="2" y1="20" x2="32" y2="20" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="32" y1="10" x2="32" y2="30" stroke="#00ff88" stroke-width="2"/>
+        <line x1="52" y1="10" x2="52" y2="30" stroke="#00ff88" stroke-width="2"/>
+        <!-- Diagonal for OFF position -->
+        <line x1="30" y1="26" x2="54" y2="14" stroke="#00ff88" stroke-width="2"/>
+        <!-- Arc for pushbutton -->
+        <path d="M32,8 Q42,2 52,8" fill="none" stroke="#00ff88" stroke-width="1.2"/>
+        <line x1="52" y1="20" x2="114" y2="20" stroke="#aaa" stroke-width="1.5"/>
+        <text x="22" y="38" font-size="7" fill="#aaa" font-family="monospace">OFF</text>
+        <text x="72" y="38" font-size="7" fill="#00ff88" font-family="monospace">ON</text>
+      </svg>
+      <div class="sym-name">SELECTOR SW</div>
+    </div>
+    <!-- Stop Button NC -->
+    <div class="sym-btn" draggable="true" data-type="stop-nc" title="Stop Button NC">
+      <svg width="116" height="40" viewBox="0 0 116 40">
+        <line x1="2" y1="20" x2="32" y2="20" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="32" y1="8" x2="32" y2="32" stroke="#ff3344" stroke-width="2"/>
+        <line x1="52" y1="8" x2="52" y2="32" stroke="#ff3344" stroke-width="2"/>
+        <line x1="32" y1="20" x2="52" y2="20" stroke="#ff3344" stroke-width="2"/>
+        <line x1="36" y1="26" x2="48" y2="12" stroke="#ff3344" stroke-width="1.2"/>
+        <path d="M32,6 Q42,0 52,6" fill="none" stroke="#ff3344" stroke-width="1.2"/>
+        <line x1="52" y1="20" x2="114" y2="20" stroke="#aaa" stroke-width="1.5"/>
+        <text x="30" y="38" font-size="7" fill="#ff3344" font-family="monospace">STOP</text>
+      </svg>
+      <div class="sym-name">STOP (NC)</div>
+    </div>
+    <!-- Start Button NO -->
+    <div class="sym-btn" draggable="true" data-type="start-no" title="Start Button NO">
+      <svg width="116" height="40" viewBox="0 0 116 40">
+        <line x1="2" y1="20" x2="32" y2="20" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="32" y1="8" x2="32" y2="32" stroke="#00ff88" stroke-width="2"/>
+        <line x1="52" y1="8" x2="52" y2="32" stroke="#00ff88" stroke-width="2"/>
+        <line x1="30" y1="9" x2="54" y2="9" stroke="#00ff88" stroke-width="2"/>
+        <path d="M32,6 Q42,0 52,6" fill="none" stroke="#00ff88" stroke-width="1.2"/>
+        <line x1="52" y1="20" x2="114" y2="20" stroke="#aaa" stroke-width="1.5"/>
+        <text x="28" y="38" font-size="7" fill="#00ff88" font-family="monospace">START</text>
+      </svg>
+      <div class="sym-name">START (NO)</div>
+    </div>
+  </div>
+
+  <div class="pal-sec">
+    <div class="pal-sec-title">Loads</div>
+    <!-- Motor 3P -->
+    <div class="sym-btn" draggable="true" data-type="motor3" title="3-Phase Motor">
+      <svg width="116" height="64" viewBox="0 0 116 64">
+        <circle cx="58" cy="38" r="24" fill="#0d1828" stroke="#c8d8f0" stroke-width="2"/>
+        <text x="50" y="34" font-size="11" font-weight="bold" fill="#c8d8f0" font-family="monospace">M</text>
+        <text x="50" y="46" font-size="8" fill="#888" font-family="monospace">3~</text>
+        <line x1="38" y1="16" x2="28" y2="4" stroke="#ffdd00" stroke-width="1.5"/>
+        <line x1="58" y1="14" x2="58" y2="2" stroke="#ff4444" stroke-width="1.5"/>
+        <line x1="78" y1="16" x2="88" y2="4" stroke="#4488ff" stroke-width="1.5"/>
+        <text x="20" y="8" font-size="7" fill="#ffdd00" font-family="monospace">T1</text>
+        <text x="54" y="8" font-size="7" fill="#ff4444" font-family="monospace">T2</text>
+        <text x="88" y="8" font-size="7" fill="#4488ff" font-family="monospace">T3</text>
+      </svg>
+      <div class="sym-name">MOTOR 3φ</div>
+    </div>
+    <!-- Motor 1P -->
+    <div class="sym-btn" draggable="true" data-type="motor1" title="1-Phase Motor">
+      <svg width="116" height="56" viewBox="0 0 116 56">
+        <circle cx="58" cy="34" r="20" fill="#0d1828" stroke="#c8d8f0" stroke-width="2"/>
+        <text x="50" y="31" font-size="11" font-weight="bold" fill="#c8d8f0" font-family="monospace">M</text>
+        <text x="50" y="43" font-size="8" fill="#888" font-family="monospace">1~</text>
+        <line x1="46" y1="14" x2="38" y2="4" stroke="#ffdd00" stroke-width="1.5"/>
+        <line x1="70" y1="14" x2="78" y2="4" stroke="#4488ff" stroke-width="1.5"/>
+        <text x="28" y="8" font-size="7" fill="#ffdd00" font-family="monospace">L</text>
+        <text x="80" y="8" font-size="7" fill="#4488ff" font-family="monospace">N</text>
+      </svg>
+      <div class="sym-name">MOTOR 1φ</div>
+    </div>
+    <!-- Lamp indicator -->
+    <div class="sym-btn" draggable="true" data-type="lamp" title="Pilot Lamp">
+      <svg width="116" height="36" viewBox="0 0 116 36">
+        <line x1="2" y1="18" x2="28" y2="18" stroke="#aaa" stroke-width="1.5"/>
+        <circle cx="50" cy="18" r="18" fill="#0d1828" stroke="#ffdd00" stroke-width="1.5"/>
+        <line x1="36" y1="6" x2="64" y2="30" stroke="#ffdd00" stroke-width="1.2"/>
+        <line x1="64" y1="6" x2="36" y2="30" stroke="#ffdd00" stroke-width="1.2"/>
+        <line x1="68" y1="18" x2="114" y2="18" stroke="#aaa" stroke-width="1.5"/>
+        <text x="76" y="14" font-size="7" fill="#888" font-family="monospace">PL</text>
+      </svg>
+      <div class="sym-name">PILOT LAMP</div>
+    </div>
+    <!-- Terminal Block -->
+    <div class="sym-btn" draggable="true" data-type="tb" title="Terminal Block">
+      <svg width="116" height="30" viewBox="0 0 116 30">
+        <line x1="2" y1="15" x2="28" y2="15" stroke="#aaa" stroke-width="1.5"/>
+        <rect x="28" y="5" width="60" height="20" fill="#0d1828" stroke="#888" stroke-width="1.5" rx="2"/>
+        <line x1="58" y1="5" x2="58" y2="25" stroke="#555" stroke-width="1"/>
+        <line x1="88" y1="15" x2="114" y2="15" stroke="#aaa" stroke-width="1.5"/>
+        <text x="34" y="19" font-size="7" fill="#888" font-family="monospace">TB</text>
+        <text x="64" y="19" font-size="7" fill="#888" font-family="monospace">TBD</text>
+      </svg>
+      <div class="sym-name">TERMINAL TB</div>
+    </div>
+  </div>
+
+  <div class="pal-sec">
+    <div class="pal-sec-title">Wire Tool</div>
+    <div class="sym-btn" data-type="wire" onclick="activateWireTool()" title="Draw Wire [W]" style="cursor:pointer">
+      <svg width="116" height="24" viewBox="0 0 116 24">
+        <line x1="4" y1="12" x2="112" y2="12" stroke="#1a8cff" stroke-width="2" stroke-dasharray="5 2"/>
+        <circle cx="4" cy="12" r="3" fill="#00eeff"/>
+        <circle cx="112" cy="12" r="3" fill="#00eeff"/>
+      </svg>
+      <div class="sym-name">WIRE [W]</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CANVAS ══ -->
+<div class="canvas-wrap" id="canvas-wrap">
+  <canvas id="cvs"></canvas>
+  <div class="wire-ind" id="wire-ind">● WIRE MODE — Click terminal to start</div>
+  <div class="ctrl-overlay" id="ctrl-overlay">
+    <button class="co-btn co-start" onclick="ctrlStart()">▶ START</button>
+    <button class="co-btn co-stop" onclick="ctrlStop()">■ STOP</button>
+    <button class="co-btn co-fault" onclick="ctrlFault()">⚡ TRIP OLR</button>
+  </div>
+</div>
+
+<!-- ══ RIGHT PANEL ══ -->
+<div class="right-panel">
+  <div class="rp-sec" id="prop-panel">
+    <div class="rp-title">Properties</div>
+    <div id="prop-content"><div class="no-sel">Click a component<br>to edit properties</div></div>
+  </div>
+
+  <div class="rp-sec">
+    <div class="rp-title green">Simulation Status</div>
+    <div id="sim-verdict">
+      <div class="verdict idle"><div class="vt">⊙ CIRCUIT IDLE</div><div class="vb">Build your circuit then press ▶ SIMULATE.</div></div>
+    </div>
+    <div class="kpi-grid" style="margin-top:8px">
+      <div class="kpi cyan"><div class="kpi-lbl">Voltage</div><div class="kpi-val" id="k-v">—</div></div>
+      <div class="kpi green"><div class="kpi-lbl">Current</div><div class="kpi-val" id="k-i">—</div></div>
+      <div class="kpi orange"><div class="kpi-lbl">Power</div><div class="kpi-val" id="k-p">—</div></div>
+      <div class="kpi red"><div class="kpi-lbl">OLR State</div><div class="kpi-val" id="k-olr">RESET</div></div>
+      <div class="kpi yellow"><div class="kpi-lbl">M1 State</div><div class="kpi-val" id="k-m1">OFF</div></div>
+      <div class="kpi cyan"><div class="kpi-lbl">Motor RPM</div><div class="kpi-val" id="k-rpm">—</div></div>
+    </div>
+  </div>
+
+  <div class="rp-sec">
+    <div class="rp-title orange">Control Logic</div>
+    <div id="ctrl-logic-state" style="font-family:'Share Tech Mono';font-size:9px;color:var(--text2);line-height:1.9">
+      <div>STOP (NC) : <span id="cl-stop" style="color:var(--green)">CLOSED ✓</span></div>
+      <div>START (NO): <span id="cl-start" style="color:var(--text3)">OPEN</span></div>
+      <div>M1-AUX    : <span id="cl-aux" style="color:var(--text3)">OPEN</span></div>
+      <div>OL1 (NC)  : <span id="cl-ol1" style="color:var(--green)">CLOSED ✓</span></div>
+      <div>M1 Coil   : <span id="cl-coil" style="color:var(--text3)">DE-ENERGISED</span></div>
+      <div>SELECTOR  : <span id="cl-sel" style="color:var(--text3)">OFF</span></div>
+    </div>
+  </div>
+
+  <div class="rp-sec">
+    <div class="rp-title">Event Log</div>
+    <div id="event-log" style="max-height:180px;overflow-y:auto">
+      <div class="log-entry le-info">[BOOT] Circuit Builder Ready</div>
+    </div>
+  </div>
+
+  <div class="rp-sec">
+    <div class="rp-title">Component List</div>
+    <div id="comp-list" style="font-family:'Share Tech Mono';font-size:8px;color:var(--text2);line-height:1.9">
+      <div class="no-sel">No components placed</div>
+    </div>
+  </div>
+
+  <div class="rp-sec">
+    <div class="rp-title">Circuit Info</div>
+    <div style="font-family:'Share Tech Mono';font-size:8px;color:var(--text2);line-height:2">
+      <div>Phase: <span id="ci-phase" style="color:var(--cyan)">1φ Single</span></div>
+      <div>Components: <span id="ci-comps" style="color:var(--cyan)">0</span></div>
+      <div>Wires: <span id="ci-wires" style="color:var(--cyan)">0</span></div>
+      <div>Press <span style="color:var(--yellow)">W</span> for wire mode</div>
+      <div>Press <span style="color:var(--yellow)">R</span> to rotate selected</div>
+      <div>Press <span style="color:var(--yellow)">DEL</span> to delete</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /workspace -->
+
+<!-- BOTTOM TOOLBAR -->
+<div class="toolbar">
+  <button class="tool-btn active" id="tool-sel" onclick="setTool('select')">↖ SELECT</button>
+  <button class="tool-btn" id="tool-wire" onclick="activateWireTool()">― WIRE [W]</button>
+  <div class="tool-sep"></div>
+  <button class="tool-btn" onclick="rotateSelected()">↻ ROTATE [R]</button>
+  <button class="tool-btn" onclick="deleteSelected()">✕ DELETE [Del]</button>
+  <div class="tool-sep"></div>
+  <button class="tool-btn" onclick="loadMotorStarterExample(1)">📋 Load 1φ Example</button>
+  <button class="tool-btn" onclick="loadMotorStarterExample(3)">📋 Load 3φ Example</button>
+  <div class="tool-info" id="tool-info">Drag components from palette → canvas</div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════
+//  CANVAS SETUP
+// ═══════════════════════════════════════════════════════
+var cvs=document.getElementById('cvs');
+var ctx=cvs.getContext('2d');
+var wrap=document.getElementById('canvas-wrap');
+
+var GRID=20;
+var STATE={
+  phase:1, tool:'select', wireMode:false,
+  panX:0,panY:0,zoom:1,
+  dragging:null,dragOX:0,dragOY:0,
+  selected:null, wireStart:null, wirePreview:null,
+  isPanning:false,panSX:0,panSY:0,panPX:0,panPY:0,
+  simRunning:false,
+  motorRunning:false, olrTripped:false, selectorOn:false,
+  startPressed:false,
+  nextId:1
+};
+var components=[];
+var wires=[];
+
+// ── COMP DEFINITIONS ──
+var COMP_COLORS={
+  bus3:'#ffdd00',bus1:'#ffdd00',xfmr:'#00eeff',gnd:'#888888',
+  cb:'#c8d8f0',mccb3:'#c8d8f0',fuse:'#ffdd00',
+  olr:'#ff8800',contactor3:'#00aaff',coil:'#4499ff',
+  'aux-no':'#4499ff','ol1-nc':'#ff8800',
+  selector:'#00ff88','stop-nc':'#ff3344','start-no':'#00ff88',
+  motor3:'#c8d8f0',motor1:'#c8d8f0',lamp:'#ffdd00',tb:'#888888'
+};
+var COMP_DEFS={
+  bus3:     {w:120,h:52, label:'BUS1'},
+  bus1:     {w:120,h:32, label:'BUS1'},
+  xfmr:     {w:100,h:60, label:'T1'},
+  gnd:      {w:50, h:44, label:'GND'},
+  cb:       {w:90, h:40, label:'CB1'},
+  mccb3:    {w:100,h:60, label:'CB1'},
+  fuse:     {w:90, h:32, label:'FU1'},
+  olr:      {w:100,h:60, label:'OLR'},
+  contactor3:{w:110,h:70, label:'M1'},
+  coil:     {w:90, h:40, label:'M1-COIL'},
+  'aux-no': {w:90, h:40, label:'M1-AUX'},
+  'ol1-nc': {w:90, h:40, label:'OL1'},
+  selector: {w:90, h:44, label:'SS1'},
+  'stop-nc':{w:90, h:44, label:'SS1-STOP'},
+  'start-no':{w:90,h:44, label:'SS1-START'},
+  motor3:   {w:80, h:72, label:'MTR1'},
+  motor1:   {w:80, h:60, label:'MTR1'},
+  lamp:     {w:80, h:40, label:'PL1'},
+  tb:       {w:90, h:32, label:'TB1'},
+};
+
+function snap(v){return Math.round(v/GRID)*GRID;}
+function makeComp(type,x,y){
+  var d=COMP_DEFS[type]||{w:80,h:40,label:'X'};
+  var cnt=components.filter(c=>c.type===type).length+1;
+  var lbl=d.label.replace(/\d+$/,'')+cnt;
+  return{id:STATE.nextId++,type,x:snap(x-d.w/2),y:snap(y-d.h/2),
+    w:d.w,h:d.h,angle:0,label:lbl,
+    props:{voltage:480,current:5,power:2.2,rating:'125A',setting:'5A'},
+    simState:{energised:false,tripped:false,on:false}};
+}
+
+// ── TERMINALS ──
+function getTerminals(c){
+  var cx=c.x+c.w/2,cy=c.y+c.h/2;
+  var t=[];
+  switch(c.type){
+    case 'bus3':
+      t=[{id:'L1',x:c.x,y:c.y+10},{id:'L2',x:c.x,y:c.y+26},{id:'L3',x:c.x,y:c.y+42},
+         {id:'L1r',x:c.x+c.w,y:c.y+10},{id:'L2r',x:c.x+c.w,y:c.y+26},{id:'L3r',x:c.x+c.w,y:c.y+42}];break;
+    case 'bus1':
+      t=[{id:'L',x:c.x,y:c.y+8},{id:'N',x:c.x,y:c.y+22},
+         {id:'Lr',x:c.x+c.w,y:c.y+8},{id:'Nr',x:c.x+c.w,y:c.y+22}];break;
+    case 'gnd':
+      t=[{id:'p',x:cx,y:c.y}];break;
+    case 'xfmr':
+      t=[{id:'H1',x:c.x,y:cy},{id:'X1',x:c.x+c.w,y:cy},{id:'X2',x:c.x+c.w,y:cy+10}];break;
+    case 'mccb3': case 'olr': case 'contactor3':
+      t=[{id:'L1',x:c.x,y:c.y+c.h*0.32},{id:'L2',x:c.x,y:c.y+c.h*0.56},{id:'L3',x:c.x,y:c.y+c.h*0.79},
+         {id:'T1',x:c.x+c.w,y:c.y+c.h*0.32},{id:'T2',x:c.x+c.w,y:c.y+c.h*0.56},{id:'T3',x:c.x+c.w,y:c.y+c.h*0.79}];break;
+    case 'motor3':
+      t=[{id:'T1',x:c.x+c.w*0.32,y:c.y},{id:'T2',x:cx,y:c.y},{id:'T3',x:c.x+c.w*0.68,y:c.y}];break;
+    case 'motor1':
+      t=[{id:'L',x:c.x+c.w*0.35,y:c.y},{id:'N',x:c.x+c.w*0.65,y:c.y}];break;
+    default:
+      t=[{id:'p',x:c.x,y:cy},{id:'n',x:c.x+c.w,y:cy}];break;
+  }
+  if(c.angle===90){
+    return t.map(pt=>{
+      var dx=pt.x-(c.x+c.w/2),dy=pt.y-(c.y+c.h/2);
+      var ox=c.x+(c.h-c.w)/2,oy=c.y+(c.w-c.h)/2;
+      var nx=cx-dy,ny=cy+dx;
+      return{id:pt.id,x:nx,y:ny};
+    });
+  }
+  return t;
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESIZE
+// ═══════════════════════════════════════════════════════
+function resizeCvs(){
+  cvs.width=wrap.clientWidth;cvs.height=wrap.clientHeight;draw();
+}
+window.addEventListener('resize',resizeCvs);
+
+// ═══════════════════════════════════════════════════════
+//  COORDINATE UTILS
+// ═══════════════════════════════════════════════════════
+function s2w(sx,sy){return{x:(sx-STATE.panX)/STATE.zoom,y:(sy-STATE.panY)/STATE.zoom};}
+function w2s(wx,wy){return{x:wx*STATE.zoom+STATE.panX,y:wy*STATE.zoom+STATE.panY};}
+
+// ═══════════════════════════════════════════════════════
+//  DRAW
+// ═══════════════════════════════════════════════════════
+function draw(){
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+  ctx.save();
+  ctx.translate(STATE.panX,STATE.panY);
+  ctx.scale(STATE.zoom,STATE.zoom);
+  drawWires();
+  components.forEach(c=>drawComp(c));
+  // Wire preview
+  if(STATE.wireMode&&STATE.wireStart&&STATE.wirePreview){
+    var sp=getTermPos(STATE.wireStart.id,STATE.wireStart.tid);
+    if(sp){
+      ctx.save();ctx.strokeStyle='#00eeff';ctx.lineWidth=1.5/STATE.zoom;
+      ctx.setLineDash([5/STATE.zoom,3/STATE.zoom]);ctx.shadowColor='#00eeff';ctx.shadowBlur=6;
+      ctx.beginPath();ctx.moveTo(sp.x,sp.y);
+      ctx.lineTo(STATE.wirePreview.x,sp.y);ctx.lineTo(STATE.wirePreview.x,STATE.wirePreview.y);
+      ctx.stroke();ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
+function drawWires(){
+  wires.forEach(w=>{
+    var p1=getTermPos(w.c1,w.t1),p2=getTermPos(w.c2,w.t2);
+    if(!p1||!p2)return;
+    var live=STATE.simRunning&&w.live;
+    var col=live?'#00ff88':'#1a4a7a';
+    ctx.save();ctx.strokeStyle=col;ctx.lineWidth=(live?2.5:1.5)/STATE.zoom;
+    if(live){ctx.shadowColor='#00ff88';ctx.shadowBlur=8;}
+    ctx.beginPath();ctx.moveTo(p1.x,p1.y);
+    ctx.lineTo(p2.x,p1.y);ctx.lineTo(p2.x,p2.y);
+    ctx.stroke();
+    // junction dots
+    ctx.fillStyle=col;
+    ctx.beginPath();ctx.arc(p1.x,p1.y,3/STATE.zoom,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(p2.x,p2.y,3/STATE.zoom,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;ctx.restore();
+  });
+}
+
+function drawComp(c){
+  var sel=c.id===STATE.selected;
+  var col=COMP_COLORS[c.type]||'#aaa';
+  var live=STATE.simRunning&&c.simState&&c.simState.energised;
+  if(live)col='#00ff88';
+
+  ctx.save();
+  var cx=c.x+c.w/2,cy=c.y+c.h/2;
+  ctx.translate(cx,cy);
+  if(c.angle===90)ctx.rotate(Math.PI/2);
+  var hw=c.w/2,hh=c.h/2;
+  if(sel){ctx.shadowColor=col;ctx.shadowBlur=14;}
+
+  // Background
+  ctx.fillStyle='rgba(10,16,34,0.88)';ctx.strokeStyle=sel?col:'rgba(40,70,120,0.7)';
+  ctx.lineWidth=(sel?1.5:0.8)/STATE.zoom;
+  rr(ctx,-hw,-hh,c.w,c.h,4/STATE.zoom);ctx.fill();ctx.stroke();
+  ctx.shadowBlur=0;
+
+  // Symbol
+  ctx.strokeStyle=col;ctx.lineWidth=1.6/STATE.zoom;ctx.lineCap='round';ctx.lineJoin='round';
+  drawSymbol(ctx,c.type,hw,hh,col,c);
+
+  // Label
+  ctx.fillStyle=col;ctx.font=`bold ${9/STATE.zoom}px Share Tech Mono,monospace`;ctx.textAlign='center';
+  ctx.fillText(c.label,0,-hh-6/STATE.zoom);
+  // Value
+  ctx.fillStyle='rgba(180,200,220,.6)';ctx.font=`${8/STATE.zoom}px Share Tech Mono,monospace`;
+  var valStr=getPropStr(c);
+  if(valStr)ctx.fillText(valStr,0,hh+11/STATE.zoom);
+
+  ctx.restore();
+
+  // Terminals
+  getTerminals(c).forEach(t=>{
+    var isWS=STATE.wireStart&&STATE.wireStart.id===c.id&&STATE.wireStart.tid===t.id;
+    ctx.save();ctx.fillStyle=isWS?'#00eeff':'rgba(0,150,220,.5)';
+    if(isWS){ctx.shadowColor='#00eeff';ctx.shadowBlur=8;}
+    ctx.beginPath();ctx.arc(t.x,t.y,4/STATE.zoom,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawSymbol(ctx,type,hw,hh,col,c){
+  var live=STATE.simRunning&&c.simState&&c.simState.energised;
+  switch(type){
+    case 'bus3':
+      ctx.lineWidth=3/STATE.zoom;
+      ctx.strokeStyle='#ffdd00';line(ctx,-hw,-hh+10,hw,-hh+10);
+      ctx.strokeStyle='#ff4444';line(ctx,-hw,-hh+26,hw,-hh+26);
+      ctx.strokeStyle='#4488ff';line(ctx,-hw,-hh+42,hw,-hh+42);
+      break;
+    case 'bus1':
+      ctx.lineWidth=3/STATE.zoom;
+      ctx.strokeStyle='#ffdd00';line(ctx,-hw,-hh+8,hw,-hh+8);
+      ctx.strokeStyle='#4488ff';line(ctx,-hw,-hh+22,hw,-hh+22);
+      break;
+    case 'cb':
+      line(ctx,-hw,0,-hw+20,0);
+      ctx.strokeRect(-hw+20,-hh/2,hw*1.2,hh);
+      line(ctx,-hw+24,0,-hw+22+hh*0.7);// handle
+      line(ctx,-hw+22+hh*0.5,-hh*0.3,-hw+22+hh*0.7+2,-hh*0.3);
+      line(ctx,hw-20,0,hw,0);
+      break;
+    case 'mccb3':
+      ctx.strokeRect(-hw+10,-hh+4,c.w-20,c.h-8);
+      var rows=[[-hh*0.35],[-hh*0.1],[hh*0.15]];
+      rows.forEach(([ry])=>{
+        line(ctx,-hw,-hh+ry+hh,hw-10,-hh+ry+hh);
+        var x0=-hw+18,x1=-hw+38;
+        line(ctx,x0,ry);line(ctx,x1,ry);
+        line(ctx,x0-2,ry-8,x1+2,ry+8);// open contact angle
+        line(ctx,x1,ry,hw,ry);
+      });
+      break;
+    case 'fuse':
+      line(ctx,-hw,0,-hw+16,0);
+      ctx.strokeRect(-hw+16,-hh/2,hw*1.1,hh);
+      ctx.setLineDash([3/STATE.zoom,2/STATE.zoom]);line(ctx,-hw+20,0,hw-20,0);ctx.setLineDash([]);
+      line(ctx,hw-16,0,hw,0);
+      break;
+    case 'olr':
+      ctx.strokeRect(-hw+4,-hh+4,c.w-8,c.h*0.7);
+      // 3 heater zigzags
+      [[-hw*0.55],[-hw*0.05],[hw*0.45]].forEach(([x])=>{
+        ctx.beginPath();ctx.moveTo(x,-hh+10/STATE.zoom);
+        [[-hh*0.15,-hh*0.5],[0,0],[-hh*0.15,hh*0.35],[0,hh*0.5]].forEach(([dx,dy])=>ctx.lineTo(x+dx,dy));
+        ctx.stroke();
+      });
+      // NC contact bottom
+      ctx.strokeStyle=live||STATE.simRunning&&!STATE.olrTripped?'#00ff88':'#ff3344';
+      if(STATE.simRunning&&STATE.olrTripped)ctx.setLineDash([3/STATE.zoom,3/STATE.zoom]);
+      line(ctx,-hw*0.2,hh*0.7,hw*0.2,hh*0.7);
+      ctx.setLineDash([]);
+      break;
+    case 'contactor3':
+      ctx.strokeRect(-hw+4,-hh+4,c.w-8,c.h*0.65);
+      var closed=live||(STATE.simRunning&&STATE.motorRunning);
+      [[-hh*0.4],[-hh*0.1],[hh*0.18]].forEach(([ry])=>{
+        var ry2=ry-hh+hh;
+        line(ctx,-hw,-hh+ry+hh,hw-10,-hh+ry+hh);
+        if(closed){
+          line(ctx,-hw*0.55,ry,-hw*0.2,ry);// left stub
+          line(ctx,-hw*0.2,ry,hw*0.55,ry);// bridge closed
+        } else {
+          line(ctx,-hw*0.55,ry,-hw*0.2,ry);
+          line(ctx,-hw*0.22,ry-8,hw*0.55,ry+8);// angled = open
+        }
+        line(ctx,hw*0.55,ry,hw,ry);
+      });
+      // Coil arc bottom
+      ctx.beginPath();ctx.arc(hw*0.6,hh*0.72,10/STATE.zoom,0,Math.PI*2);
+      ctx.strokeStyle=closed?'#00ff88':'#4499ff';ctx.stroke();
+      if(closed){ctx.shadowColor='#00ff88';ctx.shadowBlur=10;ctx.stroke();ctx.shadowBlur=0;}
+      ctx.fillStyle=closed?'#00ff88':'#4499ff';
+      ctx.font=`${7/STATE.zoom}px Share Tech Mono,monospace`;ctx.textAlign='center';
+      ctx.fillText('M1',hw*0.6,hh*0.72+3/STATE.zoom);
+      break;
+    case 'coil':
+      line(ctx,-hw,0,-hw+14,0);
+      ctx.beginPath();ctx.arc(0,0,14/STATE.zoom,0,Math.PI*2);
+      var coilLive=STATE.simRunning&&STATE.motorRunning;
+      ctx.strokeStyle=coilLive?'#00ff88':col;
+      if(coilLive){ctx.shadowColor='#00ff88';ctx.shadowBlur=12;}
+      ctx.stroke();ctx.shadowBlur=0;
+      ctx.fillStyle=coilLive?'#00ff88':col;ctx.font=`bold ${8/STATE.zoom}px Share Tech Mono,monospace`;
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('M1',0,1/STATE.zoom);
+      ctx.textBaseline='alphabetic';
+      line(ctx,14/STATE.zoom,0,hw,0);
+      break;
+    case 'aux-no':
+      line(ctx,-hw,0,-hw+18,0);
+      line(ctx,-hw+18,-hh*0.7,-hw+18,hh*0.7);
+      line(ctx,hw-18,-hh*0.7,hw-18,hh*0.7);
+      var auxClosed=STATE.simRunning&&STATE.motorRunning;
+      ctx.strokeStyle=auxClosed?'#00ff88':col;
+      if(auxClosed)line(ctx,-hw+18,0,hw-18,0);
+      else line(ctx,-hw+16,-hh*0.6,hw-16,-hh*0.6);// raised=open
+      line(ctx,hw-18,0,hw,0);
+      break;
+    case 'ol1-nc':
+      line(ctx,-hw,0,-hw+18,0);
+      line(ctx,-hw+18,-hh*0.7,-hw+18,hh*0.7);
+      line(ctx,hw-18,-hh*0.7,hw-18,hh*0.7);
+      var olOK=!STATE.olrTripped;
+      ctx.strokeStyle=olOK?'#00ff88':'#ff3344';
+      if(olOK){line(ctx,-hw+18,0,hw-18,0);}// closed
+      else{line(ctx,-hw+16,-hh*0.6,hw-16,-hh*0.6);}// open = tripped
+      if(olOK)line(ctx,-hw+22,hh*0.4,hw-22,-hh*0.4);// NC slash
+      line(ctx,hw-18,0,hw,0);
+      break;
+    case 'stop-nc':
+      line(ctx,-hw,0,-hw+18,0);
+      line(ctx,-hw+18,-hh*0.6,-hw+18,hh*0.6);
+      line(ctx,hw-18,-hh*0.6,hw-18,hh*0.6);
+      ctx.strokeStyle=STATE.simRunning?'#00ff88':col;
+      line(ctx,-hw+18,0,hw-18,0);// NC = normally closed
+      line(ctx,-hw+22,hh*0.4,hw-22,-hh*0.4);// NC slash
+      arc(ctx,0,-hh*0.8,hh*0.35,Math.PI,0);// pushbutton
+      line(ctx,hw-18,0,hw,0);
+      break;
+    case 'start-no':
+      line(ctx,-hw,0,-hw+18,0);
+      line(ctx,-hw+18,-hh*0.6,-hw+18,hh*0.6);
+      line(ctx,hw-18,-hh*0.6,hw-18,hh*0.6);
+      var stClosed=STATE.startPressed;
+      ctx.strokeStyle=stClosed?'#00ff88':col;
+      if(stClosed)line(ctx,-hw+18,0,hw-18,0);// closed when pressed
+      else line(ctx,-hw+16,-hh*0.55,hw-16,-hh*0.55);// raised=open
+      arc(ctx,0,-hh*0.8,hh*0.35,Math.PI,0);
+      line(ctx,hw-18,0,hw,0);
+      break;
+    case 'selector':
+      line(ctx,-hw,0,-hw+18,0);
+      line(ctx,-hw+18,-hh*0.6,-hw+18,hh*0.6);
+      line(ctx,hw-18,-hh*0.6,hw-18,hh*0.6);
+      var selCl=STATE.selectorOn;
+      ctx.strokeStyle=selCl?'#00ff88':col;
+      if(selCl)line(ctx,-hw+18,0,hw-18,0);
+      else line(ctx,-hw+18,hh*0.3,hw-18,-hh*0.3);// diagonal=off
+      arc(ctx,0,-hh*0.8,hh*0.35,Math.PI,0);
+      line(ctx,hw-18,0,hw,0);
+      break;
+    case 'motor3':
+      ctx.beginPath();ctx.arc(0,hh*0.35,hh*0.6,0,Math.PI*2);
+      if(STATE.simRunning&&STATE.motorRunning){ctx.strokeStyle='#00ff88';ctx.shadowColor='#00ff88';ctx.shadowBlur=14;}
+      ctx.stroke();ctx.shadowBlur=0;
+      ctx.fillStyle=STATE.simRunning&&STATE.motorRunning?'#00ff88':col;
+      ctx.font=`bold ${12/STATE.zoom}px Share Tech Mono,monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('M',0,hh*0.3);ctx.font=`${8/STATE.zoom}px monospace`;ctx.fillText('3~',0,hh*0.55);
+      ctx.textBaseline='alphabetic';
+      if(STATE.simRunning&&STATE.motorRunning){
+        ctx.strokeStyle='#00ff88';ctx.setLineDash([3/STATE.zoom,3/STATE.zoom]);
+        ctx.beginPath();ctx.arc(0,hh*0.35,hh*0.4,0,Math.PI*1.5);ctx.stroke();ctx.setLineDash([]);
+      }
+      line(ctx,-hw*0.36,-hh+2,-hw*0.5,-hh+16);
+      line(ctx,0,-hh+2,0,-hh+14);
+      line(ctx,hw*0.36,-hh+2,hw*0.5,-hh+16);
+      break;
+    case 'motor1':
+      ctx.beginPath();ctx.arc(0,hh*0.3,hh*0.55,0,Math.PI*2);
+      if(STATE.simRunning&&STATE.motorRunning){ctx.strokeStyle='#00ff88';ctx.shadowColor='#00ff88';ctx.shadowBlur=14;}
+      ctx.stroke();ctx.shadowBlur=0;
+      ctx.fillStyle=STATE.simRunning&&STATE.motorRunning?'#00ff88':col;
+      ctx.font=`bold ${12/STATE.zoom}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('M',0,hh*0.25);ctx.font=`${8/STATE.zoom}px monospace`;ctx.fillText('1~',0,hh*0.5);ctx.textBaseline='alphabetic';
+      break;
+    case 'xfmr':
+      // Primary coil
+      for(var i=0;i<3;i++)arc(ctx,-hw*0.4+i*12/STATE.zoom,0,6/STATE.zoom,Math.PI,0);
+      // Core
+      ctx.lineWidth=2.5/STATE.zoom;
+      [-8,-3,2,7].forEach(dy=>{line(ctx,0,dy/STATE.zoom,4/STATE.zoom,dy/STATE.zoom);});
+      ctx.lineWidth=1.6/STATE.zoom;
+      // Secondary coil
+      for(var i=0;i<3;i++)arc(ctx,hw*0.1+i*12/STATE.zoom,0,6/STATE.zoom,Math.PI,0);
+      line(ctx,-hw,0,-hw*0.4,0);line(ctx,hw*0.46,0,hw,0);
+      break;
+    case 'gnd':
+      line(ctx,0,-hh,0,0);line(ctx,-hw*0.8,0,hw*0.8,0);
+      ctx.lineWidth=2/STATE.zoom;line(ctx,-hw*0.5,hh*0.35,hw*0.5,hh*0.35);
+      line(ctx,-hw*0.25,hh*0.7,hw*0.25,hh*0.7);
+      break;
+    case 'lamp':
+      line(ctx,-hw,0,-hw+18,0);
+      ctx.beginPath();ctx.arc(0,0,hh*0.65,0,Math.PI*2);
+      if(STATE.simRunning&&STATE.motorRunning){ctx.strokeStyle='#ffdd00';ctx.shadowColor='#ffff00';ctx.shadowBlur=16;}
+      ctx.stroke();ctx.shadowBlur=0;
+      line(ctx,-hh*0.4,-hh*0.4,hh*0.4,hh*0.4);line(ctx,hh*0.4,-hh*0.4,-hh*0.4,hh*0.4);
+      line(ctx,hw-18,0,hw,0);
+      break;
+    case 'tb':
+      ctx.strokeRect(-hw+8,-hh*0.6,hw*1.6,hh*1.2);
+      line(ctx,0,-hh*0.6,0,hh*0.6);
+      line(ctx,-hw,0,-hw+8,0);line(ctx,hw-8,0,hw,0);
+      break;
+  }
+}
+
+function line(ctx,x1,y1,x2,y2){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+function arc(ctx,cx,cy,r,sa,ea){ctx.beginPath();ctx.arc(cx,cy,r,sa,ea);ctx.stroke();}
+function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
+function getPropStr(c){
+  if(c.type==='mccb3'||c.type==='cb')return c.props.rating||'125A';
+  if(c.type==='fuse')return c.props.rating||'0.75A';
+  if(c.type==='olr')return c.props.setting||'1-5A';
+  if(c.type==='xfmr')return c.props.voltage||'480V/120V';
+  if(c.type==='motor3'||c.type==='motor1')return (c.props.power||1.5)+'kW';
+  return '';
+}
+
+function getTermPos(compId,termId){
+  var c=components.find(c=>c.id===compId);
+  if(!c)return null;
+  return getTerminals(c).find(t=>t.id===termId)||null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  MOUSE EVENTS
+// ═══════════════════════════════════════════════════════
+cvs.addEventListener('mousedown',function(e){
+  e.preventDefault();
+  var r=cvs.getBoundingClientRect();
+  var sx=e.clientX-r.left,sy=e.clientY-r.top;
+  var w=s2w(sx,sy);
+  if(e.button===1||(e.button===0&&e.altKey)){
+    STATE.isPanning=true;STATE.panSX=sx;STATE.panSY=sy;
+    STATE.panPX=STATE.panX;STATE.panPY=STATE.panY;
+    cvs.style.cursor='grabbing';return;
+  }
+  if(STATE.wireMode){
+    var term=hitTerminal(w.x,w.y);
+    if(term){
+      if(!STATE.wireStart){STATE.wireStart=term;}
+      else{
+        if(term.id!==STATE.wireStart.id||term.tid!==STATE.wireStart.tid){
+          var dup=wires.find(wr=>(wr.c1===STATE.wireStart.id&&wr.t1===STATE.wireStart.tid&&wr.c2===term.id&&wr.t2===term.tid)||(wr.c2===STATE.wireStart.id&&wr.t2===STATE.wireStart.tid&&wr.c1===term.id&&wr.t1===term.tid));
+          if(!dup){wires.push({c1:STATE.wireStart.id,t1:STATE.wireStart.tid,c2:term.id,t2:term.tid,live:false});
+          addLog('Wire connected','info');}
+        }
+        STATE.wireStart=null;STATE.wirePreview=null;
+      }
+    }
+    updateInfo();draw();return;
+  }
+  var comp=hitComp(w.x,w.y);
+  if(comp){
+    STATE.selected=comp.id;STATE.dragging=comp;
+    STATE.dragOX=w.x-comp.x;STATE.dragOY=w.y-comp.y;
+    showProps(comp);
+  }else{STATE.selected=null;clearProps();}
+  draw();
+});
+
+cvs.addEventListener('mousemove',function(e){
+  var r=cvs.getBoundingClientRect();
+  var sx=e.clientX-r.left,sy=e.clientY-r.top;
+  var w=s2w(sx,sy);
+  if(STATE.isPanning){STATE.panX=STATE.panPX+(sx-STATE.panSX);STATE.panY=STATE.panPY+(sy-STATE.panSY);draw();return;}
+  if(STATE.wireMode&&STATE.wireStart){STATE.wirePreview={x:snap(w.x),y:snap(w.y)};draw();return;}
+  if(STATE.dragging){STATE.dragging.x=snap(w.x-STATE.dragOX);STATE.dragging.y=snap(w.y-STATE.dragOY);draw();return;}
+  // hover cursor
+  var term=hitTerminal(w.x,w.y,12);
+  cvs.style.cursor=STATE.wireMode?(term?'crosshair':'default'):(hitComp(w.x,w.y)?'move':'crosshair');
+});
+
+cvs.addEventListener('mouseup',function(){
+  if(STATE.isPanning){STATE.isPanning=false;cvs.style.cursor='crosshair';}
+  STATE.dragging=null;
+});
+
+cvs.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var r=cvs.getBoundingClientRect();
+  var sx=e.clientX-r.left,sy=e.clientY-r.top;
+  var zf=e.deltaY<0?1.12:0.9;
+  var nz=Math.max(0.25,Math.min(3,STATE.zoom*zf));
+  STATE.panX=sx-(sx-STATE.panX)*(nz/STATE.zoom);
+  STATE.panY=sy-(sy-STATE.panY)*(nz/STATE.zoom);
+  STATE.zoom=nz;draw();
+},{passive:false});
+
+// drag from palette
+cvs.addEventListener('dragover',e=>e.preventDefault());
+cvs.addEventListener('drop',function(e){
+  e.preventDefault();
+  var type=e.dataTransfer.getData('compType');if(!type)return;
+  var r=cvs.getBoundingClientRect();
+  var w=s2w(e.clientX-r.left,e.clientY-r.top);
+  var comp=makeComp(type,w.x,w.y);
+  components.push(comp);
+  STATE.selected=comp.id;showProps(comp);
+  addLog('Added: '+comp.label+' ('+type+')','info');
+  updateInfo();draw();
+});
+document.querySelectorAll('.sym-btn[draggable]').forEach(b=>{
+  b.addEventListener('dragstart',e=>e.dataTransfer.setData('compType',b.dataset.type));
+});
+
+// keyboard
+document.addEventListener('keydown',function(e){
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+  if(e.key==='w'||e.key==='W'){activateWireTool();return;}
+  if(e.key==='Escape'){deactivateWireTool();STATE.selected=null;clearProps();draw();}
+  if((e.key==='Delete'||e.key==='Backspace')&&STATE.selected)deleteSelected();
+  if(e.key==='r'||e.key==='R')rotateSelected();
+});
+
+// ═══════════════════════════════════════════════════════
+//  HIT TESTING
+// ═══════════════════════════════════════════════════════
+function hitComp(wx,wy,pad=6){
+  for(var i=components.length-1;i>=0;i--){
+    var c=components[i];
+    if(wx>=c.x-pad&&wx<=c.x+c.w+pad&&wy>=c.y-pad&&wy<=c.y+c.h+pad)return c;
+  }
+  return null;
+}
+function hitTerminal(wx,wy,rad=14){
+  for(var i=components.length-1;i>=0;i--){
+    var terms=getTerminals(components[i]);
+    for(var t of terms){
+      var dx=wx-t.x,dy=wy-t.y;
+      if(Math.sqrt(dx*dx+dy*dy)<=rad)return{id:components[i].id,tid:t.id};
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOOLS
+// ═══════════════════════════════════════════════════════
+function setTool(t){
+  STATE.tool=t;
+  document.getElementById('tool-sel').classList.toggle('active',t==='select');
+  document.getElementById('tool-wire').classList.toggle('active',t==='wire');
+  if(t!=='wire')deactivateWireTool();
+}
+function activateWireTool(){
+  STATE.wireMode=true;STATE.wireStart=null;STATE.tool='wire';
+  document.getElementById('wire-ind').style.display='block';
+  document.getElementById('tool-wire').classList.add('active');
+  document.getElementById('tool-sel').classList.remove('active');
+  cvs.style.cursor='crosshair';
+}
+function deactivateWireTool(){
+  STATE.wireMode=false;STATE.wireStart=null;STATE.wirePreview=null;
+  document.getElementById('wire-ind').style.display='none';
+  document.getElementById('tool-wire').classList.remove('active');
+  document.getElementById('tool-sel').classList.add('active');
+  cvs.style.cursor='crosshair';draw();
+}
+function rotateSelected(){
+  var c=components.find(c=>c.id===STATE.selected);
+  if(!c||c.type==='bus3'||c.type==='bus1'||c.type==='gnd')return;
+  c.angle=c.angle===0?90:0;
+  var tmp=c.w;c.w=c.h;c.h=tmp;
+  draw();showProps(c);
+}
+function deleteSelected(){
+  if(!STATE.selected)return;
+  wires=wires.filter(w=>w.c1!==STATE.selected&&w.c2!==STATE.selected);
+  components=components.filter(c=>c.id!==STATE.selected);
+  STATE.selected=null;clearProps();
+  addLog('Component deleted','info');updateInfo();draw();
+}
+function clearCanvas(){
+  if(!confirm('Clear all components and wires?'))return;
+  components=[];wires=[];STATE.selected=null;STATE.simRunning=false;
+  STATE.motorRunning=false;STATE.olrTripped=false;STATE.selectorOn=false;
+  clearProps();stopSim();updateInfo();draw();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PROPERTIES PANEL
+// ═══════════════════════════════════════════════════════
+function showProps(c){
+  var col=COMP_COLORS[c.type]||'#aaa';
+  var html=`<div style="font-family:'Share Tech Mono';font-size:10px;color:${col};margin-bottom:6px;letter-spacing:.05em">${c.type.toUpperCase()} — ${c.label}</div>`;
+  html+=`<div class="prop-row"><label>Label</label><input class="prop-inp" value="${c.label}" onchange="updateLabel(this.value,${c.id})"></div>`;
+
+  if(c.type==='mccb3'||c.type==='cb')
+    html+=`<div class="prop-row"><label>Rating</label><input class="prop-inp" value="${c.props.rating||'125A'}" onchange="updateProp(${c.id},'rating',this.value)"></div>`;
+  if(c.type==='fuse')
+    html+=`<div class="prop-row"><label>Rating</label><input class="prop-inp" value="${c.props.rating||'0.75A'}" onchange="updateProp(${c.id},'rating',this.value)"></div>`;
+  if(c.type==='olr')
+    html+=`<div class="prop-row"><label>Setting</label><input class="prop-inp" value="${c.props.setting||'1-5A'}" onchange="updateProp(${c.id},'setting',this.value)"></div>`;
+  if(c.type==='xfmr')
+    html+=`<div class="prop-row"><label>Ratio</label><input class="prop-inp" value="${c.props.voltage||'480/120V'}" onchange="updateProp(${c.id},'voltage',this.value)"></div>`;
+  if(c.type==='motor3'||c.type==='motor1')
+    html+=`<div class="prop-row"><label>Power(kW)</label><input class="prop-inp" type="number" value="${c.props.power||1.5}" onchange="updateProp(${c.id},'power',this.value)"></div>`;
+
+  html+=`<button class="rotbtn" onclick="rotateSelected()">↻ Rotate [R]</button>`;
+  html+=`<button class="delbtn" onclick="deleteSelected()">🗑 Delete</button>`;
+
+  if(STATE.simRunning){
+    html+=`<div style="margin-top:8px;font-family:'Share Tech Mono';font-size:9px;color:var(--text2)">LIVE STATE:</div>`;
+    if(c.simState.energised)html+=`<div style="color:var(--green);font-family:'Share Tech Mono';font-size:9px">⚡ ENERGISED</div>`;
+    else html+=`<div style="color:var(--text3);font-family:'Share Tech Mono';font-size:9px">○ DE-ENERGISED</div>`;
+  }
+  document.getElementById('prop-content').innerHTML=html;
+}
+function updateLabel(v,id){var c=components.find(c=>c.id===id);if(c){c.label=v;draw();}}
+function updateProp(id,k,v){var c=components.find(c=>c.id===id);if(c){c.props[k]=v;draw();}}
+function clearProps(){document.getElementById('prop-content').innerHTML='<div class="no-sel">Click a component<br>to edit properties</div>';}
+
+// ═══════════════════════════════════════════════════════
+//  SIMULATION ENGINE
+// ═══════════════════════════════════════════════════════
+var simInterval=null;
+
+function toggleSim(){
+  if(STATE.simRunning)stopSim();else startSim();
+}
+
+function startSim(){
+  if(components.length<2){addLog('Add components first!','fault');return;}
+  STATE.simRunning=true;
+  STATE.motorRunning=false;STATE.olrTripped=false;STATE.startPressed=false;
+  var btn=document.getElementById('run-btn');
+  btn.textContent='⏹ STOP SIM';btn.classList.add('running');
+  btn.className='hbtn hbtn-stop running';
+  document.getElementById('sim-dot').className='ss-dot live';
+  document.getElementById('sim-txt').textContent='RUNNING';
+  document.getElementById('ctrl-overlay').style.display='flex';
+  addLog('Simulation started — Circuit power ON','ok');
+  wires.forEach(w=>w.live=false);
+  updateControlLogic();
+  updateKPIs();
+  updateSimVerdict();
+  draw();
+}
+
+function stopSim(){
+  STATE.simRunning=false;STATE.motorRunning=false;STATE.startPressed=false;
+  if(simInterval){clearInterval(simInterval);simInterval=null;}
+  var btn=document.getElementById('run-btn');
+  btn.textContent='▶ SIMULATE';btn.className='hbtn hbtn-run';
+  document.getElementById('sim-dot').className='ss-dot';
+  document.getElementById('sim-txt').textContent='IDLE';
+  document.getElementById('ctrl-overlay').style.display='none';
+  wires.forEach(w=>w.live=false);
+  components.forEach(c=>{if(c.simState)c.simState.energised=false;});
+  addLog('Simulation stopped','info');
+  updateControlLogic();
+  document.getElementById('sim-verdict').innerHTML='<div class="verdict idle"><div class="vt">⊙ SIMULATION STOPPED</div><div class="vb">Press ▶ SIMULATE to run again.</div></div>';
+  updateKPIs();draw();
+}
+
+function ctrlStart(){
+  if(!STATE.simRunning)return;
+  if(STATE.olrTripped){addLog('Cannot start — OLR tripped! Reset OLR first.','fault');return;}
+  STATE.startPressed=true;
+  // Check selector switch state
+  var hasSel=components.find(c=>c.type==='selector');
+  if(hasSel&&!STATE.selectorOn){addLog('Selector switch is OFF','warn');return;}
+  STATE.motorRunning=true;
+  addLog('▶ START pressed — M1 coil ENERGISED — Motor RUNNING','ok');
+  energisePowerPath();
+  updateControlLogic();updateKPIs();updateSimVerdict();
+  setTimeout(()=>{STATE.startPressed=false;draw();},500);
+  draw();
+}
+
+function ctrlStop(){
+  if(!STATE.simRunning)return;
+  STATE.motorRunning=false;STATE.startPressed=false;
+  wires.forEach(w=>w.live=false);
+  components.forEach(c=>{if(c.simState)c.simState.energised=false;});
+  addLog('■ STOP pressed — M1 coil DE-ENERGISED — Motor STOPPED','warn');
+  updateControlLogic();updateKPIs();updateSimVerdict();draw();
+}
+
+function ctrlFault(){
+  if(!STATE.simRunning)return;
+  STATE.olrTripped=true;
+  if(STATE.motorRunning){
+    STATE.motorRunning=false;
+    wires.forEach(w=>w.live=false);
+    components.forEach(c=>{if(c.simState)c.simState.energised=false;});
+    addLog('⚡ OLR TRIPPED — Overcurrent! M1 drops out — Motor STOPPED','fault');
+  } else {addLog('OLR manually tripped','fault');}
+  updateControlLogic();updateKPIs();updateSimVerdict();draw();
+}
+
+function resetOLR(){
+  if(STATE.motorRunning)return;
+  STATE.olrTripped=false;
+  addLog('↺ OLR Reset — Ready to start','info');
+  updateControlLogic();updateKPIs();draw();
+}
+
+function toggleSelector(){
+  STATE.selectorOn=!STATE.selectorOn;
+  addLog('Selector: '+(STATE.selectorOn?'ON':'OFF'), STATE.selectorOn?'ok':'warn');
+  if(!STATE.selectorOn&&STATE.motorRunning){
+    STATE.motorRunning=false;
+    addLog('Motor stopped (selector OFF)','warn');
+  }
+  updateControlLogic();updateKPIs();draw();
+}
+
+function energisePowerPath(){
+  // Mark wires connected to power sources, through CB, contactor, OLR to motor as live
+  wires.forEach(w=>{
+    var c1=components.find(c=>c.id===w.c1);
+    var c2=components.find(c=>c.id===w.c2);
+    if(c1&&c2){w.live=STATE.motorRunning;}
+  });
+  components.forEach(c=>{
+    if(['bus3','bus1','mccb3','cb','contactor3','olr','motor3','motor1'].includes(c.type))
+      c.simState.energised=STATE.motorRunning;
+    if(['coil','aux-no'].includes(c.type))
+      c.simState.energised=STATE.motorRunning;
+    if(['lamp'].includes(c.type))
+      c.simState.energised=STATE.motorRunning;
+  });
+}
+
+function updateControlLogic(){
+  var stopOK=true; // Stop NC = normally closed (motor can run)
+  var startOK=STATE.startPressed||STATE.motorRunning; // latched by M1 aux
+  var ol1OK=!STATE.olrTripped;
+  var coilOK=STATE.motorRunning;
+  var selOK=STATE.selectorOn;
+  function el(id){return document.getElementById(id);}
+  el('cl-stop').textContent=stopOK?'CLOSED ✓':'OPEN (pressed)';
+  el('cl-stop').style.color=stopOK?'var(--green)':'var(--red)';
+  el('cl-start').textContent=STATE.startPressed?'CLOSED (pressed)':STATE.motorRunning?'SEALED (M1-AUX)':'OPEN';
+  el('cl-start').style.color=(STATE.startPressed||STATE.motorRunning)?'var(--green)':'var(--text3)';
+  el('cl-aux').textContent=STATE.motorRunning?'CLOSED (sealed)':'OPEN';
+  el('cl-aux').style.color=STATE.motorRunning?'var(--green)':'var(--text3)';
+  el('cl-ol1').textContent=ol1OK?'CLOSED ✓':'OPEN — TRIPPED ⚡';
+  el('cl-ol1').style.color=ol1OK?'var(--green)':'var(--red)';
+  el('cl-coil').textContent=coilOK?'ENERGISED ⚡':'DE-ENERGISED';
+  el('cl-coil').style.color=coilOK?'var(--green)':'var(--text3)';
+  el('cl-sel').textContent=selOK?'ON ✓':'OFF';
+  el('cl-sel').style.color=selOK?'var(--green)':'var(--text3)';
+}
+
+function updateKPIs(){
+  var volt=STATE.phase===3?480:240;
+  var mComp=components.find(c=>c.type==='motor3')||components.find(c=>c.type==='motor1');
+  var pw=mComp?parseFloat(mComp.props.power)||1.5:1.5;
+  var curr=STATE.motorRunning?(pw*1000/(volt*(STATE.phase===3?1.732:1))).toFixed(2):'—';
+  var rpm=STATE.motorRunning?(STATE.phase===3?'1450':'1440'):'—';
+  document.getElementById('k-v').textContent=STATE.motorRunning?(volt+'V'):'—';
+  document.getElementById('k-i').textContent=STATE.motorRunning?(curr+'A'):'—';
+  document.getElementById('k-p').textContent=STATE.motorRunning?(pw+'kW'):'—';
+  document.getElementById('k-olr').textContent=STATE.olrTripped?'TRIPPED ⚡':'RESET ✓';
+  document.getElementById('k-olr').style.color=STATE.olrTripped?'var(--red)':'var(--green)';
+  document.getElementById('k-m1').textContent=STATE.motorRunning?'ON ⚡':'OFF';
+  document.getElementById('k-m1').style.color=STATE.motorRunning?'var(--green)':'var(--text3)';
+  document.getElementById('k-rpm').textContent=rpm;
+}
+
+function updateSimVerdict(){
+  var vEl=document.getElementById('sim-verdict');
+  if(!STATE.simRunning){vEl.innerHTML='<div class="verdict idle"><div class="vt">⊙ IDLE</div><div class="vb">Press ▶ to simulate.</div></div>';return;}
+  if(STATE.olrTripped){
+    vEl.innerHTML='<div class="verdict fault"><div class="vt">⚡ FAULT — OLR TRIPPED</div><div class="vb">Overload relay has opened the control circuit. OL1 NC contact is OPEN. M1 coil de-energised. Motor stopped. Reset OLR before restarting.</div></div>';
+    return;
+  }
+  if(STATE.motorRunning){
+    vEl.innerHTML='<div class="verdict ok"><div class="vt">▶ MOTOR RUNNING</div><div class="vb">Power circuit: BUS → CB → Contactor M1 (closed) → OLR → Motor ✓<br>Control circuit: STOP(NC) → M1-AUX(sealed) → OL1(NC) → M1 coil ✓</div></div>';
+    return;
+  }
+  vEl.innerHTML='<div class="verdict idle"><div class="vt">⊙ POWER ON — MOTOR STOPPED</div><div class="vb">Circuit energised. Press ▶ START to run motor.</div></div>';
+}
+
+// ═══════════════════════════════════════════════════════
+//  PHASE SWITCHING
+// ═══════════════════════════════════════════════════════
+function setPhase(n){
+  STATE.phase=n;
+  document.getElementById('ph-1').classList.toggle('active',n===1);
+  document.getElementById('ph-3').classList.toggle('active',n===3);
+  document.getElementById('ci-phase').textContent=n===3?'3φ Three Phase':'1φ Single Phase';
+  addLog('Switched to '+(n===3?'3-phase':'1-phase')+' mode','info');
+  draw();
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOAD EXAMPLE CIRCUITS
+// ═══════════════════════════════════════════════════════
+function loadMotorStarterExample(phase){
+  clearCanvas2();
+  STATE.phase=phase;
+  setPhase(phase);
+  var cx=cvs.width/2-200, cy=40;
+  STATE.panX=0;STATE.panY=0;STATE.zoom=1;
+
+  if(phase===3){
+    // ── POWER CIRCUIT ──
+    var bus=makeComp('bus3',160,80);bus.label='BUS1';components.push(bus);
+    var cb=makeComp('mccb3',340,80);cb.label='CB1';cb.props.rating='125A';components.push(cb);
+    var ct=makeComp('contactor3',520,80);ct.label='M1';components.push(ct);
+    var olr=makeComp('olr',700,80);olr.label='OLR';olr.props.setting='1.0-5.0A';components.push(olr);
+    var mot=makeComp('motor3',880,80);mot.label='MTR1';mot.props.power=1.5;components.push(mot);
+    // BUS → CB
+    ['L1','L2','L3'].forEach(ph=>{wires.push({c1:bus.id,t1:ph+'r',c2:cb.id,t2:ph,live:false});});
+    // CB → M1
+    [{f:'T1',t:'L1'},{f:'T2',t:'L2'},{f:'T3',t:'L3'}].forEach(m=>{wires.push({c1:cb.id,t1:m.f,c2:ct.id,t2:m.t,live:false});});
+    // M1 → OLR
+    [{f:'T1',t:'L1'},{f:'T2',t:'L2'},{f:'T3',t:'L3'}].forEach(m=>{wires.push({c1:ct.id,t1:m.f,c2:olr.id,t2:m.t,live:false});});
+    // OLR → Motor
+    [{f:'T1',t:'T1'},{f:'T2',t:'T2'},{f:'T3',t:'T3'}].forEach(m=>{wires.push({c1:olr.id,t1:m.f,c2:mot.id,t2:m.t,live:false});});
+
+    // ── CONTROL CIRCUIT ──
+    var xf=makeComp('xfmr',280,300);xf.label='T1';xf.props.voltage='480V/120V';components.push(xf);
+    var fu1=makeComp('fuse',390,300);fu1.label='FU1';fu1.props.rating='0.75A';components.push(fu1);
+    var fu2=makeComp('fuse',390,360);fu2.label='FU2';fu2.props.rating='0.75A';components.push(fu2);
+    var gnd=makeComp('gnd',390,440);gnd.label='GND1';components.push(gnd);
+    // TB1
+    var tb1=makeComp('tb',160,300);tb1.label='TBA';components.push(tb1);
+    // Selector SS1
+    var sel=makeComp('selector',520,300);sel.label='SS1';components.push(sel);
+    // M1 AUX parallel to selector
+    var aux=makeComp('aux-no',520,360);aux.label='M1-AUX';components.push(aux);
+    // OL1 NC contact
+    var ol1=makeComp('ol1-nc',660,300);ol1.label='OL1';components.push(ol1);
+    // M1 coil
+    var coil=makeComp('coil',800,300);coil.label='M1-COIL';components.push(coil);
+    // TB2
+    var tb2=makeComp('tb',920,300);tb2.label='TBA';components.push(tb2);
+    // Pilot lamp
+    var pl=makeComp('lamp',800,380);pl.label='PL1';components.push(pl);
+
+    // Control wires
+    wires.push({c1:xf.id,t1:'X1',c2:fu1.id,t2:'p',live:false});
+    wires.push({c1:fu1.id,t1:'n',c2:tb1.id,t2:'p',live:false});
+    wires.push({c1:tb1.id,t1:'n',c2:sel.id,t2:'p',live:false});
+    wires.push({c1:sel.id,t1:'n',c2:ol1.id,t2:'p',live:false});
+    wires.push({c1:aux.id,t1:'p',c2:sel.id,t2:'p',live:false});
+    wires.push({c1:aux.id,t1:'n',c2:ol1.id,t2:'p',live:false});
+    wires.push({c1:ol1.id,t1:'n',c2:coil.id,t2:'p',live:false});
+    wires.push({c1:coil.id,t1:'n',c2:tb2.id,t2:'p',live:false});
+    wires.push({c1:tb2.id,t1:'n',c2:fu2.id,t2:'n',live:false});
+    wires.push({c1:fu2.id,t1:'p',c2:xf.id,t2:'X2',live:false});
+    wires.push({c1:pl.id,t1:'p',c2:ol1.id,t2:'n',live:false});
+    wires.push({c1:pl.id,t1:'n',c2:fu2.id,t2:'n',live:false});
+    wires.push({c1:gnd.id,t1:'p',c2:fu2.id,t2:'n',live:false});
+
+    addLog('Loaded 3φ Motor Starter example (matches uploaded schematic)','ok');
+  } else {
+    // ── 1-PHASE ──
+    var bus1=makeComp('bus1',120,100);bus1.label='BUS1';components.push(bus1);
+    var cb1=makeComp('cb',300,100);cb1.label='CB1';cb1.props.rating='20A';components.push(cb1);
+    var fu=makeComp('fuse',460,100);fu.label='FU1';fu.props.rating='10A';components.push(fu);
+    var ct1=makeComp('contactor3',620,100);ct1.label='M1';components.push(ct1);
+    var olr1=makeComp('olr',800,100);olr1.label='OLR';olr1.props.setting='1-5A';components.push(olr1);
+    var mot1=makeComp('motor1',960,100);mot1.label='MTR1';mot1.props.power=0.75;components.push(mot1);
+    // Power wires
+    wires.push({c1:bus1.id,t1:'Lr',c2:cb1.id,t2:'p',live:false});
+    wires.push({c1:cb1.id,t1:'n',c2:fu.id,t2:'p',live:false});
+    wires.push({c1:fu.id,t1:'n',c2:ct1.id,t2:'L1',live:false});
+    wires.push({c1:ct1.id,t1:'T1',c2:olr1.id,t2:'L1',live:false});
+    wires.push({c1:olr1.id,t1:'T1',c2:mot1.id,t2:'L',live:false});
+    // Neutral
+    wires.push({c1:bus1.id,t1:'Nr',c2:mot1.id,t2:'N',live:false});
+
+    // Control
+    var sel1=makeComp('selector',300,280);sel1.label='SS1';components.push(sel1);
+    var stopb=makeComp('stop-nc',460,280);stopb.label='STOP';components.push(stopb);
+    var startb=makeComp('start-no',620,280);startb.label='START';components.push(startb);
+    var ol1b=makeComp('ol1-nc',760,280);ol1b.label='OL1';components.push(ol1b);
+    var coil1=makeComp('coil',900,280);coil1.label='M1';components.push(coil1);
+    var tb3=makeComp('tb',120,280);tb3.label='TB';components.push(tb3);
+    var tb4=makeComp('tb',1040,280);tb4.label='TB';components.push(tb4);
+    var aux1=makeComp('aux-no',620,340);aux1.label='M1-AUX';components.push(aux1);
+    var gnd1=makeComp('gnd',1040,360);gnd1.label='GND';components.push(gnd1);
+
+    wires.push({c1:tb3.id,t1:'n',c2:sel1.id,t2:'p',live:false});
+    wires.push({c1:sel1.id,t1:'n',c2:stopb.id,t2:'p',live:false});
+    wires.push({c1:stopb.id,t1:'n',c2:startb.id,t2:'p',live:false});
+    wires.push({c1:aux1.id,t1:'p',c2:startb.id,t2:'p',live:false});
+    wires.push({c1:aux1.id,t1:'n',c2:ol1b.id,t2:'p',live:false});
+    wires.push({c1:startb.id,t1:'n',c2:ol1b.id,t2:'p',live:false});
+    wires.push({c1:ol1b.id,t1:'n',c2:coil1.id,t2:'p',live:false});
+    wires.push({c1:coil1.id,t1:'n',c2:tb4.id,t2:'p',live:false});
+    wires.push({c1:gnd1.id,t1:'p',c2:tb4.id,t2:'n',live:false});
+
+    addLog('Loaded 1φ Motor Starter example','ok');
+  }
+
+  STATE.selectorOn=true;
+  updateInfo();draw();
+}
+
+function clearCanvas2(){
+  components=[];wires=[];STATE.selected=null;STATE.simRunning=false;
+  STATE.motorRunning=false;STATE.olrTripped=false;STATE.selectorOn=false;
+  stopSim();clearProps();
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOG & INFO
+// ═══════════════════════════════════════════════════════
+function addLog(msg,type){
+  var logEl=document.getElementById('event-log');
+  var d=new Date();var ts=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');
+  var cls={'ok':'le-ok','fault':'le-fault','info':'le-info','warn':'le-warn'}[type]||'le-info';
+  var entry=document.createElement('div');
+  entry.className='log-entry '+cls;
+  entry.textContent='['+ts+'] '+msg;
+  logEl.insertBefore(entry,logEl.firstChild);
+  if(logEl.children.length>30)logEl.removeChild(logEl.lastChild);
+}
+
+function updateInfo(){
+  document.getElementById('ci-comps').textContent=components.length;
+  document.getElementById('ci-wires').textContent=wires.length;
+  var list=components.map(c=>`${c.label} (${c.type})`).join(' · ')||'—';
+  document.getElementById('comp-list').textContent=list;
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('load',function(){
+  resizeCvs();
+  addLog('Motor Starter Circuit Builder loaded','info');
+  addLog('Load example: "📋 Load 3φ Example" button at bottom','info');
+  // auto-load 3-phase example
+  loadMotorStarterExample(3);
+});
+</script>
+</body>
+</html>
