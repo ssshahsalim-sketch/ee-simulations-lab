@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AC System Designer & Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #030b14;
+    --panel: #071a2e;
+    --panel2: #0a2240;
+    --accent: #00d4ff;
+    --accent2: #0077ff;
+    --cold: #00eaff;
+    --warm: #ff6a00;
+    --green: #00ff99;
+    --text: #c8e6f5;
+    --muted: #4a7a9b;
+    --border: rgba(0,212,255,0.2);
+    --glow: 0 0 20px rgba(0,212,255,0.3);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated bg grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 18px 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,26,46,0.9);
+    backdrop-filter: blur(10px);
+  }
+
+  header h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    letter-spacing: 2px;
+  }
+
+  header span {
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .main-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr 280px;
+    height: calc(100vh - 60px);
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ---- SIDE PANELS ---- */
+  .side-panel {
+    background: rgba(7,26,46,0.95);
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .side-panel.right { border-right: none; border-left: 1px solid var(--border); }
+
+  .panel-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .input-group { display: flex; flex-direction: column; gap: 4px; }
+  .input-group label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .input-group input, .input-group select {
+    background: rgba(0,212,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.95rem;
+    padding: 7px 10px;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+  }
+  .input-group input:focus, .input-group select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 8px rgba(0,212,255,0.2);
+  }
+  .input-group select option { background: var(--panel); }
+
+  .btn {
+    padding: 9px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    font-weight: 700;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    color: #000;
+    box-shadow: 0 0 15px rgba(0,212,255,0.3);
+  }
+  .btn-primary:hover { box-shadow: 0 0 25px rgba(0,212,255,0.5); transform: translateY(-1px); }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+  }
+  .btn-secondary:hover { background: rgba(0,212,255,0.1); }
+  .btn-danger { background: rgba(255,100,0,0.2); border: 1px solid #ff6a00; color: #ff6a00; }
+  .btn-danger:hover { background: rgba(255,100,0,0.35); }
+
+  /* Recommendation card */
+  .rec-card {
+    background: rgba(0,212,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  .rec-card .ton {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    display: block;
+    text-align: center;
+    margin: 6px 0;
+  }
+  .rec-card .ton-label { text-align: center; color: var(--muted); font-size: 0.75rem; }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin: 2px;
+  }
+  .tag-blue { background: rgba(0,212,255,0.15); color: var(--accent); border: 1px solid rgba(0,212,255,0.3); }
+  .tag-green { background: rgba(0,255,153,0.1); color: var(--green); border: 1px solid rgba(0,255,153,0.3); }
+  .tag-orange { background: rgba(255,106,0,0.15); color: var(--warm); border: 1px solid rgba(255,106,0,0.3); }
+
+  /* AC unit list */
+  .ac-list { display: flex; flex-direction: column; gap: 6px; }
+  .ac-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: rgba(0,212,255,0.04);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.82rem;
+  }
+  .ac-item:hover { border-color: var(--accent); background: rgba(0,212,255,0.1); }
+  .ac-item.selected { border-color: var(--accent); background: rgba(0,212,255,0.12); box-shadow: var(--glow); }
+  .ac-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .ac-item-info { flex: 1; }
+  .ac-item-name { font-weight: 600; }
+  .ac-item-pos { font-size: 0.72rem; color: var(--muted); }
+  .ac-item-del { color: var(--warm); font-size: 0.8rem; cursor: pointer; padding: 2px 6px; border-radius: 3px; }
+  .ac-item-del:hover { background: rgba(255,106,0,0.2); }
+
+  /* Coverage bar */
+  .coverage-bar-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .coverage-bar-bg {
+    height: 10px; border-radius: 5px;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .coverage-bar-fill {
+    height: 100%; border-radius: 5px;
+    background: linear-gradient(90deg, var(--accent2), var(--cold));
+    transition: width 0.6s ease;
+  }
+  .coverage-text { font-size: 0.75rem; color: var(--muted); display: flex; justify-content: space-between; }
+
+  /* ---- CANVAS AREA ---- */
+  .canvas-area {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at center, #071a2e 0%, #030b14 80%);
+  }
+
+  .canvas-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(7,26,46,0.8);
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .mode-btn {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .mode-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,255,0.1);
+  }
+
+  #canvas3d {
+    flex: 1;
+    display: block;
+    cursor: grab;
+  }
+  #canvas3d:active { cursor: grabbing; }
+
+  .canvas-hint {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    pointer-events: none;
+    background: rgba(3,11,20,0.7);
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    padding: 10px 16px;
+    background: rgba(7,26,46,0.8);
+    border-top: 1px solid var(--border);
+  }
+  .stat-box {
+    text-align: center;
+    padding: 6px;
+    border-radius: 4px;
+    background: rgba(0,212,255,0.05);
+    border: 1px solid var(--border);
+  }
+  .stat-val { font-family: 'Orbitron', sans-serif; font-size: 1.1rem; color: var(--accent); }
+  .stat-lbl { font-size: 0.68rem; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+  /* Right panel specifics */
+  .cond-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cond-item {
+    background: rgba(0,212,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .cond-item.active { border-color: var(--accent); background: rgba(0,212,255,0.15); }
+  .cond-item:hover { border-color: var(--accent); }
+  .cond-icon { font-size: 1.3rem; display: block; margin-bottom: 3px; }
+
+  .tips-list { display: flex; flex-direction: column; gap: 6px; }
+  .tip-item {
+    display: flex; gap: 8px; align-items: flex-start;
+    font-size: 0.78rem; line-height: 1.5; color: var(--text);
+  }
+  .tip-icon { color: var(--accent); flex-shrink: 0; font-size: 0.9rem; }
+
+  /* Scroll styling */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .divider { height: 1px; background: var(--border); }
+
+  .add-ac-row { display: flex; gap: 6px; }
+  .add-ac-row select { flex: 1; }
+
+  /* Legend */
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.72rem; }
+  .leg-item { display: flex; align-items: center; gap: 4px; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  .temp-gradient {
+    height: 10px;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #0000ff, #00eaff, #00ff80, #ffff00, #ff4400);
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .temp-labels { display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--muted); }
+
+  /* Tooltip */
+  .tooltip {
+    position: absolute;
+    background: rgba(7,26,46,0.95);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    pointer-events: none;
+    display: none;
+    z-index: 100;
+    box-shadow: var(--glow);
+  }
+
+  .slider-group { display: flex; align-items: center; gap: 8px; }
+  .slider-group input[type=range] {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+  .slider-val { font-family: 'Orbitron', sans-serif; font-size: 0.8rem; color: var(--accent); min-width: 30px; text-align: right; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>❄ AC SYSTEM DESIGNER</h1>
+  <span>3D COOLING SIMULATION & ANALYSIS PLATFORM</span>
+</header>
+
+<div class="main-layout">
+
+  <!-- LEFT PANEL -->
+  <div class="side-panel">
+    <div class="panel-title">Room Configuration</div>
+
+    <div class="input-group">
+      <label>Length (m)</label>
+      <input type="number" id="roomL" value="6" min="2" max="30" step="0.5">
+    </div>
+    <div class="input-group">
+      <label>Breadth (m)</label>
+      <input type="number" id="roomB" value="5" min="2" max="30" step="0.5">
+    </div>
+    <div class="input-group">
+      <label>Height (m)</label>
+      <input type="number" id="roomH" value="3" min="2" max="6" step="0.1">
+    </div>
+    <div class="input-group">
+      <label>Room Type</label>
+      <select id="roomType">
+        <option value="bedroom">Bedroom</option>
+        <option value="livingroom">Living Room</option>
+        <option value="office" selected>Office</option>
+        <option value="hall">Hall / Open Area</option>
+        <option value="kitchen">Kitchen</option>
+        <option value="server">Server Room</option>
+      </select>
+    </div>
+
+    <button class="btn btn-primary" onclick="updateRoom()">APPLY ROOM</button>
+
+    <div class="divider"></div>
+    <div class="panel-title">AC Placement</div>
+
+    <div class="input-group">
+      <label>AC Type</label>
+      <select id="acType">
+        <option value="split">Split AC</option>
+        <option value="cassette">Cassette (Ceiling)</option>
+        <option value="tower">Tower / Floor AC</option>
+        <option value="window">Window AC</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label>Capacity (Ton)</label>
+      <select id="acCapacity">
+        <option value="0.75">0.75 Ton</option>
+        <option value="1.0" selected>1.0 Ton</option>
+        <option value="1.25">1.25 Ton</option>
+        <option value="1.5">1.5 Ton</option>
+        <option value="2.0">2.0 Ton</option>
+        <option value="3.0">3.0 Ton</option>
+      </select>
+    </div>
+
+    <div style="font-size:0.75rem;color:var(--muted);">Click on room wall/ceiling in 3D to place AC, or enter position:</div>
+
+    <div class="input-group">
+      <label>Position X (m from left)</label>
+      <input type="number" id="acX" value="1" min="0" step="0.5">
+    </div>
+    <div class="input-group">
+      <label>Position Z (m from front)</label>
+      <input type="number" id="acZ" value="1" min="0" step="0.5">
+    </div>
+    <div class="input-group">
+      <label>Wall</label>
+      <select id="acWall">
+        <option value="north">North Wall</option>
+        <option value="south">South Wall</option>
+        <option value="east">East Wall</option>
+        <option value="west">West Wall</option>
+        <option value="ceiling">Ceiling</option>
+      </select>
+    </div>
+
+    <button class="btn btn-secondary" onclick="addAC()">+ ADD AC UNIT</button>
+
+    <div class="divider"></div>
+    <div class="panel-title">Placed Units (<span id="acCount">0</span>)</div>
+    <div class="ac-list" id="acList"></div>
+    <button class="btn btn-danger" onclick="clearAllAC()" style="margin-top:4px;">CLEAR ALL</button>
+
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-area">
+    <div class="canvas-toolbar">
+      <button class="mode-btn active" id="btn3d" onclick="setView('3d')">3D VIEW</button>
+      <button class="mode-btn" id="btnTop" onclick="setView('top')">TOP VIEW</button>
+      <button class="mode-btn" id="btnSide" onclick="setView('side')">SIDE VIEW</button>
+      <div style="flex:1"></div>
+      <button class="mode-btn" id="btnAirflow" onclick="toggleAirflow()" style="color:var(--cold)">❄ AIRFLOW</button>
+      <button class="mode-btn" id="btnHeatmap" onclick="toggleHeatmap()">🌡 HEATMAP</button>
+      <div style="font-size:0.75rem;color:var(--muted);margin-left:8px;">Drag to rotate · Scroll to zoom</div>
+    </div>
+
+    <canvas id="canvas3d"></canvas>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-val" id="statArea">0 m²</div>
+        <div class="stat-lbl">Floor Area</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statCoverage">0%</div>
+        <div class="stat-lbl">Cooling Coverage</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statTemp">—</div>
+        <div class="stat-lbl">Avg Room Temp</div>
+      </div>
+    </div>
+    <div class="canvas-hint" id="canvasHint">Drag to rotate · Scroll to zoom · Click to place AC</div>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="side-panel right">
+    <div class="panel-title">AI Recommendation</div>
+    <div class="rec-card" id="recCard">
+      <div style="text-align:center;color:var(--muted);font-size:0.8rem;">Configure room to see recommendation</div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="panel-title">Conditions</div>
+    <div class="cond-grid">
+      <div class="cond-item" id="cond-sun" onclick="toggleCond('sun')">
+        <span class="cond-icon">☀️</span>Sun Facing
+      </div>
+      <div class="cond-item" id="cond-humid" onclick="toggleCond('humid')">
+        <span class="cond-icon">💧</span>High Humid.
+      </div>
+      <div class="cond-item" id="cond-people" onclick="toggleCond('people')">
+        <span class="cond-icon">👥</span>High Occ.
+      </div>
+      <div class="cond-item" id="cond-elec" onclick="toggleCond('elec')">
+        <span class="cond-icon">🖥️</span>Electronics
+      </div>
+      <div class="cond-item" id="cond-insul" onclick="toggleCond('insul')">
+        <span class="cond-icon">🏠</span>Good Insul.
+      </div>
+      <div class="cond-item" id="cond-top" onclick="toggleCond('top')">
+        <span class="cond-icon">🏢</span>Top Floor
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>Outdoor Temp (°C)</label>
+      <div class="slider-group">
+        <input type="range" id="outdoorTemp" min="20" max="50" value="35" oninput="updateOutdoorTemp(this.value)">
+        <span class="slider-val" id="outdoorTempVal">35°C</span>
+      </div>
+    </div>
+    <div class="input-group">
+      <label>No. of Occupants</label>
+      <div class="slider-group">
+        <input type="range" id="occupants" min="1" max="20" value="2" oninput="updateOccupants(this.value)">
+        <span class="slider-val" id="occupantsVal">2</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="panel-title">Coverage Analysis</div>
+    <div class="coverage-bar-wrap">
+      <div class="coverage-bar-bg"><div class="coverage-bar-fill" id="coverageBar" style="width:0%"></div></div>
+      <div class="coverage-text"><span>0%</span><span id="coveragePct">0%</span><span>100%</span></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="panel-title">Temperature Legend</div>
+    <div class="temp-gradient"></div>
+    <div class="temp-labels"><span>Cool (16°C)</span><span>Warm (40°C)</span></div>
+
+    <div class="divider"></div>
+    <div class="panel-title">Design Tips</div>
+    <div class="tips-list" id="tipsList"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+const state = {
+  room: { L: 6, B: 5, H: 3, type: 'office' },
+  acUnits: [],
+  view: '3d',
+  showAirflow: true,
+  showHeatmap: false,
+  conditions: { sun: false, humid: false, people: false, elec: false, insul: false, top: false },
+  outdoorTemp: 35,
+  occupants: 2,
+  selected: null,
+  // camera
+  cam: { rotX: 0.45, rotY: 0.6, dist: 18, tx: 0, ty: 0 },
+  drag: { active: false, lastX: 0, lastY: 0 },
+  particles: [],
+  tick: 0,
+  acColors: ['#00d4ff','#00ff99','#ff9900','#ff3366','#cc44ff','#ffff00'],
+};
+
+const ROOM_LOAD_MAP = { bedroom: 0.85, livingroom: 1.1, office: 1.0, hall: 1.2, kitchen: 1.5, server: 2.0 };
+
+// ============================================================
+//  CANVAS SETUP
+// ============================================================
+const canvas = document.getElementById('canvas3d');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+}
+window.addEventListener('resize', () => { resize(); });
+resize();
+
+// ============================================================
+//  INTERACTION
+// ============================================================
+canvas.addEventListener('mousedown', e => {
+  state.drag.active = true;
+  state.drag.lastX = e.clientX;
+  state.drag.lastY = e.clientY;
+});
+window.addEventListener('mouseup', () => state.drag.active = false);
+window.addEventListener('mousemove', e => {
+  if (!state.drag.active) return;
+  const dx = e.clientX - state.drag.lastX;
+  const dy = e.clientY - state.drag.lastY;
+  state.cam.rotY += dx * 0.008;
+  state.cam.rotX += dy * 0.006;
+  state.cam.rotX = Math.max(-1.2, Math.min(1.2, state.cam.rotX));
+  state.drag.lastX = e.clientX;
+  state.drag.lastY = e.clientY;
+});
+canvas.addEventListener('wheel', e => {
+  state.cam.dist += e.deltaY * 0.05;
+  state.cam.dist = Math.max(5, Math.min(40, state.cam.dist));
+  e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('click', e => {
+  if (state.drag.moved) { state.drag.moved = false; return; }
+  // Place AC on click
+  const rect = canvas.getBoundingClientRect();
+  placeACAtScreenPoint(e.clientX - rect.left, e.clientY - rect.top);
+});
+
+// ============================================================
+//  3D PROJECTION
+// ============================================================
+function project3D(x, y, z) {
+  const cam = state.cam;
+  const cx = Math.cos(cam.rotY), sx = Math.sin(cam.rotY);
+  const cy = Math.cos(cam.rotX), sy = Math.sin(cam.rotX);
+
+  const { L, B, H } = state.room;
+  const ox = x - L/2, oy = y - H/2, oz = z - B/2;
+
+  // Rotate around Y axis
+  const rx = ox * cx + oz * sx;
+  const rz = -ox * sx + oz * cx;
+  // Rotate around X axis
+  const ry = oy * cy - rz * sy;
+  const rz2 = oy * sy + rz * cy;
+
+  const fov = 500;
+  const d = cam.dist;
+  const pz = rz2 + d;
+  if (pz <= 0.1) return null;
+  const px = rx * fov / pz + canvas.width/2;
+  const py = -ry * fov / pz + canvas.height/2;
+  return { x: px, y: py, z: pz, depth: pz };
+}
+
+// ============================================================
+//  DRAW HELPERS
+// ============================================================
+function drawLine(p1, p2, color='rgba(0,212,255,0.5)', lw=1) {
+  if (!p1 || !p2) return;
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.stroke();
+}
+
+function drawFace(pts, fillColor, strokeColor='rgba(0,212,255,0.4)') {
+  const valid = pts.filter(Boolean);
+  if (valid.length < 3) return;
+  ctx.beginPath();
+  ctx.moveTo(valid[0].x, valid[0].y);
+  for (let i=1; i<valid.length; i++) ctx.lineTo(valid[i].x, valid[i].y);
+  ctx.closePath();
+  if (fillColor) { ctx.fillStyle = fillColor; ctx.fill(); }
+  if (strokeColor) { ctx.strokeStyle = strokeColor; ctx.lineWidth = 1; ctx.stroke(); }
+}
+
+// ============================================================
+//  ROOM VERTICES
+// ============================================================
+function getRoomVerts() {
+  const { L, B, H } = state.room;
+  return {
+    // Bottom
+    b: [
+      [0,0,0],[L,0,0],[L,0,B],[0,0,B]
+    ],
+    // Top
+    t: [
+      [0,H,0],[L,H,0],[L,H,B],[0,H,B]
+    ]
+  };
+}
+
+// ============================================================
+//  HEATMAP GRID
+// ============================================================
+function computeHeatGrid(res=20) {
+  const { L, B } = state.room;
+  const grid = [];
+  for (let i=0; i<=res; i++) {
+    grid[i] = [];
+    for (let j=0; j<=res; j++) {
+      const wx = (i/res) * L;
+      const wz = (j/res) * B;
+      let temp = state.outdoorTemp;
+      // distance from each AC
+      for (const ac of state.acUnits) {
+        const dx = wx - ac.x, dz = wz - ac.z;
+        const dist = Math.sqrt(dx*dx + dz*dz);
+        const radius = acRadius(ac);
+        const effect = Math.max(0, 1 - dist/radius);
+        temp -= effect * 18 * (ac.capacity / 1.5);
+      }
+      grid[i][j] = Math.max(16, Math.min(state.outdoorTemp, temp));
+    }
+  }
+  return grid;
+}
+
+function acRadius(ac) {
+  const baseR = { split: 4.5, cassette: 5.0, tower: 3.5, window: 4.0 };
+  return (baseR[ac.type] || 4.0) * (ac.capacity / 1.0);
+}
+
+function tempToColor(t, alpha=0.7) {
+  const minT = 16, maxT = state.outdoorTemp;
+  const ratio = (t - minT) / (maxT - minT);
+  const r = ratio;
+  // Blue -> Cyan -> Green -> Yellow -> Red
+  let R, G, B2;
+  if (ratio < 0.25) { R = 0; G = ratio*4*255; B2 = 255; }
+  else if (ratio < 0.5) { R = 0; G = 255; B2 = (1-(ratio-0.25)*4)*255; }
+  else if (ratio < 0.75) { R = (ratio-0.5)*4*255; G = 255; B2 = 0; }
+  else { R = 255; G = (1-(ratio-0.75)*4)*255; B2 = 0; }
+  return `rgba(${Math.round(R)},${Math.round(G)},${Math.round(B2)},${alpha})`;
+}
+
+// ============================================================
+//  PARTICLES (airflow)
+// ============================================================
+function initParticles() {
+  state.particles = [];
+  for (const ac of state.acUnits) {
+    const count = Math.round(30 * ac.capacity);
+    for (let i=0; i<count; i++) {
+      spawnParticle(ac, i/count);
+    }
+  }
+}
+
+function spawnParticle(ac, t=Math.random()) {
+  const angle = (Math.random() - 0.5) * Math.PI * 0.8;
+  const speed = 0.04 + Math.random() * 0.03;
+  let vx = 0, vz = 0;
+  switch(ac.wall) {
+    case 'north': vz = speed; vx = Math.sin(angle)*speed*0.5; break;
+    case 'south': vz = -speed; vx = Math.sin(angle)*speed*0.5; break;
+    case 'east': vx = -speed; vz = Math.sin(angle)*speed*0.5; break;
+    case 'west': vx = speed; vz = Math.sin(angle)*speed*0.5; break;
+    case 'ceiling': vx = Math.cos(angle)*speed; vz = Math.sin(angle)*speed; break;
+  }
+  const life = 0.3 + Math.random() * 0.7;
+  return {
+    x: ac.x + (Math.random()-0.5)*0.5,
+    y: ac.y + (Math.random()-0.5)*0.3,
+    z: ac.z + (Math.random()-0.5)*0.5,
+    vx, vy: -0.005 + Math.random()*0.003, vz,
+    life, maxLife: life,
+    t: t,
+    acColor: ac.color,
+  };
+}
+
+function updateParticles() {
+  const { L, B, H } = state.room;
+  // Remove dead, add new
+  state.particles = state.particles.filter(p => p.t > 0);
+  for (const ac of state.acUnits) {
+    // maintain particle count per AC
+    const mine = state.particles.filter(p => p.acColor === ac.color).length;
+    const target = Math.round(30 * ac.capacity);
+    if (mine < target) state.particles.push(spawnParticle(ac));
+  }
+  for (const p of state.particles) {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.z += p.vz;
+    p.t -= 0.008;
+    // bounce off walls
+    if (p.x < 0 || p.x > L) p.vx *= -1;
+    if (p.z < 0 || p.z > B) p.vz *= -1;
+    if (p.y < 0) { p.y = 0; p.vy = Math.abs(p.vy) * 0.5; }
+    if (p.y > H) { p.y = H; p.vy = -Math.abs(p.vy) * 0.5; }
+  }
+}
+
+// ============================================================
+//  DRAW SCENE
+// ============================================================
+function drawScene() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const { L, B, H } = state.room;
+
+  if (state.view === '3d') draw3D();
+  else if (state.view === 'top') drawTopView();
+  else drawSideView();
+
+  updateStats();
+  updateRecommendation();
+}
+
+function draw3D() {
+  const { L, B, H } = state.room;
+  const p = (x,y,z) => project3D(x,y,z);
+
+  // 8 corners
+  const v = [
+    p(0,0,0), p(L,0,0), p(L,0,B), p(0,0,B),  // bottom
+    p(0,H,0), p(L,H,0), p(L,H,B), p(0,H,B),  // top
+  ];
+
+  // Draw heatmap on floor
+  if (state.showHeatmap) {
+    const res = 16;
+    const grid = computeHeatGrid(res);
+    for (let i=0; i<res; i++) {
+      for (let j=0; j<res; j++) {
+        const avg = (grid[i][j]+grid[i+1][j]+grid[i][j+1]+grid[i+1][j+1])/4;
+        const wx0 = (i/res)*L, wz0 = (j/res)*B;
+        const wx1 = ((i+1)/res)*L, wz1 = ((j+1)/res)*B;
+        const f = [p(wx0,0.02,wz0), p(wx1,0.02,wz0), p(wx1,0.02,wz1), p(wx0,0.02,wz1)];
+        drawFace(f, tempToColor(avg, 0.55), null);
+      }
+    }
+  }
+
+  // Draw room faces (semi-transparent)
+  const faces = [
+    { pts: [v[0],v[1],v[5],v[4]], fill: 'rgba(0,100,200,0.06)', label: 'North' },
+    { pts: [v[2],v[3],v[7],v[6]], fill: 'rgba(0,100,200,0.06)', label: 'South' },
+    { pts: [v[1],v[2],v[6],v[5]], fill: 'rgba(0,100,200,0.04)', label: 'East' },
+    { pts: [v[0],v[3],v[7],v[4]], fill: 'rgba(0,100,200,0.04)', label: 'West' },
+    { pts: [v[4],v[5],v[6],v[7]], fill: 'rgba(0,100,200,0.04)', label: 'Ceiling' },
+    { pts: [v[0],v[1],v[2],v[3]], fill: state.showHeatmap ? null : 'rgba(0,30,80,0.3)', label: 'Floor' },
+  ];
+
+  // Sort faces back-to-front
+  faces.forEach(f => {
+    const valid = f.pts.filter(Boolean);
+    f.avgDepth = valid.reduce((s,p) => s + p.depth, 0) / (valid.length||1);
+  });
+  faces.sort((a,b) => b.avgDepth - a.avgDepth);
+
+  for (const f of faces) {
+    drawFace(f.pts, f.fill, 'rgba(0,180,255,0.25)');
+  }
+
+  // Grid lines on floor
+  ctx.setLineDash([4,8]);
+  for (let i=0; i<=L; i++) drawLine(p(i,0,0), p(i,0,B), 'rgba(0,180,255,0.12)');
+  for (let j=0; j<=B; j++) drawLine(p(0,0,j), p(L,0,j), 'rgba(0,180,255,0.12)');
+  ctx.setLineDash([]);
+
+  // Edge highlights
+  const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  for (const [a,b] of edges) drawLine(v[a], v[b], 'rgba(0,212,255,0.6)', 1.5);
+
+  // Corner labels
+  const labels = [['0,0',0,0,0],['L',L,0,0],['L,B',L,0,B],['B',0,0,B]];
+  for (const [lbl,x,y,z] of labels) {
+    const pt = p(x,y,z);
+    if (pt) {
+      ctx.fillStyle = 'rgba(0,180,255,0.5)';
+      ctx.font = '11px Rajdhani';
+      ctx.fillText(lbl, pt.x+4, pt.y-4);
+    }
+  }
+
+  // Draw airflow particles
+  if (state.showAirflow) {
+    updateParticles();
+    for (const part of state.particles) {
+      const pt = project3D(part.x, part.y, part.z);
+      if (!pt) continue;
+      const alpha = part.t / part.maxLife;
+      const size = Math.max(1, 3 * alpha * (500/pt.depth));
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, size, 0, Math.PI*2);
+      ctx.fillStyle = part.acColor.replace(')', `,${alpha*0.85})`).replace('rgb','rgba').replace('rgba(#','rgba(').replace('#','');
+      // hex color
+      ctx.fillStyle = hexToRgba(part.acColor, alpha * 0.85);
+      ctx.fill();
+    }
+  }
+
+  // Draw AC units
+  for (const ac of state.acUnits) {
+    drawAC3D(ac);
+  }
+
+  // Dimension labels
+  drawDimLabel3D(L, B, H);
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function drawAC3D(ac) {
+  const { L, B, H } = state.room;
+  let x1,y1,z1,x2,y2,z2;
+  const w=0.5, h2=0.12, d=0.2;
+
+  if (ac.wall === 'north') { x1=ac.x-w/2; x2=ac.x+w/2; y1=ac.y-h2; y2=ac.y+h2; z1=0; z2=d; }
+  else if (ac.wall === 'south') { x1=ac.x-w/2; x2=ac.x+w/2; y1=ac.y-h2; y2=ac.y+h2; z1=B-d; z2=B; }
+  else if (ac.wall === 'east') { x1=L-d; x2=L; y1=ac.y-h2; y2=ac.y+h2; z1=ac.z-w/2; z2=ac.z+w/2; }
+  else if (ac.wall === 'west') { x1=0; x2=d; y1=ac.y-h2; y2=ac.y+h2; z1=ac.z-w/2; z2=ac.z+w/2; }
+  else { x1=ac.x-w/2; x2=ac.x+w/2; y1=H-d; y2=H; z1=ac.z-w/2; z2=ac.z+w/2; } // ceiling
+
+  const p = (x,y,z) => project3D(x,y,z);
+  const verts = [
+    p(x1,y1,z1), p(x2,y1,z1), p(x2,y2,z1), p(x1,y2,z1),
+    p(x1,y1,z2), p(x2,y1,z2), p(x2,y2,z2), p(x1,y2,z2),
+  ];
+
+  const acFaces = [
+    [verts[0],verts[1],verts[5],verts[4]],
+    [verts[1],verts[2],verts[6],verts[5]],
+    [verts[2],verts[3],verts[7],verts[6]],
+    [verts[3],verts[0],verts[4],verts[7]],
+    [verts[4],verts[5],verts[6],verts[7]],
+    [verts[0],verts[1],verts[2],verts[3]],
+  ];
+
+  const col = ac.color;
+  acFaces.forEach(f => drawFace(f, col+'33', col+'cc'));
+
+  // AC label
+  const ctr = p((x1+x2)/2,(y1+y2+h2)/2,(z1+z2)/2);
+  if (ctr) {
+    ctx.font = 'bold 11px Orbitron';
+    ctx.fillStyle = col;
+    ctx.textAlign = 'center';
+    ctx.fillText(`❄ ${ac.capacity}T`, ctr.x, ctr.y - 8);
+    ctx.textAlign = 'left';
+  }
+
+  // Draw cone of airflow direction
+  if (state.showAirflow) {
+    drawAirCone3D(ac, col);
+  }
+}
+
+function drawAirCone3D(ac, col) {
+  const { L, B, H } = state.room;
+  const r = acRadius(ac);
+  const steps = 8;
+  const cx = ac.x, cy = ac.y, cz = ac.z;
+
+  for (let i=0; i<steps; i++) {
+    const a = (i/steps) * Math.PI * 2;
+    let ex=cx, ey=cy-0.5, ez=cz;
+    if (ac.wall === 'north') { ex = cx + Math.cos(a)*r*0.3; ez = cz + r; ey = cy + Math.sin(a)*0.5; }
+    else if (ac.wall === 'south') { ex = cx + Math.cos(a)*r*0.3; ez = cz - r; ey = cy + Math.sin(a)*0.5; }
+    else if (ac.wall === 'east') { ex = cx - r; ez = cz + Math.cos(a)*r*0.3; ey = cy + Math.sin(a)*0.5; }
+    else if (ac.wall === 'west') { ex = cx + r; ez = cz + Math.cos(a)*r*0.3; ey = cy + Math.sin(a)*0.5; }
+    else { ex = cx + Math.cos(a)*r; ez = cz + Math.sin(a)*r; ey = Math.max(0.1, cy - r*0.5); }
+
+    ex = Math.max(0, Math.min(L, ex));
+    ez = Math.max(0, Math.min(B, ez));
+    ey = Math.max(0, Math.min(H, ey));
+
+    const s = project3D(cx, cy, cz);
+    const e = project3D(ex, ey, ez);
+    if (s && e) {
+      ctx.beginPath();
+      ctx.strokeStyle = hexToRgba(col, 0.12);
+      ctx.lineWidth = 1;
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(e.x, e.y);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawDimLabel3D(L, B, H) {
+  const p = (x,y,z) => project3D(x,y,z);
+  // Length label
+  const ml = p(L/2,-0.3,0);
+  if (ml) { ctx.fillStyle='rgba(0,212,255,0.7)'; ctx.font='12px Rajdhani'; ctx.textAlign='center'; ctx.fillText(`${L}m`, ml.x, ml.y); }
+  // Breadth
+  const mb = p(L,-0.3,B/2);
+  if (mb) { ctx.fillStyle='rgba(0,212,255,0.7)'; ctx.fillText(`${B}m`, mb.x+10, mb.y); }
+  // Height
+  const mh = p(0,H/2,0);
+  if (mh) { ctx.fillStyle='rgba(0,212,255,0.7)'; ctx.fillText(`${H}m`, mh.x-20, mh.y); }
+  ctx.textAlign='left';
+}
+
+// ============================================================
+//  TOP VIEW
+// ============================================================
+function drawTopView() {
+  const { L, B, H } = state.room;
+  const pad = 60;
+  const scaleX = (canvas.width - pad*2) / L;
+  const scaleZ = (canvas.height - pad*2) / B;
+  const sc = Math.min(scaleX, scaleZ);
+  const ox = (canvas.width - L*sc)/2;
+  const oy = (canvas.height - B*sc)/2;
+
+  // Heatmap
+  if (state.showHeatmap) {
+    const res = 30;
+    const grid = computeHeatGrid(res);
+    for (let i=0; i<res; i++) {
+      for (let j=0; j<res; j++) {
+        const avg = (grid[i][j]+grid[i+1][j]+grid[i][j+1]+grid[i+1][j+1])/4;
+        ctx.fillStyle = tempToColor(avg, 0.7);
+        ctx.fillRect(ox+(i/res)*L*sc, oy+(j/res)*B*sc, L*sc/res+1, B*sc/res+1);
+      }
+    }
+  }
+
+  // Room outline
+  ctx.strokeStyle='rgba(0,212,255,0.8)';
+  ctx.lineWidth=2;
+  ctx.strokeRect(ox, oy, L*sc, B*sc);
+
+  // Grid
+  ctx.setLineDash([4,8]);
+  for (let i=1; i<L; i++) { ctx.beginPath(); ctx.strokeStyle='rgba(0,212,255,0.1)'; ctx.moveTo(ox+i*sc,oy); ctx.lineTo(ox+i*sc,oy+B*sc); ctx.stroke(); }
+  for (let j=1; j<B; j++) { ctx.beginPath(); ctx.moveTo(ox,oy+j*sc); ctx.lineTo(ox+L*sc,oy+j*sc); ctx.stroke(); }
+  ctx.setLineDash([]);
+
+  // Airflow radius circles
+  if (state.showAirflow) {
+    for (const ac of state.acUnits) {
+      const r = acRadius(ac) * sc;
+      const grad = ctx.createRadialGradient(ox+ac.x*sc, oy+ac.z*sc, 0, ox+ac.x*sc, oy+ac.z*sc, r);
+      grad.addColorStop(0, hexToRgba(ac.color, 0.4));
+      grad.addColorStop(1, hexToRgba(ac.color, 0.0));
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(ox+ac.x*sc, oy+ac.z*sc, r, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // AC units
+  for (const ac of state.acUnits) {
+    ctx.fillStyle = ac.color;
+    ctx.beginPath();
+    ctx.arc(ox+ac.x*sc, oy+ac.z*sc, 8, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font='bold 8px Orbitron';
+    ctx.textAlign='center';
+    ctx.fillText('❄', ox+ac.x*sc, oy+ac.z*sc+3);
+    ctx.fillStyle = ac.color;
+    ctx.font='10px Rajdhani';
+    ctx.fillText(`${ac.capacity}T`, ox+ac.x*sc, oy+ac.z*sc-12);
+    ctx.textAlign='left';
+  }
+
+  // Labels
+  ctx.fillStyle='rgba(0,212,255,0.6)'; ctx.font='13px Rajdhani'; ctx.textAlign='center';
+  ctx.fillText(`Length: ${L}m`, canvas.width/2, oy-10);
+  ctx.save(); ctx.translate(ox-10, canvas.height/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText(`Breadth: ${B}m`, 0, 0); ctx.restore();
+  ctx.textAlign='left';
+  ctx.fillStyle='rgba(0,212,255,0.5)'; ctx.font='11px Rajdhani';
+  ctx.fillText('TOP VIEW', 10, 20);
+}
+
+// ============================================================
+//  SIDE VIEW
+// ============================================================
+function drawSideView() {
+  const { L, B, H } = state.room;
+  const pad = 60;
+  const scaleX = (canvas.width - pad*2) / L;
+  const scaleY = (canvas.height - pad*2) / H;
+  const sc = Math.min(scaleX, scaleY);
+  const ox = (canvas.width - L*sc)/2;
+  const oy = (canvas.height - H*sc)/2;
+
+  ctx.strokeStyle='rgba(0,212,255,0.8)'; ctx.lineWidth=2;
+  ctx.strokeRect(ox, oy, L*sc, H*sc);
+
+  // AC on wall
+  for (const ac of state.acUnits) {
+    const ax = (ac.wall === 'west') ? 0 : (ac.wall === 'east') ? L : ac.x;
+    const ay = ac.y;
+    // airflow downward cone
+    if (state.showAirflow) {
+      const r = acRadius(ac) * sc * 0.7;
+      const gx = ox+ax*sc, gy = oy+(H-ay)*sc;
+      const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy+r, r);
+      grad.addColorStop(0, hexToRgba(ac.color, 0.4));
+      grad.addColorStop(1, hexToRgba(ac.color, 0.0));
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(gx, gy, r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.fillStyle = ac.color;
+    ctx.fillRect(ox+ax*sc-8, oy+(H-ay)*sc-6, 16, 12);
+    ctx.fillStyle='#fff'; ctx.font='7px Orbitron'; ctx.textAlign='center';
+    ctx.fillText('❄', ox+ax*sc, oy+(H-ay)*sc+3);
+    ctx.fillStyle=ac.color; ctx.font='9px Rajdhani';
+    ctx.fillText(`${ac.capacity}T`, ox+ax*sc, oy+(H-ay)*sc-10);
+    ctx.textAlign='left';
+  }
+
+  ctx.fillStyle='rgba(0,212,255,0.5)'; ctx.font='11px Rajdhani';
+  ctx.fillText('SIDE VIEW', 10, 20);
+  ctx.textAlign='center';
+  ctx.fillStyle='rgba(0,212,255,0.6)';
+  ctx.fillText(`Length: ${L}m`, canvas.width/2, oy+H*sc+20);
+  ctx.save(); ctx.translate(ox-15, canvas.height/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText(`Height: ${H}m`, 0, 0); ctx.restore();
+  ctx.textAlign='left';
+}
+
+// ============================================================
+//  PLACE AC ON CLICK (simplified for 3D)
+// ============================================================
+function placeACAtScreenPoint(sx, sy) {
+  // Project click to floor plane (y=H*0.8, wall position)
+  const { L, B, H } = state.room;
+  // Use input fields instead for simplicity in 3D
+  // This triggers a prompt to use fields
+  document.getElementById('canvasHint').textContent = 'Use LEFT PANEL to set position, then click ADD AC UNIT';
+  setTimeout(() => {
+    document.getElementById('canvasHint').textContent = 'Drag to rotate · Scroll to zoom · Click to place AC';
+  }, 2500);
+}
+
+// ============================================================
+//  AC MANAGEMENT
+// ============================================================
+function addAC() {
+  const { L, B, H } = state.room;
+  const type = document.getElementById('acType').value;
+  const capacity = parseFloat(document.getElementById('acCapacity').value);
+  const wall = document.getElementById('acWall').value;
+  let x = parseFloat(document.getElementById('acX').value);
+  let z = parseFloat(document.getElementById('acZ').value);
+
+  // Clamp
+  x = Math.max(0.3, Math.min(L-0.3, x));
+  z = Math.max(0.3, Math.min(B-0.3, z));
+
+  let y;
+  if (wall === 'ceiling') y = H - 0.05;
+  else if (type === 'tower') y = 0.5;
+  else y = H * 0.85;
+
+  // Set x/z based on wall
+  if (wall === 'north') { z = 0.1; }
+  else if (wall === 'south') { z = B - 0.1; }
+  else if (wall === 'east') { x = L - 0.1; }
+  else if (wall === 'west') { x = 0.1; }
+
+  const id = Date.now();
+  const color = state.acColors[state.acUnits.length % state.acColors.length];
+  state.acUnits.push({ id, type, capacity, wall, x, y, z, color, name: `AC ${state.acUnits.length+1}` });
+
+  renderACList();
+  initParticles();
+  updateRecommendation();
+}
+
+function renderACList() {
+  const list = document.getElementById('acList');
+  document.getElementById('acCount').textContent = state.acUnits.length;
+  list.innerHTML = state.acUnits.map(ac => `
+    <div class="ac-item ${state.selected===ac.id?'selected':''}" onclick="selectAC(${ac.id})">
+      <div class="ac-dot" style="background:${ac.color};box-shadow:0 0 6px ${ac.color}"></div>
+      <div class="ac-item-info">
+        <div class="ac-item-name">${ac.name} · ${ac.capacity}T ${ac.type}</div>
+        <div class="ac-item-pos">${ac.wall} wall · x:${ac.x.toFixed(1)}m z:${ac.z.toFixed(1)}m</div>
+      </div>
+      <span class="ac-item-del" onclick="event.stopPropagation();removeAC(${ac.id})">✕</span>
+    </div>
+  `).join('');
+}
+
+function selectAC(id) {
+  state.selected = state.selected === id ? null : id;
+  renderACList();
+}
+
+function removeAC(id) {
+  state.acUnits = state.acUnits.filter(a => a.id !== id);
+  if (state.selected === id) state.selected = null;
+  renderACList();
+  initParticles();
+  updateRecommendation();
+}
+
+function clearAllAC() {
+  state.acUnits = [];
+  state.selected = null;
+  state.particles = [];
+  renderACList();
+  updateRecommendation();
+}
+
+// ============================================================
+//  ROOM UPDATE
+// ============================================================
+function updateRoom() {
+  state.room.L = parseFloat(document.getElementById('roomL').value) || 6;
+  state.room.B = parseFloat(document.getElementById('roomB').value) || 5;
+  state.room.H = parseFloat(document.getElementById('roomH').value) || 3;
+  state.room.type = document.getElementById('roomType').value;
+  // Adjust cam distance
+  const maxDim = Math.max(state.room.L, state.room.B, state.room.H);
+  state.cam.dist = maxDim * 2.5;
+  clearAllAC();
+  updateRecommendation();
+}
+
+// ============================================================
+//  RECOMMENDATION ENGINE
+// ============================================================
+function calcRecommendedTons() {
+  const { L, B, H, type } = state.room;
+  const area = L * B;
+  const volume = area * H;
+
+  // Base: ~600 BTU per sq ft, ~0.083 tons per sqm baseline
+  let btu = area * 500; // per sqm baseline BTU/hr
+
+  // Room type multiplier
+  const typeMult = ROOM_LOAD_MAP[type] || 1.0;
+  btu *= typeMult;
+
+  // Height factor (ceiling > 3m needs more)
+  btu *= (H / 3.0);
+
+  // Conditions
+  const { sun, humid, people, elec, insul, top } = state.conditions;
+  if (sun) btu *= 1.1;
+  if (humid) btu *= 1.08;
+  if (people) btu *= 1.12;
+  if (elec) btu *= 1.1;
+  if (insul) btu *= 0.9;
+  if (top) btu *= 1.15;
+
+  // Outdoor temp factor
+  const tempFactor = 1 + (state.outdoorTemp - 32) / 100;
+  btu *= tempFactor;
+
+  // Occupants heat load (each person ~400 BTU/hr)
+  btu += state.occupants * 400;
+
+  const tons = btu / 12000;
+  return Math.max(0.75, tons);
+}
+
+function updateRecommendation() {
+  const { L, B, H } = state.room;
+  const area = L * B;
+  const recTons = calcRecommendedTons();
+  const placedTons = state.acUnits.reduce((s,a) => s+a.capacity, 0);
+  const coverage = computeCoverage();
+
+  document.getElementById('statArea').textContent = `${area.toFixed(1)} m²`;
+  document.getElementById('statCoverage').textContent = `${Math.round(coverage)}%`;
+
+  // Avg temp estimate
+  const baseTemp = state.outdoorTemp;
+  const reduction = Math.min(baseTemp - 16, placedTons * 5 * (coverage/100));
+  const avgTemp = baseTemp - reduction;
+  document.getElementById('statTemp').textContent = placedTons > 0 ? `${avgTemp.toFixed(1)}°C` : `${baseTemp}°C`;
+
+  // Coverage bar
+  document.getElementById('coverageBar').style.width = Math.min(100, coverage) + '%';
+  document.getElementById('coveragePct').textContent = `${Math.round(coverage)}%`;
+
+  // Rec card
+  const diff = placedTons - recTons;
+  let statusColor = 'var(--accent)', statusText = '';
+  if (placedTons === 0) { statusColor='var(--muted)'; statusText='No AC placed'; }
+  else if (diff < -0.5) { statusColor='var(--warm)'; statusText='⚠ Underpowered'; }
+  else if (diff > 1) { statusColor='var(--green)'; statusText='✓ Overpowered (efficient)'; }
+  else { statusColor='var(--green)'; statusText='✓ Optimal'; }
+
+  const numUnits = Math.max(1, Math.ceil(recTons / 1.5));
+  const tonOptions = [0.75, 1.0, 1.25, 1.5, 2.0, 3.0];
+  const bestTon = tonOptions.reduce((a,b) => Math.abs(b-recTons/numUnits)<Math.abs(a-recTons/numUnits)?b:a);
+
+  document.getElementById('recCard').innerHTML = `
+    <span class="ton" style="color:${statusColor}">${recTons.toFixed(2)}</span>
+    <div class="ton-label">RECOMMENDED TONS</div>
+    <div style="margin-top:8px;font-size:0.78rem;color:var(--muted);">
+      Based on ${area.toFixed(1)} m² · ${H}m height · ${state.room.type}
+    </div>
+    <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
+      <span class="tag tag-blue">${numUnits}× unit${numUnits>1?'s':''}</span>
+      <span class="tag tag-blue">${bestTon}T each</span>
+      ${placedTons>0 ? `<span class="tag ${Math.abs(diff)<0.5?'tag-green':'tag-orange'}">${statusText}</span>` : ''}
+    </div>
+    ${placedTons>0 ? `<div style="margin-top:8px;font-size:0.78rem;">Placed: <b style="color:var(--accent)">${placedTons.toFixed(2)}T</b> across ${state.acUnits.length} unit(s)</div>` : ''}
+    <div style="margin-top:8px;font-size:0.72rem;color:var(--muted);">
+      Estimated power: ~${(recTons * 1200).toFixed(0)} W/hr<br>
+      Star rating: <span style="color:#ffd700">${getStarRating(recTons, area)}</span>
+    </div>
+  `;
+
+  updateTips();
+}
+
+function getStarRating(tons, area) {
+  const ratio = tons / (area / 12);
+  if (ratio < 1.1) return '★★★★★ 5-star ideal';
+  if (ratio < 1.3) return '★★★★ 4-star good';
+  if (ratio < 1.6) return '★★★ 3-star ok';
+  return '★★ 2-star overloaded';
+}
+
+function computeCoverage() {
+  const { L, B } = state.room;
+  if (state.acUnits.length === 0) return 0;
+  const res = 20;
+  let covered = 0, total = res*res;
+  for (let i=0; i<res; i++) {
+    for (let j=0; j<res; j++) {
+      const wx = (i+0.5)/res*L, wz = (j+0.5)/res*B;
+      for (const ac of state.acUnits) {
+        const d = Math.sqrt((wx-ac.x)**2 + (wz-ac.z)**2);
+        if (d < acRadius(ac)) { covered++; break; }
+      }
+    }
+  }
+  return (covered/total) * 100;
+}
+
+// ============================================================
+//  TIPS
+// ============================================================
+const TIP_POOL = [
+  { icon:'❄', text:'Place AC on the wall opposite the main door for maximum airflow distribution.' },
+  { icon:'📐', text:'For rooms wider than 5m, consider 2 units on opposite walls for even cooling.' },
+  { icon:'🌡', text:'Each 1°C lower setpoint increases energy consumption by ~6%. 24°C is optimal.' },
+  { icon:'🏠', text:'Ceiling cassette ACs provide 360° airflow — best for square rooms.' },
+  { icon:'🪟', text:'Seal window gaps to reduce heat ingress. Can save 15-20% on cooling load.' },
+  { icon:'🌿', text:'Add insulated curtains on sun-facing windows to cut solar gain by 40%.' },
+  { icon:'📊', text:'5-star rated ACs use ~40% less power than 1-star for the same cooling.' },
+  { icon:'🔄', text:'Clean filters monthly — dirty filters reduce efficiency by up to 25%.' },
+  { icon:'🎯', text:'Inverter AC compressors adjust speed, maintaining temp with 30-50% less energy.' },
+  { icon:'💡', text:'LED lighting generates less heat than incandescent, reducing cooling load.' },
+];
+
+function updateTips() {
+  const tips = [];
+  const { L, B, H } = state.room;
+  if (L > 6 && state.acUnits.length < 2) tips.push({ icon:'⚠', text:`Room is ${L}m long — consider 2 AC units for full coverage.` });
+  if (state.conditions.sun && !state.conditions.insul) tips.push({ icon:'☀', text:'Sun-facing room with no insulation: add reflective film on windows.' });
+  if (state.room.type === 'kitchen') tips.push({ icon:'🍳', text:'Kitchen generates significant heat — increase recommended tons by 20%.' });
+  if (H > 3.5) tips.push({ icon:'📏', text:`High ceiling (${H}m): ceiling cassette AC recommended for downward flow.` });
+  // Fill with pool tips
+  let idx = 0;
+  while (tips.length < 5 && idx < TIP_POOL.length) {
+    tips.push(TIP_POOL[idx++]);
+  }
+  document.getElementById('tipsList').innerHTML = tips.slice(0,6).map(t => `
+    <div class="tip-item"><span class="tip-icon">${t.icon}</span><span>${t.text}</span></div>
+  `).join('');
+}
+
+// ============================================================
+//  CONTROLS
+// ============================================================
+function setView(v) {
+  state.view = v;
+  ['3d','top','side'].forEach(x => document.getElementById(`btn${x.charAt(0).toUpperCase()+x.slice(1)}`).classList.remove('active'));
+  // fix btn IDs
+  document.getElementById('btn3d').classList.toggle('active', v==='3d');
+  document.getElementById('btnTop').classList.toggle('active', v==='top');
+  document.getElementById('btnSide').classList.toggle('active', v==='side');
+}
+
+function toggleAirflow() {
+  state.showAirflow = !state.showAirflow;
+  document.getElementById('btnAirflow').style.color = state.showAirflow ? 'var(--cold)' : 'var(--muted)';
+  if (state.showAirflow) initParticles(); else state.particles=[];
+}
+
+function toggleHeatmap() {
+  state.showHeatmap = !state.showHeatmap;
+  document.getElementById('btnHeatmap').style.color = state.showHeatmap ? 'var(--warm)' : 'var(--muted)';
+}
+
+function toggleCond(key) {
+  state.conditions[key] = !state.conditions[key];
+  document.getElementById(`cond-${key}`).classList.toggle('active', state.conditions[key]);
+  updateRecommendation();
+}
+
+function updateOutdoorTemp(v) {
+  state.outdoorTemp = parseInt(v);
+  document.getElementById('outdoorTempVal').textContent = v + '°C';
+  updateRecommendation();
+}
+
+function updateOccupants(v) {
+  state.occupants = parseInt(v);
+  document.getElementById('occupantsVal').textContent = v;
+  updateRecommendation();
+}
+
+// ============================================================
+//  INIT & LOOP
+// ============================================================
+updateRoom();
+updateRecommendation();
+updateTips();
+
+// Auto-adjust cam distance
+state.cam.dist = Math.max(state.room.L, state.room.B) * 2.5;
+
+function loop() {
+  state.tick++;
+  drawScene();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
