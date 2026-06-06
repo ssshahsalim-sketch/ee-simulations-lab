@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Circuit Breaker Trip Curve Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111418;
+    --panel: #161b22;
+    --border: #2a3040;
+    --accent: #f5a623;
+    --accent2: #e84040;
+    --green: #2de08e;
+    --blue: #4a9eff;
+    --purple: #a855f7;
+    --text: #c8d0dc;
+    --text-dim: #5a6475;
+    --text-bright: #eef2f8;
+    --mono: 'Share Tech Mono', monospace;
+    --head: 'Barlow Condensed', sans-serif;
+    --body: 'Barlow', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* GRID BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(74,158,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,158,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+  /* HEADER */
+  header {
+    display: flex; align-items: center; gap: 20px;
+    padding: 18px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: 2px solid var(--accent);
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scanline 3s linear infinite;
+  }
+  @keyframes scanline {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  .header-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--accent) 0%, #c47f10 100%);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; flex-shrink: 0;
+    box-shadow: 0 0 20px rgba(245,166,35,0.3);
+  }
+  header h1 {
+    font-family: var(--head);
+    font-weight: 900; font-size: 28px; letter-spacing: 2px;
+    color: var(--text-bright); text-transform: uppercase;
+  }
+  header p {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-dim); letter-spacing: 1px; margin-top: 2px;
+  }
+  .header-badge {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--accent); border: 1px solid var(--accent);
+    padding: 4px 10px; border-radius: 2px;
+    background: rgba(245,166,35,0.05);
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+  @keyframes pulse-border {
+    0%,100% { box-shadow: 0 0 0 0 rgba(245,166,35,0.2); }
+    50% { box-shadow: 0 0 0 4px rgba(245,166,35,0.0); }
+  }
+
+  /* LAYOUT */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* PANELS */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--head);
+    font-weight: 700; font-size: 12px;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--text-dim);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-header .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  /* CURVE TOGGLES */
+  .curve-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .curve-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 2px; cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+  }
+  .curve-item:hover { border-color: var(--text-dim); }
+  .curve-item.active { border-color: var(--curve-color); background: rgba(255,255,255,0.03); }
+  .curve-check {
+    width: 16px; height: 16px; border-radius: 2px;
+    border: 2px solid var(--curve-color);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.2s;
+  }
+  .curve-item.active .curve-check { background: var(--curve-color); }
+  .curve-check::after { content: '✓'; font-size: 10px; color: #000; display: none; }
+  .curve-item.active .curve-check::after { display: block; }
+  .curve-label {
+    font-family: var(--head); font-weight: 700;
+    font-size: 22px; line-height: 1;
+    color: var(--curve-color);
+    text-shadow: 0 0 10px var(--curve-color);
+  }
+  .curve-meta { flex: 1; }
+  .curve-name { font-family: var(--mono); font-size: 10px; color: var(--text); }
+  .curve-range { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+
+  /* FAULT SIMULATOR */
+  .sim-body { padding: 16px; }
+  .sim-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 6px; }
+  .slider-wrap { position: relative; margin-bottom: 4px; }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 4px;
+    background: var(--border); border-radius: 2px; outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 8px var(--accent); cursor: pointer;
+    border: 2px solid #000;
+  }
+  .slider-val {
+    font-family: var(--mono); font-size: 20px; font-weight: bold;
+    color: var(--text-bright); margin: 6px 0 2px;
+  }
+  .slider-val span { font-size: 12px; color: var(--text-dim); }
+
+  /* TRIP STATUS DISPLAY */
+  .status-box {
+    margin-top: 16px; padding: 14px;
+    border: 1px solid var(--border); border-radius: 2px;
+    background: var(--surface);
+  }
+  .status-header { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 10px; }
+  .status-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .status-curve { font-family: var(--mono); font-size: 11px; }
+  .status-badge {
+    font-family: var(--mono); font-size: 9px; padding: 2px 8px;
+    border-radius: 1px; letter-spacing: 1px;
+  }
+  .badge-trips { background: rgba(232,64,64,0.2); color: var(--accent2); border: 1px solid var(--accent2); }
+  .badge-safe  { background: rgba(45,224,142,0.1); color: var(--green); border: 1px solid var(--green); }
+  .badge-delay { background: rgba(74,158,255,0.15); color: var(--blue); border: 1px solid var(--blue); }
+
+  /* CHART */
+  .chart-wrap { padding: 20px; }
+  #tripChart {
+    width: 100%; border-radius: 2px;
+    cursor: crosshair;
+    display: block;
+  }
+
+  /* INFO CARDS */
+  .info-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 12px; }
+  .info-card {
+    padding: 12px; border: 1px solid var(--border);
+    border-radius: 2px; background: var(--surface);
+    border-top: 2px solid var(--curve-color);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .info-card:hover { background: rgba(255,255,255,0.03); transform: translateY(-1px); }
+  .info-card-label {
+    font-family: var(--head); font-weight: 900;
+    font-size: 28px; color: var(--curve-color);
+    text-shadow: 0 0 12px var(--curve-color);
+    line-height: 1;
+  }
+  .info-card-title { font-family: var(--head); font-size: 10px; letter-spacing: 2px; color: var(--text-dim); margin: 4px 0; }
+  .info-card-desc { font-family: var(--body); font-size: 11px; color: var(--text); line-height: 1.5; }
+
+  /* TOOLTIP */
+  #tooltip {
+    position: fixed; pointer-events: none;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 2px;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text); opacity: 0;
+    transition: opacity 0.15s; z-index: 100;
+    min-width: 180px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip .tip-title { font-size: 10px; color: var(--text-dim); margin-bottom: 6px; letter-spacing: 1px; }
+  #tooltip .tip-row { display: flex; justify-content: space-between; gap: 20px; margin-top: 3px; }
+  #tooltip .tip-val { color: var(--text-bright); }
+
+  /* ANIMATED TRIP INDICATOR */
+  .trip-flash {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; margin-right: 6px;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: breathe 2s ease-in-out infinite;
+  }
+  .trip-flash.tripping {
+    background: var(--accent2);
+    box-shadow: 0 0 12px var(--accent2);
+    animation: flash 0.3s steps(1) infinite;
+  }
+  @keyframes breathe { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  @keyframes flash { 0%{opacity:1} 50%{opacity:0} }
+
+  /* LEGEND ROW */
+  .legend-row {
+    display: flex; gap: 16px; padding: 10px 20px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    flex-wrap: wrap; align-items: center;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+  .legend-line { width: 24px; height: 2px; border-radius: 1px; }
+  .legend-item .region-box { width: 14px; height: 14px; border-radius: 2px; opacity: 0.3; }
+
+  /* REGION LABELS */
+  .axis-label { font-family: var(--mono); font-size: 10px; fill: var(--text-dim); }
+
+  /* Bottom info */
+  .bottom-info { margin-top: 20px; padding: 16px 20px; background: var(--panel); border: 1px solid var(--border); }
+  .bottom-info h3 { font-family: var(--head); font-weight: 700; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+  .info-cols { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .info-col h4 { font-family: var(--mono); font-size: 10px; color: var(--accent); letter-spacing: 1px; margin-bottom: 6px; }
+  .info-col p { font-size: 12px; color: var(--text); line-height: 1.7; }
+
+  @media(max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .info-grid { grid-template-columns: repeat(3,1fr); }
+    .info-cols { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="header-icon">⚡</div>
+    <div>
+      <h1>Circuit Breaker Trip Curve Simulator</h1>
+      <p>IEC 60898 / EN 60898 — TIME-CURRENT CHARACTERISTICS — INTERACTIVE ANALYSIS TOOL</p>
+    </div>
+    <div class="header-badge">LIVE SIM</div>
+  </header>
+
+  <div class="main-grid">
+
+    <!-- LEFT PANEL -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <!-- CURVE SELECTOR -->
+      <div class="panel">
+        <div class="panel-header"><span class="dot"></span>CURVE SELECTION</div>
+        <div class="curve-list" id="curveList"></div>
+      </div>
+
+      <!-- FAULT SIMULATOR -->
+      <div class="panel">
+        <div class="panel-header"><span class="dot" style="background:var(--blue);box-shadow:0 0 6px var(--blue)"></span>FAULT SIMULATOR</div>
+        <div class="sim-body">
+          <div class="sim-label">RATED CURRENT (In)</div>
+          <div class="slider-wrap">
+            <input type="range" id="inSlider" min="1" max="100" value="16" step="1">
+          </div>
+          <div class="slider-val" id="inVal">16 <span>A (rated)</span></div>
+
+          <div class="sim-label" style="margin-top:14px;">FAULT CURRENT MULTIPLIER (×In)</div>
+          <div class="slider-wrap">
+            <input type="range" id="faultSlider" min="0.5" max="20" value="3" step="0.1">
+          </div>
+          <div class="slider-val" id="faultVal">3.0 <span>× In</span></div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:2px;">
+            = <span id="faultAbs" style="color:var(--text-bright)">48.0 A</span> absolute
+          </div>
+
+          <!-- STATUS -->
+          <div class="status-box">
+            <div class="status-header">● TRIP STATUS BY CURVE</div>
+            <div id="statusRows"></div>
+          </div>
+
+          <!-- OPERATING POINT READOUT -->
+          <div class="status-box" style="margin-top:10px;">
+            <div class="status-header">● CHART PROBE — HOVER OVER CHART</div>
+            <div id="probeReadout" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">Move cursor over the chart to read values.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div style="display:flex; flex-direction:column; gap:0;">
+      <div class="panel">
+        <div class="panel-header"><span class="dot"></span>TIME-CURRENT CHARACTERISTIC CHART <span style="margin-left:auto;font-size:9px;color:var(--text-dim)">LOG-LOG SCALE</span></div>
+        <div class="chart-wrap">
+          <canvas id="tripChart" height="520"></canvas>
+        </div>
+        <div class="legend-row" id="legendRow"></div>
+      </div>
+
+      <!-- INFO CARDS -->
+      <div class="panel" style="margin-top:16px;">
+        <div class="panel-header"><span class="dot"></span>CURVE REFERENCE GUIDE</div>
+        <div class="info-grid" id="infoGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM INFO -->
+  <div class="bottom-info">
+    <h3>How to Read Trip Curves</h3>
+    <div class="info-cols">
+      <div class="info-col">
+        <h4>X-AXIS — MULTIPLE OF RATED CURRENT (×In)</h4>
+        <p>The horizontal axis shows the fault current as a multiple of the breaker's rated current (In). A value of 1× means the circuit is carrying exactly its rated current. Values above 1× indicate overload or fault conditions.</p>
+      </div>
+      <div class="info-col">
+        <h4>Y-AXIS — TRIPPING TIME (seconds)</h4>
+        <p>The vertical axis shows how long before the breaker trips. Both axes use a logarithmic scale. The shaded band between two curves for each type represents the manufacturing tolerance — the breaker will trip somewhere within this band.</p>
+      </div>
+      <div class="info-col">
+        <h4>REGIONS EXPLAINED</h4>
+        <p><strong style="color:var(--green)">No-Trip Zone</strong>: Below 1×In — breaker stays closed. &nbsp;<strong style="color:var(--accent)">Thermal Zone</strong>: 1–5×In — bimetal strip bends and trips slowly. &nbsp;<strong style="color:var(--accent2)">Magnetic Zone</strong>: Above instantaneous threshold — breaker trips almost instantly (< 0.1s).</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="tooltip">
+  <div class="tip-title">OPERATING POINT</div>
+  <div class="tip-row"><span>Current multiple</span><span class="tip-val" id="tipX">—</span></div>
+  <div class="tip-row"><span>Trip time</span><span class="tip-val" id="tipY">—</span></div>
+  <div id="tipCurves"></div>
+</div>
+
+<script>
+// ─── CURVE DEFINITIONS ───────────────────────────────────────────────────────
+const CURVES = [
+  {
+    id: 'B', label: 'B', name: 'General Purpose / Resistive',
+    color: '#4a9eff', range: '3–5× In instantaneous',
+    desc: 'Sensitive trip. Best for resistive loads, long cable runs, household circuits. Trips at 3–5× In.',
+    instantMin: 3, instantMax: 5,
+  },
+  {
+    id: 'C', label: 'C', name: 'Standard / Mixed Loads',
+    color: '#2de08e', range: '5–10× In instantaneous',
+    desc: 'Most common type. Handles moderate inrush from motors, fluorescent lights, pumps. Trips at 5–10× In.',
+    instantMin: 5, instantMax: 10,
+  },
+  {
+    id: 'D', label: 'D', name: 'High Inrush / Transformers',
+    color: '#f5a623', range: '10–20× In instantaneous',
+    desc: 'High tolerance for surge currents. Used for transformers, solenoids, large motors with high inrush.',
+    instantMin: 10, instantMax: 20,
+  },
+  {
+    id: 'K', label: 'K', name: 'Motor / Inductive Loads',
+    color: '#a855f7', range: '8–14× In instantaneous',
+    desc: 'Similar to D but for motor loads. Designed for motors and welding transformers per DIN VDE.',
+    instantMin: 8, instantMax: 14,
+  },
+  {
+    id: 'Z', label: 'Z', name: 'Sensitive Electronics',
+    color: '#e84040', range: '2–3× In instantaneous',
+    desc: 'Most sensitive. Provides maximum equipment protection for semiconductors, measuring instruments.',
+    instantMin: 2, instantMax: 3,
+  },
+];
+
+// ─── TRIP TIME FUNCTION ───────────────────────────────────────────────────────
+// Returns [minTime, maxTime] for a given multiple x and curve
+function getTripTime(curve, x) {
+  // Below 1.0: no trip
+  if (x < 1.0) return [null, null];
+  // Above instantaneous threshold: instant trip
+  if (x >= curve.instantMax) return [0.01, 0.1];
+  // In instantaneous transition zone
+  if (x >= curve.instantMin) {
+    // Blends from thermal into instant
+    const t = (x - curve.instantMin) / (curve.instantMax - curve.instantMin);
+    const lo = Math.pow(10, lerp(Math.log10(getThermalTime(curve, x)[0]), Math.log10(0.01), t));
+    const hi = Math.pow(10, lerp(Math.log10(getThermalTime(curve, x)[1]), Math.log10(0.1), t));
+    return [lo, hi];
+  }
+  // Thermal zone
+  return getThermalTime(curve, x);
+}
+
+function getThermalTime(curve, x) {
+  // Thermal trip model: t = k / (x^2 - 1)
+  // k varies per curve to reflect different bimetal sensitivities
+  const k = { B: 45, C: 70, D: 120, K: 95, Z: 28 }[curve.id];
+  const tolerance = { B: 0.3, C: 0.35, D: 0.4, K: 0.4, Z: 0.25 }[curve.id];
+  if (x <= 1.0) return [Infinity, Infinity];
+  const base = k / (x * x - 1);
+  const tMin = Math.max(0.1, base * (1 - tolerance));
+  const tMax = Math.min(10000, base * (1 + tolerance));
+  return [tMin, tMax];
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const state = {
+  active: new Set(['B','C','D','K','Z']),
+  In: 16,
+  faultMult: 3.0,
+};
+
+// ─── BUILD LEFT PANEL ────────────────────────────────────────────────────────
+function buildCurveList() {
+  const list = document.getElementById('curveList');
+  list.innerHTML = '';
+  CURVES.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'curve-item' + (state.active.has(c.id) ? ' active' : '');
+    item.style.setProperty('--curve-color', c.color);
+    item.innerHTML = `
+      <div class="curve-check"></div>
+      <div class="curve-label">${c.label}</div>
+      <div class="curve-meta">
+        <div class="curve-name">${c.name}</div>
+        <div class="curve-range">${c.range}</div>
+      </div>`;
+    item.addEventListener('click', () => {
+      if (state.active.has(c.id)) state.active.delete(c.id);
+      else state.active.add(c.id);
+      buildCurveList();
+      buildLegend();
+      drawChart();
+      updateStatus();
+    });
+    list.appendChild(item);
+  });
+}
+
+// ─── INFO CARDS ───────────────────────────────────────────────────────────────
+function buildInfoCards() {
+  const grid = document.getElementById('infoGrid');
+  grid.innerHTML = '';
+  CURVES.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'info-card';
+    card.style.setProperty('--curve-color', c.color);
+    card.innerHTML = `
+      <div class="info-card-label">${c.label}</div>
+      <div class="info-card-title">${c.name}</div>
+      <div class="info-card-desc">${c.desc}</div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ─── LEGEND ───────────────────────────────────────────────────────────────────
+function buildLegend() {
+  const row = document.getElementById('legendRow');
+  row.innerHTML = '<span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-right:8px;">LEGEND:</span>';
+  CURVES.filter(c => state.active.has(c.id)).forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="legend-line" style="background:${c.color}"></div><span style="color:${c.color}">${c.id}</span><span>${c.name}</span>`;
+    row.appendChild(item);
+  });
+  const regions = [
+    { label: 'Thermal zone', color: 'var(--accent)' },
+    { label: 'Instant zone', color: 'var(--accent2)' },
+  ];
+  regions.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.style.marginLeft = '12px';
+    item.innerHTML = `<div class="region-box" style="background:${r.color}"></div><span>${r.label}</span>`;
+    row.appendChild(item);
+  });
+}
+
+// ─── STATUS PANEL ─────────────────────────────────────────────────────────────
+function updateStatus() {
+  const rows = document.getElementById('statusRows');
+  rows.innerHTML = '';
+  const x = state.faultMult;
+  CURVES.filter(c => state.active.has(c.id)).forEach(c => {
+    const [tMin, tMax] = getTripTime(c, x);
+    let badge, badgeClass;
+    if (tMin === null) {
+      badge = 'NO TRIP'; badgeClass = 'badge-safe';
+    } else if (tMax <= 0.1) {
+      badge = 'INSTANT'; badgeClass = 'badge-trips';
+    } else {
+      badge = `${tMin.toFixed(1)}–${tMax.toFixed(1)}s`; badgeClass = 'badge-delay';
+    }
+    const isTripping = tMin !== null;
+    const row = document.createElement('div');
+    row.className = 'status-row';
+    row.innerHTML = `
+      <span class="status-curve" style="color:${c.color}">
+        <span class="trip-flash ${isTripping ? 'tripping' : ''}"></span>
+        Curve ${c.id}
+      </span>
+      <span class="status-badge ${badgeClass}">${badge}</span>`;
+    rows.appendChild(row);
+  });
+  if (rows.innerHTML === '') {
+    rows.innerHTML = '<span style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">No curves selected</span>';
+  }
+}
+
+// ─── CHART ────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('tripChart');
+const ctx = canvas.getContext('2d');
+let W, H;
+const PAD = { top: 30, right: 30, bottom: 60, left: 75 };
+
+// Log scale mapping
+const X_MIN = 0.5, X_MAX = 25;   // × In
+const Y_MIN = 0.01, Y_MAX = 10000; // seconds
+
+function xToCanvas(x) {
+  const t = (Math.log10(x) - Math.log10(X_MIN)) / (Math.log10(X_MAX) - Math.log10(X_MIN));
+  return PAD.left + t * (W - PAD.left - PAD.right);
+}
+function yToCanvas(y) {
+  const t = (Math.log10(y) - Math.log10(Y_MIN)) / (Math.log10(Y_MAX) - Math.log10(Y_MIN));
+  return H - PAD.bottom - t * (H - PAD.top - PAD.bottom);
+}
+function canvasToX(cx) {
+  const t = (cx - PAD.left) / (W - PAD.left - PAD.right);
+  return Math.pow(10, t * (Math.log10(X_MAX) - Math.log10(X_MIN)) + Math.log10(X_MIN));
+}
+function canvasToY(cy) {
+  const t = (H - PAD.bottom - cy) / (H - PAD.top - PAD.bottom);
+  return Math.pow(10, t * (Math.log10(Y_MAX) - Math.log10(Y_MIN)) + Math.log10(Y_MIN));
+}
+
+function drawChart() {
+  W = canvas.clientWidth || 700;
+  H = canvas.height;
+  canvas.width = W;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  const xTicks = [0.5,1,2,3,5,7,10,15,20,25];
+  const yTicks = [0.01,0.1,0.5,1,5,10,30,60,120,300,600,1000,3600,10000];
+
+  ctx.lineWidth = 0.5;
+  xTicks.forEach(x => {
+    const cx = xToCanvas(x);
+    ctx.strokeStyle = x === 1 ? 'rgba(74,158,255,0.3)' : 'rgba(255,255,255,0.06)';
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(cx, PAD.top); ctx.lineTo(cx, H - PAD.bottom); ctx.stroke();
+  });
+  yTicks.forEach(y => {
+    const cy = yToCanvas(y);
+    if (cy < PAD.top || cy > H - PAD.bottom) return;
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.beginPath(); ctx.moveTo(PAD.left, cy); ctx.lineTo(W - PAD.right, cy); ctx.stroke();
+  });
+
+  // Zone shading: thermal region
+  const thermalStart = xToCanvas(1.0);
+  const thermalEnd = xToCanvas(X_MAX);
+  const instantThresholds = [2, 3, 5, 8, 10, 14, 20];
+
+  // Thermal zone (subtle orange overlay 1-5x)
+  ctx.fillStyle = 'rgba(245,166,35,0.04)';
+  ctx.fillRect(thermalStart, PAD.top, xToCanvas(5) - thermalStart, H - PAD.bottom - PAD.top);
+
+  // Instantaneous zone (subtle red overlay 5-25x)
+  ctx.fillStyle = 'rgba(232,64,64,0.04)';
+  ctx.fillRect(xToCanvas(5), PAD.top, thermalEnd - xToCanvas(5), H - PAD.bottom - PAD.top);
+
+  // 1× In vertical line
+  ctx.strokeStyle = 'rgba(74,158,255,0.5)';
+  ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+  const cx1 = xToCanvas(1.0);
+  ctx.beginPath(); ctx.moveTo(cx1, PAD.top); ctx.lineTo(cx1, H - PAD.bottom); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(74,158,255,0.7)';
+  ctx.font = '9px Share Tech Mono';
+  ctx.fillText('1× In', cx1 + 4, PAD.top + 12);
+
+  // DRAW CURVES
+  const pts = 300;
+  CURVES.filter(c => state.active.has(c.id)).forEach(c => {
+    // Band (min to max)
+    ctx.beginPath();
+    let first = true;
+    for (let i = 0; i <= pts; i++) {
+      const logX = Math.log10(X_MIN) + i / pts * (Math.log10(X_MAX) - Math.log10(X_MIN));
+      const x = Math.pow(10, logX);
+      const [tMin] = getTripTime(c, x);
+      if (tMin === null || tMin === Infinity) continue;
+      const cy = yToCanvas(Math.max(Y_MIN, Math.min(Y_MAX, tMin)));
+      const cx = xToCanvas(x);
+      if (first) { ctx.moveTo(cx, cy); first = false; }
+      else ctx.lineTo(cx, cy);
+    }
+    for (let i = pts; i >= 0; i--) {
+      const logX = Math.log10(X_MIN) + i / pts * (Math.log10(X_MAX) - Math.log10(X_MIN));
+      const x = Math.pow(10, logX);
+      const [, tMax] = getTripTime(c, x);
+      if (tMax === null || tMax === Infinity) continue;
+      const cy = yToCanvas(Math.max(Y_MIN, Math.min(Y_MAX, tMax)));
+      ctx.lineTo(xToCanvas(x), cy);
+    }
+    ctx.closePath();
+    const col = c.color;
+    ctx.fillStyle = col + '22';
+    ctx.fill();
+
+    // Lower edge (min trip time)
+    ctx.beginPath(); first = true;
+    for (let i = 0; i <= pts; i++) {
+      const logX = Math.log10(X_MIN) + i / pts * (Math.log10(X_MAX) - Math.log10(X_MIN));
+      const x = Math.pow(10, logX);
+      const [tMin] = getTripTime(c, x);
+      if (tMin === null || tMin === Infinity) continue;
+      const cy = yToCanvas(Math.max(Y_MIN, Math.min(Y_MAX, tMin)));
+      const cx = xToCanvas(x);
+      if (first) { ctx.moveTo(cx, cy); first = false; } else ctx.lineTo(cx, cy);
+    }
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.setLineDash([3,2]); ctx.stroke();
+
+    // Upper edge (max trip time)
+    ctx.beginPath(); first = true;
+    for (let i = 0; i <= pts; i++) {
+      const logX = Math.log10(X_MIN) + i / pts * (Math.log10(X_MAX) - Math.log10(X_MIN));
+      const x = Math.pow(10, logX);
+      const [, tMax] = getTripTime(c, x);
+      if (tMax === null || tMax === Infinity) continue;
+      const cy = yToCanvas(Math.max(Y_MIN, Math.min(Y_MAX, tMax)));
+      const cx = xToCanvas(x);
+      if (first) { ctx.moveTo(cx, cy); first = false; } else ctx.lineTo(cx, cy);
+    }
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.setLineDash([]); ctx.stroke();
+
+    // Curve label at right edge
+    const [tMid] = getTripTime(c, 18);
+    if (tMid && tMid !== Infinity) {
+      const ly = yToCanvas(Math.max(Y_MIN, Math.min(Y_MAX, tMid)));
+      ctx.fillStyle = col;
+      ctx.font = 'bold 13px Barlow Condensed';
+      ctx.fillText(c.id, W - PAD.right - 18, ly + 4);
+    }
+  });
+
+  // FAULT LINE
+  const fx = state.faultMult;
+  if (fx >= X_MIN && fx <= X_MAX) {
+    const fcx = xToCanvas(fx);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1; ctx.setLineDash([2,3]);
+    ctx.beginPath(); ctx.moveTo(fcx, PAD.top); ctx.lineTo(fcx, H - PAD.bottom); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Fault dots on each active curve
+    CURVES.filter(c => state.active.has(c.id)).forEach(c => {
+      const [tMin, tMax] = getTripTime(c, fx);
+      if (tMin === null || tMin === Infinity) return;
+      const tMid = Math.sqrt(tMin * tMax);
+      const cy = yToCanvas(Math.max(Y_MIN, Math.min(Y_MAX, tMid)));
+      ctx.beginPath();
+      ctx.arc(fcx, cy, 5, 0, Math.PI * 2);
+      ctx.fillStyle = c.color;
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+
+    // Label
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '9px Share Tech Mono';
+    ctx.fillText(`${fx.toFixed(1)}×`, fcx + 4, PAD.top + 24);
+  }
+
+  // AXES
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1; ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(PAD.left, PAD.top); ctx.lineTo(PAD.left, H - PAD.bottom);
+  ctx.lineTo(W - PAD.right, H - PAD.bottom); ctx.stroke();
+
+  // X axis labels
+  ctx.fillStyle = '#5a6475'; ctx.font = '10px Share Tech Mono'; ctx.textAlign = 'center';
+  xTicks.forEach(x => {
+    const cx = xToCanvas(x);
+    if (cx < PAD.left || cx > W - PAD.right) return;
+    ctx.fillText(x + '×', cx, H - PAD.bottom + 18);
+  });
+
+  // Y axis labels
+  ctx.textAlign = 'right';
+  yTicks.forEach(y => {
+    const cy = yToCanvas(y);
+    if (cy < PAD.top || cy > H - PAD.bottom) return;
+    let label;
+    if (y >= 3600) label = (y/3600).toFixed(0) + 'h';
+    else if (y >= 60) label = (y/60).toFixed(0) + 'm';
+    else if (y < 1) label = y + 's';
+    else label = y + 's';
+    ctx.fillText(label, PAD.left - 8, cy + 4);
+  });
+
+  // Axis titles
+  ctx.save();
+  ctx.translate(14, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#3a4455';
+  ctx.font = '10px Share Tech Mono';
+  ctx.fillText('TRIPPING TIME', 0, 0);
+  ctx.restore();
+
+  ctx.textAlign = 'center'; ctx.fillStyle = '#3a4455';
+  ctx.font = '10px Share Tech Mono';
+  ctx.fillText('FAULT CURRENT (× RATED CURRENT In)', PAD.left + (W - PAD.left - PAD.right) / 2, H - 8);
+}
+
+// ─── HOVER PROBE ─────────────────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  if (mx < PAD.left || mx > W - PAD.right || my < PAD.top || my > H - PAD.bottom) {
+    tooltip.classList.remove('visible');
+    return;
+  }
+  const x = canvasToX(mx);
+  const y = canvasToY(my);
+  document.getElementById('tipX').textContent = x.toFixed(2) + '× In';
+  document.getElementById('tipY').textContent = formatTime(y);
+
+  let html = '';
+  CURVES.filter(c => state.active.has(c.id)).forEach(c => {
+    const [tMin, tMax] = getTripTime(c, x);
+    let status;
+    if (tMin === null) status = `<span style="color:#2de08e">No trip</span>`;
+    else if (tMax <= 0.1) status = `<span style="color:#e84040">Instant</span>`;
+    else status = `<span style="color:${c.color}">${tMin.toFixed(2)}–${tMax.toFixed(2)}s</span>`;
+    html += `<div class="tip-row"><span style="color:${c.color}">Curve ${c.id}</span>${status}</div>`;
+  });
+  document.getElementById('tipCurves').innerHTML = html;
+
+  // Update probe readout panel
+  document.getElementById('probeReadout').innerHTML =
+    `<span style="color:var(--text-bright)">${x.toFixed(2)}× In</span> → <span style="color:var(--accent)">${formatTime(y)}</span>`;
+
+  tooltip.style.left = (e.clientX + 16) + 'px';
+  tooltip.style.top = (e.clientY - 20) + 'px';
+  tooltip.classList.add('visible');
+});
+canvas.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+
+function formatTime(s) {
+  if (s >= 3600) return (s / 3600).toFixed(2) + ' h';
+  if (s >= 60) return (s / 60).toFixed(2) + ' min';
+  return s.toFixed(3) + ' s';
+}
+
+// ─── SLIDERS ─────────────────────────────────────────────────────────────────
+const inSlider = document.getElementById('inSlider');
+const faultSlider = document.getElementById('faultSlider');
+
+inSlider.addEventListener('input', () => {
+  state.In = +inSlider.value;
+  document.getElementById('inVal').innerHTML = `${state.In} <span>A (rated)</span>`;
+  updateFaultAbs();
+  updateStatus();
+});
+
+faultSlider.addEventListener('input', () => {
+  state.faultMult = +faultSlider.value;
+  document.getElementById('faultVal').innerHTML = `${state.faultMult.toFixed(1)} <span>× In</span>`;
+  updateFaultAbs();
+  drawChart();
+  updateStatus();
+});
+
+function updateFaultAbs() {
+  document.getElementById('faultAbs').textContent = (state.In * state.faultMult).toFixed(1) + ' A';
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+buildCurveList();
+buildInfoCards();
+buildLegend();
+updateStatus();
+updateFaultAbs();
+drawChart();
+
+window.addEventListener('resize', () => { drawChart(); });
+</script>
+</body>
+</html>
