@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resistor Color Code Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #12110f;
+    --surface: #1c1a17;
+    --surface2: #242118;
+    --border: #333028;
+    --accent: #e8c547;
+    --accent2: #c47c2b;
+    --text: #e8e0d0;
+    --dim: #7a7060;
+    --resistor-body: #d4c4a0;
+    --resistor-dark: #b8a888;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    padding: 0 0 60px;
+    background-image:
+      radial-gradient(ellipse at 10% 20%, rgba(232,197,71,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 80%, rgba(196,124,43,0.05) 0%, transparent 50%);
+  }
+
+  /* HEADER */
+  header {
+    padding: 36px 40px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .brand-tag {
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(20px, 3.5vw, 30px);
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+  }
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  /* BAND SELECTOR */
+  .band-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .band-selector label {
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .band-btns {
+    display: flex;
+    gap: 4px;
+  }
+  .band-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-radius: 3px;
+  }
+  .band-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .band-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+  }
+
+  /* MAIN */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  /* RESISTOR VISUAL */
+  .resistor-stage {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 36px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .resistor-stage::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+  }
+
+  .resistor-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 0;
+  }
+
+  /* SVG Resistor */
+  .resistor-svg-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  svg#resistor {
+    width: min(600px, 90vw);
+    height: auto;
+    filter: drop-shadow(0 8px 24px rgba(0,0,0,0.5));
+    transition: all 0.3s ease;
+  }
+
+  /* Band labels under resistor */
+  .band-labels {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    width: min(600px, 90vw);
+    padding: 0 120px;
+  }
+  .band-label {
+    flex: 1;
+    text-align: center;
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .band-label .lnum {
+    font-size: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 1px 5px;
+    color: var(--accent);
+  }
+
+  /* RESULT BOX */
+  .result-box {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 28px;
+    width: 100%;
+    max-width: 560px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .result-main {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(24px, 5vw, 40px);
+    font-weight: 800;
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(232,197,71,0.3);
+    letter-spacing: -1px;
+    line-height: 1;
+    transition: all 0.3s;
+  }
+  .result-sub {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .result-row {
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 1px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .result-row span {
+    color: var(--text);
+    font-size: 12px;
+  }
+  .result-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border);
+  }
+
+  /* COLOR PICKERS */
+  .pickers-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .pickers-label {
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .pickers-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .pickers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .picker-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.2s;
+  }
+  .picker-card:hover { border-color: #555; }
+  .picker-card.active-card { border-color: var(--accent); }
+
+  .picker-name {
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .picker-name strong {
+    display: block;
+    font-size: 11px;
+    color: var(--text);
+    margin-top: 2px;
+    letter-spacing: 0;
+  }
+
+  .color-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .color-swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.15s;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .color-swatch:hover {
+    transform: scale(1.15);
+    z-index: 2;
+  }
+  .color-swatch.selected {
+    border-color: #fff;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.3), 0 0 10px rgba(255,255,255,0.2);
+    transform: scale(1.1);
+  }
+  .color-swatch[data-color="none"] {
+    background: repeating-linear-gradient(45deg, #333, #333 3px, #222 3px, #222 6px) !important;
+  }
+
+  /* SELECTED COLOR DISPLAY */
+  .selected-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sel-dot {
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.2);
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .sel-name {
+    font-size: 11px;
+    color: var(--text);
+    text-transform: capitalize;
+  }
+
+  /* REFERENCE TABLE */
+  .reference-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .ref-title {
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ref-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    overflow-x: auto;
+    display: block;
+  }
+  .ref-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .ref-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(51,48,40,0.5);
+    white-space: nowrap;
+    color: var(--text);
+  }
+  .ref-table tr:last-child td { border-bottom: none; }
+  .ref-table tr:hover td { background: rgba(255,255,255,0.03); }
+
+  .color-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+  }
+  .color-pill .pill-dot {
+    width: 14px; height: 14px;
+    border-radius: 2px;
+    display: inline-block;
+    border: 1px solid rgba(255,255,255,0.15);
+    flex-shrink: 0;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+  .pop { animation: pop 0.25s ease; }
+
+  @media (max-width: 600px) {
+    header { padding: 24px 16px 20px; }
+    main { padding: 20px 12px; }
+    .pickers-grid { grid-template-columns: 1fr 1fr; }
+    .band-labels { padding: 0 80px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-tag">Electronics Tool</div>
+    <h1>Resistor <em>Color Code</em> Calculator</h1>
+  </div>
+  <div class="band-selector">
+    <label>Bands:</label>
+    <div class="band-btns">
+      <button class="band-btn" data-bands="3" onclick="setBands(3)">3</button>
+      <button class="band-btn active" data-bands="4" onclick="setBands(4)">4</button>
+      <button class="band-btn" data-bands="5" onclick="setBands(5)">5</button>
+      <button class="band-btn" data-bands="6" onclick="setBands(6)">6</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- RESISTOR VISUAL + RESULT -->
+  <div class="resistor-stage">
+    <div class="resistor-svg-container">
+      <svg id="resistor" viewBox="0 0 600 120" xmlns="http://www.w3.org/2000/svg">
+        <!-- Leads -->
+        <line x1="0" y1="60" x2="110" y2="60" stroke="#aaa" stroke-width="3" stroke-linecap="round"/>
+        <line x1="490" y1="60" x2="600" y2="60" stroke="#aaa" stroke-width="3" stroke-linecap="round"/>
+        <!-- Body shadow -->
+        <rect x="108" y="28" width="384" height="68" rx="28" fill="rgba(0,0,0,0.3)" transform="translate(3,4)"/>
+        <!-- Body -->
+        <rect id="res-body" x="108" y="24" width="384" height="68" rx="28" fill="#d4c4a0"/>
+        <!-- Body shading -->
+        <rect x="108" y="24" width="384" height="20" rx="28" fill="rgba(255,255,255,0.25)"/>
+        <rect x="108" y="72" width="384" height="20" rx="28" fill="rgba(0,0,0,0.15)"/>
+        <!-- Bands - filled by JS -->
+        <g id="bands-group"></g>
+        <!-- Tolerance gap indicator (4-band style) -->
+        <g id="gap-indicator"></g>
+      </svg>
+    </div>
+    <div class="band-labels" id="band-labels"></div>
+
+    <!-- RESULT -->
+    <div class="result-box">
+      <div class="result-main" id="result-ohm">—</div>
+      <div class="result-divider"></div>
+      <div class="result-sub">
+        <div class="result-row">TOLERANCE <span id="result-tol">—</span></div>
+        <div class="result-row">TEMP. COEFF <span id="result-temp">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLOR PICKERS -->
+  <div class="pickers-section">
+    <div class="pickers-label">Select Band Colors</div>
+    <div class="pickers-grid" id="pickers-grid"></div>
+  </div>
+
+  <!-- REFERENCE TABLE -->
+  <div class="reference-section">
+    <div class="ref-title">Color Code Reference</div>
+    <table class="ref-table">
+      <thead>
+        <tr>
+          <th>Color</th>
+          <th>Digit 1</th>
+          <th>Digit 2</th>
+          <th>Digit 3</th>
+          <th>Multiplier</th>
+          <th>Tolerance</th>
+          <th>Temp. Coeff (ppm/K)</th>
+        </tr>
+      </thead>
+      <tbody id="ref-tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+const COLORS = [
+  { name: 'black',  hex: '#1a1a1a', digit: 0, mult: 1,        tol: null,    temp: 250 },
+  { name: 'brown',  hex: '#8B4513', digit: 1, mult: 10,       tol: '±1%',   temp: 100 },
+  { name: 'red',    hex: '#cc2200', digit: 2, mult: 100,      tol: '±2%',   temp: 50  },
+  { name: 'orange', hex: '#e07000', digit: 3, mult: 1000,     tol: null,    temp: 15  },
+  { name: 'yellow', hex: '#ddb800', digit: 4, mult: 10000,    tol: null,    temp: 25  },
+  { name: 'green',  hex: '#2e8b2e', digit: 5, mult: 100000,   tol: '±0.5%', temp: 20  },
+  { name: 'blue',   hex: '#1a50cc', digit: 6, mult: 1000000,  tol: '±0.25%',temp: 10  },
+  { name: 'violet', hex: '#8b008b', digit: 7, mult: 10000000, tol: '±0.1%', temp: 5   },
+  { name: 'grey',   hex: '#808080', digit: 8, mult: 100000000,tol: '±0.05%',temp: 1   },
+  { name: 'white',  hex: '#e8e8e8', digit: 9, mult: 1000000000,tol: null,   temp: null},
+  { name: 'gold',   hex: '#c8a800', digit: null, mult: 0.1,   tol: '±5%',   temp: null},
+  { name: 'silver', hex: '#b0b0b0', digit: null, mult: 0.01,  tol: '±10%',  temp: null},
+  { name: 'none',   hex: null,      digit: null, mult: null,  tol: '±20%',  temp: null},
+];
+
+const colorMap = {};
+COLORS.forEach(c => colorMap[c.name] = c);
+
+// Band config per mode
+const BAND_CONFIG = {
+  3: [
+    { id: 'b1', label: 'Digit 1', role: 'digit', allowed: d => d.digit !== null },
+    { id: 'b2', label: 'Digit 2', role: 'digit', allowed: d => d.digit !== null },
+    { id: 'b3', label: 'Multiplier', role: 'mult', allowed: d => d.mult !== null },
+  ],
+  4: [
+    { id: 'b1', label: 'Digit 1',    role: 'digit', allowed: d => d.digit !== null },
+    { id: 'b2', label: 'Digit 2',    role: 'digit', allowed: d => d.digit !== null },
+    { id: 'b3', label: 'Multiplier', role: 'mult',  allowed: d => d.mult !== null },
+    { id: 'b4', label: 'Tolerance',  role: 'tol',   allowed: d => d.tol !== null || d.name === 'none' },
+  ],
+  5: [
+    { id: 'b1', label: 'Digit 1',    role: 'digit', allowed: d => d.digit !== null },
+    { id: 'b2', label: 'Digit 2',    role: 'digit', allowed: d => d.digit !== null },
+    { id: 'b3', label: 'Digit 3',    role: 'digit', allowed: d => d.digit !== null },
+    { id: 'b4', label: 'Multiplier', role: 'mult',  allowed: d => d.mult !== null },
+    { id: 'b5', label: 'Tolerance',  role: 'tol',   allowed: d => d.tol !== null || d.name === 'none' },
+  ],
+  6: [
+    { id: 'b1', label: 'Digit 1',    role: 'digit', allowed: d => d.digit !== null },
+    { id: 'b2', label: 'Digit 2',    role: 'digit', allowed: d => d.digit !== null },
+    { id: 'b3', label: 'Digit 3',    role: 'digit', allowed: d => d.digit !== null },
+    { id: 'b4', label: 'Multiplier', role: 'mult',  allowed: d => d.mult !== null },
+    { id: 'b5', label: 'Tolerance',  role: 'tol',   allowed: d => d.tol !== null || d.name === 'none' },
+    { id: 'b6', label: 'Temp. Coeff',role: 'temp',  allowed: d => d.temp !== null },
+  ],
+};
+
+// Defaults
+const DEFAULTS = {
+  3: ['orange','orange','brown'],
+  4: ['orange','orange','black','gold'],
+  5: ['green','red','black','black','brown'],
+  6: ['orange','red','black','black','brown','brown'],
+};
+
+let numBands = 4;
+let selections = { b1:'orange', b2:'orange', b3:'black', b4:'gold', b5:null, b6:null };
+
+function setBands(n) {
+  numBands = n;
+  document.querySelectorAll('.band-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.bands) === n));
+  const defs = DEFAULTS[n];
+  const ids = ['b1','b2','b3','b4','b5','b6'];
+  ids.forEach((id, i) => selections[id] = i < defs.length ? defs[i] : null);
+  renderPickers();
+  drawResistor();
+  calculate();
+}
+
+// Format ohm value
+function formatOhm(val) {
+  if (val === null || isNaN(val)) return '—';
+  function trim(n) {
+    // Remove unnecessary trailing zeros after decimal point only
+    return parseFloat(n.toFixed(6)).toString();
+  }
+  if (val >= 1e9) return trim(val / 1e9) + ' GΩ';
+  if (val >= 1e6) return trim(val / 1e6) + ' MΩ';
+  if (val >= 1e3) return trim(val / 1e3) + ' kΩ';
+  return trim(val) + ' Ω';
+}
+
+function calculate() {
+  const config = BAND_CONFIG[numBands];
+  const digitBands = config.filter(b => b.role === 'digit');
+  const multBand = config.find(b => b.role === 'mult');
+  const tolBand = config.find(b => b.role === 'tol');
+  const tempBand = config.find(b => b.role === 'temp');
+
+  let digits = digitBands.map(b => {
+    const col = colorMap[selections[b.id]];
+    return col && col.digit !== null ? col.digit : null;
+  });
+
+  let mult = multBand ? (colorMap[selections[multBand.id]] || {}).mult : null;
+  let tol = tolBand ? ((colorMap[selections[tolBand.id]] || {}).tol || '±20%') : null;
+  let temp = tempBand ? ((colorMap[selections[tempBand.id]] || {}).temp) : null;
+
+  const resEl = document.getElementById('result-ohm');
+  const tolEl = document.getElementById('result-tol');
+  const tmpEl = document.getElementById('result-temp');
+
+  if (digits.some(d => d === null) || mult === null) {
+    resEl.textContent = '—';
+    tolEl.textContent = tol || '—';
+    tmpEl.textContent = temp ? temp + ' ppm/K' : '—';
+    return;
+  }
+
+  let baseValue = 0;
+  digits.forEach(d => { baseValue = baseValue * 10 + d; });
+  const resistance = baseValue * mult;
+
+  resEl.classList.remove('pop');
+  void resEl.offsetWidth;
+  resEl.classList.add('pop');
+  resEl.textContent = formatOhm(resistance);
+  tolEl.textContent = tol || '—';
+  tmpEl.textContent = temp ? temp + ' ppm/K' : '—';
+}
+
+function renderPickers() {
+  const config = BAND_CONFIG[numBands];
+  const grid = document.getElementById('pickers-grid');
+  grid.innerHTML = '';
+
+  config.forEach(band => {
+    const sel = selections[band.id];
+    const selColor = sel ? colorMap[sel] : null;
+
+    const card = document.createElement('div');
+    card.className = 'picker-card';
+    card.id = 'card-' + band.id;
+
+    const allowedColors = COLORS.filter(band.allowed);
+
+    card.innerHTML = `
+      <div class="picker-name">Band ${band.id.replace('b','')} <strong>${band.label}</strong></div>
+      <div class="color-options" id="opts-${band.id}"></div>
+      <div class="selected-display">
+        <div class="sel-dot" id="dot-${band.id}" style="background:${selColor ? selColor.hex || '#444' : '#333'}"></div>
+        <div class="sel-name" id="selname-${band.id}">${sel || '—'}</div>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    const optsEl = card.querySelector('#opts-' + band.id);
+    allowedColors.forEach(c => {
+      const sw = document.createElement('div');
+      sw.className = 'color-swatch' + (sel === c.name ? ' selected' : '');
+      sw.dataset.color = c.name;
+      sw.dataset.band = band.id;
+      sw.style.background = c.hex || 'none';
+      if (c.name === 'white') sw.style.border = '2px solid ' + (sel === c.name ? '#fff' : '#555');
+      sw.title = c.name;
+      sw.onclick = () => selectColor(band.id, c.name);
+      optsEl.appendChild(sw);
+    });
+  });
+}
+
+function selectColor(bandId, colorName) {
+  selections[bandId] = colorName;
+  const col = colorMap[colorName];
+
+  // Update swatch highlights
+  const opts = document.getElementById('opts-' + bandId);
+  opts.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.classList.toggle('selected', sw.dataset.color === colorName);
+  });
+
+  // Update dot + name
+  document.getElementById('dot-' + bandId).style.background = col.hex || '#444';
+  document.getElementById('selname-' + bandId).textContent = colorName;
+
+  drawResistor();
+  calculate();
+}
+
+// Band positions in SVG (viewBox 0 0 600 120, body x=108 w=384)
+function getBandPositions(n) {
+  const bodyStart = 115;
+  const bodyEnd = 485;
+  const bodyLen = bodyEnd - bodyStart;
+  const bandW = 30;
+
+  if (n === 3) {
+    // 3 bands evenly left portion
+    const positions = [0.18, 0.38, 0.58].map(r => bodyStart + bodyLen * r);
+    return positions.map(x => ({ x: x - bandW/2, w: bandW }));
+  }
+  if (n === 4) {
+    // 3 left, 1 right with gap
+    const left = [0.16, 0.32, 0.48].map(r => bodyStart + bodyLen * r);
+    const right = [bodyStart + bodyLen * 0.72];
+    return [...left, ...right].map(x => ({ x: x - bandW/2, w: bandW }));
+  }
+  if (n === 5) {
+    const pos = [0.14, 0.28, 0.42, 0.58, 0.76].map(r => bodyStart + bodyLen * r);
+    return pos.map(x => ({ x: x - bandW/2, w: bandW }));
+  }
+  if (n === 6) {
+    const pos = [0.12, 0.24, 0.36, 0.50, 0.66, 0.80].map(r => bodyStart + bodyLen * r);
+    return pos.map(x => ({ x: x - bandW/2, w: bandW }));
+  }
+}
+
+function drawResistor() {
+  const config = BAND_CONFIG[numBands];
+  const positions = getBandPositions(numBands);
+  const bandsGroup = document.getElementById('bands-group');
+  bandsGroup.innerHTML = '';
+
+  config.forEach((band, i) => {
+    const col = colorMap[selections[band.id]];
+    if (!col || !col.hex) return;
+    const pos = positions[i];
+    // Clip to body rounded rect
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', pos.x);
+    rect.setAttribute('y', 24);
+    rect.setAttribute('width', pos.w);
+    rect.setAttribute('height', 68);
+    rect.setAttribute('fill', col.hex);
+    rect.setAttribute('opacity', '0.92');
+    bandsGroup.appendChild(rect);
+    // Highlight strip
+    const hi = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hi.setAttribute('x', pos.x);
+    hi.setAttribute('y', 24);
+    hi.setAttribute('width', pos.w);
+    hi.setAttribute('height', 18);
+    hi.setAttribute('fill', 'rgba(255,255,255,0.18)');
+    bandsGroup.appendChild(hi);
+  });
+
+  // Update band labels
+  const labelsEl = document.getElementById('band-labels');
+  labelsEl.innerHTML = '';
+  config.forEach((band, i) => {
+    const div = document.createElement('div');
+    div.className = 'band-label';
+    div.innerHTML = `<span class="lnum">${i+1}</span>${band.label.replace(' ','\n')}`;
+    labelsEl.appendChild(div);
+  });
+}
+
+// Build reference table
+function buildRefTable() {
+  const tbody = document.getElementById('ref-tbody');
+  COLORS.forEach(c => {
+    const tr = document.createElement('tr');
+    const multDisplay = c.mult !== null
+      ? (c.mult >= 1e9 ? '×1G' : c.mult >= 1e6 ? '×'+(c.mult/1e6)+'M'
+        : c.mult >= 1e3 ? '×'+(c.mult/1e3)+'K' : '×'+c.mult)
+      : '—';
+    tr.innerHTML = `
+      <td><span class="color-pill">
+        <span class="pill-dot" style="background:${c.hex || '#333'};${c.name==='white'?'border:1px solid #555':''}"></span>
+        ${c.name.charAt(0).toUpperCase()+c.name.slice(1)}
+      </span></td>
+      <td>${c.digit !== null ? c.digit : '—'}</td>
+      <td>${c.digit !== null ? c.digit : '—'}</td>
+      <td>${c.digit !== null ? c.digit : '—'}</td>
+      <td>${multDisplay}</td>
+      <td>${c.tol || '—'}</td>
+      <td>${c.temp !== null ? c.temp : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// INIT
+buildRefTable();
+setBands(4);
+</script>
+</body>
+</html>
