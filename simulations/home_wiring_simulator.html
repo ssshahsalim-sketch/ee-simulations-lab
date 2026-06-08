@@ -1,0 +1,2325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VoltPlan – Home Wiring Simulator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --panel: #111827;
+    --panel2: #1a2235;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #00ff9d;
+    --wire-live: #e53e3e;
+    --wire-neutral: #2d3748;
+    --wire-earth: #38a169;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --border: #1e3a5f;
+    --glow: 0 0 20px rgba(0,212,255,0.3);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Exo 2', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(90deg, #0a0e1a 0%, #0d1b2e 50%, #0a0e1a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 100;
+  }
+
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .logo {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo span { color: var(--accent2); }
+
+  .header-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .view-btn {
+    padding: 6px 16px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 3px;
+  }
+
+  .view-btn.active, .view-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+    box-shadow: var(--glow);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hbtn {
+    padding: 6px 14px;
+    border: 1px solid;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+  }
+
+  .hbtn-clear { border-color: #4a5568; background: transparent; color: var(--text2); }
+  .hbtn-clear:hover { background: #2d3748; color: var(--text); }
+  .hbtn-wire { border-color: var(--wire-live); background: transparent; color: var(--wire-live); }
+  .hbtn-wire.active, .hbtn-wire:hover { background: var(--wire-live); color: #fff; box-shadow: 0 0 12px rgba(229,62,62,0.4); }
+  .hbtn-pdf { border-color: var(--accent3); background: transparent; color: var(--accent3); }
+  .hbtn-pdf:hover { background: var(--accent3); color: var(--bg); box-shadow: 0 0 12px rgba(0,255,157,0.4); }
+  .hbtn-room { border-color: var(--accent); background: transparent; color: var(--accent); }
+  .hbtn-room.active, .hbtn-room:hover { background: var(--accent); color: var(--bg); box-shadow: var(--glow); }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    width: 220px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--text2);
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  .equip-grid {
+    padding: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    overflow-y: auto;
+  }
+
+  .equip-item {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: grab;
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  .equip-item:hover {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.08);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,212,255,0.15);
+  }
+
+  .equip-item:active { cursor: grabbing; transform: scale(0.95); }
+
+  .equip-icon {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .equip-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text2);
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .equip-rating {
+    font-size: 9px;
+    color: var(--accent);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+  }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel {
+    width: 240px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .props-body {
+    padding: 12px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .prop-row {
+    margin-bottom: 12px;
+  }
+
+  .prop-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--text2);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .prop-value {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .prop-input {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 6px 8px;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .prop-input:focus { border-color: var(--accent); }
+
+  .prop-select {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 6px 8px;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .wire-legend {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .wire-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .wire-swatch {
+    width: 28px;
+    height: 4px;
+    border-radius: 2px;
+  }
+
+  .circuit-summary {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .circuit-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 4px;
+  }
+
+  .circuit-val {
+    color: var(--accent);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .warning-box {
+    margin: 8px 12px;
+    padding: 8px;
+    background: rgba(229,62,62,0.1);
+    border: 1px solid rgba(229,62,62,0.4);
+    border-radius: 4px;
+    font-size: 10px;
+    color: #fc8181;
+    display: none;
+  }
+
+  /* ── CANVAS AREA ── */
+  .canvas-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #080c18;
+  }
+
+  canvas#floorCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    cursor: crosshair;
+  }
+
+  #threeCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    display: none;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* status bar */
+  .status-bar {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10,14,26,0.85);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 11px;
+    color: var(--text2);
+    letter-spacing: 0.5px;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .coords-bar {
+    position: absolute;
+    bottom: 8px;
+    right: 12px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    color: var(--text2);
+    pointer-events: none;
+  }
+
+  /* tooltip */
+  .tooltip {
+    position: absolute;
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--text);
+    pointer-events: none;
+    display: none;
+    z-index: 200;
+    white-space: nowrap;
+    box-shadow: var(--glow);
+  }
+
+  /* context menu */
+  .ctx-menu {
+    position: fixed;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 0;
+    min-width: 160px;
+    z-index: 9999;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  .ctx-menu-item {
+    padding: 8px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--text2);
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ctx-menu-item:hover { background: rgba(0,212,255,0.1); color: var(--text); }
+  .ctx-menu-item.danger { color: #fc8181; }
+  .ctx-menu-item.danger:hover { background: rgba(229,62,62,0.1); }
+  .ctx-menu-sep { height: 1px; background: var(--border); margin: 3px 0; }
+
+  /* modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    display: none;
+  }
+
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    min-width: 340px;
+    max-width: 480px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  }
+
+  .modal-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+
+  .modal-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .modal-row label {
+    font-size: 12px;
+    color: var(--text2);
+    min-width: 120px;
+  }
+
+  .modal-input {
+    flex: 1;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 4px;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .modal-input:focus { border-color: var(--accent); }
+
+  .modal-btns {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+
+  .modal-btn {
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border: 1px solid;
+    transition: all 0.2s;
+  }
+
+  .modal-btn-ok { border-color: var(--accent); color: var(--bg); background: var(--accent); }
+  .modal-btn-ok:hover { box-shadow: var(--glow); }
+  .modal-btn-cancel { border-color: #4a5568; color: var(--text2); background: transparent; }
+  .modal-btn-cancel:hover { background: #2d3748; color: var(--text); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* grid overlay toggle */
+  .grid-toggle {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    gap: 6px;
+    z-index: 50;
+  }
+
+  .grid-toggle button {
+    padding: 4px 10px;
+    background: rgba(10,14,26,0.8);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    font-size: 10px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    letter-spacing: 1px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .grid-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+  .grid-toggle button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  .snap-indicator {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    display: none;
+    transform: translate(-50%, -50%);
+    z-index: 60;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">⚡ Volt<span>Plan</span></div>
+  <div class="header-center">
+    <button class="view-btn active" id="btn2d" onclick="setView('2d')">2D PLAN</button>
+    <button class="view-btn" id="btn3d" onclick="setView('3d')">3D VIEW</button>
+  </div>
+  <div class="header-right">
+    <button class="hbtn hbtn-room" id="btnDrawRoom" onclick="toggleRoomDraw()">✏ DRAW ROOM</button>
+    <button class="hbtn hbtn-wire" id="btnWireMode" onclick="toggleWireMode()">⚡ WIRE MODE</button>
+    <button class="hbtn hbtn-clear" onclick="clearAll()">✕ CLEAR</button>
+    <button class="hbtn hbtn-pdf" onclick="generatePDF()">↓ PDF REPORT</button>
+  </div>
+</header>
+
+<div class="main">
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div class="panel-title">Equipment Library</div>
+    <div class="equip-grid" id="equipGrid">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-area" id="canvasArea">
+    <canvas id="floorCanvas"></canvas>
+    <div id="threeCanvas"></div>
+
+    <div class="grid-toggle">
+      <button id="btnGrid" class="active" onclick="toggleGrid()">GRID</button>
+      <button id="btnSnap" class="active" onclick="toggleSnap()">SNAP</button>
+      <button id="btnWires" class="active" onclick="toggleWires()">WIRES</button>
+      <button id="btnLabels" class="active" onclick="toggleLabels()">LABELS</button>
+    </div>
+
+    <div class="snap-indicator" id="snapIndicator"></div>
+    <div class="status-bar" id="statusBar">Click to place equipment · Right-click item to edit</div>
+    <div class="coords-bar" id="coordsBar">0, 0</div>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="panel-title">Properties</div>
+    <div class="props-body" id="propsBody">
+      <div style="color:var(--text2); font-size:11px; padding:8px 0;">
+        Select an item to view and edit its properties.
+      </div>
+    </div>
+
+    <div class="warning-box" id="warningBox"></div>
+
+    <div class="circuit-summary">
+      <div class="panel-title" style="padding:0 0 8px; border:none;">Circuit Summary</div>
+      <div class="circuit-row"><span>Total Load</span><span class="circuit-val" id="sumLoad">0 W</span></div>
+      <div class="circuit-row"><span>Total Current</span><span class="circuit-val" id="sumCurrent">0 A</span></div>
+      <div class="circuit-row"><span>Circuits Needed</span><span class="circuit-val" id="sumCircuits">0</span></div>
+      <div class="circuit-row"><span>Main Breaker</span><span class="circuit-val" id="sumBreaker">0 A</span></div>
+      <div class="circuit-row"><span>Devices</span><span class="circuit-val" id="sumDevices">0</span></div>
+    </div>
+
+    <div class="wire-legend">
+      <div class="panel-title" style="padding:0 0 8px; border:none;">Wire Legend</div>
+      <div class="wire-row"><div class="wire-swatch" style="background:#e53e3e"></div> Live (Phase)</div>
+      <div class="wire-row"><div class="wire-swatch" style="background:#718096"></div> Neutral</div>
+      <div class="wire-row"><div class="wire-swatch" style="background:#38a169"></div> Earth/Ground</div>
+      <div class="wire-row"><div class="wire-swatch" style="background:#d69e2e"></div> Switch Loop</div>
+      <div class="wire-row"><div class="wire-swatch" style="background:#805ad5"></div> 3-Phase</div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-menu-item" onclick="ctxEdit()">✏ Edit Properties</div>
+  <div class="ctx-menu-item" onclick="ctxDuplicate()">⧉ Duplicate</div>
+  <div class="ctx-menu-item" onclick="ctxRotate()">↻ Rotate 90°</div>
+  <div class="ctx-menu-sep"></div>
+  <div class="ctx-menu-item" onclick="ctxConnectWire()">⚡ Connect Wire</div>
+  <div class="ctx-menu-item" onclick="ctxAutoWire()">⚡⚡ Auto-Wire Circuit</div>
+  <div class="ctx-menu-sep"></div>
+  <div class="ctx-menu-item danger" onclick="ctxDelete()">✕ Delete</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Edit Properties</div>
+    <div id="modalBody"></div>
+    <div class="modal-btns">
+      <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-btn modal-btn-ok" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// WIRE STANDARDS DATABASE (NEC / IEC based)
+// ═══════════════════════════════════════════════════════════════════════
+const WIRE_STANDARDS = {
+  // NEC Ampacity for copper conductors, 75°C, in conduit
+  ampacity: [
+    { size: '18 AWG', mm2: 0.82, maxAmps: 7,   resistance: 20.9  },
+    { size: '16 AWG', mm2: 1.31, maxAmps: 13,  resistance: 13.2  },
+    { size: '14 AWG', mm2: 2.08, maxAmps: 15,  resistance: 8.29  },
+    { size: '12 AWG', mm2: 3.31, maxAmps: 20,  resistance: 5.21  },
+    { size: '10 AWG', mm2: 5.26, maxAmps: 30,  resistance: 3.28  },
+    { size: '8 AWG',  mm2: 8.37, maxAmps: 40,  resistance: 2.06  },
+    { size: '6 AWG',  mm2:13.3,  maxAmps: 55,  resistance: 1.30  },
+    { size: '4 AWG',  mm2:21.1,  maxAmps: 70,  resistance: 0.816 },
+    { size: '2 AWG',  mm2:33.6,  maxAmps: 95,  resistance: 0.514 },
+    { size: '1/0',    mm2:53.5,  maxAmps: 125, resistance: 0.323 },
+    { size: '2/0',    mm2:67.4,  maxAmps: 145, resistance: 0.256 },
+    { size: '3/0',    mm2:85.0,  maxAmps: 165, resistance: 0.203 },
+    { size: '4/0',    mm2:107.2, maxAmps: 195, resistance: 0.161 },
+  ],
+
+  getWireForAmps(amps) {
+    // Add 25% safety margin per NEC
+    const required = amps * 1.25;
+    return this.ampacity.find(w => w.maxAmps >= required) || this.ampacity[this.ampacity.length - 1];
+  },
+
+  getBreakerSize(amps) {
+    const sizes = [10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 100, 125, 150, 200];
+    return sizes.find(s => s >= amps * 1.25) || 200;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// EQUIPMENT DEFINITIONS
+// ═══════════════════════════════════════════════════════════════════════
+const EQUIPMENT_TYPES = [
+  { type:'panel',       icon:'🔌', label:'Main Panel',    watts:0,     amps:200,  voltage:240, phases:1, color:'#4a5568', circuit:'main',   width:40, height:50 },
+  { type:'breaker',     icon:'⬛', label:'Sub Panel',     watts:0,     amps:100,  voltage:240, phases:1, color:'#2d3748', circuit:'main',   width:35, height:45 },
+  { type:'light',       icon:'💡', label:'Light',         watts:60,    amps:0.5,  voltage:120, phases:1, color:'#d69e2e', circuit:'lighting', width:24, height:24 },
+  { type:'recessed',    icon:'🔆', label:'Recessed',      watts:10,    amps:0.08, voltage:120, phases:1, color:'#f6e05e', circuit:'lighting', width:22, height:22 },
+  { type:'fan',         icon:'🌀', label:'Ceiling Fan',   watts:75,    amps:0.63, voltage:120, phases:1, color:'#63b3ed', circuit:'lighting', width:32, height:32 },
+  { type:'outlet',      icon:'🔌', label:'Receptacle',    watts:1800,  amps:15,   voltage:120, phases:1, color:'#68d391', circuit:'general', width:20, height:28 },
+  { type:'outlet20',    icon:'⊞',  label:'20A Outlet',    watts:2400,  amps:20,   voltage:120, phases:1, color:'#48bb78', circuit:'general', width:20, height:28 },
+  { type:'outlet240',   icon:'⚡',  label:'240V Outlet',   watts:4800,  amps:20,   voltage:240, phases:1, color:'#fc8181', circuit:'dedicated', width:24, height:32 },
+  { type:'switch',      icon:'🔲', label:'Switch',         watts:0,     amps:0,    voltage:120, phases:1, color:'#a0aec0', circuit:'lighting', width:18, height:24 },
+  { type:'ac',          icon:'❄',  label:'AC Unit',        watts:1500,  amps:12.5, voltage:240, phases:1, color:'#63b3ed', circuit:'dedicated', width:40, height:30 },
+  { type:'ac_mini',     icon:'❄️',  label:'Mini-Split AC', watts:900,   amps:7.5,  voltage:120, phases:1, color:'#76e4f7', circuit:'dedicated', width:35, height:25 },
+  { type:'washer',      icon:'🌊', label:'Washer',         watts:1200,  amps:10,   voltage:120, phases:1, color:'#90cdf4', circuit:'dedicated', width:34, height:34 },
+  { type:'dryer',       icon:'💨', label:'Dryer',          watts:5600,  amps:23.3, voltage:240, phases:1, color:'#fbd38d', circuit:'dedicated', width:34, height:34 },
+  { type:'fridge',      icon:'🧊', label:'Refrigerator',  watts:150,   amps:1.25, voltage:120, phases:1, color:'#b2f5ea', circuit:'dedicated', width:32, height:36 },
+  { type:'oven',        icon:'🍳', label:'Electric Oven', watts:5000,  amps:20.8, voltage:240, phases:1, color:'#fbb6ce', circuit:'dedicated', width:36, height:34 },
+  { type:'dishwasher',  icon:'🍽', label:'Dishwasher',    watts:1200,  amps:10,   voltage:120, phases:1, color:'#c3dafe', circuit:'dedicated', width:32, height:32 },
+  { type:'gfci',        icon:'⊡',  label:'GFCI Outlet',   watts:1800,  amps:15,   voltage:120, phases:1, color:'#f6ad55', circuit:'general', width:20, height:28 },
+  { type:'smoke',       icon:'🔕', label:'Smoke Det.',    watts:5,     amps:0.04, voltage:120, phases:1, color:'#feb2b2', circuit:'lighting', width:20, height:20 },
+  { type:'thermostat',  icon:'🌡', label:'Thermostat',    watts:5,     amps:0.04, voltage:24,  phases:1, color:'#d6bcfa', circuit:'hvac',    width:18, height:22 },
+  { type:'junction',    icon:'✦',  label:'Junction Box',  watts:0,     amps:0,    voltage:0,   phases:1, color:'#718096', circuit:'none',    width:18, height:18 },
+];
+
+// ═══════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════
+let state = {
+  view: '2d',
+  mode: 'select',     // select | drawRoom | placeEquip | drawWire
+  placingType: null,
+
+  rooms: [],          // [{id, pts:[{x,y}], label, color}]
+  devices: [],        // [{id, type, x, y, rotation, label, watts, amps, voltage, wireSize, breakerSize, circuit, notes}]
+  wires: [],          // [{id, from, to, fromDev, toDev, wireSize, color, type}]
+
+  selectedId: null,
+  ctxTargetId: null,
+  drawingRoom: false,
+  roomPts: [],
+  wireStart: null,
+
+  showGrid: true,
+  showSnap: true,
+  showWires: true,
+  showLabels: true,
+
+  gridSize: 20,
+  scale: 1,            // px per foot * scale → 1 grid = 1ft
+  origin: {x:0, y:0},
+  pan: {x:0, y:0},
+
+  dragging: null,
+  dragOffset: {x:0, y:0},
+  mousePos: {x:0, y:0},
+
+  roomColor: '#1e3a5f',
+};
+
+let idCounter = 1;
+const newId = () => `id_${idCounter++}`;
+
+// ═══════════════════════════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════════════════════════
+const canvas = document.getElementById('floorCanvas');
+const ctx = canvas.getContext('2d');
+let cw, ch;
+
+function resizeCanvas() {
+  const area = document.getElementById('canvasArea');
+  cw = canvas.width = area.clientWidth;
+  ch = canvas.height = area.clientHeight;
+  render2D();
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+// ═══════════════════════════════════════════════════════════════════════
+// RENDER 2D
+// ═══════════════════════════════════════════════════════════════════════
+function render2D() {
+  if (state.view !== '2d') return;
+  ctx.clearRect(0, 0, cw, ch);
+
+  // Background grid
+  ctx.fillStyle = '#080c18';
+  ctx.fillRect(0, 0, cw, ch);
+
+  if (state.showGrid) drawGrid();
+
+  // Rooms
+  state.rooms.forEach(room => drawRoom(room));
+
+  // Wires
+  if (state.showWires) state.wires.forEach(wire => drawWire(wire));
+
+  // Wire being drawn
+  if (state.mode === 'drawWire' && state.wireStart) {
+    const dev = state.devices.find(d => d.id === state.wireStart);
+    if (dev) {
+      const mp = state.mousePos;
+      ctx.beginPath();
+      ctx.moveTo(dev.x, dev.y);
+      ctx.lineTo(mp.x, mp.y);
+      ctx.setLineDash([5,5]);
+      ctx.strokeStyle = '#e53e3e';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Room being drawn
+  if (state.drawingRoom && state.roomPts.length > 0) {
+    drawTempRoom();
+  }
+
+  // Devices
+  state.devices.forEach(dev => drawDevice(dev));
+
+  // Selection highlight
+  if (state.selectedId) {
+    const dev = state.devices.find(d => d.id === state.selectedId);
+    if (dev) drawSelection(dev);
+  }
+}
+
+function drawGrid() {
+  const gs = state.gridSize;
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(30,58,95,0.6)';
+  ctx.lineWidth = 1;
+
+  for (let x = (state.pan.x % gs + gs) % gs; x < cw; x += gs) {
+    ctx.moveTo(x, 0); ctx.lineTo(x, ch);
+  }
+  for (let y = (state.pan.y % gs + gs) % gs; y < ch; y += gs) {
+    ctx.moveTo(0, y); ctx.lineTo(cw, y);
+  }
+  ctx.stroke();
+
+  // Accent lines every 5 grid units
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(30,58,95,1)';
+  for (let x = (state.pan.x % (gs*5) + gs*5) % (gs*5); x < cw; x += gs*5) {
+    ctx.moveTo(x, 0); ctx.lineTo(x, ch);
+  }
+  for (let y = (state.pan.y % (gs*5) + gs*5) % (gs*5); y < ch; y += gs*5) {
+    ctx.moveTo(0, y); ctx.lineTo(cw, y);
+  }
+  ctx.stroke();
+}
+
+function drawRoom(room) {
+  if (room.pts.length < 3) return;
+  ctx.beginPath();
+  ctx.moveTo(room.pts[0].x, room.pts[0].y);
+  room.pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(30,58,95,0.25)';
+  ctx.fill();
+  ctx.strokeStyle = '#1e3a5f';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Label
+  if (state.showLabels) {
+    const cx2 = room.pts.reduce((a, p) => a + p.x, 0) / room.pts.length;
+    const cy2 = room.pts.reduce((a, p) => a + p.y, 0) / room.pts.length;
+    ctx.fillStyle = 'rgba(148,163,184,0.6)';
+    ctx.font = '11px Exo 2';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(room.label || 'Room', cx2, cy2);
+  }
+}
+
+function drawTempRoom() {
+  const pts = [...state.roomPts, state.mousePos];
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6,4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // dots
+  state.roomPts.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+    ctx.fillStyle = '#00d4ff';
+    ctx.fill();
+  });
+}
+
+function getWireColor(wire) {
+  const types = {
+    live:    '#e53e3e',
+    neutral: '#718096',
+    earth:   '#38a169',
+    switch:  '#d69e2e',
+    threephase: '#805ad5',
+    general: '#e53e3e',
+    lighting:'#d69e2e',
+    dedicated:'#fc8181',
+    hvac:   '#63b3ed',
+    main:   '#805ad5',
+  };
+  return types[wire.type] || '#e53e3e';
+}
+
+function drawWire(wire) {
+  const fromDev = state.devices.find(d => d.id === wire.fromDev);
+  const toDev   = state.devices.find(d => d.id === wire.toDev);
+  if (!fromDev || !toDev) return;
+
+  const x1 = fromDev.x, y1 = fromDev.y;
+  const x2 = toDev.x,   y2 = toDev.y;
+
+  // Orthogonal routing
+  const mx = (x1 + x2) / 2;
+
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(mx, y1);
+  ctx.lineTo(mx, y2);
+  ctx.lineTo(x2, y2);
+
+  ctx.strokeStyle = getWireColor(wire);
+  ctx.lineWidth = wire.type === 'main' ? 3 : 2;
+  ctx.globalAlpha = 0.85;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Wire size label
+  if (state.showLabels && wire.wireSize) {
+    const lx = mx, ly = (y1 + y2) / 2;
+    ctx.fillStyle = 'rgba(10,14,26,0.7)';
+    ctx.fillRect(lx - 20, ly - 8, 40, 14);
+    ctx.fillStyle = getWireColor(wire);
+    ctx.font = 'bold 9px Rajdhani';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(wire.wireSize || '', lx, ly);
+  }
+}
+
+function drawDevice(dev) {
+  const defn = EQUIPMENT_TYPES.find(e => e.type === dev.type) || EQUIPMENT_TYPES[0];
+  const w = defn.width, h = defn.height;
+  const x = dev.x, y = dev.y;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate((dev.rotation || 0) * Math.PI / 180);
+
+  // Shadow glow for selected
+  if (dev.id === state.selectedId) {
+    ctx.shadowColor = '#00d4ff';
+    ctx.shadowBlur = 12;
+  }
+
+  // Device box
+  const grad = ctx.createLinearGradient(-w/2, -h/2, w/2, h/2);
+  grad.addColorStop(0, adjustColor(defn.color, 20));
+  grad.addColorStop(1, adjustColor(defn.color, -20));
+
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = dev.id === state.selectedId ? '#00d4ff' : darken(defn.color);
+  ctx.lineWidth = dev.id === state.selectedId ? 2 : 1;
+  roundRect(ctx, -w/2, -h/2, w, h, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+
+  // Icon
+  ctx.font = `${Math.min(w, h) * 0.55}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(defn.icon, 0, 0);
+
+  ctx.restore();
+
+  // Label
+  if (state.showLabels) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '9px Exo 2';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(dev.label || defn.label, x, y + h/2 + 3);
+    if (dev.watts && dev.watts > 0) {
+      ctx.fillStyle = '#00d4ff';
+      ctx.font = 'bold 8px Rajdhani';
+      ctx.fillText(`${dev.watts}W`, x, y + h/2 + 13);
+    }
+  }
+
+  // Connection point
+  ctx.beginPath();
+  ctx.arc(x, y, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#00d4ff';
+  ctx.globalAlpha = 0.5;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawSelection(dev) {
+  const defn = EQUIPMENT_TYPES.find(e => e.type === dev.type) || EQUIPMENT_TYPES[0];
+  const w = defn.width + 8, h = defn.height + 8;
+  ctx.save();
+  ctx.translate(dev.x, dev.y);
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.strokeRect(-w/2, -h/2, w, h);
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r);
+  c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h);
+  c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r);
+  c.quadraticCurveTo(x, y, x + r, y);
+  c.closePath();
+}
+
+function adjustColor(hex, amt) {
+  let num = parseInt(hex.replace('#',''),16);
+  let r = Math.min(255, Math.max(0, (num >> 16) + amt));
+  let g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amt));
+  let b = Math.min(255, Math.max(0, (num & 0xff) + amt));
+  return `rgb(${r},${g},${b})`;
+}
+
+function darken(hex) { return adjustColor(hex, -30); }
+
+function snapToGrid(val) {
+  if (!state.showSnap) return val;
+  return Math.round(val / state.gridSize) * state.gridSize;
+}
+
+function getDeviceAt(x, y) {
+  return state.devices.slice().reverse().find(dev => {
+    const defn = EQUIPMENT_TYPES.find(e => e.type === dev.type) || EQUIPMENT_TYPES[0];
+    const w = defn.width / 2, h = defn.height / 2;
+    return x >= dev.x - w && x <= dev.x + w && y >= dev.y - h && y <= dev.y + h;
+  });
+}
+
+function calcDeviceAmps(dev) {
+  if (dev.amps && dev.amps > 0) return dev.amps;
+  return dev.voltage ? dev.watts / dev.voltage : 0;
+}
+
+function updateCircuitSummary() {
+  const devices = state.devices.filter(d => d.type !== 'panel' && d.type !== 'breaker' && d.type !== 'switch' && d.type !== 'junction');
+  const totalWatts = devices.reduce((a, d) => a + (d.watts || 0), 0);
+  const totalAmps  = devices.reduce((a, d) => a + calcDeviceAmps(d), 0);
+
+  // Count circuits (max 80% load per 20A circuit = 16A)
+  const circuitsNeeded = Math.ceil(totalAmps / 16);
+  const mainBreaker = WIRE_STANDARDS.getBreakerSize(totalAmps * 1.25);
+
+  document.getElementById('sumLoad').textContent     = `${totalWatts} W`;
+  document.getElementById('sumCurrent').textContent  = `${totalAmps.toFixed(1)} A`;
+  document.getElementById('sumCircuits').textContent = circuitsNeeded;
+  document.getElementById('sumBreaker').textContent  = `${mainBreaker} A`;
+  document.getElementById('sumDevices').textContent  = devices.length;
+
+  // Warning
+  const wb = document.getElementById('warningBox');
+  if (totalAmps > 200) {
+    wb.style.display = 'block';
+    wb.textContent = `⚠ Load exceeds 200A. Consider upgrading service.`;
+  } else if (totalAmps > 150) {
+    wb.style.display = 'block';
+    wb.textContent = `⚠ High load: ${totalAmps.toFixed(0)}A. Consider 200A service.`;
+  } else {
+    wb.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// EQUIPMENT PANEL
+// ═══════════════════════════════════════════════════════════════════════
+function buildEquipPanel() {
+  const grid = document.getElementById('equipGrid');
+  grid.innerHTML = '';
+  EQUIPMENT_TYPES.forEach(eq => {
+    const div = document.createElement('div');
+    div.className = 'equip-item';
+    div.draggable = true;
+    div.dataset.type = eq.type;
+    div.innerHTML = `
+      <div class="equip-icon">${eq.icon}</div>
+      <div class="equip-label">${eq.label}</div>
+      <div class="equip-rating">${eq.watts > 0 ? eq.watts + 'W' : eq.amps + 'A'} · ${eq.voltage}V</div>
+    `;
+    div.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('type', eq.type);
+    });
+    div.addEventListener('click', () => startPlacing(eq.type));
+    grid.appendChild(div);
+  });
+}
+
+function startPlacing(type) {
+  state.mode = 'placeEquip';
+  state.placingType = type;
+  const defn = EQUIPMENT_TYPES.find(e => e.type === type);
+  document.getElementById('statusBar').textContent = `Click on canvas to place: ${defn.label}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PLACE DEVICE
+// ═══════════════════════════════════════════════════════════════════════
+function placeDevice(x, y, type) {
+  const defn = EQUIPMENT_TYPES.find(e => e.type === type);
+  if (!defn) return;
+
+  const wire = WIRE_STANDARDS.getWireForAmps(defn.amps || (defn.watts / defn.voltage));
+  const breaker = WIRE_STANDARDS.getBreakerSize(defn.amps || (defn.watts / defn.voltage));
+
+  const dev = {
+    id:       newId(),
+    type:     defn.type,
+    x:        snapToGrid(x),
+    y:        snapToGrid(y),
+    rotation: 0,
+    label:    defn.label,
+    watts:    defn.watts,
+    amps:     defn.amps,
+    voltage:  defn.voltage,
+    phases:   defn.phases,
+    circuit:  defn.circuit,
+    wireSize: wire.size,
+    wireAmps: wire.maxAmps,
+    breakerSize: breaker,
+    notes:    '',
+  };
+
+  state.devices.push(dev);
+  selectDevice(dev.id);
+  updateCircuitSummary();
+  render2D();
+  return dev;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SELECT DEVICE + PROPERTIES PANEL
+// ═══════════════════════════════════════════════════════════════════════
+function selectDevice(id) {
+  state.selectedId = id;
+  const dev = state.devices.find(d => d.id === id);
+  if (!dev) { clearProps(); return; }
+
+  const defn = EQUIPMENT_TYPES.find(e => e.type === dev.type);
+  const wire = WIRE_STANDARDS.getWireForAmps(calcDeviceAmps(dev));
+  const breaker = WIRE_STANDARDS.getBreakerSize(calcDeviceAmps(dev));
+
+  // Update wire size
+  dev.wireSize = wire.size;
+  dev.breakerSize = breaker;
+
+  document.getElementById('propsBody').innerHTML = `
+    <div class="prop-row">
+      <div class="prop-label">Type</div>
+      <div class="prop-value">${defn ? defn.icon + ' ' + defn.label : dev.type}</div>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">Label</div>
+      <input class="prop-input" id="prop_label" value="${dev.label}" oninput="updateProp('label',this.value)"/>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">Wattage (W)</div>
+      <input class="prop-input" id="prop_watts" type="number" value="${dev.watts}" oninput="updateProp('watts',+this.value)"/>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">Current (A)</div>
+      <input class="prop-input" id="prop_amps" type="number" step="0.1" value="${dev.amps}" oninput="updateProp('amps',+this.value)"/>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">Voltage (V)</div>
+      <select class="prop-select" oninput="updateProp('voltage',+this.value)">
+        <option value="120" ${dev.voltage===120?'selected':''}>120V</option>
+        <option value="240" ${dev.voltage===240?'selected':''}>240V</option>
+        <option value="208" ${dev.voltage===208?'selected':''}>208V 3Φ</option>
+        <option value="480" ${dev.voltage===480?'selected':''}>480V 3Φ</option>
+      </select>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">Circuit Type</div>
+      <select class="prop-select" oninput="updateProp('circuit',this.value)">
+        ${['main','general','lighting','dedicated','hvac','none'].map(c=>`<option value="${c}" ${dev.circuit===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="prop-row" style="background:rgba(229,62,62,0.05);border:1px solid rgba(229,62,62,0.2);border-radius:4px;padding:8px;">
+      <div class="prop-label" style="color:#fc8181;">Wire Size</div>
+      <div class="prop-value" style="color:#fc8181;">${wire.size} (${wire.maxAmps}A)</div>
+    </div>
+    <div class="prop-row" style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:4px;padding:8px;">
+      <div class="prop-label">Breaker Size</div>
+      <div class="prop-value" style="color:#00d4ff;">${breaker}A</div>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">Wire Standard</div>
+      <div class="prop-value" style="font-size:11px;color:var(--text2);">${wire.mm2} mm² · ${wire.resistance} Ω/km</div>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">Position</div>
+      <div class="prop-value" style="font-size:12px;">${Math.round(dev.x)}, ${Math.round(dev.y)}</div>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">Notes</div>
+      <input class="prop-input" value="${dev.notes||''}" oninput="updateProp('notes',this.value)"/>
+    </div>
+  `;
+  render2D();
+}
+
+function clearProps() {
+  document.getElementById('propsBody').innerHTML =
+    `<div style="color:var(--text2);font-size:11px;padding:8px 0;">Select an item to view and edit its properties.</div>`;
+}
+
+function updateProp(key, val) {
+  const dev = state.devices.find(d => d.id === state.selectedId);
+  if (!dev) return;
+  dev[key] = val;
+  // Recalc wire & breaker on load change
+  if (key === 'watts' || key === 'amps' || key === 'voltage') {
+    const a = calcDeviceAmps(dev);
+    const wire = WIRE_STANDARDS.getWireForAmps(a);
+    dev.wireSize = wire.size;
+    dev.breakerSize = WIRE_STANDARDS.getBreakerSize(a);
+    selectDevice(dev.id); // refresh panel
+  }
+  updateCircuitSummary();
+  render2D();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// AUTO WIRING
+// ═══════════════════════════════════════════════════════════════════════
+function autoWireAll() {
+  state.wires = [];
+  const panel = state.devices.find(d => d.type === 'panel' || d.type === 'breaker');
+  if (!panel) { alert('Place a Main Panel first!'); return; }
+
+  // Group by circuit type
+  const circuits = {};
+  state.devices.forEach(dev => {
+    if (dev.id === panel.id) return;
+    if (!circuits[dev.circuit]) circuits[dev.circuit] = [];
+    circuits[dev.circuit].push(dev);
+  });
+
+  Object.entries(circuits).forEach(([circType, devs]) => {
+    // Daisy-chain devices of same circuit
+    let prev = panel;
+    devs.forEach(dev => {
+      const totalA = calcDeviceAmps(dev);
+      const wire = WIRE_STANDARDS.getWireForAmps(totalA);
+      state.wires.push({
+        id:      newId(),
+        fromDev: prev.id,
+        toDev:   dev.id,
+        wireSize: wire.size,
+        type:    circType,
+        color:   circType === 'lighting' ? '#d69e2e' : '#e53e3e',
+      });
+      prev = dev;
+    });
+  });
+
+  updateCircuitSummary();
+  render2D();
+  document.getElementById('statusBar').textContent = `Auto-wired ${state.wires.length} connections`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MOUSE EVENTS
+// ═══════════════════════════════════════════════════════════════════════
+canvas.addEventListener('dragover', e => e.preventDefault());
+canvas.addEventListener('drop', e => {
+  e.preventDefault();
+  const type = e.dataTransfer.getData('type');
+  if (type) {
+    const rect = canvas.getBoundingClientRect();
+    placeDevice(e.clientX - rect.left, e.clientY - rect.top, type);
+  }
+});
+
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  if (e.button === 2) return; // handled by contextmenu
+
+  if (state.mode === 'drawRoom') {
+    if (state.drawingRoom) {
+      // Check if closing polygon
+      if (state.roomPts.length >= 3) {
+        const first = state.roomPts[0];
+        if (Math.hypot(x - first.x, y - first.y) < 15) {
+          finishRoom();
+          return;
+        }
+      }
+      state.roomPts.push({ x: snapToGrid(x), y: snapToGrid(y) });
+    } else {
+      state.drawingRoom = true;
+      state.roomPts = [{ x: snapToGrid(x), y: snapToGrid(y) }];
+    }
+    render2D();
+    return;
+  }
+
+  if (state.mode === 'placeEquip') {
+    placeDevice(x, y, state.placingType);
+    return;
+  }
+
+  if (state.mode === 'drawWire') {
+    const hit = getDeviceAt(x, y);
+    if (hit) {
+      if (!state.wireStart) {
+        state.wireStart = hit.id;
+        document.getElementById('statusBar').textContent = `Wire started from ${hit.label}. Click another device to connect.`;
+      } else if (hit.id !== state.wireStart) {
+        // Create wire
+        const fromDev = state.devices.find(d => d.id === state.wireStart);
+        const totalA = Math.max(calcDeviceAmps(fromDev), calcDeviceAmps(hit));
+        const wire = WIRE_STANDARDS.getWireForAmps(totalA);
+        state.wires.push({
+          id:      newId(),
+          fromDev: state.wireStart,
+          toDev:   hit.id,
+          wireSize: wire.size,
+          type:    fromDev.circuit || 'general',
+          color:   '#e53e3e',
+        });
+        state.wireStart = null;
+        document.getElementById('statusBar').textContent = `Wire connected · Wire size: ${wire.size}`;
+        render2D();
+      }
+    }
+    return;
+  }
+
+  // Select mode
+  const hit = getDeviceAt(x, y);
+  if (hit) {
+    selectDevice(hit.id);
+    state.dragging = hit.id;
+    state.dragOffset = { x: x - hit.x, y: y - hit.y };
+  } else {
+    state.selectedId = null;
+    clearProps();
+    render2D();
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  state.mousePos = { x, y };
+
+  // Update coords
+  const gx = Math.round(x / state.gridSize);
+  const gy = Math.round(y / state.gridSize);
+  document.getElementById('coordsBar').textContent = `${gx}ft, ${gy}ft`;
+
+  // Snap indicator
+  if (state.showSnap) {
+    const si = document.getElementById('snapIndicator');
+    si.style.display = 'block';
+    si.style.left = snapToGrid(x) + 'px';
+    si.style.top  = snapToGrid(y) + 'px';
+  }
+
+  // Dragging
+  if (state.dragging) {
+    const dev = state.devices.find(d => d.id === state.dragging);
+    if (dev) {
+      dev.x = snapToGrid(x - state.dragOffset.x);
+      dev.y = snapToGrid(y - state.dragOffset.y);
+      render2D();
+    }
+    return;
+  }
+
+  // Tooltip on hover
+  const hit = getDeviceAt(x, y);
+  const tip = document.getElementById('tooltip');
+  if (hit) {
+    const wire = WIRE_STANDARDS.getWireForAmps(calcDeviceAmps(hit));
+    tip.style.display = 'block';
+    tip.style.left = (x + 14) + 'px';
+    tip.style.top  = (y - 10) + 'px';
+    tip.innerHTML = `<strong>${hit.label}</strong><br>${hit.watts}W · ${hit.voltage}V<br>Wire: <span style="color:#e53e3e">${wire.size}</span> · Breaker: <span style="color:#00d4ff">${hit.breakerSize}A</span>`;
+  } else {
+    tip.style.display = 'none';
+  }
+
+  if (state.mode === 'drawWire' && state.wireStart) render2D();
+  if (state.drawingRoom) render2D();
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (state.dragging) {
+    state.dragging = null;
+    selectDevice(state.selectedId);
+    updateCircuitSummary();
+  }
+});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const hit = getDeviceAt(x, y);
+  if (hit) {
+    state.ctxTargetId = hit.id;
+    selectDevice(hit.id);
+    const menu = document.getElementById('ctxMenu');
+    menu.style.display = 'block';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top  = e.clientY + 'px';
+  }
+});
+
+document.addEventListener('click', e => {
+  const menu = document.getElementById('ctxMenu');
+  if (!menu.contains(e.target)) menu.style.display = 'none';
+});
+
+// Double-click to finish room
+canvas.addEventListener('dblclick', e => {
+  if (state.drawingRoom && state.roomPts.length >= 3) finishRoom();
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// ROOM DRAWING
+// ═══════════════════════════════════════════════════════════════════════
+function toggleRoomDraw() {
+  if (state.mode === 'drawRoom') {
+    state.mode = 'select';
+    state.drawingRoom = false;
+    state.roomPts = [];
+    document.getElementById('btnDrawRoom').classList.remove('active');
+    document.getElementById('statusBar').textContent = 'Click to place equipment · Right-click item to edit';
+  } else {
+    state.mode = 'drawRoom';
+    state.drawingRoom = false;
+    document.getElementById('btnDrawRoom').classList.add('active');
+    document.getElementById('statusBar').textContent = 'Click to set room corners · Double-click or click first point to close';
+  }
+  render2D();
+}
+
+function finishRoom() {
+  if (state.roomPts.length < 3) return;
+  const roomNames = ['Living Room','Bedroom','Kitchen','Bathroom','Dining Room','Office','Garage','Laundry'];
+  const label = roomNames[state.rooms.length % roomNames.length];
+  state.rooms.push({
+    id:    newId(),
+    pts:   [...state.roomPts],
+    label: label,
+    color: '#1e3a5f',
+  });
+  state.roomPts = [];
+  state.drawingRoom = false;
+  render2D();
+  document.getElementById('statusBar').textContent = `Room added: ${label}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONTEXT MENU ACTIONS
+// ═══════════════════════════════════════════════════════════════════════
+function ctxEdit() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  openEditModal(state.ctxTargetId);
+}
+
+function ctxDuplicate() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  const dev = state.devices.find(d => d.id === state.ctxTargetId);
+  if (!dev) return;
+  const copy = { ...dev, id: newId(), x: dev.x + 30, y: dev.y + 30 };
+  state.devices.push(copy);
+  selectDevice(copy.id);
+  updateCircuitSummary();
+  render2D();
+}
+
+function ctxRotate() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  const dev = state.devices.find(d => d.id === state.ctxTargetId);
+  if (dev) { dev.rotation = ((dev.rotation || 0) + 90) % 360; render2D(); }
+}
+
+function ctxConnectWire() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  state.mode = 'drawWire';
+  state.wireStart = state.ctxTargetId;
+  document.getElementById('btnWireMode').classList.add('active');
+  document.getElementById('statusBar').textContent = 'Click another device to connect wire';
+}
+
+function ctxAutoWire() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  autoWireAll();
+}
+
+function ctxDelete() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  state.devices = state.devices.filter(d => d.id !== state.ctxTargetId);
+  state.wires   = state.wires.filter(w => w.fromDev !== state.ctxTargetId && w.toDev !== state.ctxTargetId);
+  if (state.selectedId === state.ctxTargetId) { state.selectedId = null; clearProps(); }
+  updateCircuitSummary();
+  render2D();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// EDIT MODAL
+// ═══════════════════════════════════════════════════════════════════════
+let modalSaveCallback = null;
+
+function openEditModal(id) {
+  const dev = state.devices.find(d => d.id === id);
+  if (!dev) return;
+  const defn = EQUIPMENT_TYPES.find(e => e.type === dev.type);
+
+  document.getElementById('modalTitle').textContent = `Edit: ${defn ? defn.label : dev.type}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-row"><label>Label</label><input class="modal-input" id="me_label" value="${dev.label}"/></div>
+    <div class="modal-row"><label>Wattage (W)</label><input class="modal-input" id="me_watts" type="number" value="${dev.watts}"/></div>
+    <div class="modal-row"><label>Current (A)</label><input class="modal-input" id="me_amps" type="number" step="0.1" value="${dev.amps}"/></div>
+    <div class="modal-row"><label>Voltage (V)</label>
+      <select class="modal-input" id="me_voltage">
+        <option value="120" ${dev.voltage===120?'selected':''}>120V</option>
+        <option value="240" ${dev.voltage===240?'selected':''}>240V</option>
+        <option value="208" ${dev.voltage===208?'selected':''}>208V 3Φ</option>
+      </select>
+    </div>
+    <div class="modal-row"><label>Notes</label><input class="modal-input" id="me_notes" value="${dev.notes||''}"/></div>
+    <div style="margin-top:10px;padding:10px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:4px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">CALCULATED VALUES</div>
+      <div style="font-size:12px;color:var(--text);">Wire Size: <span style="color:#e53e3e;font-weight:700;">${dev.wireSize}</span></div>
+      <div style="font-size:12px;color:var(--text);">Breaker Size: <span style="color:#00d4ff;font-weight:700;">${dev.breakerSize}A</span></div>
+    </div>
+  `;
+
+  modalSaveCallback = () => {
+    dev.label   = document.getElementById('me_label').value;
+    dev.watts   = +document.getElementById('me_watts').value;
+    dev.amps    = +document.getElementById('me_amps').value;
+    dev.voltage = +document.getElementById('me_voltage').value;
+    dev.notes   = document.getElementById('me_notes').value;
+    const a = calcDeviceAmps(dev);
+    dev.wireSize = WIRE_STANDARDS.getWireForAmps(a).size;
+    dev.breakerSize = WIRE_STANDARDS.getBreakerSize(a);
+    selectDevice(dev.id);
+    updateCircuitSummary();
+    render2D();
+  };
+
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+function saveModal() { if (modalSaveCallback) modalSaveCallback(); closeModal(); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// WIRE MODE TOGGLE
+// ═══════════════════════════════════════════════════════════════════════
+function toggleWireMode() {
+  if (state.mode === 'drawWire') {
+    state.mode = 'select';
+    state.wireStart = null;
+    document.getElementById('btnWireMode').classList.remove('active');
+    document.getElementById('statusBar').textContent = 'Click to place equipment · Right-click item to edit';
+  } else {
+    state.mode = 'drawWire';
+    document.getElementById('btnWireMode').classList.add('active');
+    document.getElementById('statusBar').textContent = 'Wire mode: Click a device to start, click another to connect';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// VIEW TOGGLES
+// ═══════════════════════════════════════════════════════════════════════
+function toggleGrid() {
+  state.showGrid = !state.showGrid;
+  document.getElementById('btnGrid').classList.toggle('active', state.showGrid);
+  render2D();
+}
+
+function toggleSnap() {
+  state.showSnap = !state.showSnap;
+  document.getElementById('btnSnap').classList.toggle('active', state.showSnap);
+  if (!state.showSnap) document.getElementById('snapIndicator').style.display = 'none';
+}
+
+function toggleWires() {
+  state.showWires = !state.showWires;
+  document.getElementById('btnWires').classList.toggle('active', state.showWires);
+  render2D();
+}
+
+function toggleLabels() {
+  state.showLabels = !state.showLabels;
+  document.getElementById('btnLabels').classList.toggle('active', state.showLabels);
+  render2D();
+}
+
+function clearAll() {
+  if (!confirm('Clear all devices, rooms, and wires?')) return;
+  state.devices = [];
+  state.wires   = [];
+  state.rooms   = [];
+  state.selectedId = null;
+  clearProps();
+  updateCircuitSummary();
+  render2D();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 2D / 3D VIEW SWITCH
+// ═══════════════════════════════════════════════════════════════════════
+function setView(v) {
+  state.view = v;
+  document.getElementById('btn2d').classList.toggle('active', v === '2d');
+  document.getElementById('btn3d').classList.toggle('active', v === '3d');
+  canvas.style.display   = v === '2d' ? 'block' : 'none';
+  document.getElementById('threeCanvas').style.display = v === '3d' ? 'block' : 'none';
+  document.getElementById('snapIndicator').style.display = 'none';
+
+  if (v === '3d') {
+    init3D();
+    render3D();
+  } else {
+    render2D();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// THREE.JS 3D VIEW
+// ═══════════════════════════════════════════════════════════════════════
+let threeRenderer, threeScene, threeCamera, threeControls3D;
+let animFrameId = null;
+const FLOOR_HEIGHT = 2.8; // meters
+const WALL_THICKNESS = 0.15;
+
+function init3D() {
+  const container = document.getElementById('threeCanvas');
+  container.innerHTML = '';
+
+  threeRenderer = new THREE.WebGLRenderer({ antialias: true });
+  threeRenderer.setPixelRatio(window.devicePixelRatio);
+  threeRenderer.setSize(container.clientWidth, container.clientHeight);
+  threeRenderer.shadowMap.enabled = true;
+  threeRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  threeRenderer.setClearColor(0x080c18);
+  container.appendChild(threeRenderer.domElement);
+
+  threeScene = new THREE.Scene();
+  threeScene.fog = new THREE.FogExp2(0x080c18, 0.02);
+
+  // Camera
+  threeCamera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+  threeCamera.position.set(0, 8, 14);
+  threeCamera.lookAt(0, 0, 0);
+
+  // Lighting
+  const ambient = new THREE.AmbientLight(0x334455, 0.6);
+  threeScene.add(ambient);
+
+  const dirLight = new THREE.DirectionalLight(0xaaddff, 0.8);
+  dirLight.position.set(5, 10, 8);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
+  threeScene.add(dirLight);
+
+  // Point lights for atmosphere
+  const pl1 = new THREE.PointLight(0x00d4ff, 0.4, 30);
+  pl1.position.set(-5, 3, -5);
+  threeScene.add(pl1);
+  const pl2 = new THREE.PointLight(0xff6b35, 0.3, 20);
+  pl2.position.set(5, 3, 5);
+  threeScene.add(pl2);
+
+  // Grid helper
+  const gridHelper = new THREE.GridHelper(40, 40, 0x1e3a5f, 0x0d2244);
+  threeScene.add(gridHelper);
+
+  // Build from 2D state
+  build3DScene();
+
+  // Orbit controls (manual)
+  setupOrbitControls(threeRenderer.domElement);
+}
+
+function build3DScene() {
+  if (!threeScene) return;
+
+  // Clear old objects (keep lights and grid)
+  const toRemove = [];
+  threeScene.traverse(obj => { if (obj.userData.isBuilding) toRemove.push(obj); });
+  toRemove.forEach(o => threeScene.remove(o));
+
+  const scale3d = 1 / 30; // canvas px → 3D meters
+
+  // Rooms → walls + floor
+  state.rooms.forEach(room => {
+    if (room.pts.length < 3) return;
+    const shape = new THREE.Shape();
+    const cx2 = room.pts.reduce((a,p) => a+p.x, 0) / room.pts.length;
+    const cy2 = room.pts.reduce((a,p) => a+p.y, 0) / room.pts.length;
+    const pts3 = room.pts.map(p => ({ x:(p.x - cw/2)*scale3d, y:-(p.y - ch/2)*scale3d }));
+    shape.moveTo(pts3[0].x, pts3[0].y);
+    pts3.slice(1).forEach(p => shape.lineTo(p.x, p.y));
+    shape.closePath();
+
+    // Floor
+    const floorGeo = new THREE.ShapeGeometry(shape);
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0x1a2235, side: THREE.DoubleSide });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = 0.01;
+    floor.receiveShadow = true;
+    floor.userData.isBuilding = true;
+    threeScene.add(floor);
+
+    // Walls (extrude)
+    const wallShape = shape.clone();
+    const extSettings = { depth: FLOOR_HEIGHT, bevelEnabled: false };
+    const wallGeo = new THREE.ExtrudeGeometry(wallShape, extSettings);
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0x1e3a5f, transparent: true, opacity: 0.35, side: THREE.DoubleSide, wireframe: false });
+    const wall = new THREE.Mesh(wallGeo, wallMat);
+    wall.rotation.x = -Math.PI / 2;
+    wall.position.y = 0;
+    wall.userData.isBuilding = true;
+    threeScene.add(wall);
+
+    // Wall wireframe
+    const wfGeo = new THREE.EdgesGeometry(wallGeo);
+    const wfMat = new THREE.LineBasicMaterial({ color: 0x1e3a5f });
+    const wf = new THREE.LineSegments(wfGeo, wfMat);
+    wf.rotation.x = -Math.PI / 2;
+    wf.position.y = 0;
+    wf.userData.isBuilding = true;
+    threeScene.add(wf);
+  });
+
+  // If no rooms, show a default floor
+  if (state.rooms.length === 0) {
+    const floorGeo = new THREE.PlaneGeometry(20, 20);
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0x111827 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    floor.userData.isBuilding = true;
+    threeScene.add(floor);
+  }
+
+  // Devices
+  state.devices.forEach(dev => {
+    const defn = EQUIPMENT_TYPES.find(e => e.type === dev.type);
+    const x3 = (dev.x - cw/2) * scale3d;
+    const z3 = (dev.y - ch/2) * scale3d;
+
+    let height3 = 0.05;
+    let color3  = parseInt((defn?.color || '#4a5568').replace('#',''), 16);
+    let geo3;
+
+    switch (dev.type) {
+      case 'panel': case 'breaker':
+        geo3 = new THREE.BoxGeometry(0.4, 0.6, 0.15);
+        height3 = 1.2;
+        break;
+      case 'light': case 'recessed':
+        geo3 = new THREE.SphereGeometry(0.15, 8, 6);
+        height3 = FLOOR_HEIGHT - 0.1;
+        break;
+      case 'fan':
+        geo3 = new THREE.CylinderGeometry(0.3, 0.3, 0.08, 8);
+        height3 = FLOOR_HEIGHT - 0.15;
+        break;
+      case 'outlet': case 'outlet20': case 'gfci':
+        geo3 = new THREE.BoxGeometry(0.1, 0.15, 0.05);
+        height3 = 0.4;
+        break;
+      case 'switch':
+        geo3 = new THREE.BoxGeometry(0.08, 0.12, 0.04);
+        height3 = 1.2;
+        break;
+      case 'ac':
+        geo3 = new THREE.BoxGeometry(0.7, 0.3, 0.25);
+        height3 = 2.0;
+        break;
+      case 'ac_mini':
+        geo3 = new THREE.BoxGeometry(0.8, 0.2, 0.2);
+        height3 = 2.1;
+        break;
+      default:
+        geo3 = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+        height3 = 0.18;
+    }
+
+    const mat3 = new THREE.MeshLambertMaterial({ color: color3 });
+    const mesh = new THREE.Mesh(geo3, mat3);
+    mesh.position.set(x3, height3, z3);
+    mesh.castShadow = true;
+    mesh.userData.isBuilding = true;
+    threeScene.add(mesh);
+
+    // Light glow for bulbs
+    if (dev.type === 'light' || dev.type === 'recessed') {
+      const pl = new THREE.PointLight(0xfff8e0, 0.5, 4);
+      pl.position.set(x3, height3 - 0.2, z3);
+      pl.userData.isBuilding = true;
+      threeScene.add(pl);
+    }
+
+    // Fan blades
+    if (dev.type === 'fan') {
+      for (let i = 0; i < 4; i++) {
+        const bladeGeo = new THREE.BoxGeometry(0.5, 0.02, 0.12);
+        const bladeMat = new THREE.MeshLambertMaterial({ color: 0x8b6914 });
+        const blade = new THREE.Mesh(bladeGeo, bladeMat);
+        blade.position.set(x3, height3, z3);
+        blade.rotation.y = (i * Math.PI) / 2;
+        blade.userData.isBuilding = true;
+        threeScene.add(blade);
+      }
+    }
+  });
+
+  // Wires (3D tubes)
+  if (state.showWires) {
+    state.wires.forEach(wire => {
+      const fromDev = state.devices.find(d => d.id === wire.fromDev);
+      const toDev   = state.devices.find(d => d.id === wire.toDev);
+      if (!fromDev || !toDev) return;
+
+      const x1 = (fromDev.x - cw/2)*scale3d, z1 = (fromDev.y - ch/2)*scale3d;
+      const x2 = (toDev.x   - cw/2)*scale3d, z2 = (toDev.y   - ch/2)*scale3d;
+      const wireH = 0.5;
+
+      const pts = [
+        new THREE.Vector3(x1, wireH, z1),
+        new THREE.Vector3((x1+x2)/2, wireH + 0.2, (z1+z2)/2),
+        new THREE.Vector3(x2, wireH, z2),
+      ];
+      const curve = new THREE.QuadraticBezierCurve3(...pts);
+      const points = curve.getPoints(20);
+      const wireGeo = new THREE.BufferGeometry().setFromPoints(points);
+      const wc = wire.type === 'lighting' ? 0xd69e2e :
+                 wire.type === 'dedicated' ? 0xfc8181 :
+                 wire.type === 'main'      ? 0x805ad5 : 0xe53e3e;
+      const wireMat = new THREE.LineBasicMaterial({ color: wc, linewidth: 2 });
+      const wireLine = new THREE.Line(wireGeo, wireMat);
+      wireLine.userData.isBuilding = true;
+      threeScene.add(wireLine);
+    });
+  }
+}
+
+// Manual orbit controls
+let isDragging3D = false, prevMouse3D = {x:0,y:0};
+let phi = 0.5, theta = 0, radius = 14;
+
+function setupOrbitControls(domEl) {
+  domEl.addEventListener('mousedown', e => { isDragging3D = true; prevMouse3D = {x:e.clientX,y:e.clientY}; });
+  domEl.addEventListener('mousemove', e => {
+    if (!isDragging3D) return;
+    const dx = e.clientX - prevMouse3D.x;
+    const dy = e.clientY - prevMouse3D.y;
+    theta -= dx * 0.005;
+    phi   = Math.max(0.1, Math.min(Math.PI/2 - 0.05, phi + dy * 0.005));
+    prevMouse3D = {x:e.clientX, y:e.clientY};
+    updateCamera3D();
+  });
+  domEl.addEventListener('mouseup', () => isDragging3D = false);
+  domEl.addEventListener('wheel', e => {
+    radius = Math.max(3, Math.min(40, radius + e.deltaY * 0.02));
+    updateCamera3D();
+  });
+}
+
+function updateCamera3D() {
+  if (!threeCamera) return;
+  threeCamera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+  threeCamera.position.y = radius * Math.cos(phi);
+  threeCamera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+  threeCamera.lookAt(0, 1, 0);
+  if (threeRenderer && threeScene) threeRenderer.render(threeScene, threeCamera);
+}
+
+function render3D() {
+  if (state.view !== '3d') return;
+  build3DScene();
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  let t = 0;
+  function loop() {
+    t += 0.003;
+    // Rotate fans
+    if (threeScene) {
+      threeScene.traverse(obj => {
+        if (obj.userData.isFanBlade) obj.rotation.y += 0.02;
+      });
+      threeRenderer.render(threeScene, threeCamera);
+    }
+    animFrameId = requestAnimationFrame(loop);
+  }
+  updateCamera3D();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PDF REPORT GENERATION
+// ═══════════════════════════════════════════════════════════════════════
+async function generatePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, H = 297, M = 15;
+
+  // ── Cover Page ──
+  doc.setFillColor(8, 12, 26);
+  doc.rect(0, 0, W, H, 'F');
+
+  // Accent line top
+  doc.setDrawColor(0, 212, 255);
+  doc.setLineWidth(0.5);
+  doc.line(M, 8, W - M, 8);
+
+  doc.setFontSize(28);
+  doc.setTextColor(0, 212, 255);
+  doc.text('VOLTPLAN', W/2, 45, { align:'center' });
+
+  doc.setFontSize(13);
+  doc.setTextColor(180, 200, 220);
+  doc.text('Home Wiring Design Report', W/2, 55, { align:'center' });
+
+  doc.setDrawColor(0, 212, 255);
+  doc.line(M, 62, W - M, 62);
+
+  // Project info
+  const now = new Date();
+  const infoItems = [
+    ['Generated', now.toLocaleString()],
+    ['Total Devices', state.devices.length],
+    ['Total Wires', state.wires.length],
+    ['Rooms', state.rooms.length],
+    ['Standards', 'NEC 2023 / IEC 60364'],
+    ['Wire Temp Rating', '75°C Copper'],
+  ];
+
+  doc.setFontSize(10);
+  infoItems.forEach(([k, v], i) => {
+    const y = 75 + i * 9;
+    doc.setTextColor(100, 130, 160);
+    doc.text(k + ':', M + 10, y);
+    doc.setTextColor(220, 230, 240);
+    doc.text(String(v), M + 60, y);
+  });
+
+  // Accent bottom
+  doc.setDrawColor(0, 212, 255);
+  doc.line(M, H - 20, W - M, H - 20);
+  doc.setFontSize(8);
+  doc.setTextColor(50, 80, 120);
+  doc.text('VoltPlan Electrical Design Simulator · For reference only · Consult a licensed electrician', W/2, H-10, { align:'center' });
+
+  // ── Page 2 – Floor Plan Snapshot ──
+  doc.addPage();
+  doc.setFillColor(8, 12, 26);
+  doc.rect(0, 0, W, H, 'F');
+
+  doc.setFontSize(14);
+  doc.setTextColor(0, 212, 255);
+  doc.text('FLOOR PLAN', M, 20);
+  doc.setDrawColor(0, 212, 255);
+  doc.line(M, 23, W - M, 23);
+
+  // Capture canvas
+  const imgData = canvas.toDataURL('image/png');
+  const iW = W - M*2, iH = iW * (ch / cw);
+  doc.addImage(imgData, 'PNG', M, 28, iW, Math.min(iH, 120));
+
+  doc.setFontSize(8);
+  doc.setTextColor(80, 100, 130);
+  doc.text('Floor Plan · 1 grid = 1 ft', M, 155);
+
+  // ── Page 3 – Device Schedule ──
+  doc.addPage();
+  doc.setFillColor(8, 12, 26);
+  doc.rect(0, 0, W, H, 'F');
+
+  doc.setFontSize(14);
+  doc.setTextColor(0, 212, 255);
+  doc.text('DEVICE SCHEDULE', M, 20);
+  doc.setDrawColor(0, 212, 255);
+  doc.line(M, 23, W - M, 23);
+
+  // Table header
+  const cols = [M, M+8, M+50, M+75, M+95, M+115, M+137, M+158];
+  const headers = ['#', 'Type', 'Label', 'Watts', 'Voltage', 'Wire Size', 'Breaker', 'Circuit'];
+
+  let y = 32;
+  doc.setFillColor(17, 24, 39);
+  doc.rect(M, y-4, W-M*2, 8, 'F');
+  doc.setFontSize(8);
+  doc.setTextColor(0, 212, 255);
+  headers.forEach((h, i) => doc.text(h, cols[i], y));
+
+  doc.setTextColor(200, 215, 230);
+  state.devices.forEach((dev, idx) => {
+    y += 8;
+    if (y > H - 20) {
+      doc.addPage();
+      doc.setFillColor(8, 12, 26);
+      doc.rect(0, 0, W, H, 'F');
+      y = 25;
+    }
+    if (idx % 2 === 0) {
+      doc.setFillColor(17, 24, 40);
+      doc.rect(M, y-4, W-M*2, 7, 'F');
+    }
+    doc.setTextColor(200, 215, 230);
+    const row = [
+      String(idx+1),
+      dev.type,
+      dev.label.substring(0, 14),
+      dev.watts + 'W',
+      dev.voltage + 'V',
+      dev.wireSize || '-',
+      (dev.breakerSize || '-') + 'A',
+      dev.circuit,
+    ];
+    row.forEach((r, i) => doc.text(String(r), cols[i], y));
+
+    // Wire size color coding
+    doc.setTextColor(229, 62, 62);
+    doc.text(dev.wireSize || '-', cols[5], y);
+    doc.setTextColor(0, 212, 255);
+    doc.text((dev.breakerSize || '-') + 'A', cols[6], y);
+  });
+
+  // ── Page 4 – Wire Schedule ──
+  doc.addPage();
+  doc.setFillColor(8, 12, 26);
+  doc.rect(0, 0, W, H, 'F');
+
+  doc.setFontSize(14);
+  doc.setTextColor(0, 212, 255);
+  doc.text('WIRE SCHEDULE', M, 20);
+  doc.setDrawColor(0, 212, 255);
+  doc.line(M, 23, W - M, 23);
+
+  y = 32;
+  const wcols = [M, M+10, M+70, M+130, M+160];
+  const whdrs = ['#', 'From', 'To', 'Wire Size', 'Type'];
+  doc.setFillColor(17, 24, 39);
+  doc.rect(M, y-4, W-M*2, 8, 'F');
+  doc.setFontSize(8);
+  doc.setTextColor(0, 212, 255);
+  whdrs.forEach((h, i) => doc.text(h, wcols[i], y));
+
+  state.wires.forEach((wire, idx) => {
+    y += 8;
+    if (y > H - 20) {
+      doc.addPage();
+      doc.setFillColor(8, 12, 26);
+      doc.rect(0, 0, W, H, 'F');
+      y = 25;
+    }
+    if (idx % 2 === 0) {
+      doc.setFillColor(17, 24, 40);
+      doc.rect(M, y-4, W-M*2, 7, 'F');
+    }
+    const fromDev = state.devices.find(d => d.id === wire.fromDev);
+    const toDev   = state.devices.find(d => d.id === wire.toDev);
+    doc.setTextColor(200, 215, 230);
+    doc.text(String(idx+1), wcols[0], y);
+    doc.text((fromDev?.label || '-').substring(0,18), wcols[1], y);
+    doc.text((toDev?.label || '-').substring(0,18), wcols[2], y);
+    doc.setTextColor(229, 62, 62);
+    doc.text(wire.wireSize || '-', wcols[3], y);
+    doc.setTextColor(148, 163, 184);
+    doc.text(wire.type || '-', wcols[4], y);
+  });
+
+  // ── Page 5 – Load Calculation ──
+  doc.addPage();
+  doc.setFillColor(8, 12, 26);
+  doc.rect(0, 0, W, H, 'F');
+
+  doc.setFontSize(14);
+  doc.setTextColor(0, 212, 255);
+  doc.text('LOAD CALCULATION', M, 20);
+  doc.setDrawColor(0, 212, 255);
+  doc.line(M, 23, W - M, 23);
+
+  // Group by circuit
+  const circuits = {};
+  state.devices.forEach(dev => {
+    if (!circuits[dev.circuit]) circuits[dev.circuit] = { devices:[], totalW:0, totalA:0 };
+    circuits[dev.circuit].devices.push(dev);
+    circuits[dev.circuit].totalW += dev.watts || 0;
+    circuits[dev.circuit].totalA += calcDeviceAmps(dev);
+  });
+
+  y = 35;
+  Object.entries(circuits).forEach(([circ, data]) => {
+    doc.setFontSize(10);
+    doc.setTextColor(0, 212, 255);
+    doc.text(circ.toUpperCase() + ' CIRCUIT', M + 5, y);
+    y += 7;
+
+    doc.setFontSize(8);
+    doc.setTextColor(180, 200, 220);
+    doc.text(`  Devices: ${data.devices.length}   Total Load: ${data.totalW}W   Total Current: ${data.totalA.toFixed(1)}A`, M+5, y);
+    y += 6;
+
+    const circWire = WIRE_STANDARDS.getWireForAmps(data.totalA);
+    const circBreaker = WIRE_STANDARDS.getBreakerSize(data.totalA);
+    doc.setTextColor(229, 62, 62);
+    doc.text(`  Recommended Wire: ${circWire.size} (${circWire.maxAmps}A capacity)`, M+5, y);
+    y += 5;
+    doc.setTextColor(0, 212, 255);
+    doc.text(`  Circuit Breaker: ${circBreaker}A`, M+5, y);
+    y += 10;
+
+    if (y > H - 30) {
+      doc.addPage();
+      doc.setFillColor(8, 12, 26);
+      doc.rect(0, 0, W, H, 'F');
+      y = 25;
+    }
+  });
+
+  // Total summary
+  const allDevices = state.devices.filter(d => d.type !== 'panel' && d.type !== 'switch' && d.type !== 'junction');
+  const totW = allDevices.reduce((a,d) => a + (d.watts||0), 0);
+  const totA = allDevices.reduce((a,d) => a + calcDeviceAmps(d), 0);
+
+  doc.setDrawColor(0, 212, 255);
+  doc.line(M, y, W-M, y);
+  y += 8;
+  doc.setFontSize(11);
+  doc.setTextColor(0, 255, 157);
+  doc.text('SUMMARY', M + 5, y);
+  y += 8;
+  doc.setFontSize(9);
+  doc.setTextColor(220, 230, 240);
+  doc.text(`Total Connected Load:  ${totW} W`, M+5, y); y += 7;
+  doc.text(`Total Service Current: ${totA.toFixed(1)} A`, M+5, y); y += 7;
+  doc.setTextColor(229, 62, 62);
+  doc.text(`Main Service Wire:     ${WIRE_STANDARDS.getWireForAmps(totA).size}`, M+5, y); y += 7;
+  doc.setTextColor(0, 212, 255);
+  doc.text(`Main Breaker:          ${WIRE_STANDARDS.getBreakerSize(totA)} A`, M+5, y); y += 7;
+  doc.setTextColor(100, 160, 220);
+  doc.text(`Circuits Required:     ${Math.ceil(totA / 16)}`, M+5, y); y += 12;
+
+  // ── Page 6 – Wire Reference Table ──
+  doc.addPage();
+  doc.setFillColor(8, 12, 26);
+  doc.rect(0, 0, W, H, 'F');
+
+  doc.setFontSize(14);
+  doc.setTextColor(0, 212, 255);
+  doc.text('NEC WIRE REFERENCE TABLE', M, 20);
+  doc.setDrawColor(0, 212, 255);
+  doc.line(M, 23, W - M, 23);
+
+  doc.setFontSize(8);
+  doc.setTextColor(100, 130, 160);
+  doc.text('Copper conductors at 75°C, in conduit. Includes 25% NEC safety margin.', M, 30);
+
+  y = 38;
+  const refCols = [M, M+22, M+50, M+85, M+120, M+160];
+  const refHdrs = ['AWG', 'mm²', 'Max Amps', 'NEC Rating', 'Resistance Ω/km', 'Typical Use'];
+  doc.setFillColor(17, 24, 39);
+  doc.rect(M, y-4, W-M*2, 8, 'F');
+  doc.setTextColor(0, 212, 255);
+  refHdrs.forEach((h, i) => doc.text(h, refCols[i], y));
+
+  const uses = {
+    '18 AWG':'Low voltage/signal', '16 AWG':'Lighting (small)', '14 AWG':'Lighting (15A circuits)',
+    '12 AWG':'General outlets (20A)', '10 AWG':'30A circuits / HVAC', '8 AWG':'40A / EV charger',
+    '6 AWG':'55A / Range/Dryer', '4 AWG':'70A panels', '2 AWG':'95A service',
+    '1/0':'125A service', '2/0':'145A service', '3/0':'165A service', '4/0':'200A service',
+  };
+
+  WIRE_STANDARDS.ampacity.forEach((w, i) => {
+    y += 8;
+    if (i % 2 === 0) {
+      doc.setFillColor(17, 24, 40);
+      doc.rect(M, y-4, W-M*2, 7, 'F');
+    }
+    doc.setTextColor(0, 212, 255);
+    doc.text(w.size, refCols[0], y);
+    doc.setTextColor(200, 215, 230);
+    doc.text(String(w.mm2), refCols[1], y);
+    doc.setTextColor(0, 255, 157);
+    doc.text(w.maxAmps + 'A', refCols[2], y);
+    doc.setTextColor(229, 62, 62);
+    doc.text(WIRE_STANDARDS.getBreakerSize(w.maxAmps) + 'A breaker', refCols[3], y);
+    doc.setTextColor(180, 200, 220);
+    doc.text(String(w.resistance), refCols[4], y);
+    doc.setTextColor(148, 163, 184);
+    doc.text(uses[w.size] || '-', refCols[5], y);
+  });
+
+  // Footer all pages
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(30, 58, 95);
+    doc.line(M, H-14, W-M, H-14);
+    doc.setFontSize(7);
+    doc.setTextColor(50, 80, 120);
+    doc.text('VoltPlan · Home Wiring Simulator', M, H-8);
+    doc.text(`Page ${i} of ${pageCount}`, W-M, H-8, { align:'right' });
+    doc.setTextColor(30, 58, 95);
+    doc.text('⚠ Consult a licensed electrician before installation. Local codes apply.', W/2, H-8, { align:'center' });
+  }
+
+  doc.save(`VoltPlan_Report_${now.getFullYear()}${now.getMonth()+1}${now.getDate()}.pdf`);
+  document.getElementById('statusBar').textContent = '✓ PDF report generated and downloaded';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// DEFAULT DEMO LAYOUT
+// ═══════════════════════════════════════════════════════════════════════
+function loadDemo() {
+  const cx = cw / 2, cy = ch / 2;
+  const gs = state.gridSize;
+
+  // Living room
+  state.rooms.push({ id:newId(), label:'Living Room', pts:[
+    {x:cx-120,y:cy-80},{x:cx+80,y:cy-80},{x:cx+80,y:cy+60},{x:cx-120,y:cy+60}
+  ]});
+
+  // Bedroom
+  state.rooms.push({ id:newId(), label:'Bedroom', pts:[
+    {x:cx+80,y:cy-80},{x:cx+200,y:cy-80},{x:cx+200,y:cy+60},{x:cx+80,y:cy+60}
+  ]});
+
+  // Kitchen
+  state.rooms.push({ id:newId(), label:'Kitchen', pts:[
+    {x:cx-120,y:cy+60},{x:cx+80,y:cy+60},{x:cx+80,y:cy+160},{x:cx-120,y:cy+160}
+  ]});
+
+  // Main Panel
+  placeDevice(cx - 100, cy - 60, 'panel');
+
+  // Living room devices
+  placeDevice(cx - 20, cy - 20, 'fan');
+  placeDevice(cx - 60, cy - 50, 'light');
+  placeDevice(cx + 40, cy - 50, 'light');
+  placeDevice(cx - 100, cy + 20, 'outlet');
+  placeDevice(cx + 60, cy + 20, 'outlet');
+  placeDevice(cx + 60, cy - 60, 'switch');
+  placeDevice(cx - 80, cy + 50, 'ac');
+
+  // Bedroom
+  placeDevice(cx + 140, cy - 20, 'fan');
+  placeDevice(cx + 140, cy - 60, 'light');
+  placeDevice(cx + 100, cy + 20, 'outlet');
+  placeDevice(cx + 180, cy + 20, 'outlet');
+  placeDevice(cx + 100, cy - 70, 'switch');
+
+  // Kitchen
+  placeDevice(cx - 60, cy + 110, 'outlet20');
+  placeDevice(cx + 20, cy + 110, 'outlet20');
+  placeDevice(cx - 20, cy + 80, 'light');
+  placeDevice(cx + 60, cy + 80, 'gfci');
+  placeDevice(cx - 80, cy + 140, 'oven');
+  placeDevice(cx + 20, cy + 140, 'fridge');
+
+  // Auto wire
+  autoWireAll();
+  updateCircuitSummary();
+  render2D();
+  document.getElementById('statusBar').textContent = '⚡ Demo layout loaded · Drag devices to reposition';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════
+buildEquipPanel();
+resizeCanvas();
+
+// Small delay to let canvas size settle, then load demo
+setTimeout(() => {
+  loadDemo();
+}, 100);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    state.mode = 'select';
+    state.placingType = null;
+    state.wireStart = null;
+    state.drawingRoom = false;
+    state.roomPts = [];
+    document.getElementById('btnDrawRoom').classList.remove('active');
+    document.getElementById('btnWireMode').classList.remove('active');
+    document.getElementById('statusBar').textContent = 'ESC · Select mode';
+    render2D();
+  }
+  if (e.key === 'Delete' && state.selectedId) {
+    state.ctxTargetId = state.selectedId;
+    ctxDelete();
+  }
+  if (e.key === 'w' || e.key === 'W') toggleWireMode();
+  if (e.key === 'r' || e.key === 'R') toggleRoomDraw();
+  if (e.key === 'a' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); autoWireAll(); }
+});
+</script>
+</body>
+</html>
