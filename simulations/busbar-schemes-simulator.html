@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bus Bar Schemes Simulator — Power Systems</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0b0f1a;
+    --surface: #111827;
+    --panel: #1a2235;
+    --border: #1f2d45;
+    --accent: #00d4aa;
+    --accent2: #3b82f6;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --label: #94a3b8;
+
+    --bus-live: #00d4aa;
+    --bus-dead: #1f2d45;
+    --bus-fault: #ef4444;
+    --breaker-closed: #22c55e;
+    --breaker-open: #ef4444;
+    --iso-closed: #3b82f6;
+    --iso-open: #334155;
+    --wire: #475569;
+    --wire-live: #00d4aa;
+    --wire-fault: #ef4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700; font-size: 14px;
+    color: var(--bg);
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 18px; font-weight: 600; color: var(--text); }
+  header p { font-size: 12px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .ref-link {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--accent);
+    text-decoration: none;
+    border: 1px solid var(--accent);
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .ref-link:hover { background: var(--accent); color: var(--bg); }
+
+  /* LAYOUT */
+  .app { display: flex; height: calc(100vh - 65px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px 0;
+  }
+  .sidebar-section { padding: 8px 16px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .scheme-btn {
+    display: block; width: 100%;
+    padding: 11px 16px;
+    text-align: left;
+    background: none; border: none;
+    cursor: pointer;
+    transition: all .15s;
+    border-left: 3px solid transparent;
+  }
+  .scheme-btn:hover { background: var(--panel); }
+  .scheme-btn.active { background: var(--panel); border-left-color: var(--accent); }
+  .scheme-btn .s-name { font-size: 13px; color: var(--text); font-weight: 500; }
+  .scheme-btn .s-tag {
+    font-size: 10px; color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 2px;
+  }
+  .complexity-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  /* MAIN CONTENT */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* SCHEME HEADER */
+  .scheme-header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex; align-items: flex-start; gap: 16px;
+  }
+  .scheme-badge {
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 10px; font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    margin-top: 3px;
+  }
+  .scheme-title { font-size: 20px; font-weight: 700; }
+  .scheme-desc { font-size: 13px; color: var(--label); margin-top: 4px; line-height: 1.5; max-width: 600px; }
+
+  /* CANVAS + CONTROLS AREA */
+  .canvas-area { flex: 1; display: flex; overflow: hidden; }
+  .canvas-wrap { flex: 1; position: relative; overflow: hidden; background: var(--bg); }
+  canvas { display: block; }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .panel-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--muted); margin-bottom: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .scenario-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+  .scenario-btn {
+    padding: 9px 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    transition: all .15s;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .scenario-btn:hover { border-color: var(--accent2); background: #1e2d47; }
+  .scenario-btn.active { border-color: var(--accent); background: #0d2a25; }
+  .scenario-btn .sc-name { font-size: 12px; font-weight: 600; color: var(--text); }
+  .scenario-btn .sc-desc { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* LEGEND */
+  .legend { margin-bottom: 20px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; color: var(--label); }
+  .legend-sym { width: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* INFO CARDS */
+  .info-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .info-card h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+  .info-card p { font-size: 12px; color: var(--label); line-height: 1.5; }
+  .info-card ul { padding-left: 14px; }
+  .info-card li { font-size: 12px; color: var(--label); line-height: 1.6; }
+  .pro { color: var(--success) !important; }
+  .con { color: var(--danger) !important; }
+
+  /* STATUS BAR */
+  .status-bar {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 6px 24px;
+    display: flex; gap: 24px; align-items: center;
+    font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+  }
+  .status-indicator { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  /* FAULT ALERT */
+  .fault-alert {
+    background: rgba(239,68,68,.12);
+    border: 1px solid rgba(239,68,68,.4);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #fca5a5;
+    margin-bottom: 12px;
+    display: none;
+    font-family: 'JetBrains Mono', monospace;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media(max-width:900px){
+    .sidebar { width: 200px; }
+    .right-panel { width: 220px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">⚡</div>
+  <div>
+    <h1>Bus Bar Schemes Simulator</h1>
+    <p>Power System Substation — Interactive Single Line Diagram</p>
+  </div>
+  <a class="ref-link" href="https://electricaltech.in/different-bus-bar-schemes-in-electrical-substations/" target="_blank">↗ Reference</a>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-section">Schemes</div>
+    <button class="scheme-btn active" onclick="selectScheme(0)">
+      <div class="s-name"><span class="complexity-dot" style="background:#22c55e"></span>Single Bus</div>
+      <div class="s-tag">BASIC · Low cost</div>
+    </button>
+    <button class="scheme-btn" onclick="selectScheme(1)">
+      <div class="s-name"><span class="complexity-dot" style="background:#22c55e"></span>Sectionalized Single Bus</div>
+      <div class="s-tag">SEC · Bus coupler</div>
+    </button>
+    <button class="scheme-btn" onclick="selectScheme(2)">
+      <div class="s-name"><span class="complexity-dot" style="background:#f59e0b"></span>Main & Transfer Bus</div>
+      <div class="s-tag">M&T · Auxiliary bus</div>
+    </button>
+    <button class="scheme-btn" onclick="selectScheme(3)">
+      <div class="s-name"><span class="complexity-dot" style="background:#f59e0b"></span>Double Bus</div>
+      <div class="s-tag">DB · 2× breakers</div>
+    </button>
+    <button class="scheme-btn" onclick="selectScheme(4)">
+      <div class="s-name"><span class="complexity-dot" style="background:#ef4444"></span>One & Half Breaker</div>
+      <div class="s-tag">1½ · Tie-breaker</div>
+    </button>
+    <button class="scheme-btn" onclick="selectScheme(5)">
+      <div class="s-name"><span class="complexity-dot" style="background:#ef4444"></span>Ring Main Bus</div>
+      <div class="s-tag">RING · Closed loop</div>
+    </button>
+    <button class="scheme-btn" onclick="selectScheme(6)">
+      <div class="s-name"><span class="complexity-dot" style="background:#ef4444"></span>Mesh Bus</div>
+      <div class="s-tag">MESH · High density</div>
+    </button>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="scheme-header">
+      <div class="scheme-badge" id="schemeBadge">SCHEME 1</div>
+      <div>
+        <div class="scheme-title" id="schemeTitle">Single Bus System</div>
+        <div class="scheme-desc" id="schemeDesc">All incoming/outgoing bays connected to one common bus. Simplest and most economical arrangement.</div>
+      </div>
+    </div>
+
+    <div class="canvas-area">
+      <div class="canvas-wrap">
+        <canvas id="sldCanvas"></canvas>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="right-panel">
+        <div class="panel-title">Scenarios</div>
+        <div class="fault-alert" id="faultAlert">⚠ FAULT ACTIVE</div>
+        <div class="scenario-grid" id="scenarioGrid"></div>
+
+        <div class="divider"></div>
+
+        <div class="panel-title">Legend</div>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-sym">
+              <svg width="28" height="14"><rect x="4" y="5" width="20" height="4" rx="1" fill="#00d4aa"/></svg>
+            </div>Bus (Energized)
+          </div>
+          <div class="legend-item">
+            <div class="legend-sym">
+              <svg width="28" height="14"><rect x="4" y="5" width="20" height="4" rx="1" fill="#1f2d45"/></svg>
+            </div>Bus (De-energized)
+          </div>
+          <div class="legend-item">
+            <div class="legend-sym">
+              <svg width="28" height="14"><rect x="4" y="5" width="20" height="4" rx="1" fill="#ef4444"/></svg>
+            </div>Bus / Wire (Fault)
+          </div>
+          <div class="legend-item">
+            <div class="legend-sym">
+              <svg width="28" height="22">
+                <circle cx="14" cy="11" r="7" fill="none" stroke="#22c55e" stroke-width="2"/>
+                <line x1="9" y1="6" x2="19" y2="16" stroke="#22c55e" stroke-width="1.5"/>
+              </svg>
+            </div>Circuit Breaker (Closed)
+          </div>
+          <div class="legend-item">
+            <div class="legend-sym">
+              <svg width="28" height="22">
+                <circle cx="14" cy="11" r="7" fill="none" stroke="#ef4444" stroke-width="2"/>
+              </svg>
+            </div>Circuit Breaker (Open)
+          </div>
+          <div class="legend-item">
+            <div class="legend-sym">
+              <svg width="28" height="22">
+                <line x1="5" y1="15" x2="23" y2="7" stroke="#3b82f6" stroke-width="2"/>
+                <circle cx="5" cy="15" r="2" fill="#3b82f6"/>
+                <circle cx="23" cy="7" r="2" fill="#3b82f6"/>
+              </svg>
+            </div>Isolator (Closed)
+          </div>
+          <div class="legend-item">
+            <div class="legend-sym">
+              <svg width="28" height="22">
+                <line x1="5" y1="15" x2="14" y2="15" stroke="#334155" stroke-width="2"/>
+                <line x1="14" y1="7" x2="23" y2="7" stroke="#334155" stroke-width="2"/>
+                <circle cx="5" cy="15" r="2" fill="#334155"/>
+                <circle cx="23" cy="7" r="2" fill="#334155"/>
+              </svg>
+            </div>Isolator (Open)
+          </div>
+          <div class="legend-item">
+            <div class="legend-sym">
+              <svg width="28" height="22">
+                <polygon points="14,3 25,19 3,19" fill="none" stroke="#f59e0b" stroke-width="2"/>
+                <line x1="14" y1="8" x2="14" y2="14" stroke="#f59e0b" stroke-width="1.5"/>
+                <circle cx="14" cy="16" r="1.5" fill="#f59e0b"/>
+              </svg>
+            </div>Transformer
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="infoCards"></div>
+      </div>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+      <div class="status-indicator"><div class="dot" style="background:#22c55e"></div><span id="st1">BUS: ENERGIZED</span></div>
+      <div class="status-indicator"><div class="dot" id="faultDot" style="background:#475569"></div><span id="st2">NO FAULT</span></div>
+      <div class="status-indicator"><div class="dot" style="background:#3b82f6"></div><span id="st3">SCENARIO: NORMAL</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// SCHEME DEFINITIONS
+// =====================================================
+const SCHEMES = [
+  // 0 — SINGLE BUS
+  {
+    id: 0, badge: "SCHEME 1", name: "Single Bus System",
+    desc: "All incoming/outgoing bays connected to one common bus. Simplest and most economical arrangement used in small substations.",
+    pros: ["Simple operation and control", "Lowest capital cost", "Easy to understand and maintain"],
+    cons: ["Bus fault interrupts all bays", "No redundancy — any outage affects all feeders"],
+    scenarios: [
+      { name: "Normal Operation", desc: "All bays energized via single bus", type: "normal" },
+      { name: "Bus Fault", desc: "Fault on bus — all bays interrupted", type: "bus_fault" },
+      { name: "Bay Maintenance", desc: "One bay taken offline for maintenance", type: "maintenance" }
+    ]
+  },
+  // 1 — SECTIONALIZED SINGLE BUS
+  {
+    id: 1, badge: "SCHEME 2", name: "Sectionalized Single Bus",
+    desc: "Single bus divided into sections by a bus coupler CB. Fault on one section does not affect the other section.",
+    pros: ["Fault localized to one section", "Section maintenance possible without full outage", "Moderate cost"],
+    cons: ["Additional CB and isolators increase cost", "Half the bays still lose supply on section fault"],
+    scenarios: [
+      { name: "Normal Operation", desc: "Both sections energized, bus coupler closed", type: "normal" },
+      { name: "Section 1 Fault", desc: "Fault on section 1 — section 2 survives", type: "sec1_fault" },
+      { name: "Section 2 Fault", desc: "Fault on section 2 — section 1 survives", type: "sec2_fault" },
+      { name: "Section Maintenance", desc: "Section 2 isolated for maintenance work", type: "maintenance" }
+    ]
+  },
+  // 2 — MAIN & TRANSFER BUS
+  {
+    id: 2, badge: "SCHEME 3", name: "Main & Transfer Bus",
+    desc: "Two buses: main bus (normally active) and transfer bus (standby). Load can be shifted to transfer bus via TBC bay for CB maintenance.",
+    pros: ["CB maintenance without supply interruption", "Greater operational flexibility", "Transfer bus acts as backup"],
+    cons: ["Bus fault still interrupts all bays on that bus", "More complex switching procedure", "Higher cost than single bus"],
+    scenarios: [
+      { name: "Normal Operation", desc: "All load on main bus, transfer bus standby", type: "normal" },
+      { name: "TF1 to Transfer Bus", desc: "Load of Transformer 1 shifted to transfer bus", type: "shift_tf1" },
+      { name: "Main Bus Fault", desc: "Fault on main bus — all bays interrupted", type: "bus_fault" }
+    ]
+  },
+  // 3 — DOUBLE BUS
+  {
+    id: 3, badge: "SCHEME 4", name: "Double Breaker Bus System",
+    desc: "Two fully active buses. Each bay has two breakers — one for each bus. Any bay can supply from either bus independently.",
+    pros: ["Most flexible — load shifts without interruption", "Bus fault shifts entire load to healthy bus", "No separate TBC bay needed"],
+    cons: ["Highest cost — 2 CBs per bay", "More protection complexity"],
+    scenarios: [
+      { name: "Normal Operation", desc: "All bays on both buses, fully energized", type: "normal" },
+      { name: "Bus 1 Fault", desc: "All load shifted to Bus 2, no interruption", type: "bus1_fault" },
+      { name: "Bus 2 Fault", desc: "All load shifted to Bus 1, no interruption", type: "bus2_fault" },
+      { name: "Load Shift", desc: "TF1 shifted from Bus1 to Bus2 only", type: "shift" }
+    ]
+  },
+  // 4 — ONE AND HALF BREAKER
+  {
+    id: 4, badge: "SCHEME 5", name: "One & Half Breaker System",
+    desc: "Two buses with a tie-breaker between each pair of bays. Three breakers serve two bays = 1.5 CBs per bay. Highly reliable.",
+    pros: ["No interruption on any single bus fault", "Any CB can be maintained without outage", "Very high reliability"],
+    cons: ["High cost — 1.5 CBs per bay vs 1 in single bus", "Complex protection and relay coordination"],
+    scenarios: [
+      { name: "Normal Operation", desc: "Both buses energized, tie-breakers closed", type: "normal" },
+      { name: "Bus 1 Fault", desc: "Bus 1 lost, load continues via Bus 2 & tie-breakers", type: "bus1_fault" },
+      { name: "Bus 2 Fault", desc: "Bus 2 lost, load continues via Bus 1 & tie-breakers", type: "bus2_fault" },
+      { name: "Tie Breaker Maint.", desc: "Open tie-breaker — bays on independent buses", type: "maintenance" }
+    ]
+  },
+  // 5 — RING MAIN
+  {
+    id: 5, badge: "SCHEME 6", name: "Ring Main Bus System",
+    desc: "Bus bars form a closed ring. Each bay receives dual feed from both directions. Fault localizes without total interruption.",
+    pros: ["Double feed to each bay", "Fault localized — rest of ring continues", "CB maintenance without supply loss"],
+    cons: ["Ring break + second fault can isolate a bay", "Load imbalance when ring is open at one point"],
+    scenarios: [
+      { name: "Normal Operation", desc: "Full ring energized, all CBs closed", type: "normal" },
+      { name: "Bus Section Fault", desc: "Section fault — CBs isolate fault, ring continues", type: "bus_fault" },
+      { name: "CB Maintenance", desc: "One CB open — ring still supplies all bays", type: "maintenance" }
+    ]
+  },
+  // 6 — MESH
+  {
+    id: 6, badge: "SCHEME 7", name: "Mesh Bus System",
+    desc: "Circuit breakers form a mesh. Bays connect at node points of the mesh. Used for high-density substations with many circuits.",
+    pros: ["Fault localized — only adjacent CBs trip", "Efficient for substations with many circuits", "No dedicated bus — CBs form the bus"],
+    cons: ["Limited switching flexibility", "Two circuits share node points — joint CB control", "Complex protection"],
+    scenarios: [
+      { name: "Normal Operation", desc: "All mesh CBs closed, all bays energized", type: "normal" },
+      { name: "Bus Fault", desc: "Fault on one section — adjacent CBs trip, rest survives", type: "bus_fault" }
+    ]
+  }
+];
+
+// =====================================================
+// STATE
+// =====================================================
+let currentScheme = 0;
+let currentScenario = 0;
+let canvas, ctx, W, H;
+
+// =====================================================
+// INIT
+// =====================================================
+window.addEventListener('load', () => {
+  canvas = document.getElementById('sldCanvas');
+  ctx = canvas.getContext('2d');
+  resize();
+  window.addEventListener('resize', resize);
+  selectScheme(0);
+});
+
+function resize() {
+  const wrap = canvas.parentElement;
+  W = wrap.clientWidth;
+  H = wrap.clientHeight;
+  canvas.width = W;
+  canvas.height = H;
+  draw();
+}
+
+// =====================================================
+// SCHEME SELECTION
+// =====================================================
+function selectScheme(idx) {
+  currentScheme = idx;
+  currentScenario = 0;
+  document.querySelectorAll('.scheme-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+  const s = SCHEMES[idx];
+  document.getElementById('schemeBadge').textContent = s.badge;
+  document.getElementById('schemeTitle').textContent = s.name;
+  document.getElementById('schemeDesc').textContent = s.desc;
+  buildScenarios(s);
+  buildInfoCards(s);
+  draw();
+  updateStatus();
+}
+
+function buildScenarios(s) {
+  const grid = document.getElementById('scenarioGrid');
+  grid.innerHTML = '';
+  s.scenarios.forEach((sc, i) => {
+    const b = document.createElement('button');
+    b.className = 'scenario-btn' + (i === 0 ? ' active' : '');
+    b.innerHTML = `<div class="sc-name">${sc.name}</div><div class="sc-desc">${sc.desc}</div>`;
+    b.onclick = () => { currentScenario = i; document.querySelectorAll('.scenario-btn').forEach((x,j)=>x.classList.toggle('active',j===i)); draw(); updateStatus(); };
+    grid.appendChild(b);
+  });
+}
+
+function buildInfoCards(s) {
+  const el = document.getElementById('infoCards');
+  el.innerHTML = `
+    <div class="info-card">
+      <h4>Advantages</h4>
+      <ul>${s.pros.map(p=>`<li class="pro">✓ ${p}</li>`).join('')}</ul>
+    </div>
+    <div class="info-card">
+      <h4>Disadvantages</h4>
+      <ul>${s.cons.map(c=>`<li class="con">✗ ${c}</li>`).join('')}</ul>
+    </div>
+  `;
+}
+
+function updateStatus() {
+  const sc = SCHEMES[currentScheme].scenarios[currentScenario];
+  const isFault = sc.type.includes('fault');
+  document.getElementById('faultAlert').style.display = isFault ? 'block' : 'none';
+  document.getElementById('faultDot').style.background = isFault ? '#ef4444' : '#475569';
+  document.getElementById('st2').textContent = isFault ? '⚠ FAULT ACTIVE' : 'NO FAULT';
+  document.getElementById('st3').textContent = `SCENARIO: ${sc.name.toUpperCase()}`;
+}
+
+// =====================================================
+// DRAWING HELPERS
+// =====================================================
+const C = {
+  bg: '#0b0f1a', surface: '#111827', panel: '#1a2235', border: '#1f2d45',
+  accent: '#00d4aa', accent2: '#3b82f6', warn: '#f59e0b', danger: '#ef4444',
+  success: '#22c55e', text: '#e2e8f0', muted: '#64748b', label: '#94a3b8',
+  busLive: '#00d4aa', busDead: '#1f2d45', busFault: '#ef4444',
+  cbClosed: '#22c55e', cbOpen: '#ef4444',
+  isoClosed: '#3b82f6', isoOpen: '#334155',
+  wire: '#475569', wireLive: '#00d4aa', wireFault: '#ef4444'
+};
+
+function drawBus(x, y, w, h, state) {
+  // state: 'live' | 'dead' | 'fault'
+  const col = state === 'live' ? C.busLive : state === 'fault' ? C.busFault : C.busDead;
+  ctx.save();
+  if (state === 'live') {
+    ctx.shadowColor = col; ctx.shadowBlur = 10;
+  }
+  ctx.fillStyle = col;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = h;
+  ctx.strokeRect(x, y+h/2, w, 0);
+  ctx.restore();
+}
+
+function drawWire(x1, y1, x2, y2, live, fault) {
+  const col = fault ? C.wireFault : live ? C.wireLive : C.wire;
+  ctx.save();
+  if (live) { ctx.shadowColor = col; ctx.shadowBlur = 6; }
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawBreaker(cx, cy, closed, fault) {
+  const col = fault ? C.danger : closed ? C.cbClosed : C.cbOpen;
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+  ctx.fillStyle = 'rgba(11,15,26,0.8)';
+  const r = 11;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  if (closed) {
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx-r*0.6, cy+r*0.4); ctx.lineTo(cx+r*0.6, cy-r*0.4); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawIsolator(x, y, vertical, closed, fault) {
+  const col = fault ? C.danger : closed ? C.isoClosed : C.isoOpen;
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  const len = 16;
+  if (vertical) {
+    if (closed) {
+      ctx.beginPath(); ctx.moveTo(x, y-len/2); ctx.lineTo(x, y+len/2); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.moveTo(x, y-len/2); ctx.lineTo(x, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x+len*0.6, y-len*0.4); ctx.stroke();
+    }
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(x, y-len/2, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y+len/2, 3, 0, Math.PI*2); ctx.fill();
+  } else {
+    if (closed) {
+      ctx.beginPath(); ctx.moveTo(x-len/2, y); ctx.lineTo(x+len/2, y); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.moveTo(x-len/2, y); ctx.lineTo(x, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x+len*0.4, y-len*0.6); ctx.stroke();
+    }
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(x-len/2, y, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+len/2, y, 3, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawTransformer(cx, cy, live) {
+  const col = live ? C.warn : C.muted;
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.fillStyle = 'rgba(11,15,26,0.8)';
+  const r = 12;
+  ctx.beginPath(); ctx.arc(cx, cy-r*0.5, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy+r*0.5, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawLoad(cx, cy, live, label) {
+  const col = live ? C.accent2 : C.muted;
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.fillStyle = col + '22';
+  ctx.beginPath(); ctx.moveTo(cx-10, cy); ctx.lineTo(cx+10, cy); ctx.lineTo(cx, cy+18); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = live ? C.label : C.muted;
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, cx, cy+32);
+  ctx.restore();
+}
+
+function drawLabel(x, y, text, color, align) {
+  ctx.save();
+  ctx.fillStyle = color || C.label;
+  ctx.font = '11px JetBrains Mono, monospace';
+  ctx.textAlign = align || 'center';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawFaultStar(cx, cy) {
+  ctx.save();
+  ctx.fillStyle = C.danger;
+  ctx.shadowColor = C.danger; ctx.shadowBlur = 20;
+  const spikes = 8, outer = 14, inner = 7;
+  ctx.beginPath();
+  for (let i = 0; i < spikes*2; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const angle = (Math.PI / spikes) * i - Math.PI/2;
+    if (i===0) ctx.moveTo(cx + r*Math.cos(angle), cy + r*Math.sin(angle));
+    else ctx.lineTo(cx + r*Math.cos(angle), cy + r*Math.sin(angle));
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawTitle(text) {
+  ctx.save();
+  ctx.fillStyle = C.muted;
+  ctx.font = '12px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(text, 16, H - 16);
+  ctx.restore();
+}
+
+// =====================================================
+// BACKGROUND GRID
+// =====================================================
+function drawGrid() {
+  ctx.save();
+  ctx.strokeStyle = '#ffffff08';
+  ctx.lineWidth = 1;
+  const step = 40;
+  for (let x = 0; x < W; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.restore();
+}
+
+// =====================================================
+// DRAW DISPATCHER
+// =====================================================
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+  drawGrid();
+  const sc = SCHEMES[currentScheme].scenarios[currentScenario].type;
+  const drawFns = [draw0, draw1, draw2, draw3, draw4, draw5, draw6];
+  drawFns[currentScheme](sc);
+}
+
+// =====================================================
+// SCHEME 0 — SINGLE BUS
+// =====================================================
+function draw0(sc) {
+  const busY = H * 0.42, busX = W*0.12, busW = W*0.76, busH = 8;
+  const bays = ['L1\n(Line)', 'L2\n(Line)', 'TF1\n(Trafo)', 'L3\n(Line)', 'F1\n(Feeder)'];
+  const bayCount = bays.length;
+  const spacing = busW / (bayCount + 1);
+  const isFault = sc === 'bus_fault';
+  const isMaint = sc === 'maintenance';
+  const busState = isFault ? 'fault' : 'live';
+
+  // Bus
+  drawBus(busX, busY, busW, busH, busState);
+  drawLabel(busX + busW/2, busY - 20, 'BUS BAR (33kV)', isFault ? C.danger : C.accent, 'center');
+  if (isFault) drawFaultStar(busX + busW*0.5, busY);
+
+  bays.forEach((b, i) => {
+    const x = busX + spacing*(i+1);
+    const tapY = busY;
+    const maintBay = isMaint && i === 2;
+    const live = !isFault && !maintBay;
+
+    // Wire up from source
+    drawWire(x, 40, x, tapY - 80, live, isFault);
+
+    // Isolator
+    drawIsolator(x, tapY - 65, true, !maintBay, isFault);
+
+    // Breaker
+    drawBreaker(x, tapY - 40, !maintBay, isFault);
+
+    // Isolator
+    drawIsolator(x, tapY - 18, true, !maintBay, isFault);
+
+    // Down to bus
+    drawWire(x, tapY - 10, x, tapY, live, isFault);
+
+    // Load symbol (below bus)
+    if (b.includes('Trafo')) {
+      drawWire(x, tapY, x, tapY + 20, live, isFault);
+      drawTransformer(x, tapY + 40, live);
+      drawWire(x, tapY + 54, x, tapY + 80, live, isFault);
+      drawLoad(x, tapY + 82, live, 'HV/LV');
+    } else {
+      drawWire(x, 40, x, 18, live, isFault);
+      // arrowhead for source
+      ctx.save();
+      ctx.fillStyle = live ? C.wireLive : C.wire;
+      ctx.beginPath(); ctx.moveTo(x, 14); ctx.lineTo(x-5, 26); ctx.lineTo(x+5, 26); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+
+    // Label
+    const lns = b.split('\n');
+    drawLabel(x, tapY + (b.includes('Trafo') ? 105 : -95), lns[0], live ? C.text : C.muted);
+    drawLabel(x, tapY + (b.includes('Trafo') ? 118 : -84), lns[1], live ? C.label : C.muted);
+    if (maintBay) drawLabel(x, tapY - 130, '🔧 MAINT', '#f59e0b');
+  });
+}
+
+// =====================================================
+// SCHEME 1 — SECTIONALIZED SINGLE BUS
+// =====================================================
+function draw1(sc) {
+  const busY = H*0.42, busX = W*0.08, busW = W*0.84, busH = 8;
+  const midX = busX + busW/2;
+  const isSec1 = sc === 'sec1_fault';
+  const isSec2 = sc === 'sec2_fault';
+  const isMaint = sc === 'maintenance';
+
+  // Bus sections
+  const sec1State = isSec1 ? 'fault' : 'live';
+  const sec2State = (isSec2 || isMaint) ? (isMaint ? 'dead' : 'fault') : 'live';
+
+  // Draw bus in two halves
+  drawBus(busX, busY, busW/2 - 30, busH, sec1State);
+  drawBus(midX + 30, busY, busW/2 - 30, busH, sec2State);
+
+  drawLabel(busX + busW/4, busY - 22, 'SECTION 1', isSec1 ? C.danger : C.accent);
+  drawLabel(midX + busW/4, busY - 22, 'SECTION 2', (isSec2||isMaint) ? (isMaint?C.muted:C.danger) : C.accent);
+
+  // Bus coupler CB
+  const coupClosed = sc === 'normal';
+  drawWire(midX - 28, busY+busH/2, midX - 14, busY+busH/2, coupClosed, false);
+  drawBreaker(midX, busY+busH/2, coupClosed, false);
+  drawWire(midX + 14, busY+busH/2, midX + 28, busY+busH/2, coupClosed, false);
+  drawLabel(midX, busY + 28, 'BUS', C.muted);
+  drawLabel(midX, busY + 40, 'COUPLER', C.muted);
+
+  if (isSec1) drawFaultStar(busX + busW*0.25, busY);
+  if (isSec2) drawFaultStar(busX + busW*0.75, busY);
+
+  // Bays
+  const s1Bays = ['L1\n(Line)', 'L2\n(Line)'];
+  const s2Bays = ['TF1\n(Trafo)', 'L3\n(Line)'];
+
+  s1Bays.forEach((b, i) => {
+    const x = busX + 60 + i * 130;
+    const live = !isSec1;
+    drawWire(x, 40, x, busY - 80, live, isSec1);
+    drawIsolator(x, busY - 65, true, live, isSec1);
+    drawBreaker(x, busY - 42, live, isSec1);
+    drawIsolator(x, busY - 20, true, live, isSec1);
+    drawWire(x, busY - 12, x, busY, live, isSec1);
+    const lns = b.split('\n');
+    drawLabel(x, busY - 95, lns[0], live ? C.text : C.muted);
+    drawLabel(x, busY - 83, lns[1], live ? C.label : C.muted);
+    ctx.save(); ctx.fillStyle = live ? C.wireLive : C.wire;
+    ctx.beginPath(); ctx.moveTo(x, 14); ctx.lineTo(x-5, 26); ctx.lineTo(x+5, 26); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  });
+
+  s2Bays.forEach((b, i) => {
+    const x = midX + 70 + i * 130;
+    const live = !isSec2 && !isMaint;
+    const isFlt = isSec2;
+    drawWire(x, 40, x, busY - 80, live, isFlt);
+    drawIsolator(x, busY - 65, true, live, isFlt);
+    drawBreaker(x, busY - 42, live, isFlt);
+    drawIsolator(x, busY - 20, true, live, isFlt);
+    drawWire(x, busY - 12, x, busY, live, isFlt);
+    const lns = b.split('\n');
+    drawLabel(x, busY - 95, lns[0], live ? C.text : C.muted);
+    drawLabel(x, busY - 83, lns[1], live ? C.label : C.muted);
+    if (b.includes('Trafo')) {
+      drawTransformer(x, busY + 50, live);
+    }
+  });
+}
+
+// =====================================================
+// SCHEME 2 — MAIN & TRANSFER BUS
+// =====================================================
+function draw2(sc) {
+  const mainY = H*0.38, xferY = H*0.62;
+  const busX = W*0.10, busW = W*0.80, busH = 8;
+  const isShift = sc === 'shift_tf1';
+  const isFault = sc === 'bus_fault';
+
+  const mainState = isFault ? 'fault' : 'live';
+  const xferState = isShift ? 'live' : 'dead';
+
+  drawBus(busX, mainY, busW, busH, mainState);
+  drawBus(busX, xferY, busW, busH, xferState);
+  drawLabel(busX + busW/2, mainY - 18, 'MAIN BUS', isFault ? C.danger : C.accent);
+  drawLabel(busX + busW/2, xferY - 18, 'TRANSFER BUS (Standby)', isShift ? C.accent : C.muted);
+
+  if (isFault) drawFaultStar(busX + busW*0.5, mainY);
+
+  // TBC bay (rightmost)
+  const tbcX = busX + busW - 60;
+  const tbcClosed = isShift;
+  drawWire(tbcX, mainY + busH, tbcX, mainY + 40, false, false);
+  drawIsolator(tbcX, mainY + 28, true, tbcClosed, false);
+  drawBreaker(tbcX, mainY + 55, tbcClosed, false);
+  drawIsolator(tbcX, mainY + 78, true, tbcClosed, false);
+  drawWire(tbcX, mainY + 90, tbcX, xferY, tbcClosed, false);
+  drawLabel(tbcX, xferY + 22, 'TBC', C.warn);
+
+  // Bays
+  const bays = [
+    {label:'L1\n(Line)', x: busX + 80},
+    {label:'TF1\n(Trafo)', x: busX + 220},
+    {label:'L2\n(Line)', x: busX + 360},
+    {label:'F1\n(Feeder)', x: busX + 500},
+  ];
+
+  bays.forEach((b, i) => {
+    const x = b.x;
+    const isTF1 = i === 1;
+    const live = !isFault && !(isShift && isTF1);
+    const onXfer = isShift && isTF1;
+    const flt = isFault;
+
+    // Source line to main bus
+    if (!isTF1 || !isShift) {
+      drawWire(x, 40, x, mainY - 80, live, flt);
+      drawIsolator(x, mainY - 65, true, live, flt);
+      drawBreaker(x, mainY - 42, live, flt);
+      drawIsolator(x, mainY - 20, true, live, flt);
+      drawWire(x, mainY - 12, x, mainY, live, flt);
+    } else {
+      // TF1 shifted to transfer bus
+      drawWire(x, mainY - 80, x, mainY - 42, false, false);
+      drawIsolator(x, mainY - 65, true, false, false);
+      drawBreaker(x, mainY - 42, false, false);
+      drawIsolator(x, mainY - 20, true, false, false);
+      drawWire(x, mainY - 12, x, mainY, false, false);
+      // Aux isolator to xfer bus
+      drawWire(x, mainY + busH, x, xferY, true, false);
+      drawIsolator(x, (mainY+xferY)/2, true, true, false);
+      drawLabel(x+18, (mainY+xferY)/2, 'AUX ISO', C.accent2);
+    }
+
+    // Labels above
+    const lns = b.label.split('\n');
+    drawLabel(x, mainY - 95, lns[0], live||onXfer ? C.text : C.muted);
+    drawLabel(x, mainY - 83, lns[1], live||onXfer ? C.label : C.muted);
+
+    // Arrow source
+    if (!b.label.includes('Trafo')) {
+      ctx.save(); ctx.fillStyle = live ? C.wireLive : C.wire;
+      ctx.beginPath(); ctx.moveTo(x, 14); ctx.lineTo(x-5, 26); ctx.lineTo(x+5, 26); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  });
+}
+
+// =====================================================
+// SCHEME 3 — DOUBLE BUS
+// =====================================================
+function draw3(sc) {
+  const bus1Y = H*0.30, bus2Y = H*0.65;
+  const busX = W*0.10, busW = W*0.80, busH = 8;
+  const isBus1 = sc === 'bus1_fault', isBus2 = sc === 'bus2_fault', isShift = sc === 'shift';
+
+  const b1State = isBus1 ? 'fault' : 'live';
+  const b2State = isBus2 ? 'fault' : 'live';
+
+  drawBus(busX, bus1Y, busW, busH, b1State);
+  drawBus(busX, bus2Y, busW, busH, b2State);
+  drawLabel(busX + busW/2, bus1Y - 18, 'BUS 1', isBus1 ? C.danger : C.accent);
+  drawLabel(busX + busW/2, bus2Y + 20, 'BUS 2', isBus2 ? C.danger : C.accent);
+
+  if (isBus1) drawFaultStar(busX + busW*0.5, bus1Y);
+  if (isBus2) drawFaultStar(busX + busW*0.5, bus2Y);
+
+  const bays = [
+    {label:'L1', x: busX+90}, {label:'TF1', x: busX+230}, {label:'TF2', x: busX+370}, {label:'L2', x: busX+510}
+  ];
+
+  bays.forEach((b, i) => {
+    const x = b.x;
+    const midY = (bus1Y + bus2Y) / 2;
+    const tf = b.label.startsWith('TF');
+    const onlyBus2 = (isBus1) || (isShift && i===1);
+    const onlyBus1 = isBus2;
+
+    const iso1Live = !isBus1;
+    const iso2Live = !isBus2 && !(isShift && i===1);
+    const cb1Live = !isBus1;
+    const cb2Live = !isBus2 && !(isShift && i===1);
+
+    // Source (above bus1)
+    drawWire(x, 16, x, bus1Y - 80, !isBus1, isBus1);
+    drawIsolator(x, bus1Y - 66, true, iso1Live, isBus1);
+    drawBreaker(x, bus1Y - 44, cb1Live, isBus1);
+    drawIsolator(x, bus1Y - 22, true, iso1Live, isBus1);
+    drawWire(x, bus1Y - 14, x, bus1Y, !isBus1, isBus1);
+
+    // Between buses
+    drawWire(x, bus1Y + busH, x, bus2Y, true, false);
+
+    // Bus2 side
+    drawIsolator(x, bus2Y - 44, true, iso2Live, isBus2);
+    drawBreaker(x, bus2Y - 22, cb2Live, isBus2);
+    drawIsolator(x, bus2Y + busH + 4, true, iso2Live, isBus2);
+    drawWire(x, bus2Y + busH + 14, x, bus2Y + 80, iso2Live, isBus2);
+
+    if (tf) { drawTransformer(x, bus2Y + 96, iso2Live); }
+    else {
+      ctx.save(); ctx.fillStyle = !isBus1 ? C.wireLive : C.wire;
+      ctx.beginPath(); ctx.moveTo(x,10); ctx.lineTo(x-5,22); ctx.lineTo(x+5,22); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+
+    drawLabel(x, bus1Y - 96, b.label, C.text);
+  });
+}
+
+// =====================================================
+// SCHEME 4 — ONE & HALF BREAKER
+// =====================================================
+function draw4(sc) {
+  const bus1Y = H*0.24, bus2Y = H*0.74;
+  const busX = W*0.08, busW = W*0.84, busH = 8;
+  const isBus1 = sc === 'bus1_fault', isBus2 = sc === 'bus2_fault', isMaint = sc === 'maintenance';
+
+  const b1State = isBus1 ? 'fault' : 'live';
+  const b2State = isBus2 ? 'fault' : 'live';
+
+  drawBus(busX, bus1Y, busW, busH, b1State);
+  drawBus(busX, bus2Y, busW, busH, b2State);
+  drawLabel(busX + busW/2, bus1Y - 18, 'BUS 1', isBus1 ? C.danger : C.accent);
+  drawLabel(busX + busW/2, bus2Y + 22, 'BUS 2', isBus2 ? C.danger : C.accent);
+
+  if (isBus1) drawFaultStar(busX + busW*0.4, bus1Y);
+  if (isBus2) drawFaultStar(busX + busW*0.4, bus2Y);
+
+  // Two pairs: (L1, TF1) and (L2, TF2)
+  const pairs = [
+    { bays: ['L1', 'TF1'], x: W*0.30 },
+    { bays: ['L2', 'TF2'], x: W*0.65 }
+  ];
+
+  pairs.forEach(p => {
+    const x = p.x;
+    const midY = (bus1Y + bus2Y) / 2;
+    const tieClosed = !isMaint;
+
+    // Bus1 CB
+    const cb1Live = !isBus1;
+    drawWire(x, bus1Y, x, bus1Y + 22, cb1Live, isBus1);
+    drawIsolator(x, bus1Y + 16, true, cb1Live, isBus1);
+    drawBreaker(x, bus1Y + 38, cb1Live, isBus1);
+    drawIsolator(x, bus1Y + 60, true, cb1Live, isBus1);
+    drawWire(x, bus1Y + 72, x, midY - 28, cb1Live, isBus1);
+
+    // Bay 1 (left tap)
+    const b1Live = !isBus1 || !isBus2;
+    drawWire(x, midY - 20, x, midY - 60, b1Live, false);
+    drawLabel(x, midY - 68, p.bays[0], b1Live ? C.text : C.muted);
+    ctx.save(); ctx.fillStyle = b1Live ? C.wireLive : C.wire;
+    ctx.beginPath(); ctx.moveTo(x,midY-80); ctx.lineTo(x-5,midY-68); ctx.lineTo(x+5,midY-68); ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // Tie breaker
+    drawBreaker(x, midY, tieClosed, false);
+    drawLabel(x+22, midY, 'TIE', C.warn);
+
+    // Bay 2 (right tap)
+    const b2Live = !isBus2 || !isBus1;
+    drawWire(x, midY + 20, x, midY + 60, b2Live, false);
+    if (p.bays[1].startsWith('TF')) {
+      drawTransformer(x, midY + 80, b2Live);
+    }
+    drawLabel(x, midY + 106, p.bays[1], b2Live ? C.text : C.muted);
+
+    // Bus2 CB
+    const cb2Live = !isBus2;
+    drawWire(x, midY + 28, x, bus2Y - 72, cb2Live, isBus2);
+    drawIsolator(x, bus2Y - 64, true, cb2Live, isBus2);
+    drawBreaker(x, bus2Y - 42, cb2Live, isBus2);
+    drawIsolator(x, bus2Y - 20, true, cb2Live, isBus2);
+    drawWire(x, bus2Y - 12, x, bus2Y, cb2Live, isBus2);
+  });
+}
+
+// =====================================================
+// SCHEME 5 — RING MAIN BUS
+// =====================================================
+function draw5(sc) {
+  const isFault = sc === 'bus_fault', isMaint = sc === 'maintenance';
+  const cx = W/2, cy = H/2;
+  const rx = Math.min(W, H) * 0.32, ry = Math.min(W, H) * 0.28;
+  const bays = ['L1', 'L2', 'TF1', 'TF2', 'F1', 'F2'];
+  const n = bays.length;
+  const positions = bays.map((_, i) => {
+    const angle = (2*Math.PI/n)*i - Math.PI/2;
+    return { x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) };
+  });
+
+  // Fault section: between bay 1 and bay 2
+  const faultSeg = isFault ? 1 : -1;
+  const maintSeg = isMaint ? 0 : -1;
+
+  // Draw ring segments
+  for (let i = 0; i < n; i++) {
+    const j = (i+1) % n;
+    const p1 = positions[i], p2 = positions[j];
+    const segFault = (i === faultSeg);
+    const segOpen = (i === maintSeg);
+    const live = !segFault && !segOpen;
+    const mid = { x: (p1.x+p2.x)/2, y: (p1.y+p2.y)/2 };
+
+    drawWire(p1.x, p1.y, mid.x*0.7+p1.x*0.3, mid.y*0.7+p1.y*0.3, live, segFault);
+    drawBreaker(mid.x, mid.y, live, segFault);
+    drawWire(mid.x*0.7+p2.x*0.3, mid.y*0.7+p2.y*0.3, p2.x, p2.y, live, segFault);
+
+    if (segFault) drawFaultStar(mid.x, mid.y);
+  }
+
+  // Draw ring dots and bay labels
+  positions.forEach((p, i) => {
+    const isTF = bays[i].startsWith('TF');
+    const live = !isFault || (i !== 1 && i !== 2);
+    ctx.save();
+    ctx.fillStyle = live ? C.accent : C.muted;
+    ctx.shadowColor = live ? C.accent : 'transparent'; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    const angle = (2*Math.PI/n)*i - Math.PI/2;
+    const lx = cx + (rx + 44) * Math.cos(angle);
+    const ly = cy + (ry + 44) * Math.sin(angle);
+    drawLabel(lx, ly, bays[i], live ? C.text : C.muted);
+    if (isTF) drawTransformer(lx, ly + 18, live);
+  });
+
+  drawLabel(cx, cy, 'RING', C.muted);
+  drawLabel(cx, cy + 16, 'MAIN BUS', C.muted);
+}
+
+// =====================================================
+// SCHEME 6 — MESH
+// =====================================================
+function draw6(sc) {
+  const isFault = sc === 'bus_fault';
+  const px = W*0.18, py = H*0.20;
+  const qx = W*0.82, qy = H*0.20;
+  const rx2 = W*0.82, ry2 = H*0.75;
+  const sx = W*0.18, sy = H*0.75;
+
+  // Node points
+  const nodes = [{x:px,y:py},{x:qx,y:qy},{x:rx2,y:ry2},{x:sx,y:sy}];
+  const mids = [
+    {x:(px+qx)/2, y:py},      // top CB
+    {x:qx, y:(qy+ry2)/2},     // right CB
+    {x:(sx+rx2)/2, y:ry2},    // bottom CB
+    {x:sx, y:(py+sy)/2}       // left CB
+  ];
+
+  // Fault on top segment
+  const faultSeg = isFault ? 0 : -1;
+
+  // Draw mesh
+  const segs = [
+    [nodes[0], nodes[1], mids[0]],
+    [nodes[1], nodes[2], mids[1]],
+    [nodes[2], nodes[3], mids[2]],
+    [nodes[3], nodes[0], mids[3]],
+  ];
+
+  segs.forEach(([a, b, m], i) => {
+    const fault = i === faultSeg;
+    const live = !fault;
+    drawWire(a.x, a.y, m.x*0.6+a.x*0.4, m.y*0.6+a.y*0.4, live, fault);
+    drawBreaker(m.x, m.y, live, fault);
+    drawWire(m.x*0.6+b.x*0.4, m.y*0.6+b.y*0.4, b.x, b.y, live, fault);
+    if (fault) drawFaultStar(m.x, m.y);
+  });
+
+  // Diagonal: two cross connections
+  const diagLive = !isFault;
+  const diagMid1 = {x:(px+rx2)/2, y:(py+ry2)/2};
+  // just label, no diagonal to keep clean
+
+  // Bays at nodes
+  const bays = ['L1', 'L2', 'TF1', 'TF2'];
+  nodes.forEach((n, i) => {
+    const live = !(isFault && (i === 0 || i === 1));
+    ctx.save();
+    ctx.fillStyle = live ? C.accent : C.muted;
+    ctx.shadowColor = live ? C.accent : 'transparent'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(n.x, n.y, 9, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    const offsets = [[-14,-28],[14,-28],[14,28],[-14,28]];
+    const lx = n.x + offsets[i][0];
+    const ly = n.y + offsets[i][1];
+    drawLabel(lx, ly, bays[i], live ? C.text : C.muted);
+
+    // Adjacent bay at same node
+    const bays2 = ['F1', 'F2', 'F3', 'F4'];
+    drawWire(n.x, n.y, n.x + offsets[i][0]*3, n.y + offsets[i][1]*3, live, false);
+    drawLabel(n.x + offsets[i][0]*3.5, n.y + offsets[i][1]*3.5, bays2[i], live ? C.label : C.muted);
+    if (bays[i].startsWith('TF')) drawTransformer(n.x + offsets[i][0]*3, n.y + offsets[i][1]*3 + 18, live);
+  });
+
+  drawLabel(W/2, H/2, 'MESH BUS SYSTEM', C.muted);
+  drawLabel(W/2, H/2 + 18, '4 CBs control 8 circuits', C.muted + '88');
+}
+</script>
+</body>
+</html>
