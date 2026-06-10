@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CB–Isolator Interlock Simulator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg:      #080c14;
+  --surface: #0e1520;
+  --panel:   #131d2e;
+  --card:    #172032;
+  --border:  #1e2d44;
+  --border2: #253550;
+
+  --live:    #00e5b0;
+  --live-dim:#00e5b022;
+  --blue:    #4d9fff;
+  --amber:   #f0a500;
+  --red:     #ff4545;
+  --green:   #22d46a;
+  --purple:  #a78bfa;
+
+  --text:    #dce8f5;
+  --sub:     #7a9bbf;
+  --muted:   #3a5070;
+
+  --cb-closed: #22d46a;
+  --cb-open:   #ff4545;
+  --iso-closed:#4d9fff;
+  --iso-open:  #1e2d44;
+  --wire-live: #00e5b0;
+  --wire-dead: #1e2d44;
+  --wire-fault:#ff4545;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+
+body {
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Space Grotesk',sans-serif;
+  display:flex;flex-direction:column;
+}
+
+/* ── HEADER ── */
+header{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:12px 24px;
+  display:flex;align-items:center;gap:12px;
+  flex-shrink:0;
+}
+.logo{
+  width:34px;height:34px;
+  background:linear-gradient(135deg,var(--live),var(--blue));
+  border-radius:7px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:900;color:var(--bg);
+  font-family:'JetBrains Mono',monospace;
+  flex-shrink:0;
+}
+header h1{font-size:16px;font-weight:700}
+header p{font-size:11px;color:var(--sub);font-family:'JetBrains Mono',monospace;margin-top:1px}
+.mode-tabs{margin-left:auto;display:flex;gap:4px;background:var(--panel);padding:4px;border-radius:8px;border:1px solid var(--border)}
+.mode-tab{
+  padding:6px 14px;border:none;border-radius:5px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
+  background:none;color:var(--sub);transition:all .2s;
+}
+.mode-tab.active{background:var(--live);color:var(--bg)}
+
+/* ── MAIN LAYOUT ── */
+.app{flex:1;display:flex;overflow:hidden}
+
+/* ── LEFT PANEL ── */
+.left{
+  width:300px;flex-shrink:0;
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.panel-hd{
+  padding:14px 16px 10px;
+  font-size:10px;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--muted);font-family:'JetBrains Mono',monospace;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.panel-scroll{flex:1;overflow-y:auto;padding:10px 12px}
+
+/* scenario cards */
+.op-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:12px;
+  margin-bottom:8px;
+  cursor:pointer;
+  transition:all .15s;
+  position:relative;
+}
+.op-card:hover{border-color:var(--border2);background:#1a2840}
+.op-card.active{border-color:var(--live);background:#0d2620}
+.op-card .op-badge{
+  font-size:9px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--live);font-family:'JetBrains Mono',monospace;margin-bottom:4px;
+}
+.op-card .op-name{font-size:13px;font-weight:600;color:var(--text)}
+.op-card .op-rule{
+  font-size:11px;color:var(--sub);margin-top:4px;line-height:1.4;
+}
+.op-card .op-danger{
+  font-size:10px;color:var(--amber);margin-top:6px;
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* ── CENTRE ── */
+.centre{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* SLD canvas */
+.sld-area{flex:1;position:relative;overflow:hidden}
+canvas{display:block}
+
+/* step progress bar */
+.progress-bar-wrap{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:10px 20px;
+  flex-shrink:0;
+}
+.progress-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:6px}
+.steps-row{display:flex;align-items:center;gap:0}
+.step-node{
+  display:flex;align-items:center;gap:0;flex:1;
+  position:relative;
+}
+.step-circle{
+  width:28px;height:28px;border-radius:50%;
+  border:2px solid var(--muted);
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:var(--muted);
+  flex-shrink:0;
+  transition:all .3s;
+  font-family:'JetBrains Mono',monospace;
+  z-index:1;
+}
+.step-circle.done{border-color:var(--green);background:var(--green);color:var(--bg)}
+.step-circle.current{border-color:var(--live);color:var(--live);box-shadow:0 0 10px var(--live)44}
+.step-circle.error{border-color:var(--red);color:var(--red);animation:shake .3s}
+.step-line{flex:1;height:2px;background:var(--muted);transition:background .3s}
+.step-line.done{background:var(--green)}
+.step-label{
+  position:absolute;top:32px;left:50%;transform:translateX(-50%);
+  font-size:9px;white-space:nowrap;color:var(--sub);
+  font-family:'JetBrains Mono',monospace;text-align:center;
+}
+
+/* ── RIGHT PANEL ── */
+.right{
+  width:280px;flex-shrink:0;
+  background:var(--surface);
+  border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.log-area{flex:1;overflow-y:auto;padding:10px 12px}
+.log-entry{
+  padding:7px 10px;
+  border-radius:5px;
+  margin-bottom:5px;
+  font-size:11px;
+  font-family:'JetBrains Mono',monospace;
+  line-height:1.5;
+  border-left:3px solid transparent;
+}
+.log-ok   {background:#0d2620;border-color:var(--green);color:#6ee7b7}
+.log-err  {background:#2a0d0d;border-color:var(--red);color:#fca5a5}
+.log-info {background:var(--panel);border-color:var(--blue);color:var(--sub)}
+.log-warn {background:#2a1f00;border-color:var(--amber);color:#fcd34d}
+.log-ts   {color:var(--muted);margin-right:4px}
+
+/* action buttons */
+.action-area{
+  padding:10px 12px;
+  border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+.act-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.act-btn{
+  padding:9px 6px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:11px;font-weight:600;
+  transition:all .15s;
+  text-align:center;
+}
+.act-btn:disabled{opacity:.35;cursor:not-allowed}
+.act-btn.cb-open {background:#2a0d0d;color:var(--red);border-color:var(--red)44}
+.act-btn.cb-close{background:#0d2620;color:var(--green);border-color:var(--green)44}
+.act-btn.iso-open {background:#14101e;color:var(--purple);border-color:var(--purple)44}
+.act-btn.iso-close{background:#0c1a2e;color:var(--blue);border-color:var(--blue)44}
+.act-btn:not(:disabled):hover{filter:brightness(1.3);transform:translateY(-1px)}
+
+.reset-btn{
+  width:100%;padding:8px;
+  background:var(--panel);border:1px solid var(--border2);
+  color:var(--sub);border-radius:6px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
+  transition:all .15s;
+}
+.reset-btn:hover{background:var(--border2);color:var(--text)}
+
+/* status footer */
+.status-foot{
+  background:var(--panel);
+  border-top:1px solid var(--border);
+  padding:6px 20px;
+  display:flex;gap:20px;
+  font-size:10px;font-family:'JetBrains Mono',monospace;
+  color:var(--muted);flex-shrink:0;
+  align-items:center;
+}
+.sf-item{display:flex;align-items:center;gap:5px}
+.sf-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* VIOLATION TOAST */
+.violation-toast{
+  position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  background:#2a0d0d;border:1px solid var(--red);
+  border-radius:8px;padding:10px 20px;
+  font-size:12px;font-family:'JetBrains Mono',monospace;color:#fca5a5;
+  display:none;z-index:50;
+  box-shadow:0 4px 20px rgba(255,69,69,.3);
+  white-space:nowrap;
+  animation:fadeDown .2s ease;
+}
+.violation-toast.show{display:block}
+@keyframes fadeDown{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* SUCCESS BANNER */
+.success-banner{
+  position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  background:#0d2620;border:1px solid var(--green);
+  border-radius:8px;padding:10px 20px;
+  font-size:12px;font-family:'JetBrains Mono',monospace;color:#6ee7b7;
+  display:none;z-index:50;box-shadow:0 4px 20px rgba(34,212,106,.2);white-space:nowrap;
+}
+.success-banner.show{display:block}
+
+/* RULE BOX */
+.rule-box{
+  background:var(--panel);border:1px solid var(--border2);
+  border-radius:6px;padding:10px 12px;margin:8px 0;
+}
+.rule-box h4{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--amber);font-family:'JetBrains Mono',monospace;margin-bottom:6px}
+.rule-box p{font-size:11px;color:var(--sub);line-height:1.5}
+.rule-box .rule-line{
+  display:flex;align-items:flex-start;gap:6px;margin-top:5px;
+  font-size:11px;color:var(--sub);line-height:1.4;
+}
+.rule-line span:first-child{flex-shrink:0;color:var(--amber)}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚡</div>
+  <div>
+    <h1>CB – Isolator Interlock Simulator</h1>
+    <p>IEC 62271 · Switching Sequence Coordination</p>
+  </div>
+  <div class="mode-tabs">
+    <button class="mode-tab active" onclick="setMode('guided')" id="tab-guided">Guided</button>
+    <button class="mode-tab" onclick="setMode('free')" id="tab-free">Free Play</button>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- LEFT — OPERATIONS -->
+  <div class="left">
+    <div class="panel-hd">Operations</div>
+    <div class="panel-scroll" id="opList"></div>
+  </div>
+
+  <!-- CENTRE -->
+  <div class="centre">
+    <!-- Progress steps -->
+    <div class="progress-bar-wrap" id="progressWrap">
+      <div class="progress-label">Switching Sequence</div>
+      <div class="steps-row" id="stepsRow"></div>
+    </div>
+
+    <!-- SLD Canvas -->
+    <div class="sld-area" id="sldArea">
+      <canvas id="c"></canvas>
+      <div class="violation-toast" id="violationToast"></div>
+      <div class="success-banner" id="successBanner">✓ OPERATION COMPLETE — Correct sequence followed</div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-foot">
+      <div class="sf-item"><div class="sf-dot" id="sfDot1" style="background:var(--green)"></div><span id="sf1">CB: CLOSED</span></div>
+      <div class="sf-item"><div class="sf-dot" style="background:var(--blue)"></div><span id="sf2">BUS ISO: CLOSED</span></div>
+      <div class="sf-item"><div class="sf-dot" style="background:var(--purple)"></div><span id="sf3">LINE ISO: CLOSED</span></div>
+      <div class="sf-item" style="margin-left:auto"><div class="sf-dot" id="sfSeqDot" style="background:var(--muted)"></div><span id="sfSeq">SEQUENCE: READY</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT — LOG + ACTIONS -->
+  <div class="right">
+    <div class="panel-hd">Event Log</div>
+    <div class="log-area" id="logArea"></div>
+    <div class="action-area">
+      <div class="panel-hd" style="padding:0 0 8px;border:none">Controls</div>
+      <div class="act-grid">
+        <button class="act-btn cb-open"  id="btn-cb-open"   onclick="doAction('cb_open')">Open CB</button>
+        <button class="act-btn cb-close" id="btn-cb-close"  onclick="doAction('cb_close')">Close CB</button>
+        <button class="act-btn iso-open" id="btn-busiso-open"  onclick="doAction('busiso_open')">Open Bus ISO</button>
+        <button class="act-btn iso-close" id="btn-busiso-close" onclick="doAction('busiso_close')">Close Bus ISO</button>
+        <button class="act-btn iso-open" id="btn-lineiso-open"  onclick="doAction('lineiso_open')">Open Line ISO</button>
+        <button class="act-btn iso-close" id="btn-lineiso-close" onclick="doAction('lineiso_close')">Close Line ISO</button>
+      </div>
+      <button class="reset-btn" onclick="resetOp()">↺ Reset Sequence</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  DATA — Operations & Sequences
+// ══════════════════════════════════════════════════
+const OPERATIONS = [
+  {
+    id: 'deenergize',
+    badge: 'DE-ENERGIZE',
+    name: 'Take Bay Offline',
+    rule: 'To open: CB first, then isolators. Never open isolator under load.',
+    danger: '⚠ Opening ISO under load causes destructive arc',
+    steps: [
+      { action:'cb_open',       label:'Open CB',        desc:'Trip circuit breaker — interrupts load current safely' },
+      { action:'busiso_open',   label:'Open Bus ISO',   desc:'Open bus-side isolator — now safe, CB already open' },
+      { action:'lineiso_open',  label:'Open Line ISO',  desc:'Open line-side isolator — bay fully isolated' },
+    ],
+    startState:{ cb:true, busIso:true, lineIso:true },
+    endState:  { cb:false,busIso:false,lineIso:false },
+  },
+  {
+    id: 'energize',
+    badge: 'ENERGIZE',
+    name: 'Bring Bay Online',
+    rule: 'To close: Isolators first, then CB. Never close CB before isolators.',
+    danger: '⚠ Closing CB before isolator can back-energize dead section',
+    steps: [
+      { action:'busiso_close',  label:'Close Bus ISO',  desc:'Close bus-side isolator — establishes bus path, no current yet' },
+      { action:'lineiso_close', label:'Close Line ISO', desc:'Close line-side isolator — circuit ready, still open at CB' },
+      { action:'cb_close',      label:'Close CB',       desc:'Close circuit breaker — energizes bay under control' },
+    ],
+    startState:{ cb:false, busIso:false, lineIso:false },
+    endState:  { cb:true, busIso:true, lineIso:true },
+  },
+  {
+    id: 'maintenance',
+    badge: 'MAINTENANCE ISOLATION',
+    name: 'Full Bay Isolation (Permit)',
+    rule: 'Full isolation for earthing/maintenance: CB → Bus ISO → Line ISO → Earth SW.',
+    danger: '⚠ Must confirm dead via voltage indicator before earthing',
+    steps: [
+      { action:'cb_open',       label:'Open CB',        desc:'Open CB — load current interrupted' },
+      { action:'busiso_open',   label:'Open Bus ISO',   desc:'Isolate from bus side — visible air gap' },
+      { action:'lineiso_open',  label:'Open Line ISO',  desc:'Isolate from line side — double isolation' },
+      { action:'earth_close',   label:'Apply Earth',    desc:'Close earthing switch — safe for personnel entry' },
+    ],
+    startState:{ cb:true, busIso:true, lineIso:true, earth:false },
+    endState:  { cb:false,busIso:false,lineIso:false, earth:true },
+  },
+  {
+    id: 'restore',
+    badge: 'RESTORE FROM MAINT',
+    name: 'Restore After Maintenance',
+    rule: 'Reverse of maintenance: remove earth, close isolators, close CB.',
+    danger: '⚠ Never close CB with earth switch closed — catastrophic fault',
+    steps: [
+      { action:'earth_open',    label:'Remove Earth',   desc:'Open earthing switch — no personnel in bay' },
+      { action:'busiso_close',  label:'Close Bus ISO',  desc:'Close bus-side isolator' },
+      { action:'lineiso_close', label:'Close Line ISO', desc:'Close line-side isolator' },
+      { action:'cb_close',      label:'Close CB',       desc:'Energize bay — back in service' },
+    ],
+    startState:{ cb:false, busIso:false, lineIso:false, earth:true },
+    endState:  { cb:true, busIso:true, lineIso:true, earth:false },
+  },
+  {
+    id: 'busxfer',
+    badge: 'BUS TRANSFER',
+    name: 'Transfer Load: Bus1 → Bus2',
+    rule: 'Close Bus2 ISO, close Bus2 CB, open Bus1 CB, open Bus1 ISO — parallel transfer, no interruption.',
+    danger: '⚠ Buses must be in synchronism before paralleling',
+    steps: [
+      { action:'bus2iso_close', label:'Close Bus2 ISO', desc:'Establish bus2 path — no current yet' },
+      { action:'cb2_close',     label:'Close Bus2 CB',  desc:'Parallel both buses — load splits momentarily' },
+      { action:'cb_open',       label:'Open Bus1 CB',   desc:'Transfer complete — Bus2 carries full load' },
+      { action:'busiso_open',   label:'Open Bus1 ISO',  desc:'Isolate Bus1 side — bay now on Bus2 only' },
+    ],
+    startState:{ cb:true, busIso:true, lineIso:true, cb2:false, bus2Iso:false },
+    endState:  { cb:false,busIso:false,lineIso:true,  cb2:true,  bus2Iso:true  },
+  },
+  {
+    id: 'wrongopen',
+    badge: 'VIOLATION DEMO',
+    name: 'Wrong: Open ISO Under Load',
+    rule: 'This scenario shows what happens when the wrong sequence is attempted.',
+    danger: '⚠ Try opening isolator BEFORE CB — see the violation',
+    steps: [
+      { action:'cb_open',      label:'Open CB',       desc:'Correct first step — try skipping this' },
+      { action:'busiso_open',  label:'Open Bus ISO',  desc:'Only valid after CB open' },
+      { action:'lineiso_open', label:'Open Line ISO', desc:'Final isolation step' },
+    ],
+    startState:{ cb:true, busIso:true, lineIso:true },
+    endState:  { cb:false,busIso:false,lineIso:false },
+    allowViolation: true,
+  }
+];
+
+// ══════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════
+let mode = 'guided';           // 'guided' | 'free'
+let currentOp = 0;
+let stepIdx = 0;               // current step pointer
+let opDone = false;
+
+// Live equipment state
+let st = { cb:true, busIso:true, lineIso:true, earth:false, cb2:false, bus2Iso:false };
+
+let canvas, ctx, W, H;
+let toastTimer = null;
+let logEntries = [];
+let anim = { current: null };
+
+// ══════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  canvas = document.getElementById('c');
+  ctx = canvas.getContext('2d');
+  buildOpList();
+  selectOp(0);
+  window.addEventListener('resize', onResize);
+  onResize();
+});
+
+function onResize() {
+  const area = document.getElementById('sldArea');
+  W = area.clientWidth; H = area.clientHeight;
+  canvas.width = W; canvas.height = H;
+  drawSLD();
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('tab-guided').classList.toggle('active', m === 'guided');
+  document.getElementById('tab-free').classList.toggle('active',   m === 'free');
+  document.getElementById('progressWrap').style.display = m === 'guided' ? '' : 'none';
+  log('info', `Mode: ${m === 'guided' ? 'Guided — follow the sequence' : 'Free Play — no sequence enforced'}`);
+  resetOp();
+}
+
+// ══════════════════════════════════════════════════
+//  OP LIST
+// ══════════════════════════════════════════════════
+function buildOpList() {
+  const el = document.getElementById('opList');
+  el.innerHTML = '';
+  OPERATIONS.forEach((op, i) => {
+    const d = document.createElement('div');
+    d.className = 'op-card' + (i === 0 ? ' active' : '');
+    d.id = 'opcard-' + i;
+    d.innerHTML = `
+      <div class="op-badge">${op.badge}</div>
+      <div class="op-name">${op.name}</div>
+      <div class="op-rule">${op.rule}</div>
+      <div class="op-danger">${op.danger}</div>
+    `;
+    d.onclick = () => selectOp(i);
+    el.appendChild(d);
+
+    // Rule box inside panel scroll
+    if (i === 0) {
+      const r = document.createElement('div');
+      r.className = 'rule-box';
+      r.innerHTML = `
+        <h4>Golden Rules</h4>
+        <div class="rule-line"><span>→</span><span>OPEN sequence: CB → Bus ISO → Line ISO</span></div>
+        <div class="rule-line"><span>→</span><span>CLOSE sequence: Line ISO → Bus ISO → CB</span></div>
+        <div class="rule-line"><span>⚠</span><span>Isolators are NOT current-interrupting devices</span></div>
+        <div class="rule-line"><span>⚠</span><span>CB must be OPEN before operating any isolator</span></div>
+      `;
+      el.insertBefore(r, d);
+    }
+  });
+}
+
+function selectOp(idx) {
+  currentOp = idx;
+  document.querySelectorAll('.op-card').forEach((c, i) => c.classList.toggle('active', i === idx));
+  resetOp();
+}
+
+// ══════════════════════════════════════════════════
+//  RESET
+// ══════════════════════════════════════════════════
+function resetOp() {
+  stepIdx = 0; opDone = false;
+  const op = OPERATIONS[currentOp];
+  // Copy start state
+  st = Object.assign({ cb:false, busIso:false, lineIso:false, earth:false, cb2:false, bus2Iso:false }, op.startState);
+  logEntries = [];
+  document.getElementById('logArea').innerHTML = '';
+  document.getElementById('successBanner').classList.remove('show');
+  hideToast();
+  log('info', `Operation loaded: ${op.name}`);
+  log('info', `Starting state → CB:${st.cb?'CLOSED':'OPEN'} BusISO:${st.busIso?'CLOSED':'OPEN'} LineISO:${st.lineIso?'CLOSED':'OPEN'}`);
+  buildSteps(op);
+  updateButtons();
+  drawSLD();
+  updateStatusBar();
+  seqStatus('READY', false);
+}
+
+// ══════════════════════════════════════════════════
+//  STEP BAR
+// ══════════════════════════════════════════════════
+function buildSteps(op) {
+  const row = document.getElementById('stepsRow');
+  row.innerHTML = '';
+  op.steps.forEach((s, i) => {
+    const node = document.createElement('div');
+    node.className = 'step-node';
+    node.style.minWidth = '0';
+    const circle = document.createElement('div');
+    circle.className = 'step-circle' + (i === 0 ? ' current' : '');
+    circle.id = 'step-circle-' + i;
+    circle.textContent = i + 1;
+    const lbl = document.createElement('div');
+    lbl.className = 'step-label';
+    lbl.textContent = s.label;
+    node.appendChild(circle);
+    node.appendChild(lbl);
+    if (i < op.steps.length - 1) {
+      const line = document.createElement('div');
+      line.className = 'step-line';
+      line.id = 'step-line-' + i;
+      node.appendChild(line);
+    }
+    row.appendChild(node);
+  });
+}
+
+function advanceStep() {
+  const op = OPERATIONS[currentOp];
+  const oldCircle = document.getElementById('step-circle-' + stepIdx);
+  if (oldCircle) { oldCircle.classList.remove('current'); oldCircle.classList.add('done'); oldCircle.textContent = '✓'; }
+  const line = document.getElementById('step-line-' + stepIdx);
+  if (line) line.classList.add('done');
+  stepIdx++;
+  if (stepIdx < op.steps.length) {
+    const nc = document.getElementById('step-circle-' + stepIdx);
+    if (nc) nc.classList.add('current');
+    seqStatus(`STEP ${stepIdx+1} OF ${op.steps.length}`, false);
+  } else {
+    opDone = true;
+    seqStatus('COMPLETE ✓', true);
+    document.getElementById('successBanner').classList.add('show');
+    setTimeout(() => document.getElementById('successBanner').classList.remove('show'), 4000);
+    log('ok', `✓ Operation "${op.name}" completed correctly`);
+  }
+}
+
+function markStepError(idx) {
+  const c = document.getElementById('step-circle-' + idx);
+  if (c) { c.classList.add('error'); setTimeout(() => c.classList.remove('error'), 500); }
+}
+
+// ══════════════════════════════════════════════════
+//  ACTIONS
+// ══════════════════════════════════════════════════
+function doAction(action) {
+  if (opDone) { log('info', 'Operation complete — reset to continue'); return; }
+  const op = OPERATIONS[currentOp];
+
+  // Map action to state change
+  const stateMap = {
+    cb_open:       () => { if (st.cb)     st.cb = false;     else return 'CB already open'; },
+    cb_close:      () => { if (!st.cb)    st.cb = true;      else return 'CB already closed'; },
+    busiso_open:   () => { if (st.busIso) st.busIso = false; else return 'Bus ISO already open'; },
+    busiso_close:  () => { if (!st.busIso)st.busIso = true;  else return 'Bus ISO already closed'; },
+    lineiso_open:  () => { if (st.lineIso)st.lineIso = false;else return 'Line ISO already open'; },
+    lineiso_close: () => { if (!st.lineIso)st.lineIso=true;  else return 'Line ISO already closed'; },
+    earth_close:   () => { if (!st.earth) st.earth = true;   else return 'Earth already applied'; },
+    earth_open:    () => { if (st.earth)  st.earth = false;  else return 'Earth already removed'; },
+    cb2_close:     () => { if (!st.cb2)   st.cb2 = true;     else return 'Bus2 CB already closed'; },
+    bus2iso_close: () => { if (!st.bus2Iso)st.bus2Iso=true;  else return 'Bus2 ISO already closed'; },
+  };
+
+  if (mode === 'guided') {
+    const expected = op.steps[stepIdx]?.action;
+    if (!expected) return;
+
+    // Check interlock rules first (applies even in free-play)
+    const violation = checkInterlock(action);
+    if (violation) {
+      showToast('⚡ INTERLOCK VIOLATION: ' + violation);
+      log('err', `VIOLATION: ${violation}`);
+      markStepError(stepIdx);
+      seqStatus('VIOLATION!', false, true);
+      return;
+    }
+
+    if (action !== expected) {
+      const msg = `Wrong step! Expected: ${op.steps[stepIdx].label}`;
+      showToast('✗ ' + msg);
+      log('err', msg);
+      markStepError(stepIdx);
+      return;
+    }
+
+    // Correct step
+    const err = stateMap[action]?.();
+    if (typeof err === 'string') { log('warn', err); return; }
+    log('ok', `✓ Step ${stepIdx+1}: ${op.steps[stepIdx].desc}`);
+    advanceStep();
+
+  } else {
+    // Free play — only check interlock
+    const violation = checkInterlock(action);
+    if (violation) {
+      showToast('⚡ INTERLOCK VIOLATION: ' + violation);
+      log('err', `VIOLATION: ${violation}`);
+      return;
+    }
+    const err = stateMap[action]?.();
+    if (typeof err === 'string') { log('warn', err); return; }
+    log('ok', `Action: ${action.replace('_',' ').toUpperCase()}`);
+  }
+
+  updateButtons();
+  drawSLD();
+  updateStatusBar();
+}
+
+// ══════════════════════════════════════════════════
+//  INTERLOCK RULES
+// ══════════════════════════════════════════════════
+function checkInterlock(action) {
+  // RULE 1: Cannot open isolator while CB is closed (energized circuit)
+  if ((action === 'busiso_open' || action === 'lineiso_open') && st.cb) {
+    return 'Cannot open Isolator while CB is CLOSED — open CB first to de-energize';
+  }
+  // RULE 2: Cannot open Bus2 ISO while CB2 is closed
+  if (action === 'bus2iso_open' && st.cb2) {
+    return 'Cannot open Bus2 Isolator while Bus2 CB is CLOSED';
+  }
+  // RULE 3: Cannot close CB while isolators are open (no path)
+  // — this is a caution, not a hard block in all substations, but we flag it
+  if (action === 'cb_close' && !st.busIso && !st.bus2Iso) {
+    return 'Cannot close CB — both Bus Isolators are OPEN (no bus path)';
+  }
+  // RULE 4: Cannot close CB with earth switch closed
+  if (action === 'cb_close' && st.earth) {
+    return 'DANGER: Cannot close CB while Earth Switch is CLOSED — remove earth first';
+  }
+  // RULE 5: Cannot apply earth while CB is closed
+  if (action === 'earth_close' && st.cb) {
+    return 'Cannot close Earth Switch while CB is CLOSED — open CB first';
+  }
+  // RULE 6: Cannot close earth while bus ISO is closed (energized bus side)
+  if (action === 'earth_close' && st.busIso) {
+    return 'Cannot apply Earth — Bus ISO is still CLOSED (bus side energized)';
+  }
+  return null; // no violation
+}
+
+// ══════════════════════════════════════════════════
+//  BUTTON STATES
+// ══════════════════════════════════════════════════
+function updateButtons() {
+  const op = OPERATIONS[currentOp];
+  const guided = mode === 'guided';
+  const expected = guided ? op.steps[stepIdx]?.action : null;
+
+  const btns = {
+    'btn-cb-open':     'cb_open',
+    'btn-cb-close':    'cb_close',
+    'btn-busiso-open': 'busiso_open',
+    'btn-busiso-close':'busiso_close',
+    'btn-lineiso-open':'lineiso_open',
+    'btn-lineiso-close':'lineiso_close',
+  };
+
+  Object.entries(btns).forEach(([id, act]) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    if (guided) {
+      btn.disabled = (act !== expected) || opDone;
+    } else {
+      btn.disabled = opDone;
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════
+//  STATUS BAR
+// ══════════════════════════════════════════════════
+function updateStatusBar() {
+  document.getElementById('sf1').textContent = `CB: ${st.cb ? 'CLOSED' : 'OPEN'}`;
+  document.getElementById('sfDot1').style.background = st.cb ? 'var(--green)' : 'var(--red)';
+  document.getElementById('sf2').textContent = `Bus ISO: ${st.busIso ? 'CLOSED' : 'OPEN'}`;
+  document.getElementById('sf3').textContent = `Line ISO: ${st.lineIso ? 'CLOSED' : 'OPEN'}`;
+}
+
+function seqStatus(txt, done, err) {
+  document.getElementById('sfSeq').textContent = `SEQUENCE: ${txt}`;
+  document.getElementById('sfSeqDot').style.background =
+    done ? 'var(--green)' : err ? 'var(--red)' : 'var(--amber)';
+}
+
+// ══════════════════════════════════════════════════
+//  LOG
+// ══════════════════════════════════════════════════
+function log(type, msg) {
+  const area = document.getElementById('logArea');
+  const ts = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const div = document.createElement('div');
+  div.className = `log-entry log-${type}`;
+  div.innerHTML = `<span class="log-ts">${ts}</span>${msg}`;
+  area.insertBefore(div, area.firstChild);
+}
+
+// ══════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('violationToast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 3500);
+}
+function hideToast() {
+  document.getElementById('violationToast').classList.remove('show');
+}
+
+// ══════════════════════════════════════════════════
+//  SLD DRAWING
+// ══════════════════════════════════════════════════
+function drawSLD() {
+  if (!ctx) return;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#080c14';
+  ctx.fillRect(0, 0, W, H);
+  drawGrid();
+
+  const op = OPERATIONS[currentOp];
+  if (op.id === 'busxfer') { drawBusTransferSLD(); }
+  else { drawStandardSLD(); }
+}
+
+function drawGrid() {
+  ctx.save();
+  ctx.strokeStyle = '#ffffff06';
+  ctx.lineWidth = 1;
+  const s = 36;
+  for (let x = 0; x < W; x += s) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += s) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.restore();
+}
+
+// ── STANDARD SINGLE BAY SLD ──────────────────────
+function drawStandardSLD() {
+  const op = OPERATIONS[currentOp];
+  const hasEarth = ('earth' in op.startState) || ('earth' in (op.endState || {}));
+
+  const cx = W / 2;
+  // Key Y positions
+  const busY    = H * 0.10;
+  const busIsoY = H * 0.22;
+  const cbY     = H * 0.40;
+  const lineIsoY= H * 0.57;
+  const earthY  = H * 0.65;
+  const lineY   = H * 0.82;
+
+  // Determine wire liveness
+  // Segment live = both ends closed
+  const seg_bus_to_busIso  = st.busIso;
+  const seg_busIso_to_cb   = st.busIso;
+  const seg_cb_to_lineIso  = st.cb && st.busIso;
+  const seg_lineIso_to_line= st.cb && st.busIso && st.lineIso;
+
+  // ── BUS ──
+  const busW = W * 0.52;
+  drawBusBar(cx - busW/2, busY, busW, 10, true); // bus always live in context
+  lbl(cx, busY - 16, 'BUS BAR (33kV)', '#00e5b0', 13, 600);
+
+  // ── Wire bus → bus ISO ──
+  wire(cx, busY + 10, cx, busIsoY - 20, seg_bus_to_busIso);
+
+  // ── BUS ISO ──
+  drawIso(cx, busIsoY, st.busIso);
+  lbl(cx + 42, busIsoY, 'Bus Isolator (Bus ISO)', stateColor(st.busIso, 'iso'), 11);
+  lbl(cx + 42, busIsoY + 13, st.busIso ? 'CLOSED' : 'OPEN', stateColor(st.busIso, 'iso'), 10);
+
+  // ── Wire bus ISO → CB ──
+  wire(cx, busIsoY + 20, cx, cbY - 16, seg_busIso_to_cb);
+
+  // ── CB ──
+  drawCB(cx, cbY, st.cb);
+  lbl(cx + 48, cbY, 'Circuit Breaker (CB)', stateColor(st.cb, 'cb'), 11);
+  lbl(cx + 48, cbY + 14, st.cb ? 'CLOSED' : 'OPEN', stateColor(st.cb, 'cb'), 10);
+
+  // ── Wire CB → line ISO ──
+  wire(cx, cbY + 16, cx, lineIsoY - 20, seg_cb_to_lineIso);
+
+  // ── LINE ISO ──
+  drawIso(cx, lineIsoY, st.lineIso);
+  lbl(cx + 42, lineIsoY, 'Line Isolator (Line ISO)', stateColor(st.lineIso, 'iso'), 11);
+  lbl(cx + 42, lineIsoY + 13, st.lineIso ? 'CLOSED' : 'OPEN', stateColor(st.lineIso, 'iso'), 10);
+
+  // ── Earth switch (if applicable) ──
+  if (hasEarth) {
+    drawEarth(cx, earthY, st.earth);
+    lbl(cx + 42, earthY, 'Earth Switch', st.earth ? '#22d46a' : '#3a5070', 11);
+    lbl(cx + 42, earthY + 13, st.earth ? 'CLOSED (Earthed)' : 'OPEN', st.earth ? '#22d46a' : '#3a5070', 10);
+    wire(cx, lineIsoY + 20, cx, earthY - 16, seg_lineIso_to_line && !st.earth);
+    wire(cx, earthY + 16, cx, lineY, seg_lineIso_to_line && !st.earth);
+  } else {
+    wire(cx, lineIsoY + 20, cx, lineY, seg_lineIso_to_line);
+  }
+
+  // ── LOAD / LINE ──
+  drawLoad(cx, lineY + 6, seg_lineIso_to_line);
+  lbl(cx, lineY + 44, 'FEEDER / LINE', seg_lineIso_to_line ? '#94a3b8' : '#3a5070', 10);
+
+  // ── FLOW ARROWS ──
+  if (seg_lineIso_to_line) {
+    drawFlowArrow(cx, cbY - 30, 'down');
+    drawFlowArrow(cx, cbY + 30, 'down');
+  }
+
+  // ── CURRENT STEP HIGHLIGHT ──
+  if (!opDone && mode === 'guided') {
+    const step = OPERATIONS[currentOp].steps[stepIdx];
+    if (step) {
+      const highlightMap = {
+        cb_open: cbY, cb_close: cbY,
+        busiso_open: busIsoY, busiso_close: busIsoY,
+        lineiso_open: lineIsoY, lineiso_close: lineIsoY,
+        earth_close: earthY, earth_open: earthY,
+      };
+      const hy = highlightMap[step.action];
+      if (hy) drawNextHighlight(cx, hy);
+
+      // Step instruction box
+      drawInstructionBox(step);
+    }
+  }
+  if (opDone) drawCompleteBadge();
+}
+
+// ── BUS TRANSFER SLD ─────────────────────────────
+function drawBusTransferSLD() {
+  const bus1Y = H * 0.12, bus2Y = H * 0.82;
+  const bw = W * 0.6, bx = W/2 - bw/2;
+
+  const seg1 = st.busIso && st.cb;
+  const seg2 = st.bus2Iso && st.cb2;
+  const lineEnergized = seg1 || seg2;
+
+  // Bus 1
+  drawBusBar(bx, bus1Y, bw, 10, true);
+  lbl(W/2, bus1Y - 16, 'BUS 1 (Main)', '#00e5b0', 13, 600);
+
+  // Bus 2
+  drawBusBar(bx, bus2Y, bw, 10, st.cb2 && st.bus2Iso);
+  lbl(W/2, bus2Y + 22, 'BUS 2 (Transfer)', st.cb2 ? '#00e5b0' : '#3a5070', 13, 600);
+
+  const midY = (bus1Y + bus2Y) / 2;
+
+  // Bay (centre column)
+  const cx = W / 2;
+
+  // Bus 1 side
+  wire(cx, bus1Y + 10, cx, bus1Y + 50, st.busIso && st.cb);
+  drawIso(cx, bus1Y + 65, st.busIso);
+  lbl(cx + 40, bus1Y + 65, 'Bus1 ISO', stateColor(st.busIso,'iso'), 11);
+  wire(cx, bus1Y + 85, cx, bus1Y + 115, st.busIso);
+  drawCB(cx, bus1Y + 130, st.cb);
+  lbl(cx + 40, bus1Y + 130, 'Bus1 CB', stateColor(st.cb,'cb'), 11);
+  wire(cx, bus1Y + 146, cx, midY - 28, st.cb && st.busIso);
+
+  // Line tap (middle)
+  wire(cx - 80, midY, cx + 80, midY, lineEnergized);
+  drawLoad(cx - 80, midY + 6, lineEnergized);
+  lbl(cx - 80, midY + 44, 'LINE / FEEDER', lineEnergized ? '#94a3b8' : '#3a5070', 10);
+
+  // Bus 2 side
+  wire(cx, midY + 28, cx, bus2Y - 140, st.cb2 && st.bus2Iso);
+  drawCB(cx, bus2Y - 130, st.cb2);
+  lbl(cx + 40, bus2Y - 130, 'Bus2 CB', stateColor(st.cb2,'cb'), 11);
+  wire(cx, bus2Y - 114, cx, bus2Y - 80, st.bus2Iso);
+  drawIso(cx, bus2Y - 65, st.bus2Iso);
+  lbl(cx + 40, bus2Y - 65, 'Bus2 ISO', stateColor(st.bus2Iso,'iso'), 11);
+  wire(cx, bus2Y - 45, cx, bus2Y - 10, st.bus2Iso);
+
+  if (!opDone && mode === 'guided') {
+    const step = OPERATIONS[currentOp].steps[stepIdx];
+    if (step) drawInstructionBox(step);
+  }
+  if (opDone) drawCompleteBadge();
+}
+
+// ══════════════════════════════════════════════════
+//  DRAW PRIMITIVES
+// ══════════════════════════════════════════════════
+function stateColor(closed, type) {
+  if (type === 'cb')  return closed ? '#22d46a' : '#ff4545';
+  if (type === 'iso') return closed ? '#4d9fff' : '#3a5070';
+  return closed ? '#00e5b0' : '#3a5070';
+}
+
+function wire(x1, y1, x2, y2, live, fault) {
+  const col = fault ? '#ff4545' : live ? '#00e5b0' : '#1e2d44';
+  ctx.save();
+  if (live) { ctx.shadowColor = col; ctx.shadowBlur = 8; }
+  ctx.strokeStyle = col; ctx.lineWidth = live ? 3 : 2;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawBusBar(x, y, w, h, live) {
+  ctx.save();
+  const col = live ? '#00e5b0' : '#1e2d44';
+  if (live) { ctx.shadowColor = col; ctx.shadowBlur = 14; }
+  ctx.fillStyle = col;
+  ctx.fillRect(x, y, w, h);
+  ctx.restore();
+}
+
+function drawCB(cx, cy, closed) {
+  const col = closed ? '#22d46a' : '#ff4545';
+  const r = 18;
+  ctx.save();
+  ctx.shadowColor = col; ctx.shadowBlur = closed ? 14 : 6;
+  ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+  ctx.fillStyle = '#080c14';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  if (closed) {
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(cx - r*0.55, cy + r*0.4); ctx.lineTo(cx + r*0.55, cy - r*0.4); ctx.stroke();
+  } else {
+    // X
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx-7,cy-7); ctx.lineTo(cx+7,cy+7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx+7,cy-7); ctx.lineTo(cx-7,cy+7); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawIso(cx, cy, closed) {
+  const col = closed ? '#4d9fff' : '#3a5070';
+  const len = 24;
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+  if (closed) {
+    ctx.shadowColor = col; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(cx, cy - len/2); ctx.lineTo(cx, cy + len/2); ctx.stroke();
+  } else {
+    // open: bottom half stays, top half rotated
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + len/2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + len*0.6, cy - len*0.5); ctx.stroke();
+  }
+  ctx.fillStyle = col;
+  ctx.shadowColor = col; ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.arc(cx, cy - len/2, 4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy + len/2, 4, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawEarth(cx, cy, closed) {
+  const col = closed ? '#22d46a' : '#3a5070';
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  if (closed) { ctx.shadowColor = col; ctx.shadowBlur = 10; }
+  // Vertical line
+  ctx.beginPath(); ctx.moveTo(cx, cy - 14); ctx.lineTo(cx, cy + 4); ctx.stroke();
+  // Earth symbol lines
+  [16, 11, 6].forEach((hw, i) => {
+    ctx.beginPath(); ctx.moveTo(cx - hw, cy + 4 + i*6); ctx.lineTo(cx + hw, cy + 4 + i*6); ctx.stroke();
+  });
+  // Dot at top (connects to line)
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.arc(cx, cy - 14, 3, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawLoad(cx, cy, live) {
+  const col = live ? '#4d9fff' : '#1e2d44';
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.fillStyle = col + '22';
+  if (live) { ctx.shadowColor = col; ctx.shadowBlur = 8; }
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx - 14, cy + 22); ctx.lineTo(cx + 14, cy + 22); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawFlowArrow(cx, cy, dir) {
+  ctx.save();
+  ctx.fillStyle = '#00e5b044';
+  ctx.strokeStyle = '#00e5b0';
+  ctx.lineWidth = 1;
+  const s = 6;
+  if (dir === 'down') {
+    ctx.beginPath(); ctx.moveTo(cx, cy+s); ctx.lineTo(cx-s, cy-s); ctx.lineTo(cx+s, cy-s); ctx.closePath();
+  } else {
+    ctx.beginPath(); ctx.moveTo(cx, cy-s); ctx.lineTo(cx-s, cy+s); ctx.lineTo(cx+s, cy+s); ctx.closePath();
+  }
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawNextHighlight(cx, cy) {
+  ctx.save();
+  const t = Date.now() / 600;
+  const a = 0.3 + 0.3 * Math.abs(Math.sin(t));
+  ctx.strokeStyle = `rgba(0,229,176,${a})`;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.arc(cx, cy, 30, 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
+  // Keep animating
+  requestAnimationFrame(drawSLD);
+}
+
+function drawInstructionBox(step) {
+  const pad = 16, bh = 52, bw = Math.min(W - 40, 480);
+  const bx = W/2 - bw/2, by = H - bh - 12;
+  ctx.save();
+  ctx.fillStyle = '#0e1520ee';
+  ctx.strokeStyle = '#00e5b066';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, 8);
+  ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = '#00e5b0';
+  ctx.font = '500 11px "JetBrains Mono", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`▶ NEXT: ${step.label.toUpperCase()}`, bx + pad, by + 18);
+
+  ctx.fillStyle = '#7a9bbf';
+  ctx.font = '400 11px "Space Grotesk", sans-serif';
+  ctx.fillText(step.desc, bx + pad, by + 36);
+  ctx.restore();
+}
+
+function drawCompleteBadge() {
+  ctx.save();
+  ctx.fillStyle = '#22d46a22';
+  ctx.strokeStyle = '#22d46a';
+  ctx.lineWidth = 1.5;
+  const bw = 280, bh = 42, bx = W/2 - bw/2, by = H - 60;
+  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#22d46a';
+  ctx.font = '700 14px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('✓ OPERATION COMPLETE', W/2, by + 26);
+  ctx.restore();
+}
+
+function lbl(x, y, text, color, size, weight) {
+  ctx.save();
+  ctx.fillStyle = color || '#7a9bbf';
+  ctx.font = `${weight||400} ${size||11}px "Space Grotesk", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+</script>
+</body>
+</html>
