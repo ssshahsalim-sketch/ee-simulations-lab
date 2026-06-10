@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DWG Comparitor — Drawing Mismatch Analyzer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg:       #0d1117;
+    --surface:  #161b22;
+    --panel:    #1c2330;
+    --border:   #30363d;
+    --accent:   #00c8ff;
+    --accent2:  #ff6b35;
+    --added:    #3fb950;
+    --removed:  #f85149;
+    --warning:  #d29922;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
+    --mono:     'JetBrains Mono', monospace;
+    --sans:     'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #0070f3);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  header h1 {
+    font-size: 17px; font-weight: 600; letter-spacing: -0.3px;
+  }
+  header p {
+    font-size: 12px; color: var(--muted); margin-top: 1px;
+    font-family: var(--mono);
+  }
+  .badge {
+    margin-left: auto;
+    background: rgba(0,200,255,0.1);
+    border: 1px solid rgba(0,200,255,0.3);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Main layout ── */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* ── Upload zone ── */
+  .upload-section {
+    padding: 28px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .upload-section h2 {
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .drop-zone {
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(0,200,255,0.04);
+  }
+  .drop-zone.loaded {
+    border-color: var(--added);
+    background: rgba(63,185,80,0.05);
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+  .dz-label {
+    font-size: 11px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .drop-zone.b .dz-label { color: var(--accent2); }
+  .dz-icon { font-size: 28px; margin-bottom: 10px; }
+  .dz-text { font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+  .dz-sub { font-size: 11px; color: var(--border); font-family: var(--mono); }
+  .dz-filename {
+    font-size: 12px; font-family: var(--mono);
+    color: var(--added); margin-top: 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding: 0 20px;
+  }
+  .page-select-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 12px; justify-content: center;
+  }
+  .page-select-row label { font-size: 12px; color: var(--muted); }
+  .page-select-row select {
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 4px 10px; border-radius: 6px;
+    font-family: var(--mono); font-size: 12px;
+  }
+  .page-select-row select:focus { outline: 1px solid var(--accent); }
+
+  /* Compare options */
+  .options-row {
+    display: flex; align-items: center; gap: 16px;
+    margin-top: 18px; flex-wrap: wrap;
+  }
+  .opt-group {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--muted);
+  }
+  .opt-group select {
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); padding: 5px 12px; border-radius: 6px;
+    font-family: var(--mono); font-size: 12px;
+  }
+
+  /* ── Compare button ── */
+  .compare-btn {
+    margin-top: 20px;
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent), #0070f3);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 13px 28px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.2px;
+  }
+  .compare-btn:disabled {
+    opacity: 0.35; cursor: not-allowed;
+  }
+  .compare-btn:not(:disabled):hover { opacity: 0.9; transform: translateY(-1px); }
+  .compare-btn:not(:disabled):active { transform: translateY(0); }
+
+  /* ── Preview strip ── */
+  .preview-strip {
+    display: none;
+    padding: 0 32px 24px;
+    gap: 16px;
+  }
+  .preview-strip.visible { display: grid; grid-template-columns: 1fr 1fr; }
+  .preview-wrap {
+    border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+    background: var(--panel);
+  }
+  .preview-header {
+    padding: 8px 14px;
+    font-family: var(--mono); font-size: 11px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .dot-a { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .dot-b { width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); }
+  .preview-wrap canvas, .preview-wrap img {
+    width: 100%; display: block;
+    max-height: 340px; object-fit: contain;
+    background: #fff;
+  }
+
+  /* ── Results panel ── */
+  .results-section {
+    padding: 0 32px 32px;
+    display: none;
+  }
+  .results-section.visible { display: block; }
+
+  .results-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .results-header h2 {
+    font-size: 13px; font-family: var(--mono);
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+  }
+  .severity-pills {
+    display: flex; gap: 8px;
+  }
+  .pill {
+    font-family: var(--mono); font-size: 10px;
+    padding: 3px 10px; border-radius: 12px;
+    border: 1px solid;
+  }
+  .pill-critical { color: var(--removed); border-color: var(--removed); background: rgba(248,81,73,0.08); }
+  .pill-warning  { color: var(--warning); border-color: var(--warning); background: rgba(210,153,34,0.08); }
+  .pill-info     { color: var(--accent);  border-color: var(--accent);  background: rgba(0,200,255,0.08); }
+
+  /* Finding cards */
+  .findings-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .finding {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 12px;
+    align-items: start;
+    transition: border-color 0.15s;
+  }
+  .finding:hover { border-color: var(--accent); }
+  .finding.critical { border-left: 3px solid var(--removed); }
+  .finding.warning  { border-left: 3px solid var(--warning); }
+  .finding.info     { border-left: 3px solid var(--accent);  }
+
+  .finding-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .finding.critical .finding-icon { background: rgba(248,81,73,0.12); }
+  .finding.warning  .finding-icon { background: rgba(210,153,34,0.12); }
+  .finding.info     .finding-icon { background: rgba(0,200,255,0.12);  }
+
+  .finding-body h3 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .finding-body p  { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .finding-body .location {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--muted); margin-top: 6px;
+  }
+  .finding-badge {
+    font-family: var(--mono); font-size: 10px;
+    padding: 2px 8px; border-radius: 4px;
+    white-space: nowrap; align-self: start; margin-top: 2px;
+  }
+  .finding.critical .finding-badge { background: rgba(248,81,73,0.15); color: var(--removed); }
+  .finding.warning  .finding-badge { background: rgba(210,153,34,0.15); color: var(--warning); }
+  .finding.info     .finding-badge { background: rgba(0,200,255,0.12);  color: var(--accent);  }
+
+  /* Summary box */
+  .summary-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    font-size: 13px; line-height: 1.8;
+    color: var(--muted);
+  }
+  .summary-box strong { color: var(--text); }
+
+  /* Stats row */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; text-align: center;
+  }
+  .stat-card .val {
+    font-family: var(--mono); font-size: 24px; font-weight: 600;
+    line-height: 1;
+  }
+  .stat-card .lbl { font-size: 10px; color: var(--muted); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .val-critical { color: var(--removed); }
+  .val-warning  { color: var(--warning); }
+  .val-info     { color: var(--accent);  }
+  .val-total    { color: var(--text); }
+
+  /* Export */
+  .export-row {
+    margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;
+  }
+  .btn-outline {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); padding: 8px 16px; border-radius: 6px;
+    font-size: 12px; cursor: pointer; font-family: var(--sans);
+    transition: all 0.15s;
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Loading */
+  .loading-overlay {
+    display: none;
+    padding: 48px 32px;
+    text-align: center;
+  }
+  .loading-overlay.visible { display: block; }
+  .spinner {
+    width: 42px; height: 42px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 18px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-steps { margin-top: 14px; }
+  .step {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    padding: 3px 0; transition: color 0.3s;
+  }
+  .step.active { color: var(--accent); }
+  .step.done { color: var(--added); }
+
+  /* Error */
+  .error-box {
+    display: none;
+    background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 8px; padding: 14px 16px;
+    font-size: 13px; color: var(--removed);
+    margin: 0 32px 24px;
+  }
+  .error-box.visible { display: block; }
+
+  /* Divider rule */
+  .section-divider {
+    height: 1px; background: var(--border);
+    margin: 0 32px 24px;
+  }
+
+  @media (max-width: 700px) {
+    .upload-grid, .preview-strip.visible, .stats-row { grid-template-columns: 1fr; }
+    header { padding: 12px 16px; }
+    .upload-section, .results-section, .preview-strip { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">⚙</div>
+  <div>
+    <h1>DWG Comparitor</h1>
+    <p>Drawing Revision Mismatch Analyzer</p>
+  </div>
+  <span class="badge">AI-POWERED</span>
+</header>
+
+<main>
+
+  <!-- Upload Section -->
+  <div class="upload-section">
+    <h2>// Upload Drawings</h2>
+    <div class="upload-grid">
+
+      <!-- Drawing A -->
+      <div>
+        <div class="drop-zone a" id="dropA">
+          <input type="file" id="fileA" accept=".pdf">
+          <div class="dz-label">Drawing A — Original / Baseline</div>
+          <div class="dz-icon">📐</div>
+          <div class="dz-text">Drop PDF or click to browse</div>
+          <div class="dz-sub">DWG exported as PDF</div>
+          <div class="dz-filename" id="nameA"></div>
+        </div>
+        <div class="page-select-row" id="pageRowA" style="display:none">
+          <label>Page:</label>
+          <select id="pageSelA"></select>
+        </div>
+      </div>
+
+      <!-- Drawing B -->
+      <div>
+        <div class="drop-zone b" id="dropB">
+          <input type="file" id="fileB" accept=".pdf">
+          <div class="dz-label">Drawing B — Revised / Updated</div>
+          <div class="dz-icon">📏</div>
+          <div class="dz-text">Drop PDF or click to browse</div>
+          <div class="dz-sub">DWG exported as PDF</div>
+          <div class="dz-filename" id="nameB"></div>
+        </div>
+        <div class="page-select-row" id="pageRowB" style="display:none">
+          <label>Page:</label>
+          <select id="pageSelB"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="options-row">
+      <div class="opt-group">
+        <span>Focus on:</span>
+        <select id="focusMode">
+          <option value="all">All differences</option>
+          <option value="dimensions">Dimensions &amp; measurements</option>
+          <option value="annotations">Annotations &amp; labels</option>
+          <option value="geometry">Geometry &amp; lines</option>
+          <option value="titleblock">Title block &amp; metadata</option>
+          <option value="electrical">Electrical symbols</option>
+          <option value="structural">Structural elements</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <span>Drawing type:</span>
+        <select id="drawingType">
+          <option value="auto">Auto-detect</option>
+          <option value="electrical">Electrical</option>
+          <option value="mechanical">Mechanical</option>
+          <option value="architectural">Architectural</option>
+          <option value="civil">Civil / Structural</option>
+          <option value="piping">Piping / P&amp;ID</option>
+          <option value="hvac">HVAC</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="compare-btn" id="compareBtn" disabled>
+      ⚡ Analyze Differences
+    </button>
+  </div>
+
+  <!-- Previews -->
+  <div class="preview-strip" id="previewStrip">
+    <div class="preview-wrap">
+      <div class="preview-header"><span class="dot-a"></span> Drawing A — Baseline</div>
+      <canvas id="canvasA"></canvas>
+    </div>
+    <div class="preview-wrap">
+      <div class="preview-header"><span class="dot-b"></span> Drawing B — Revised</div>
+      <canvas id="canvasB"></canvas>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div style="font-size:15px; font-weight:600; margin-bottom:8px;">Analyzing drawings…</div>
+    <div style="font-size:12px; color:var(--muted); margin-bottom:20px;">Claude Vision is inspecting both revisions</div>
+    <div class="loading-steps">
+      <div class="step" id="step1">[ 1 ] Rendering PDF pages to images</div>
+      <div class="step" id="step2">[ 2 ] Encoding drawings for AI analysis</div>
+      <div class="step" id="step3">[ 3 ] Sending to Claude Vision API</div>
+      <div class="step" id="step4">[ 4 ] Parsing mismatch report</div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Results -->
+  <div class="results-section" id="resultsSection">
+    <div class="results-header">
+      <h2>// Mismatch Report</h2>
+      <div class="severity-pills">
+        <span class="pill pill-critical" id="pillCritical">0 Critical</span>
+        <span class="pill pill-warning"  id="pillWarning">0 Warning</span>
+        <span class="pill pill-info"     id="pillInfo">0 Info</span>
+      </div>
+    </div>
+
+    <div class="summary-box" id="summaryBox"></div>
+
+    <div class="stats-row" id="statsRow"></div>
+
+    <div class="findings-list" id="findingsList"></div>
+
+    <div class="export-row">
+      <button class="btn-outline" id="exportTxt">↓ Export TXT</button>
+      <button class="btn-outline" id="exportJson">↓ Export JSON</button>
+    </div>
+  </div>
+
+</main>
+
+<!-- PDF.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ─── State ───────────────────────────────────────────────────────
+const state = { pdfA: null, pdfB: null, imgA: null, imgB: null };
+let lastReport = null;
+
+// ─── File handlers ────────────────────────────────────────────────
+async function loadPDF(file, which) {
+  const bytes = await file.arrayBuffer();
+  const pdf   = await pdfjsLib.getDocument({ data: bytes }).promise;
+  const sel   = document.getElementById('pageSel' + which);
+  const row   = document.getElementById('pageRow' + which);
+
+  sel.innerHTML = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = `Page ${i}`;
+    sel.appendChild(o);
+  }
+  row.style.display = pdf.numPages > 1 ? 'flex' : 'none';
+  state['pdf' + which] = pdf;
+
+  sel.onchange = () => renderPage(which);
+  await renderPage(which);
+}
+
+async function renderPage(which) {
+  const pdf    = state['pdf' + which];
+  const pageNo = +document.getElementById('pageSel' + which).value || 1;
+  const page   = await pdf.getPage(pageNo);
+  const vp     = page.getViewport({ scale: 2.0 });
+
+  const canvas = document.getElementById('canvas' + which);
+  canvas.width  = vp.width;
+  canvas.height = vp.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+  // Store as base64
+  state['img' + which] = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+
+  // Show preview strip
+  document.getElementById('previewStrip').classList.add('visible');
+  checkReady();
+}
+
+function checkReady() {
+  document.getElementById('compareBtn').disabled =
+    !(state.imgA && state.imgB);
+}
+
+// ─── Drag & Drop + file input ──────────────────────────────────────
+['A','B'].forEach(w => {
+  const zone  = document.getElementById('drop' + w);
+  const input = document.getElementById('file' + w);
+  const nameEl = document.getElementById('name' + w);
+
+  input.addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    nameEl.textContent = '📄 ' + file.name;
+    zone.classList.add('loaded');
+    await loadPDF(file, w);
+  });
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', async e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.name.endsWith('.pdf')) return;
+    nameEl.textContent = '📄 ' + file.name;
+    zone.classList.add('loaded');
+    input.files = e.dataTransfer.files;
+    await loadPDF(file, w);
+  });
+});
+
+// ─── Step animation ────────────────────────────────────────────────
+let stepTimer = null;
+function animateSteps(steps) {
+  steps.forEach(s => document.getElementById(s).className = 'step');
+  let i = 0;
+  function next() {
+    if (i > 0) document.getElementById(steps[i-1]).className = 'step done';
+    if (i < steps.length) {
+      document.getElementById(steps[i]).className = 'step active';
+      i++;
+      stepTimer = setTimeout(next, 1800);
+    }
+  }
+  next();
+}
+
+// ─── Compare ───────────────────────────────────────────────────────
+document.getElementById('compareBtn').addEventListener('click', async () => {
+  const focusMode   = document.getElementById('focusMode').value;
+  const drawingType = document.getElementById('drawingType').value;
+
+  // Hide results, show loader
+  document.getElementById('resultsSection').classList.remove('visible');
+  document.getElementById('errorBox').classList.remove('visible');
+  document.getElementById('loadingOverlay').classList.add('visible');
+  document.getElementById('compareBtn').disabled = true;
+  animateSteps(['step1','step2','step3','step4']);
+
+  try {
+    const report = await callClaudeVision(state.imgA, state.imgB, focusMode, drawingType);
+    lastReport = report;
+    renderReport(report);
+  } catch(err) {
+    const eb = document.getElementById('errorBox');
+    eb.textContent = '⚠ ' + err.message;
+    eb.classList.add('visible');
+  } finally {
+    clearTimeout(stepTimer);
+    document.getElementById('loadingOverlay').classList.remove('visible');
+    document.getElementById('compareBtn').disabled = false;
+    checkReady();
+  }
+});
+
+// ─── Claude Vision API ─────────────────────────────────────────────
+async function callClaudeVision(imgA, imgB, focusMode, drawingType) {
+  const focusDesc = {
+    all:         'all types of differences including geometry, text, dimensions, symbols, annotations, and title block',
+    dimensions:  'dimensions, measurements, tolerances, and numerical values',
+    annotations: 'annotations, text labels, notes, and callouts',
+    geometry:    'geometric shapes, lines, curves, and spatial layout',
+    titleblock:  'title block, revision history, date, scale, drawing number, and metadata',
+    electrical:  'electrical symbols, wire routing, component labels, and circuit topology',
+    structural:  'structural members, connections, load paths, and cross-sections'
+  }[focusMode] || 'all differences';
+
+  const typeDesc = drawingType === 'auto' ? '' :
+    `This is a ${drawingType} engineering drawing. `;
+
+  const systemPrompt = `You are an expert engineering drawing reviewer specializing in DWG/CAD drawing comparison. ${typeDesc}
+You analyze two engineering drawings and identify ALL mismatches, discrepancies, and changes between them.
+
+You MUST respond with ONLY valid JSON — no preamble, no markdown, no explanation outside the JSON.
+
+Response schema:
+{
+  "summary": "2-3 sentence executive summary of the comparison",
+  "drawingTypeDetected": "detected drawing type (e.g. Electrical Single Line, Mechanical Assembly, Floor Plan)",
+  "overallRiskLevel": "CRITICAL | HIGH | MODERATE | LOW | NONE",
+  "statistics": {
+    "totalMismatches": number,
+    "critical": number,
+    "warning": number,
+    "info": number,
+    "dimensionChanges": number,
+    "symbolChanges": number,
+    "textChanges": number
+  },
+  "findings": [
+    {
+      "id": "F001",
+      "severity": "critical | warning | info",
+      "category": "Dimension | Symbol | Annotation | Geometry | Title Block | Wiring | Material | Scale | Deleted Element | Added Element | Modified Element",
+      "title": "Short finding title",
+      "description": "Detailed description of what changed between Drawing A and Drawing B",
+      "location": "Describe where in the drawing (e.g., 'Top-left corner', 'Section A-A', 'Panel schedule row 3')",
+      "valueA": "Value/description in Drawing A (if applicable)",
+      "valueB": "Value/description in Drawing B (if applicable)",
+      "recommendation": "Engineering recommendation or action required"
+    }
+  ],
+  "noChangeAreas": ["list of areas/systems that appear identical in both drawings"]
+}
+
+Severity guide:
+- critical: Safety-critical, code-violation risk, major dimensional error, deleted safety system, changed load or voltage value
+- warning: Functional change that may affect performance, modified symbol, revised dimension, changed annotation
+- info: Minor label edits, cosmetic changes, metadata updates, title block revision
+
+Focus your analysis on: ${focusDesc}`;
+
+  const userContent = [
+    { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imgA } },
+    { type: 'text', text: 'This is Drawing A (Original / Baseline).' },
+    { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imgB } },
+    { type: 'text', text: 'This is Drawing B (Revised / Updated). Compare both drawings and return the mismatch report as JSON only.' }
+  ];
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userContent }]
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  const raw = data.content.map(c => c.text || '').join('');
+  const clean = raw.replace(/```json|```/g, '').trim();
+
+  try {
+    return JSON.parse(clean);
+  } catch {
+    throw new Error('Could not parse AI response. Please try again.');
+  }
+}
+
+// ─── Render report ─────────────────────────────────────────────────
+const ICONS = {
+  'Dimension': '📏', 'Symbol': '🔣', 'Annotation': '🏷', 'Geometry': '📐',
+  'Title Block': '📋', 'Wiring': '⚡', 'Material': '🔩', 'Scale': '🔍',
+  'Deleted Element': '🗑', 'Added Element': '➕', 'Modified Element': '✏'
+};
+const getIcon = cat => ICONS[cat] || '🔍';
+
+function renderReport(r) {
+  const s = r.statistics || {};
+
+  // Pills
+  document.getElementById('pillCritical').textContent = (s.critical || 0) + ' Critical';
+  document.getElementById('pillWarning').textContent  = (s.warning  || 0) + ' Warning';
+  document.getElementById('pillInfo').textContent     = (s.info     || 0) + ' Info';
+
+  // Summary
+  const riskColors = { CRITICAL:'var(--removed)', HIGH:'var(--removed)', MODERATE:'var(--warning)', LOW:'var(--added)', NONE:'var(--added)' };
+  const riskColor = riskColors[r.overallRiskLevel] || 'var(--muted)';
+  document.getElementById('summaryBox').innerHTML =
+    `<strong>Drawing type detected:</strong> ${r.drawingTypeDetected || 'Unknown'} &nbsp;|&nbsp;
+     <strong>Overall risk:</strong> <span style="color:${riskColor};font-weight:600">${r.overallRiskLevel || 'N/A'}</span><br><br>
+     ${r.summary || ''}
+     ${(r.noChangeAreas||[]).length ? `<br><br><span style="color:var(--added)">✓ No changes detected in:</span> ${r.noChangeAreas.join(', ')}` : ''}`;
+
+  // Stats cards
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="val val-total">${s.totalMismatches||0}</div><div class="lbl">Total Mismatches</div></div>
+    <div class="stat-card"><div class="val val-critical">${s.critical||0}</div><div class="lbl">Critical</div></div>
+    <div class="stat-card"><div class="val val-warning">${s.warning||0}</div><div class="lbl">Warnings</div></div>
+    <div class="stat-card"><div class="val val-info">${s.dimensionChanges||0}</div><div class="lbl">Dim. Changes</div></div>
+  `;
+
+  // Findings
+  const findings = (r.findings || []).sort((a,b) => {
+    const ord = { critical:0, warning:1, info:2 };
+    return (ord[a.severity]||3) - (ord[b.severity]||3);
+  });
+
+  document.getElementById('findingsList').innerHTML = findings.map(f => `
+    <div class="finding ${f.severity}">
+      <div class="finding-icon">${getIcon(f.category)}</div>
+      <div class="finding-body">
+        <h3>${f.id} — ${f.title}</h3>
+        <p>${f.description}</p>
+        ${f.valueA||f.valueB ? `
+          <p style="margin-top:8px;">
+            <span style="color:var(--accent);font-family:var(--mono);font-size:11px">A:</span>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${f.valueA||'—'}</span>
+            &nbsp;→&nbsp;
+            <span style="color:var(--accent2);font-family:var(--mono);font-size:11px">B:</span>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${f.valueB||'—'}</span>
+          </p>` : ''}
+        ${f.recommendation ? `<p style="margin-top:7px;color:var(--warning);font-size:11px">⚡ ${f.recommendation}</p>` : ''}
+        <div class="location">📍 ${f.location || 'Location not specified'}</div>
+      </div>
+      <span class="finding-badge">${f.severity.toUpperCase()}</span>
+    </div>
+  `).join('') || '<p style="color:var(--muted);padding:20px;text-align:center;font-family:var(--mono);font-size:13px">✓ No mismatches found — drawings appear identical</p>';
+
+  document.getElementById('resultsSection').classList.add('visible');
+  document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ─── Export ────────────────────────────────────────────────────────
+document.getElementById('exportTxt').addEventListener('click', () => {
+  if (!lastReport) return;
+  const r = lastReport;
+  const lines = [
+    'DWG COMPARITOR — MISMATCH REPORT',
+    '='.repeat(50),
+    `Drawing Type: ${r.drawingTypeDetected}`,
+    `Overall Risk: ${r.overallRiskLevel}`,
+    `Total Mismatches: ${r.statistics?.totalMismatches || 0}`,
+    '',
+    'SUMMARY',
+    '-'.repeat(40),
+    r.summary,
+    '',
+    'FINDINGS',
+    '-'.repeat(40),
+    ...(r.findings||[]).map(f =>
+      `[${f.severity.toUpperCase()}] ${f.id} — ${f.title}\n` +
+      `Category: ${f.category}\nLocation: ${f.location}\n` +
+      (f.valueA||f.valueB ? `A: ${f.valueA}  →  B: ${f.valueB}\n` : '') +
+      `${f.description}\n` +
+      (f.recommendation ? `Action: ${f.recommendation}\n` : '') +
+      '-'.repeat(30)
+    )
+  ];
+  const blob = new Blob([lines.join('\n')], {type:'text/plain'});
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'mismatch-report.txt' });
+  a.click();
+});
+
+document.getElementById('exportJson').addEventListener('click', () => {
+  if (!lastReport) return;
+  const blob = new Blob([JSON.stringify(lastReport, null, 2)], {type:'application/json'});
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'mismatch-report.json' });
+  a.click();
+});
+</script>
+</body>
+</html>
