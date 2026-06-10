@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SnapCam">
+<meta name="mobile-web-app-capable" content="yes">
+
+<title>SnapCam</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #0a0a0a;
+    --shutter: #ffffff;
+    --accent: #f5c518;
+    --danger: #ff4444;
+    --glass: rgba(255,255,255,0.08);
+    --glass-border: rgba(255,255,255,0.12);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+
+  /* ── Screens ── */
+  .screen { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  .screen.hidden { display: none; }
+
+  /* ── Start screen ── */
+  #startScreen {
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at 50% 30%, #1a1a2e 0%, #0a0a0a 70%);
+    gap: 0;
+  }
+  .app-icon {
+    width: 88px; height: 88px;
+    background: linear-gradient(145deg, #f5c518, #e6a800);
+    border-radius: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 44px;
+    box-shadow: 0 20px 60px rgba(245,197,24,0.35);
+    margin-bottom: 24px;
+  }
+  #startScreen h1 {
+    font-size: 32px; font-weight: 700; letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  #startScreen p {
+    font-size: 15px; color: rgba(255,255,255,0.5);
+    margin-bottom: 48px; text-align: center; line-height: 1.5;
+    padding: 0 40px;
+  }
+  .start-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 50px;
+    padding: 16px 48px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: -0.2px;
+    box-shadow: 0 8px 32px rgba(245,197,24,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .start-btn:active { transform: scale(0.96); box-shadow: 0 4px 16px rgba(245,197,24,0.3); }
+
+  /* ── Camera screen ── */
+  #cameraScreen { background: #000; }
+
+  /* Viewfinder */
+  #videoEl {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transform: scaleX(1);
+  }
+  #videoEl.mirrored { transform: scaleX(-1); }
+
+  /* Overlay UI layers */
+  .cam-overlay {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+  }
+
+  /* Top bar */
+  .cam-topbar {
+    pointer-events: all;
+    padding: env(safe-area-inset-top, 16px) 20px 16px;
+    padding-top: max(env(safe-area-inset-top, 16px), 16px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
+  }
+  .cam-topbar button {
+    width: 40px; height: 40px;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 50%;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: background 0.15s;
+  }
+  .cam-topbar button:active { background: rgba(255,255,255,0.2); }
+
+  .flash-btn.on { color: var(--accent); }
+
+  /* Grid overlay */
+  .grid-overlay {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .grid-overlay.visible { opacity: 1; }
+  .grid-overlay svg { width: 100%; height: 100%; }
+
+  /* Focus ring */
+  #focusRing {
+    position: absolute;
+    width: 70px; height: 70px;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.3);
+    transition: opacity 0.15s, transform 0.2s;
+  }
+  #focusRing.active {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  /* Bottom controls */
+  .cam-bottombar {
+    pointer-events: all;
+    padding: 20px 30px;
+    padding-bottom: max(env(safe-area-inset-bottom, 24px), 24px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+  }
+
+  /* Gallery thumb */
+  .gallery-thumb {
+    width: 52px; height: 52px;
+    border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.4);
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--glass);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    transition: transform 0.15s;
+  }
+  .gallery-thumb:active { transform: scale(0.94); }
+  .gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* Shutter button */
+  .shutter-wrap {
+    position: relative;
+    width: 76px; height: 76px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .shutter-ring {
+    position: absolute; inset: 0;
+    border: 3px solid #fff;
+    border-radius: 50%;
+  }
+  .shutter-btn {
+    width: 62px; height: 62px;
+    background: #fff;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.1s;
+  }
+  .shutter-btn:active {
+    transform: scale(0.88);
+    background: #ddd;
+  }
+  .shutter-btn.recording { background: var(--danger); }
+
+  /* Flip camera */
+  .flip-btn {
+    width: 52px; height: 52px;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 50%;
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: transform 0.3s;
+  }
+  .flip-btn:active { transform: rotate(180deg) scale(0.9); }
+
+  /* Mode pills */
+  .mode-row {
+    pointer-events: all;
+    display: flex; justify-content: center; gap: 6px;
+    margin-bottom: 16px;
+  }
+  .mode-pill {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid transparent;
+    color: rgba(255,255,255,0.5);
+    transition: all 0.2s;
+  }
+  .mode-pill.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+
+  /* Zoom indicator */
+  .zoom-badge {
+    position: absolute;
+    bottom: 180px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    font-size: 13px; font-weight: 600;
+    padding: 4px 14px;
+    border-radius: 20px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .zoom-badge.visible { opacity: 1; }
+
+  /* Flash effect */
+  #flashEffect {
+    position: fixed; inset: 0;
+    background: #fff;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 100;
+  }
+  @keyframes flashAnim {
+    0%   { opacity: 0.9; }
+    100% { opacity: 0; }
+  }
+  #flashEffect.flash { animation: flashAnim 0.35s ease-out forwards; }
+
+  /* ── Gallery screen ── */
+  #galleryScreen {
+    background: #0a0a0a;
+    flex-direction: column;
+  }
+  .gallery-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: max(env(safe-area-inset-top, 16px), 16px) 20px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .gallery-topbar h2 { font-size: 18px; font-weight: 700; }
+  .gallery-topbar button {
+    background: none; border: none; color: var(--accent);
+    font-size: 15px; font-weight: 600; cursor: pointer; padding: 4px 8px;
+  }
+  .photo-count {
+    font-size: 12px; color: rgba(255,255,255,0.4);
+    font-family: monospace;
+  }
+  .gallery-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+  }
+  .gallery-item {
+    aspect-ratio: 1;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    background: #1a1a1a;
+  }
+  .gallery-item img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 0.2s;
+  }
+  .gallery-item:active img { transform: scale(0.95); }
+  .gallery-item .del-btn {
+    position: absolute; top: 4px; right: 4px;
+    width: 24px; height: 24px;
+    background: rgba(0,0,0,0.7);
+    border: none; border-radius: 50%;
+    color: #fff; font-size: 12px;
+    cursor: pointer; display: none;
+    align-items: center; justify-content: center;
+  }
+  .gallery-item:hover .del-btn,
+  .gallery-item.selected .del-btn { display: flex; }
+  .gallery-empty {
+    grid-column: 1/-1;
+    text-align: center; padding: 60px 20px;
+    color: rgba(255,255,255,0.3);
+  }
+  .gallery-empty .em-icon { font-size: 48px; margin-bottom: 12px; }
+  .gallery-empty p { font-size: 14px; }
+
+  /* ── Lightbox ── */
+  #lightbox {
+    position: fixed; inset: 0;
+    background: #000;
+    z-index: 200;
+    display: none;
+    flex-direction: column;
+  }
+  #lightbox.open { display: flex; }
+  .lb-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: max(env(safe-area-inset-top, 16px), 16px) 16px 12px;
+  }
+  .lb-bar button {
+    background: none; border: none; color: #fff;
+    font-size: 22px; cursor: pointer; padding: 6px;
+  }
+  .lb-img-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  #lbImage { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .lb-actions {
+    display: flex; justify-content: center; gap: 24px;
+    padding: 16px 20px max(env(safe-area-inset-bottom, 20px), 20px);
+  }
+  .lb-action-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    background: none; border: none; color: #fff; cursor: pointer; padding: 8px 16px;
+    border-radius: 12px; transition: background 0.15s;
+  }
+  .lb-action-btn:active { background: rgba(255,255,255,0.1); }
+  .lb-action-btn .icon { font-size: 24px; }
+  .lb-action-btn span { font-size: 11px; color: rgba(255,255,255,0.6); }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+    background: rgba(30,30,30,0.95);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff; font-size: 13px;
+    padding: 10px 20px; border-radius: 20px;
+    pointer-events: none; z-index: 300;
+    opacity: 0; transition: opacity 0.25s;
+    white-space: nowrap;
+    backdrop-filter: blur(10px);
+  }
+  #toast.show { opacity: 1; }
+
+  /* Install banner */
+  #installBanner {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(20,20,20,0.97);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding: 16px 20px max(env(safe-area-inset-bottom,16px),16px);
+    display: none; align-items: center; gap: 14px;
+    z-index: 400;
+    backdrop-filter: blur(20px);
+  }
+  #installBanner.show { display: flex; }
+  #installBanner .ib-icon { font-size: 32px; flex-shrink: 0; }
+  #installBanner .ib-text { flex: 1; }
+  #installBanner .ib-text strong { display: block; font-size: 14px; margin-bottom: 2px; }
+  #installBanner .ib-text span { font-size: 12px; color: rgba(255,255,255,0.5); }
+  #installBanner .ib-install {
+    background: var(--accent); color: #000;
+    border: none; border-radius: 20px;
+    padding: 8px 20px; font-size: 13px; font-weight: 700;
+    cursor: pointer;
+  }
+  #installBanner .ib-close {
+    background: none; border: none; color: rgba(255,255,255,0.4);
+    font-size: 20px; cursor: pointer; padding: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Flash effect overlay -->
+<div id="flashEffect"></div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ── Start Screen ── -->
+<div class="screen" id="startScreen">
+  <div class="app-icon">📸</div>
+  <h1>SnapCam</h1>
+  <p>A fast, clean camera app.<br>Photos saved right on your device.</p>
+  <button class="start-btn" id="startBtn">Open Camera</button>
+</div>
+
+<!-- ── Camera Screen ── -->
+<div class="screen hidden" id="cameraScreen">
+  <video id="videoEl" autoplay playsinline muted></video>
+
+  <!-- Grid overlay -->
+  <div class="grid-overlay" id="gridOverlay">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="33.3" y1="0" x2="33.3" y2="100" stroke="rgba(255,255,255,0.3)" stroke-width="0.2"/>
+      <line x1="66.6" y1="0" x2="66.6" y2="100" stroke="rgba(255,255,255,0.3)" stroke-width="0.2"/>
+      <line x1="0" y1="33.3" x2="100" y2="33.3" stroke="rgba(255,255,255,0.3)" stroke-width="0.2"/>
+      <line x1="0" y1="66.6" x2="100" y2="66.6" stroke="rgba(255,255,255,0.3)" stroke-width="0.2"/>
+    </svg>
+  </div>
+
+  <!-- Focus ring -->
+  <div id="focusRing"></div>
+
+  <!-- Zoom badge -->
+  <div class="zoom-badge" id="zoomBadge">1×</div>
+
+  <!-- UI Overlay -->
+  <div class="cam-overlay">
+    <!-- Top bar -->
+    <div class="cam-topbar">
+      <button class="flash-btn" id="flashBtn" title="Toggle flash">⚡</button>
+      <button id="gridBtn" title="Toggle grid">⊞</button>
+      <button id="timerBtn" title="Timer">⏱</button>
+    </div>
+
+    <!-- Spacer -->
+    <div style="flex:1"></div>
+
+    <!-- Mode row -->
+    <div class="mode-row">
+      <div class="mode-pill active" data-mode="photo">Photo</div>
+      <div class="mode-pill" data-mode="video">Video</div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="cam-bottombar">
+      <!-- Gallery -->
+      <div class="gallery-thumb" id="galleryThumb">🖼</div>
+
+      <!-- Shutter -->
+      <div class="shutter-wrap">
+        <div class="shutter-ring"></div>
+        <button class="shutter-btn" id="shutterBtn"></button>
+      </div>
+
+      <!-- Flip -->
+      <button class="flip-btn" id="flipBtn">🔄</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Gallery Screen ── -->
+<div class="screen hidden" id="galleryScreen">
+  <div class="gallery-topbar">
+    <button id="backToCamera">← Camera</button>
+    <h2>Gallery</h2>
+    <span class="photo-count" id="photoCount">0 photos</span>
+  </div>
+  <div class="gallery-grid" id="galleryGrid"></div>
+</div>
+
+<!-- ── Lightbox ── -->
+<div id="lightbox">
+  <div class="lb-bar">
+    <button id="lbClose">✕</button>
+    <span id="lbTitle" style="font-size:13px;color:rgba(255,255,255,0.5)"></span>
+    <button style="opacity:0;pointer-events:none">✕</button>
+  </div>
+  <div class="lb-img-wrap">
+    <img id="lbImage" src="" alt="Photo">
+  </div>
+  <div class="lb-actions">
+    <button class="lb-action-btn" id="lbDownload">
+      <span class="icon">⬇️</span><span>Save</span>
+    </button>
+    <button class="lb-action-btn" id="lbShare">
+      <span class="icon">↗️</span><span>Share</span>
+    </button>
+    <button class="lb-action-btn" id="lbDelete">
+      <span class="icon">🗑️</span><span>Delete</span>
+    </button>
+  </div>
+</div>
+
+<!-- ── Install Banner ── -->
+<div id="installBanner">
+  <div class="ib-icon">📸</div>
+  <div class="ib-text">
+    <strong>Install SnapCam</strong>
+    <span>Add to your home screen</span>
+  </div>
+  <button class="ib-install" id="installBtn">Install</button>
+  <button class="ib-close" id="closeBanner">✕</button>
+</div>
+
+<!-- Hidden canvas for photo capture -->
+<canvas id="captureCanvas" style="display:none"></canvas>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────
+const S = {
+  stream: null,
+  facing: 'environment', // back camera first
+  flashOn: false,
+  gridOn: false,
+  timerDelay: 0,
+  mode: 'photo',
+  zoom: 1,
+  photos: [],
+  recording: false,
+  mediaRecorder: null,
+  recordedChunks: [],
+  currentLbIdx: -1
+};
+
+// ─── Load photos from localStorage ───────────────────────────────
+function loadPhotos() {
+  try {
+    const raw = localStorage.getItem('snapcam_photos');
+    if (raw) S.photos = JSON.parse(raw);
+  } catch(e) { S.photos = []; }
+}
+function savePhotos() {
+  try { localStorage.setItem('snapcam_photos', JSON.stringify(S.photos)); }
+  catch(e) { showToast('Storage full — clear some photos'); }
+}
+loadPhotos();
+
+// ─── Utility ─────────────────────────────────────────────────────
+function showToast(msg, dur = 2200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+// ─── Camera ──────────────────────────────────────────────────────
+async function startCamera() {
+  if (S.stream) { S.stream.getTracks().forEach(t => t.stop()); }
+  try {
+    S.stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: S.facing,
+        width:  { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
+      audio: S.mode === 'video'
+    });
+    const vid = document.getElementById('videoEl');
+    vid.srcObject = S.stream;
+    vid.classList.toggle('mirrored', S.facing === 'user');
+    showScreen('cameraScreen');
+    showScreen('cameraScreen');
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('cameraScreen').classList.remove('hidden');
+  } catch(err) {
+    if (err.name === 'NotAllowedError') {
+      showToast('Camera permission denied');
+    } else {
+      showToast('Camera not available: ' + err.message);
+    }
+    console.error(err);
+  }
+}
+
+// ─── Capture photo ────────────────────────────────────────────────
+function capturePhoto() {
+  const vid = document.getElementById('videoEl');
+  const canvas = document.getElementById('captureCanvas');
+  canvas.width  = vid.videoWidth;
+  canvas.height = vid.videoHeight;
+  const ctx = canvas.getContext('2d');
+
+  if (S.facing === 'user') {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(vid, 0, 0);
+
+  // Flash effect
+  const fe = document.getElementById('flashEffect');
+  fe.classList.remove('flash');
+  void fe.offsetWidth;
+  fe.classList.add('flash');
+
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+  const photo = {
+    id: Date.now(),
+    data: dataUrl,
+    ts: new Date().toLocaleString()
+  };
+  S.photos.unshift(photo);
+  savePhotos();
+  updateGalleryThumb();
+  showToast('📸 Photo saved!');
+}
+
+// ─── Shutter handler ─────────────────────────────────────────────
+document.getElementById('shutterBtn').addEventListener('click', () => {
+  if (S.mode === 'photo') {
+    if (S.timerDelay > 0) {
+      let count = S.timerDelay;
+      showToast(`📸 ${count}…`, S.timerDelay * 1000 + 500);
+      const iv = setInterval(() => {
+        count--;
+        if (count > 0) showToast(`📸 ${count}…`, 1200);
+        else { clearInterval(iv); capturePhoto(); }
+      }, 1000);
+    } else {
+      capturePhoto();
+    }
+  } else {
+    toggleRecording();
+  }
+});
+
+// ─── Video recording ─────────────────────────────────────────────
+function toggleRecording() {
+  const btn = document.getElementById('shutterBtn');
+  if (!S.recording) {
+    S.recordedChunks = [];
+    S.mediaRecorder = new MediaRecorder(S.stream, { mimeType: 'video/webm' });
+    S.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) S.recordedChunks.push(e.data); };
+    S.mediaRecorder.onstop = saveVideo;
+    S.mediaRecorder.start();
+    S.recording = true;
+    btn.classList.add('recording');
+    showToast('🔴 Recording…', 99999);
+  } else {
+    S.mediaRecorder.stop();
+    S.recording = false;
+    btn.classList.remove('recording');
+    document.getElementById('toast').classList.remove('show');
+    showToast('✅ Video saved!');
+  }
+}
+function saveVideo() {
+  const blob = new Blob(S.recordedChunks, { type: 'video/webm' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `snapcam_${Date.now()}.webm`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Flip camera ──────────────────────────────────────────────────
+document.getElementById('flipBtn').addEventListener('click', () => {
+  S.facing = S.facing === 'environment' ? 'user' : 'environment';
+  S.zoom = 1;
+  startCamera();
+});
+
+// ─── Flash toggle ────────────────────────────────────────────────
+document.getElementById('flashBtn').addEventListener('click', () => {
+  S.flashOn = !S.flashOn;
+  document.getElementById('flashBtn').classList.toggle('on', S.flashOn);
+  const track = S.stream?.getVideoTracks()[0];
+  if (track?.getCapabilities?.()?.torch) {
+    track.applyConstraints({ advanced: [{ torch: S.flashOn }] });
+  } else {
+    showToast(S.flashOn ? '⚡ Torch on (if supported)' : '⚡ Torch off');
+  }
+});
+
+// ─── Grid toggle ──────────────────────────────────────────────────
+document.getElementById('gridBtn').addEventListener('click', () => {
+  S.gridOn = !S.gridOn;
+  document.getElementById('gridOverlay').classList.toggle('visible', S.gridOn);
+  document.getElementById('gridBtn').style.color = S.gridOn ? 'var(--accent)' : '';
+});
+
+// ─── Timer toggle ────────────────────────────────────────────────
+document.getElementById('timerBtn').addEventListener('click', () => {
+  const opts = [0, 3, 10];
+  const idx = (opts.indexOf(S.timerDelay) + 1) % opts.length;
+  S.timerDelay = opts[idx];
+  const labels = { 0: '⏱', 3: '⏱3s', 10: '⏱10s' };
+  document.getElementById('timerBtn').textContent = labels[S.timerDelay];
+  document.getElementById('timerBtn').style.color = S.timerDelay ? 'var(--accent)' : '';
+  if (S.timerDelay) showToast(`Timer: ${S.timerDelay}s`);
+});
+
+// ─── Mode switch ──────────────────────────────────────────────────
+document.querySelectorAll('.mode-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    S.mode = pill.dataset.mode;
+    startCamera();
+  });
+});
+
+// ─── Tap to focus ─────────────────────────────────────────────────
+document.getElementById('cameraScreen').addEventListener('click', e => {
+  if (e.target.closest('button') || e.target.closest('.gallery-thumb') ||
+      e.target.closest('.mode-pill') || e.target.closest('.shutter-wrap')) return;
+
+  const ring = document.getElementById('focusRing');
+  ring.style.left = e.clientX + 'px';
+  ring.style.top  = e.clientY + 'px';
+  ring.classList.add('active');
+  setTimeout(() => ring.classList.remove('active'), 900);
+});
+
+// ─── Pinch to zoom ────────────────────────────────────────────────
+let lastDist = 0;
+document.getElementById('cameraScreen').addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    lastDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+  }
+}, { passive: true });
+
+document.getElementById('cameraScreen').addEventListener('touchmove', e => {
+  if (e.touches.length !== 2) return;
+  const dist = Math.hypot(
+    e.touches[0].clientX - e.touches[1].clientX,
+    e.touches[0].clientY - e.touches[1].clientY
+  );
+  const delta = dist / lastDist;
+  lastDist = dist;
+  S.zoom = Math.max(1, Math.min(5, S.zoom * delta));
+
+  const track = S.stream?.getVideoTracks()[0];
+  const caps = track?.getCapabilities?.();
+  if (caps?.zoom) {
+    const zoomVal = Math.max(caps.zoom.min, Math.min(caps.zoom.max, S.zoom));
+    track.applyConstraints({ advanced: [{ zoom: zoomVal }] });
+  }
+
+  const zb = document.getElementById('zoomBadge');
+  zb.textContent = S.zoom.toFixed(1) + '×';
+  zb.classList.add('visible');
+  clearTimeout(zb._t);
+  zb._t = setTimeout(() => zb.classList.remove('visible'), 1500);
+}, { passive: true });
+
+// ─── Gallery ──────────────────────────────────────────────────────
+function updateGalleryThumb() {
+  const t = document.getElementById('galleryThumb');
+  if (S.photos.length > 0) {
+    t.innerHTML = `<img src="${S.photos[0].data}" alt="Last photo">`;
+  } else {
+    t.innerHTML = '🖼';
+  }
+}
+
+function renderGallery() {
+  const grid = document.getElementById('galleryGrid');
+  document.getElementById('photoCount').textContent = S.photos.length + ' photo' + (S.photos.length !== 1 ? 's' : '');
+
+  if (S.photos.length === 0) {
+    grid.innerHTML = `<div class="gallery-empty"><div class="em-icon">📷</div><p>No photos yet.<br>Take your first shot!</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = S.photos.map((p, i) => `
+    <div class="gallery-item" data-idx="${i}">
+      <img src="${p.data}" alt="Photo ${i+1}" loading="lazy">
+      <button class="del-btn" data-idx="${i}">✕</button>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.gallery-item img').forEach(img => {
+    img.addEventListener('click', e => {
+      openLightbox(+e.target.closest('.gallery-item').dataset.idx);
+    });
+  });
+  grid.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      deletePhoto(+btn.dataset.idx);
+    });
+  });
+}
+
+function deletePhoto(idx) {
+  S.photos.splice(idx, 1);
+  savePhotos();
+  renderGallery();
+  updateGalleryThumb();
+}
+
+document.getElementById('galleryThumb').addEventListener('click', () => {
+  renderGallery();
+  showScreen('galleryScreen');
+});
+
+document.getElementById('backToCamera').addEventListener('click', () => {
+  document.getElementById('galleryScreen').classList.add('hidden');
+  document.getElementById('cameraScreen').classList.remove('hidden');
+});
+
+// ─── Lightbox ─────────────────────────────────────────────────────
+function openLightbox(idx) {
+  S.currentLbIdx = idx;
+  const p = S.photos[idx];
+  document.getElementById('lbImage').src = p.data;
+  document.getElementById('lbTitle').textContent = p.ts;
+  document.getElementById('lightbox').classList.add('open');
+}
+
+document.getElementById('lbClose').addEventListener('click', () => {
+  document.getElementById('lightbox').classList.remove('open');
+});
+
+document.getElementById('lbDownload').addEventListener('click', () => {
+  const p = S.photos[S.currentLbIdx];
+  const a = document.createElement('a');
+  a.href = p.data;
+  a.download = `snapcam_${p.id}.jpg`;
+  a.click();
+  showToast('📥 Saved to downloads');
+});
+
+document.getElementById('lbShare').addEventListener('click', async () => {
+  const p = S.photos[S.currentLbIdx];
+  if (navigator.share) {
+    const res = await fetch(p.data);
+    const blob = await res.blob();
+    const file = new File([blob], `snapcam_${p.id}.jpg`, { type: 'image/jpeg' });
+    await navigator.share({ files: [file], title: 'SnapCam photo' }).catch(() => {});
+  } else {
+    showToast('Sharing not supported on this browser');
+  }
+});
+
+document.getElementById('lbDelete').addEventListener('click', () => {
+  deletePhoto(S.currentLbIdx);
+  document.getElementById('lightbox').classList.remove('open');
+});
+
+// ─── Start button ────────────────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click', startCamera);
+
+// ─── PWA Install prompt ───────────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') showToast('✅ SnapCam installed!');
+  deferredPrompt = null;
+  document.getElementById('installBanner').classList.remove('show');
+});
+
+document.getElementById('closeBanner').addEventListener('click', () => {
+  document.getElementById('installBanner').classList.remove('show');
+});
+
+// Init gallery thumb
+updateGalleryThumb();
+
+// Register service worker
+// SW registered inline above
+</script>
+
+<script>
+// Inline manifest
+const manifestData = {
+  "name": "SnapCam",
+  "short_name": "SnapCam",
+  "description": "A fast camera app",
+  "start_url": ".",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [{"src":"data:image/png;base64,iVBORw0KGgo=","sizes":"192x192","type":"image/png"}]
+};
+const manifestBlob = new Blob([JSON.stringify(manifestData)], {type:'application/json'});
+const manifestURL = URL.createObjectURL(manifestBlob);
+const linkEl = document.createElement('link');
+linkEl.rel = 'manifest'; linkEl.href = manifestURL;
+document.head.appendChild(linkEl);
+
+// Inline service worker
+if ('serviceWorker' in navigator) {
+  const swBlob = new Blob([`
+const CACHE = 'snapcam-v1';
+self.addEventListener('install', e => { self.skipWaiting(); });
+self.addEventListener('activate', e => { self.clients.claim(); });
+self.addEventListener('fetch', e => { e.respondWith(fetch(e.request).catch(() => caches.match(e.request))); });
+`], {type:'text/javascript'});
+  const swURL = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL, {scope: './'}); 
+}
+</script>
+
+</body>
+</html>
