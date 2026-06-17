@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI MCC Panel Design Assistant</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #080C14;
+  --surface:  #0D1422;
+  --panel:    #111827;
+  --border:   #1E2D45;
+  --border2:  #243550;
+  --accent:   #00C2FF;
+  --accent2:  #0077B6;
+  --gold:     #F5A623;
+  --green:    #10B981;
+  --red:      #EF4444;
+  --amber:    #F59E0B;
+  --purple:   #8B5CF6;
+  --text:     #E8EFF8;
+  --muted:    #5A7090;
+  --mono:     'Share Tech Mono', monospace;
+  --sans:     'Inter', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;}
+
+/* GRID BACKGROUND */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,194,255,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,194,255,0.03) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0;
+}
+
+/* HEADER */
+.header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(8,12,20,0.95);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.header-brand{display:flex;align-items:center;gap:12px;}
+.brand-icon{
+  width:38px;height:38px;border-radius:8px;
+  background:linear-gradient(135deg,var(--accent2),var(--accent));
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+}
+.brand-name{font-family:var(--mono);font-size:13px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;}
+.brand-sub{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.header-badge{
+  background:rgba(0,194,255,0.08);border:1px solid rgba(0,194,255,0.2);
+  border-radius:6px;padding:5px 12px;font-size:11px;color:var(--accent);
+  font-family:var(--mono);letter-spacing:1px;
+}
+
+/* LAYOUT */
+.container{max-width:1100px;margin:0 auto;padding:24px 20px;position:relative;z-index:1;}
+.two-col{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start;}
+
+/* PANELS */
+.panel{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  overflow:hidden;
+}
+.panel-header{
+  background:var(--panel);border-bottom:1px solid var(--border);
+  padding:14px 18px;display:flex;align-items:center;gap:10px;
+}
+.panel-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);}
+.panel-title{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;}
+.panel-body{padding:18px;}
+
+/* FORM */
+.field{margin-bottom:16px;}
+.field label{
+  display:block;font-size:10px;font-weight:600;color:var(--muted);
+  letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px;font-family:var(--mono);
+}
+.field input,.field select{
+  width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border2);
+  border-radius:8px;padding:10px 13px;color:var(--text);font-size:13px;
+  outline:none;font-family:var(--sans);transition:border 0.2s,box-shadow 0.2s;
+}
+.field input:focus,.field select:focus{
+  border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,194,255,0.1);
+}
+.field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A7090' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field-hint{font-size:10px;color:var(--muted);margin-top:4px;font-family:var(--mono);}
+
+/* BUTTONS */
+.btn-analyze{
+  width:100%;background:linear-gradient(135deg,var(--accent2),var(--accent));
+  color:#000;border:none;border-radius:10px;padding:13px;
+  font-size:13px;font-weight:700;cursor:pointer;font-family:var(--mono);
+  letter-spacing:2px;text-transform:uppercase;transition:all 0.2s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-analyze:hover{opacity:0.9;transform:scale(0.99);}
+.btn-analyze:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-pdf{
+  background:linear-gradient(135deg,#1a4a00,var(--green));
+  color:#fff;border:none;border-radius:10px;padding:11px 20px;
+  font-size:12px;font-weight:700;cursor:pointer;font-family:var(--mono);
+  letter-spacing:1.5px;text-transform:uppercase;transition:all 0.2s;
+  display:inline-flex;align-items:center;gap:8px;
+}
+.btn-pdf:hover{opacity:0.9;}
+.btn-reset{
+  background:transparent;color:var(--muted);border:1px solid var(--border2);
+  border-radius:10px;padding:11px 20px;font-size:12px;cursor:pointer;
+  font-family:var(--mono);letter-spacing:1px;transition:all 0.2s;
+}
+.btn-reset:hover{border-color:var(--red);color:var(--red);}
+
+/* THINKING ANIMATION */
+.thinking{display:none;align-items:center;gap:10px;padding:16px;color:var(--accent);font-family:var(--mono);font-size:12px;}
+.thinking.show{display:flex;}
+.thinking-dots span{
+  display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--accent);margin:0 2px;animation:blink 1.2s infinite;
+}
+.thinking-dots span:nth-child(2){animation-delay:0.2s;}
+.thinking-dots span:nth-child(3){animation-delay:0.4s;}
+@keyframes blink{0%,80%,100%{opacity:0.2}40%{opacity:1}}
+
+/* RESULT AREA */
+.result-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:400px;color:var(--muted);text-align:center;gap:12px;
+}
+.result-empty .empty-icon{font-size:48px;opacity:0.4;}
+.result-empty p{font-family:var(--mono);font-size:11px;letter-spacing:1px;}
+
+/* RECOMMENDATION CARDS */
+.rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+.rec-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  padding:16px;cursor:pointer;transition:all 0.25s;position:relative;
+}
+.rec-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.rec-card.best{border-color:var(--gold);background:rgba(245,166,35,0.05);}
+.rec-card.selected{border-color:var(--accent);background:rgba(0,194,255,0.07);box-shadow:0 0 20px rgba(0,194,255,0.1);}
+.rec-badge{
+  position:absolute;top:-1px;right:12px;
+  background:var(--gold);color:#000;font-size:9px;font-weight:800;
+  padding:3px 8px;border-radius:0 0 6px 6px;letter-spacing:1px;font-family:var(--mono);
+}
+.rec-icon{font-size:28px;margin-bottom:8px;}
+.rec-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.rec-short{font-size:11px;color:var(--muted);line-height:1.5;font-family:var(--mono);}
+.rec-score{
+  margin-top:10px;display:flex;align-items:center;gap:8px;
+}
+.score-bar-bg{flex:1;height:4px;background:var(--border);border-radius:2px;}
+.score-bar{height:4px;border-radius:2px;transition:width 0.6s;}
+.score-val{font-size:10px;color:var(--muted);font-family:var(--mono);min-width:28px;}
+
+/* DETAIL PANEL */
+.detail-section{margin-bottom:20px;}
+.detail-section-title{
+  font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:2px;
+  text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;
+}
+.spec-table{width:100%;border-collapse:collapse;}
+.spec-table tr{border-bottom:1px solid var(--border);}
+.spec-table tr:last-child{border-bottom:none;}
+.spec-table td{padding:8px 6px;font-size:12px;}
+.spec-table td:first-child{color:var(--muted);font-family:var(--mono);font-size:11px;width:45%;letter-spacing:0.5px;}
+.spec-table td:last-child{color:var(--text);font-weight:500;}
+
+/* COMPONENT LIST */
+.comp-list{list-style:none;display:flex;flex-direction:column;gap:8px;}
+.comp-item{
+  display:flex;align-items:flex-start;gap:10px;
+  background:rgba(0,0,0,0.2);border-radius:8px;padding:10px 12px;
+  border:1px solid var(--border);font-size:12px;
+}
+.comp-bullet{
+  width:20px;height:20px;border-radius:4px;background:rgba(0,194,255,0.12);
+  border:1px solid rgba(0,194,255,0.3);display:flex;align-items:center;
+  justify-content:center;font-size:10px;color:var(--accent);flex-shrink:0;margin-top:1px;
+}
+.comp-name{font-weight:600;color:var(--text);margin-bottom:2px;}
+.comp-detail{color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:0.3px;}
+
+/* WARNING / NOTE BOXES */
+.info-box{
+  border-radius:8px;padding:11px 14px;font-size:11px;line-height:1.6;margin-bottom:10px;
+  display:flex;gap:10px;font-family:var(--mono);
+}
+.info-box.warn{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:var(--amber);}
+.info-box.good{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:var(--green);}
+.info-box.info{background:rgba(0,194,255,0.08);border:1px solid rgba(0,194,255,0.2);color:var(--accent);}
+.info-box.bad{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--red);}
+
+/* CIRCUIT DIAGRAM */
+.circuit-area{
+  background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;
+  padding:16px;text-align:center;overflow-x:auto;
+}
+
+/* TABS */
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.tab{
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  border-radius:7px;padding:7px 14px;font-size:11px;cursor:pointer;
+  font-family:var(--mono);letter-spacing:1px;transition:all 0.2s;
+}
+.tab.active{background:rgba(0,194,255,0.1);border-color:var(--accent);color:var(--accent);}
+
+/* ACTION BAR */
+.action-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+
+/* SUITABILITY RATINGS */
+.suit-grid{display:flex;flex-direction:column;gap:8px;}
+.suit-row{display:flex;align-items:center;gap:12px;}
+.suit-label{font-size:11px;color:var(--muted);font-family:var(--mono);min-width:120px;letter-spacing:0.5px;}
+.suit-stars{color:var(--gold);font-size:14px;letter-spacing:2px;}
+.suit-note{font-size:10px;color:var(--muted);}
+
+/* SECTION DIVIDER */
+.sec-div{border:none;border-top:1px solid var(--border);margin:18px 0;}
+
+/* SCROLL */
+.result-scroll{max-height:calc(100vh - 120px);overflow-y:auto;padding-right:4px;}
+.result-scroll::-webkit-scrollbar{width:4px;}
+.result-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+@media(max-width:780px){
+  .two-col{grid-template-columns:1fr;}
+  .rec-grid{grid-template-columns:1fr;}
+  .field-row{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <div class="brand-icon">⚡</div>
+    <div>
+      <div class="brand-name">AI MCC Panel Designer</div>
+      <div class="brand-sub">Motor Control Center · Starter Selection</div>
+    </div>
+  </div>
+  <div class="header-badge">AI POWERED</div>
+</div>
+
+<div class="container">
+  <div class="two-col">
+
+    <!-- ════ LEFT: INPUT FORM ════ -->
+    <div style="position:sticky;top:80px;">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-dot"></div>
+          <div class="panel-title">Motor & Application Data</div>
+        </div>
+        <div class="panel-body">
+
+          <div class="field">
+            <label>Application Type</label>
+            <select id="application">
+              <option value="">— Select Application —</option>
+              <option value="pump_centrifugal">Centrifugal Pump</option>
+              <option value="pump_submersible">Submersible Pump</option>
+              <option value="pump_positive">Positive Displacement Pump</option>
+              <option value="fan_centrifugal">Centrifugal Fan / Blower</option>
+              <option value="fan_axial">Axial Fan</option>
+              <option value="conveyor">Conveyor Belt</option>
+              <option value="compressor">Air Compressor</option>
+              <option value="crane_hoist">Crane / Hoist</option>
+              <option value="mixer_agitator">Mixer / Agitator</option>
+              <option value="crusher_grinder">Crusher / Grinder</option>
+              <option value="chiller">Chiller / HVAC</option>
+              <option value="general">General Load</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label>Motor Power (kW)</label>
+              <input type="number" id="motorKW" placeholder="e.g. 37" min="0.1" step="0.1"/>
+            </div>
+            <div class="field">
+              <label>Supply Voltage (V)</label>
+              <select id="voltage">
+                <option value="415">415V (3Ph)</option>
+                <option value="440">440V (3Ph)</option>
+                <option value="380">380V (3Ph)</option>
+                <option value="220">220V (1Ph)</option>
+                <option value="690">690V (3Ph)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label>Frequency (Hz)</label>
+              <select id="freq">
+                <option value="50">50 Hz</option>
+                <option value="60">60 Hz</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Motor RPM</label>
+              <select id="rpm">
+                <option value="1500">1500 (4-pole)</option>
+                <option value="3000">3000 (2-pole)</option>
+                <option value="1000">1000 (6-pole)</option>
+                <option value="750">750 (8-pole)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label>Motor Efficiency Class</label>
+              <select id="effClass">
+                <option value="IE2">IE2</option>
+                <option value="IE3">IE3</option>
+                <option value="IE4">IE4</option>
+                <option value="IE1">IE1 (Legacy)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Starts Per Hour</label>
+              <select id="startsPerHour">
+                <option value="low">Low (1–5)</option>
+                <option value="medium">Medium (6–15)</option>
+                <option value="high">High (16–30)</option>
+                <option value="very_high">Very High (30+)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Load Inertia / Starting Condition</label>
+            <select id="inertia">
+              <option value="low">Low Inertia — Light Start (fans, centrifugal pumps)</option>
+              <option value="medium">Medium Inertia — Moderate Load</option>
+              <option value="high">High Inertia — Heavy Start (crushers, conveyors)</option>
+              <option value="variable">Variable / Process-Dependent Load</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Speed Control Required?</label>
+            <select id="speedControl">
+              <option value="no">No — Fixed Speed</option>
+              <option value="yes">Yes — Variable Speed Needed</option>
+              <option value="2speed">2-Speed Only</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Reversing Required?</label>
+            <select id="reversing">
+              <option value="no">No</option>
+              <option value="yes">Yes — Bi-directional Operation</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Environment / Installation</label>
+            <select id="environment">
+              <option value="indoor_clean">Indoor — Clean &amp; Dry</option>
+              <option value="indoor_dusty">Indoor — Dusty / Humid</option>
+              <option value="outdoor">Outdoor / Exposed</option>
+              <option value="hazardous">Hazardous Area (Ex-Zone)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Budget Priority</label>
+            <select id="budget">
+              <option value="economy">Economy — Lowest cost</option>
+              <option value="balanced">Balanced — Cost vs features</option>
+              <option value="premium">Premium — Best performance</option>
+            </select>
+          </div>
+
+          <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">
+            <span>⚡</span> <span>ANALYZE &amp; RECOMMEND</span>
+          </button>
+
+          <div class="thinking" id="thinkingBox">
+            <div class="thinking-dots"><span></span><span></span><span></span></div>
+            <span>AI analyzing motor parameters...</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ RIGHT: RESULT ════ -->
+    <div class="result-scroll">
+      <div id="resultArea">
+        <div class="panel">
+          <div class="panel-body">
+            <div class="result-empty">
+              <div class="empty-icon">🏭</div>
+              <p>ENTER MOTOR DATA TO BEGIN</p>
+              <p style="font-size:9px;margin-top:4px;color:#3a5070;">AI will recommend optimal starter type and generate full MCC panel specs</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  DATA: STARTER TYPES
+// ═══════════════════════════════════════════════════
+const STARTERS = {
+  dol: {
+    id:'dol', icon:'⚡', name:'Direct-On-Line (DOL)',
+    short:'Full voltage, instant start. Simple, low cost.',
+    color:'#10B981',
+    pros:['Simplest & cheapest solution','Fast start torque (100%)','Minimal maintenance','Compact panel space'],
+    cons:['High inrush current (6–8× FLC)','Mechanical shock on load','Not suitable for high-inertia loads','No speed control'],
+    components:['MCCB / MCB — Motor circuit breaker',
+      'Contactor (AC-3 duty) — Main switching',
+      'Thermal Overload Relay (TOR) — Motor protection',
+      'Start / Stop Push Buttons','Control Transformer (230V / 110V)','Indicating Lamps (R/G)','Terminal Block & Cable Duct'],
+    protection:['Short circuit — MCCB','Overload — TOR','Phase failure — Built-in TOR','Single phasing protection'],
+    standards:['IEC 60947-4-1','IS 13947','IEC 60364'],
+  },
+  star_delta: {
+    id:'star_delta', icon:'🔷', name:'Star-Delta Starter (Y-Δ)',
+    short:'Reduces starting current to 33%. Classic method for medium motors.',
+    color:'#4F8EF7',
+    pros:['Reduces starting current to 1/3 of DOL','Cost-effective for 7.5–75 kW range','Widely understood & serviced','Suitable for low-load starts'],
+    cons:['Starting torque reduced to 33%','Voltage transient during Y→Δ changeover','Requires 6-lead motor (double-wound)','Not suitable for high-inertia loads'],
+    components:['MCCB — Motor circuit breaker',
+      '3× Contactors (Main, Star, Delta) — Switching',
+      'Thermal Overload Relay (TOR)',
+      'Star-Delta Timer (0–30s adjustable)',
+      'Control Transformer','Push Buttons & Indication','Surge Suppressor for transient'],
+    protection:['Short circuit — MCCB','Overload — TOR','Timer-controlled transition','Phase failure protection'],
+    standards:['IEC 60947-4-1','NEMA ICS 2','IS 13947-4'],
+  },
+  autotransformer: {
+    id:'autotransformer', icon:'🔄', name:'Auto-Transformer Starter',
+    short:'Tapped transformer reduces voltage at start. Better torque than Y-Δ.',
+    color:'#8B5CF6',
+    pros:['Variable starting voltage (50/65/80% taps)','Higher starting torque than Star-Delta','Suitable for high-inertia loads','Smooth transition possible'],
+    cons:['Larger & more expensive than Y-Δ','Heavier — requires more panel space','Limited starting frequency','Complex wiring'],
+    components:['MCCB — Motor circuit breaker',
+      'Auto-transformer (50/65/80% taps)',
+      '2× Contactors + 1 Transition contactor',
+      'Thermal Overload Relay',
+      'Transition Timer',
+      'Control Transformer & Push Buttons','Surge Absorber'],
+    protection:['Short circuit — MCCB','Overload — TOR','Thermal protection of transformer','Transition voltage surge suppression'],
+    standards:['IEC 60947-4-1','NEMA ICS 2'],
+  },
+  vfd: {
+    id:'vfd', icon:'🌀', name:'Variable Frequency Drive (VFD)',
+    short:'Full variable speed control. Maximum energy savings. Industry gold standard.',
+    color:'#00C2FF',
+    pros:['Complete speed control (0–100%)','Lowest starting current (< 1.5× FLC)','30–50% energy savings on pumps/fans','Soft start & stop — no mechanical stress','Built-in motor protection — comprehensive','Process optimization — precise control'],
+    cons:['Highest initial cost','Generates harmonics (needs filter)','Sensitive to environment (cooling needed)','Requires trained maintenance personnel'],
+    components:['MCCB with RCD upstream',
+      'Line Reactor / EMC Filter (input)',
+      'VFD Drive Unit (IP20/IP54)',
+      'Output dV/dt Filter (long cable runs)',
+      'Bypass Contactor (optional manual bypass)',
+      'Control Transformer','HMI / Keypad / Remote Reference','Motor PTC thermistor input','Braking resistor (if deceleration needed)'],
+    protection:['Short circuit','Overvoltage / Undervoltage','Overtemperature — Drive & Motor','Overcurrent — Electronic','Phase loss — Input & Output','Ground fault','Motor PTC thermistor'],
+    standards:['IEC 61800-5-1','IEC 61800-3 (EMC)','IEEE 519 (Harmonic limits)','UL 508C'],
+  },
+  smc: {
+    id:'smc', icon:'🔵', name:'Soft Starter (SMC / SSR)',
+    short:'Electronic soft start — smooth ramp up/down. No mechanical shock.',
+    color:'#F5A623',
+    pros:['Adjustable ramp-up time (1–30s)','Starting current limit (2–4× FLC)','Smooth start/stop — protects machinery','Compact — fits in existing DOL space','Built-in protection features'],
+    cons:['No speed control during run','More expensive than DOL/Y-Δ','Heat generation — requires ventilation','Bypass contactor needed for continuous run'],
+    components:['MCCB — Motor circuit breaker',
+      'Soft Starter Unit (thyristor-based)',
+      'Bypass Contactor (run mode)',
+      'Thermal Overload Relay (backup)',
+      'Control Transformer',
+      'Push Buttons & HMI','Cooling fan (for soft starter)'],
+    protection:['Soft start current limiting','Overload (electronic)','Phase failure & imbalance','Stall / locked rotor detection','Thermistor input for motor temp'],
+    standards:['IEC 60947-4-2','UL 508','NEMA ICS 2'],
+  },
+  reversing: {
+    id:'reversing', icon:'↔️', name:'Reversing Starter',
+    short:'Forward/Reverse operation by swapping two supply phases.',
+    color:'#EF4444',
+    pros:['Enables bi-directional motor operation','Can combine with DOL, Y-Δ or Soft Starter','Mechanical & electrical interlocking','Essential for crane, hoist, conveyor applications'],
+    cons:['Additional contactor adds cost & space','Interlocking logic required','Transition delay between directions mandatory','Risk of phase-to-phase fault if not interlocked'],
+    components:['MCCB — Motor circuit breaker',
+      'Forward Contactor (AC-3)',
+      'Reverse Contactor (AC-3)',
+      'Mechanical Interlock (contactor mounted)',
+      'Electrical Interlock (NC auxiliary contacts)',
+      'Thermal Overload Relay','F/R/Stop Push Buttons with interlocking','Transition Timer (between F↔R)'],
+    protection:['Double interlocking (mechanical + electrical)','Short circuit — MCCB','Overload — TOR','Transition timer — prevents phase-to-phase fault'],
+    standards:['IEC 60947-4-1','NEMA ICS 2','IEC 60364-5-53'],
+  },
+  wye_delta_closed: {
+    id:'wye_delta_closed', icon:'🔃', name:'Closed Transition Star-Delta',
+    short:'Eliminates voltage transient during Y→Δ switchover using transition resistors.',
+    color:'#10B981',
+    pros:['No voltage transient at changeover','Smoother than open transition','Better for sensitive loads','Suitable for frequent start/stop'],
+    cons:['More complex than standard Y-Δ','Additional resistors & contactor','Higher cost than open transition','Still limited to 33% starting torque'],
+    components:['MCCB — Motor circuit breaker',
+      '4× Contactors (Main, Star, Delta, Transition)',
+      'Transition Resistors (3-phase set)',
+      'Thermal Overload Relay','Sequence Timer','Control Transformer & Push Buttons'],
+    protection:['Short circuit — MCCB','Overload — TOR','Smooth voltage transition','Phase failure protection'],
+    standards:['IEC 60947-4-1','NEMA ICS 2'],
+  },
+};
+
+// ═══════════════════════════════════════════════════
+//  MOTOR CALCULATION FUNCTIONS
+// ═══════════════════════════════════════════════════
+function calcFLC(kw, voltage) {
+  // FLC = (kW × 1000) / (√3 × V × pf × eff)
+  const pf = 0.86, eff = 0.92;
+  if (voltage === 220) return ((kw * 1000) / (voltage * pf * eff)).toFixed(1);
+  return ((kw * 1000) / (Math.sqrt(3) * voltage * pf * eff)).toFixed(1);
+}
+
+function calcStartingCurrent(flc, multiplier) {
+  return (flc * multiplier).toFixed(1);
+}
+
+function calcCableSize(flc) {
+  // Simplified cable sizing per IEC 60364
+  const sizes = [[6,2.5],[10,4],[16,6],[25,10],[32,16],[40,25],[50,25],[63,35],[80,50],[100,70],[125,95],[160,120],[200,150],[250,185],[315,240]];
+  for(let [a,s] of sizes) if(flc*1.25 <= a) return s + ' mm²';
+  return '2×185 mm² (parallel)';
+}
+
+function calcMCCBRating(flc) {
+  const ratings = [6,10,16,20,25,32,40,50,63,80,100,125,160,200,250,315,400,500,630,800];
+  for(let r of ratings) if(r >= flc * 1.25) return r + 'A';
+  return Math.ceil(flc*1.4) + 'A';
+}
+
+function calcContactorRating(flc) {
+  const ratings = [9,12,18,25,32,40,50,65,80,95,115,150,185,225,265,400];
+  for(let r of ratings) if(r >= flc * 1.15) return r + 'A (AC-3)';
+  return Math.ceil(flc*1.2) + 'A (AC-3)';
+}
+
+function calcTORSetting(flc) {
+  return (flc * 0.9).toFixed(1) + '–' + (flc * 1.1).toFixed(1) + ' A';
+}
+
+// ═══════════════════════════════════════════════════
+//  AI RECOMMENDATION ENGINE
+// ═══════════════════════════════════════════════════
+function getRecommendations(params) {
+  const { kw, application, speedControl, reversing, inertia, startsPerHour, budget, environment } = params;
+  let scores = { dol:0, star_delta:0, autotransformer:0, vfd:0, smc:0, reversing:0, wye_delta_closed:0 };
+  let notes = [];
+
+  // Speed control requirement
+  if(speedControl === 'yes') {
+    scores.vfd += 60;
+    notes.push({ type:'info', text:'Variable speed required → VFD is the primary solution.' });
+  }
+
+  // Reversing requirement
+  if(reversing === 'yes') {
+    scores.reversing += 50;
+    notes.push({ type:'warn', text:'Reversing required → Reversing starter (can combine with DOL, Y-Δ, or Soft Starter).' });
+  }
+
+  // Application-based scoring
+  const appScores = {
+    pump_centrifugal:   { vfd:30, smc:20, star_delta:15, dol:10 },
+    pump_submersible:   { dol:25, star_delta:15, smc:10 },
+    pump_positive:      { vfd:35, smc:15, dol:10 },
+    fan_centrifugal:    { vfd:40, star_delta:15, smc:15, dol:5 },
+    fan_axial:          { vfd:35, dol:20, smc:10 },
+    conveyor:           { smc:30, vfd:25, reversing:20, dol:5 },
+    compressor:         { star_delta:30, autotransformer:20, smc:15, dol:10 },
+    crane_hoist:        { reversing:50, vfd:30, smc:10 },
+    mixer_agitator:     { vfd:35, smc:20, dol:15, star_delta:10 },
+    crusher_grinder:    { autotransformer:30, star_delta:20, smc:15, dol:5 },
+    chiller:            { vfd:40, smc:20, star_delta:15 },
+    general:            { dol:20, star_delta:20, smc:15, vfd:15 },
+  };
+  if(appScores[application]) for(let [k,v] of Object.entries(appScores[application])) scores[k] += v;
+
+  // Power-based scoring
+  if(kw <= 5.5)      { scores.dol += 30; }
+  else if(kw <= 15)  { scores.dol += 10; scores.star_delta += 20; scores.smc += 15; }
+  else if(kw <= 55)  { scores.star_delta += 25; scores.smc += 20; scores.vfd += 10; }
+  else if(kw <= 110) { scores.star_delta += 15; scores.autotransformer += 20; scores.smc += 20; scores.vfd += 15; }
+  else               { scores.autotransformer += 20; scores.vfd += 25; scores.smc += 15; }
+
+  // Inertia
+  if(inertia === 'high')     { scores.autotransformer += 20; scores.vfd += 20; scores.dol -= 10; }
+  if(inertia === 'variable') { scores.vfd += 25; scores.smc += 15; }
+  if(inertia === 'low')      { scores.dol += 10; scores.star_delta += 10; }
+
+  // Starts per hour
+  if(startsPerHour === 'high' || startsPerHour === 'very_high') {
+    scores.vfd += 20; scores.smc += 15; scores.dol -= 15; scores.star_delta -= 10;
+    notes.push({ type:'warn', text:'High start frequency detected → Avoid DOL/Y-Δ. Prefer VFD or Soft Starter.' });
+  }
+
+  // Budget
+  if(budget === 'economy')  { scores.dol += 20; scores.star_delta += 10; scores.vfd -= 15; scores.smc -= 5; }
+  if(budget === 'premium')  { scores.vfd += 15; scores.smc += 10; }
+
+  // Environment
+  if(environment === 'hazardous') {
+    notes.push({ type:'warn', text:'Hazardous area: Ensure Ex-rated enclosure (ATEX/IECEx). VFD should be outside Zone.' });
+  }
+
+  // Closed transition for frequent starts
+  if(startsPerHour === 'medium' && kw > 15) scores.wye_delta_closed += 15;
+
+  // App-specific notes
+  const appNotes = {
+    pump_centrifugal: { type:'good', text:'Centrifugal pump: VFD gives 30–50% energy savings at part load (Affinity Laws).' },
+    fan_centrifugal:  { type:'good', text:'Centrifugal fan: VFD ideal — power reduces as cube of speed (P ∝ N³).' },
+    crane_hoist:      { type:'warn', text:'Crane/Hoist: Mechanical brake, anti-rollback protection & dynamic braking required.' },
+    compressor:       { type:'info', text:'Compressor: Unloaded start (star-delta) prevents loaded start issues.' },
+    conveyor:         { type:'info', text:'Conveyor: Soft starter reduces belt jerk. Reversing starter if bidirectional.' },
+    crusher_grinder:  { type:'warn', text:'Crusher: High inertia — consider auto-transformer or VFD with bypass.' },
+  };
+  if(appNotes[application]) notes.push(appNotes[application]);
+
+  // Sort by score
+  let sorted = Object.entries(scores)
+    .filter(([,v]) => v > 0)
+    .sort((a,b) => b[1]-a[1])
+    .slice(0,4);
+
+  // Normalize to 100
+  const max = sorted[0][1];
+  sorted = sorted.map(([id,score]) => ({ ...STARTERS[id], score: Math.round((score/max)*100) }));
+
+  return { recommendations: sorted, notes };
+}
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+let currentParams = null;
+let currentCalc = null;
+let selectedStarter = null;
+let currentTab = 'overview';
+
+// ═══════════════════════════════════════════════════
+//  MAIN ANALYZE FUNCTION
+// ═══════════════════════════════════════════════════
+function analyze() {
+  const kw      = parseFloat(document.getElementById('motorKW').value);
+  const voltage = parseInt(document.getElementById('voltage').value);
+  const application = document.getElementById('application').value;
+
+  if(!kw || kw <= 0) { alert('Please enter motor power (kW)'); return; }
+  if(!application)   { alert('Please select an application type'); return; }
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('thinkingBox').classList.add('show');
+  document.getElementById('resultArea').innerHTML = '';
+
+  setTimeout(() => {
+    const params = {
+      kw, voltage, application,
+      freq:          document.getElementById('freq').value,
+      rpm:           document.getElementById('rpm').value,
+      effClass:      document.getElementById('effClass').value,
+      startsPerHour: document.getElementById('startsPerHour').value,
+      inertia:       document.getElementById('inertia').value,
+      speedControl:  document.getElementById('speedControl').value,
+      reversing:     document.getElementById('reversing').value,
+      environment:   document.getElementById('environment').value,
+      budget:        document.getElementById('budget').value,
+    };
+
+    const flc    = parseFloat(calcFLC(kw, voltage));
+    const hp     = (kw * 1.341).toFixed(1);
+    const cable  = calcCableSize(flc);
+    const mccb   = calcMCCBRating(flc);
+    const cont   = calcContactorRating(flc);
+    const torSet = calcTORSetting(flc);
+
+    currentParams = params;
+    currentCalc = { flc, hp, cable, mccb, cont, torSet };
+
+    const { recommendations, notes } = getRecommendations(params);
+    currentParams._recs = recommendations;
+    currentParams._notes = notes;
+
+    selectedStarter = recommendations[0];
+    currentTab = 'overview';
+
+    renderResult(params, currentCalc, recommendations, notes);
+
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('thinkingBox').classList.remove('show');
+  }, 1200);
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDER RESULT
+// ═══════════════════════════════════════════════════
+const APP_LABELS = {
+  pump_centrifugal:'Centrifugal Pump', pump_submersible:'Submersible Pump',
+  pump_positive:'Positive Displacement Pump', fan_centrifugal:'Centrifugal Fan / Blower',
+  fan_axial:'Axial Fan', conveyor:'Conveyor Belt', compressor:'Air Compressor',
+  crane_hoist:'Crane / Hoist', mixer_agitator:'Mixer / Agitator',
+  crusher_grinder:'Crusher / Grinder', chiller:'Chiller / HVAC', general:'General Load'
+};
+
+function renderResult(params, calc, recs, notes) {
+  const appLabel = APP_LABELS[params.application] || params.application;
+  const inrush = { dol:'6–8×', star_delta:'2–2.7×', autotransformer:'2–4×', vfd:'1.2–1.5×', smc:'2–4×', reversing:'6–8×', wye_delta_closed:'2–2.7×' };
+
+  document.getElementById('resultArea').innerHTML = `
+  <div class="panel" style="margin-bottom:14px;">
+    <div class="panel-header">
+      <div class="panel-dot"></div>
+      <div class="panel-title">Motor Summary — ${appLabel}</div>
+    </div>
+    <div class="panel-body" style="padding:14px 18px;">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;">
+        ${summaryCell('⚡','Motor Power', params.kw + ' kW / ' + calc.hp + ' HP')}
+        ${summaryCell('🔌','Full Load Current', calc.flc + ' A')}
+        ${summaryCell('🔋','Supply', params.voltage + 'V / ' + params.freq + ' Hz')}
+        ${summaryCell('⚙️','Speed', params.rpm + ' RPM')}
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:14px;">
+    <div class="panel-header">
+      <div class="panel-dot"></div>
+      <div class="panel-title">Starter Recommendations</div>
+    </div>
+    <div class="panel-body">
+      <div class="rec-grid" id="recGrid">
+        ${recs.map((r,i) => recCard(r, i===0, r.id === selectedStarter.id)).join('')}
+      </div>
+      ${notes.map(n => `<div class="info-box ${n.type}"><span>${n.type==='warn'?'⚠️':n.type==='good'?'✅':n.type==='bad'?'❌':'ℹ️'}</span><span>${n.text}</span></div>`).join('')}
+    </div>
+  </div>
+
+  <div class="panel" id="detailPanel">
+    <div class="panel-header">
+      <div class="panel-dot" style="background:${selectedStarter.color};box-shadow:0 0 8px ${selectedStarter.color}"></div>
+      <div class="panel-title" id="detailTitle">${selectedStarter.icon} ${selectedStarter.name}</div>
+    </div>
+    <div class="panel-body">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('overview')">Overview</button>
+        <button class="tab" onclick="switchTab('specs')">Electrical Specs</button>
+        <button class="tab" onclick="switchTab('components')">BOM / Components</button>
+        <button class="tab" onclick="switchTab('protection')">Protection</button>
+        <button class="tab" onclick="switchTab('circuit')">Circuit Diagram</button>
+      </div>
+      <div id="tabContent">${renderTab('overview', params, calc, inrush)}</div>
+      <hr class="sec-div"/>
+      <div class="action-bar">
+        <button class="btn-pdf" onclick="generatePDF()">📄 EXPORT FULL REPORT PDF</button>
+        <button class="btn-reset" onclick="resetAll()">↺ Reset</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function summaryCell(icon, label, value) {
+  return `<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;">
+    <div style="font-size:18px;margin-bottom:4px;">${icon}</div>
+    <div style="font-size:9px;color:var(--muted);font-family:var(--mono);letter-spacing:0.5px;margin-bottom:2px;">${label}</div>
+    <div style="font-size:12px;font-weight:600;color:var(--text);">${value}</div>
+  </div>`;
+}
+
+function recCard(r, isBest, isSelected) {
+  const barColor = isBest ? '#F5A623' : isSelected ? '#00C2FF' : r.color;
+  return `<div class="rec-card ${isBest?'best':''} ${isSelected?'selected':''}" onclick="selectStarter('${r.id}')">
+    ${isBest ? '<div class="rec-badge">⭐ BEST FIT</div>' : ''}
+    <div class="rec-icon">${r.icon}</div>
+    <div class="rec-name">${r.name}</div>
+    <div class="rec-short">${r.short}</div>
+    <div class="rec-score">
+      <div class="score-bar-bg"><div class="score-bar" style="width:${r.score}%;background:${barColor};"></div></div>
+      <span class="score-val">${r.score}%</span>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.textContent.toLowerCase().includes(tab.substring(0,4)));
+  });
+  const inrush = { dol:'6–8×', star_delta:'2–2.7×', autotransformer:'2–4×', vfd:'1.2–1.5×', smc:'2–4×', reversing:'6–8×', wye_delta_closed:'2–2.7×' };
+  document.getElementById('tabContent').innerHTML = renderTab(tab, currentParams, currentCalc, inrush);
+}
+
+function renderTab(tab, params, calc, inrush) {
+  const s = selectedStarter;
+  if(tab === 'overview') return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+      <div>
+        <div class="detail-section-title">✅ Advantages</div>
+        <ul class="comp-list">${s.pros.map(p=>`<li class="comp-item"><div class="comp-bullet" style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:var(--green);">✓</div><div><div class="comp-name">${p}</div></div></li>`).join('')}</ul>
+      </div>
+      <div>
+        <div class="detail-section-title">⚠️ Limitations</div>
+        <ul class="comp-list">${s.cons.map(c=>`<li class="comp-item"><div class="comp-bullet" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:var(--red);">✗</div><div><div class="comp-name">${c}</div></div></li>`).join('')}</ul>
+      </div>
+    </div>
+    <div class="detail-section-title">📊 Suitability for Your Application</div>
+    <div class="suit-grid">
+      ${suitRow('Energy Efficiency', s.id==='vfd'?5:s.id==='smc'?3:s.id==='dol'?2:3)}
+      ${suitRow('Starting Torque',   s.id==='dol'?5:s.id==='autotransformer'?4:s.id==='vfd'?4:s.id==='smc'?3:s.id==='star_delta'?3:4)}
+      ${suitRow('Inrush Reduction',  s.id==='vfd'?5:s.id==='smc'?4:s.id==='autotransformer'?4:s.id==='star_delta'?3:s.id==='wye_delta_closed'?3:1)}
+      ${suitRow('Initial Cost',      s.id==='dol'?5:s.id==='star_delta'?4:s.id==='smc'?3:s.id==='autotransformer'?3:s.id==='vfd'?1:4)}
+      ${suitRow('Ease of Maintenance',s.id==='dol'?5:s.id==='star_delta'?4:s.id==='smc'?3:s.id==='vfd'?2:3)}
+    </div>`;
+
+  if(tab === 'specs') return `
+    <div class="detail-section-title">⚡ Electrical Parameters</div>
+    <table class="spec-table">
+      <tr><td>Motor Power</td><td>${params.kw} kW / ${calc.hp} HP</td></tr>
+      <tr><td>Supply Voltage</td><td>${params.voltage} V (${params.voltage===220?'Single':'Three'}-phase)</td></tr>
+      <tr><td>Frequency</td><td>${params.freq} Hz</td></tr>
+      <tr><td>Motor Speed</td><td>${params.rpm} RPM</td></tr>
+      <tr><td>Efficiency Class</td><td>${params.effClass}</td></tr>
+      <tr><td>Full Load Current (FLC)</td><td>${calc.flc} A</td></tr>
+      <tr><td>Starting Inrush Current</td><td>${calc.flc} × ${inrush[s.id]} = ${(calc.flc*(parseFloat(inrush[s.id])||2)).toFixed(0)} A (approx)</td></tr>
+      <tr><td>MCCB / MCB Rating</td><td>${calc.mccb}</td></tr>
+      <tr><td>Contactor Rating</td><td>${calc.cont}</td></tr>
+      <tr><td>TOR Setting Range</td><td>${calc.torSet}</td></tr>
+      <tr><td>Cable Size (Motor)</td><td>${calc.cable}</td></tr>
+      <tr><td>Control Voltage</td><td>230V AC / 110V AC (via transformer)</td></tr>
+      ${s.id==='star_delta'||s.id==='wye_delta_closed' ? `<tr><td>Star-Delta Timer</td><td>8–15 seconds (adjust for load)</td></tr>` : ''}
+      ${s.id==='vfd' ? `<tr><td>VFD Frame Size</td><td>${params.kw <= 15 ? 'Frame D' : params.kw <= 45 ? 'Frame E' : 'Frame F/G'}</td></tr>` : ''}
+      ${s.id==='vfd' ? `<tr><td>Ramp-Up Time</td><td>5–60 seconds (programmable)</td></tr>` : ''}
+      ${s.id==='smc' ? `<tr><td>Soft Start Ramp</td><td>1–30 seconds (adjustable)</td></tr>` : ''}
+    </table>`;
+
+  if(tab === 'components') return `
+    <div class="detail-section-title">🔧 Bill of Materials (BOM)</div>
+    <ul class="comp-list">${s.components.map((c,i)=>{
+      const parts = c.split(' — ');
+      return `<li class="comp-item">
+        <div class="comp-bullet">${i+1}</div>
+        <div><div class="comp-name">${parts[0]}</div>${parts[1]?`<div class="comp-detail">${parts[1]}</div>`:''}</div>
+      </li>`;
+    }).join('')}</ul>
+    <div style="margin-top:14px;" class="info-box info">
+      <span>ℹ️</span><span>All components should be sourced from IEC-certified manufacturers. Recommended: Schneider Electric, ABB, Siemens, Allen-Bradley, Chint (economy range).</span>
+    </div>`;
+
+  if(tab === 'protection') return `
+    <div class="detail-section-title">🛡️ Protection Scheme</div>
+    <ul class="comp-list">${s.protection.map((p,i)=>`<li class="comp-item">
+      <div class="comp-bullet" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.3);color:var(--purple);">🛡</div>
+      <div><div class="comp-name">${p}</div></div>
+    </li>`).join('')}</ul>
+    <div style="margin-top:14px;">
+      <div class="detail-section-title">📋 IEC Standards Compliance</div>
+      <ul class="comp-list">${s.standards.map(std=>`<li class="comp-item">
+        <div class="comp-bullet" style="background:rgba(0,194,255,0.1);border-color:rgba(0,194,255,0.2);color:var(--accent);">📋</div>
+        <div><div class="comp-name">${std}</div></div>
+      </li>`).join('')}</ul>
+    </div>`;
+
+  if(tab === 'circuit') return renderCircuitDiagram(s.id, params, calc);
+
+  return '';
+}
+
+function suitRow(label, stars) {
+  return `<div class="suit-row">
+    <div class="suit-label">${label}</div>
+    <div class="suit-stars">${'★'.repeat(stars)}${'☆'.repeat(5-stars)}</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  ASCII / SVG CIRCUIT DIAGRAMS
+// ═══════════════════════════════════════════════════
+function renderCircuitDiagram(id, params, calc) {
+  const diagrams = {
+    dol: `
+<div class="circuit-area">
+<svg viewBox="0 0 500 320" width="100%" style="font-family:var(--mono);font-size:10px;">
+  <style>.w{stroke:#00C2FF;stroke-width:1.5;fill:none} .wb{stroke:#F5A623;stroke-width:1.5;fill:none} .t{fill:#7A8299;font-size:9px} .tb{fill:#E8EFF8;font-size:10px;font-weight:bold} .box{fill:#111827;stroke:#1E2D45;stroke-width:1;rx:4}</style>
+  <!-- Supply lines L1 L2 L3 -->
+  <text x="30" y="25" class="t">L1</text><line x1="50" y1="20" x2="50" y2="80" class="w"/>
+  <text x="80" y="25" class="t">L2</text><line x1="100" y1="20" x2="100" y2="80" class="w"/>
+  <text x="130" y="25" class="t">L3</text><line x1="150" y1="20" x2="150" y2="80" class="w"/>
+  <!-- MCCB -->
+  <rect x="30" y="80" width="140" height="30" class="box" rx="4"/>
+  <text x="100" y="100" class="tb" text-anchor="middle" fill="#F5A623">MCCB ${calc.mccb}</text>
+  <line x1="50" y1="110" x2="50" y2="150" class="w"/>
+  <line x1="100" y1="110" x2="100" y2="150" class="w"/>
+  <line x1="150" y1="110" x2="150" y2="150" class="w"/>
+  <!-- Contactor -->
+  <rect x="30" y="150" width="140" height="30" class="box" rx="4"/>
+  <text x="100" y="170" class="tb" text-anchor="middle" fill="#00C2FF">CONTACTOR ${calc.cont}</text>
+  <line x1="50" y1="180" x2="50" y2="220" class="w"/>
+  <line x1="100" y1="180" x2="100" y2="220" class="w"/>
+  <line x1="150" y1="180" x2="150" y2="220" class="w"/>
+  <!-- TOR -->
+  <rect x="30" y="220" width="140" height="30" class="box" rx="4"/>
+  <text x="100" y="240" class="tb" text-anchor="middle" fill="#8B5CF6">T.O. RELAY ${calc.torSet}</text>
+  <line x1="50" y1="250" x2="50" y2="290" class="w"/>
+  <line x1="100" y1="250" x2="100" y2="290" class="w"/>
+  <line x1="150" y1="250" x2="150" y2="290" class="w"/>
+  <!-- Motor -->
+  <rect x="30" y="290" width="140" height="25" class="box" rx="4"/>
+  <text x="100" y="307" class="tb" text-anchor="middle" fill="#10B981">MOTOR ${params.kw}kW</text>
+  <!-- Control circuit -->
+  <text x="280" y="60" class="t">CONTROL CIRCUIT</text>
+  <rect x="260" y="70" width="200" height="200" class="box" rx="6"/>
+  <text x="360" y="100" class="t" text-anchor="middle">Control Transformer</text>
+  <text x="360" y="112" class="t" text-anchor="middle">415V / 230V</text>
+  <rect x="290" y="120" width="140" height="22" class="box" rx="4"/>
+  <text x="360" y="136" class="t" text-anchor="middle" fill="#EF4444">STOP (NC)</text>
+  <rect x="290" y="150" width="140" height="22" class="box" rx="4"/>
+  <text x="360" y="166" class="t" text-anchor="middle" fill="#10B981">START (NO)</text>
+  <rect x="290" y="180" width="140" height="22" class="box" rx="4"/>
+  <text x="360" y="196" class="t" text-anchor="middle" fill="#00C2FF">CONTACTOR COIL (A1-A2)</text>
+  <rect x="290" y="210" width="140" height="22" class="box" rx="4"/>
+  <text x="360" y="226" class="t" text-anchor="middle" fill="#8B5CF6">TOR NC CONTACT</text>
+  <text x="360" y="260" class="t" text-anchor="middle">Self-holding contact</text>
+  <text x="360" y="275" class="t" text-anchor="middle">(13-14) auxiliary</text>
+</svg>
+<div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:var(--mono);">DOL Starter — Single Line &amp; Control Diagram</div>
+</div>`,
+
+    star_delta: `
+<div class="circuit-area">
+<svg viewBox="0 0 520 340" width="100%" style="font-family:var(--mono);font-size:9px;">
+  <style>.w{stroke:#00C2FF;stroke-width:1.5;fill:none} .t{fill:#7A8299;font-size:9px} .tb{fill:#E8EFF8;font-size:9px;font-weight:bold} .box{fill:#111827;stroke:#1E2D45;stroke-width:1}</style>
+  <text x="10" y="20" class="t">L1</text><line x1="25" y1="15" x2="25" y2="60" class="w"/>
+  <text x="50" y="20" class="t">L2</text><line x1="65" y1="15" x2="65" y2="60" class="w"/>
+  <text x="90" y="20" class="t">L3</text><line x1="105" y1="15" x2="105" y2="60" class="w"/>
+  <rect x="10" y="60" width="110" height="24" class="box" rx="3"/>
+  <text x="65" y="76" class="tb" text-anchor="middle" fill="#F5A623">MCCB ${calc.mccb}</text>
+  <line x1="25" y1="84" x2="25" y2="120" class="w"/>
+  <line x1="65" y1="84" x2="65" y2="120" class="w"/>
+  <line x1="105" y1="84" x2="105" y2="120" class="w"/>
+  <rect x="10" y="120" width="110" height="24" class="box" rx="3"/>
+  <text x="65" y="136" class="tb" text-anchor="middle" fill="#00C2FF">MAIN (KM)</text>
+  <line x1="25" y1="144" x2="25" y2="175" class="w"/>
+  <line x1="65" y1="144" x2="65" y2="175" class="w"/>
+  <line x1="105" y1="144" x2="105" y2="175" class="w"/>
+  <rect x="10" y="175" width="110" height="24" class="box" rx="3"/>
+  <text x="65" y="191" class="tb" text-anchor="middle" fill="#8B5CF6">T.O.RELAY</text>
+  <!-- Star contactor -->
+  <line x1="25" y1="199" x2="25" y2="260" class="w"/>
+  <line x1="65" y1="199" x2="65" y2="230" class="w"/>
+  <line x1="105" y1="199" x2="105" y2="260" class="w"/>
+  <line x1="65" y1="230" x2="200" y2="230" class="w"/>
+  <rect x="180" y="218" width="90" height="24" class="box" rx="3"/>
+  <text x="225" y="234" class="tb" text-anchor="middle" fill="#10B981">STAR (KY)</text>
+  <line x1="200" y1="242" x2="200" y2="260" class="w"/>
+  <line x1="215" y1="260" x2="215" y2="260" class="w"/>
+  <!-- Delta contactor -->
+  <line x1="65" y1="230" x2="65" y2="260" class="w"/>
+  <rect x="10" y="260" width="110" height="24" class="box" rx="3"/>
+  <text x="65" y="276" class="tb" text-anchor="middle" fill="#4F8EF7">DELTA (KD)</text>
+  <line x1="25" y1="284" x2="25" y2="315" class="w"/>
+  <line x1="65" y1="284" x2="65" y2="315" class="w"/>
+  <line x1="105" y1="284" x2="105" y2="315" class="w"/>
+  <rect x="10" y="315" width="110" height="22" class="box" rx="3"/>
+  <text x="65" y="330" class="tb" text-anchor="middle" fill="#10B981">MOTOR ${params.kw}kW</text>
+  <!-- Timer box -->
+  <rect x="310" y="120" width="180" height="160" class="box" rx="6"/>
+  <text x="400" y="145" class="t" text-anchor="middle">CONTROL LOGIC</text>
+  <rect x="320" y="155" width="160" height="20" class="box" rx="3"/>
+  <text x="400" y="169" class="t" text-anchor="middle" fill="#EF4444">STOP (NC)</text>
+  <rect x="320" y="180" width="160" height="20" class="box" rx="3"/>
+  <text x="400" y="194" class="t" text-anchor="middle" fill="#10B981">START → KM + KY Coil</text>
+  <rect x="320" y="205" width="160" height="20" class="box" rx="3"/>
+  <text x="400" y="219" class="t" text-anchor="middle" fill="#F5A623">TIMER (8–15 sec)</text>
+  <rect x="320" y="230" width="160" height="20" class="box" rx="3"/>
+  <text x="400" y="244" class="t" text-anchor="middle" fill="#4F8EF7">KY OFF → KD ON</text>
+  <rect x="320" y="255" width="160" height="20" class="box" rx="3"/>
+  <text x="400" y="269" class="t" text-anchor="middle" fill="#8B5CF6">Interlock: KY NC ↔ KD NC</text>
+  <text x="400" y="305" class="t" text-anchor="middle">6-lead motor required</text>
+  <text x="400" y="318" class="t" text-anchor="middle">U1V1W1 / U2V2W2</text>
+</svg>
+<div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:var(--mono);">Star-Delta (Y-Δ) Starter — 3 Contactor Method</div>
+</div>`,
+
+    vfd: `
+<div class="circuit-area">
+<svg viewBox="0 0 520 300" width="100%" style="font-family:var(--mono);font-size:9px;">
+  <style>.w{stroke:#00C2FF;stroke-width:1.5;fill:none} .wg{stroke:#10B981;stroke-width:1.5;fill:none} .t{fill:#7A8299;font-size:9px} .tb{fill:#E8EFF8;font-size:9px;font-weight:bold} .box{fill:#111827;stroke:#1E2D45;stroke-width:1}</style>
+  <text x="10" y="15" class="t">L1 L2 L3 + PE</text>
+  <line x1="20" y1="18" x2="20" y2="50" class="w"/>
+  <line x1="50" y1="18" x2="50" y2="50" class="w"/>
+  <line x1="80" y1="18" x2="80" y2="50" class="w"/>
+  <rect x="5" y="50" width="90" height="22" class="box" rx="3"/>
+  <text x="50" y="65" class="tb" text-anchor="middle" fill="#F5A623">MCCB + RCD</text>
+  <line x1="20" y1="72" x2="20" y2="95" class="w"/>
+  <line x1="50" y1="72" x2="50" y2="95" class="w"/>
+  <line x1="80" y1="72" x2="80" y2="95" class="w"/>
+  <rect x="5" y="95" width="90" height="22" class="box" rx="3"/>
+  <text x="50" y="110" class="tb" text-anchor="middle" fill="#8B5CF6">LINE REACTOR</text>
+  <line x1="20" y1="117" x2="20" y2="140" class="w"/>
+  <line x1="50" y1="117" x2="50" y2="140" class="w"/>
+  <line x1="80" y1="117" x2="80" y2="140" class="w"/>
+  <rect x="5" y="140" width="90" height="22" class="box" rx="3"/>
+  <text x="50" y="155" class="tb" text-anchor="middle" fill="#4F8EF7">EMC FILTER</text>
+  <line x1="20" y1="162" x2="20" y2="185" class="w"/>
+  <line x1="50" y1="162" x2="50" y2="185" class="w"/>
+  <line x1="80" y1="162" x2="80" y2="185" class="w"/>
+  <!-- VFD Main Box -->
+  <rect x="130" y="60" width="200" height="200" class="box" rx="8" style="stroke:#00C2FF;stroke-width:1.5;"/>
+  <text x="230" y="85" class="tb" text-anchor="middle" fill="#00C2FF" style="font-size:11px;">VFD / DRIVE UNIT</text>
+  <text x="230" y="100" class="t" text-anchor="middle">${params.kw} kW — ${params.voltage}V</text>
+  <rect x="145" y="110" width="170" height="18" class="box" rx="3"/>
+  <text x="230" y="123" class="t" text-anchor="middle">Rectifier → DC Bus → Inverter</text>
+  <rect x="145" y="133" width="170" height="18" class="box" rx="3"/>
+  <text x="230" y="146" class="t" text-anchor="middle" fill="#F5A623">IGBT PWM Output (0–${params.freq}Hz)</text>
+  <rect x="145" y="156" width="170" height="18" class="box" rx="3"/>
+  <text x="230" y="169" class="t" text-anchor="middle" fill="#10B981">Speed Ref: 4–20mA / 0–10V</text>
+  <rect x="145" y="179" width="170" height="18" class="box" rx="3"/>
+  <text x="230" y="192" class="t" text-anchor="middle" fill="#8B5CF6">PTC Thermistor Input</text>
+  <rect x="145" y="202" width="170" height="18" class="box" rx="3"/>
+  <text x="230" y="215" class="t" text-anchor="middle">Ramp Up / Ramp Down</text>
+  <rect x="145" y="225" width="170" height="18" class="box" rx="3"/>
+  <text x="230" y="238" class="t" text-anchor="middle" fill="#EF4444">Braking Resistor Output</text>
+  <!-- Connecting lines -->
+  <line x1="95" y1="162" x2="130" y2="162" class="w"/>
+  <!-- Output -->
+  <line x1="330" y1="140" x2="365" y2="140" class="w"/>
+  <line x1="330" y1="162" x2="365" y2="162" class="w"/>
+  <line x1="330" y1="184" x2="365" y2="184" class="w"/>
+  <rect x="365" y="128" width="90" height="22" class="box" rx="3"/>
+  <text x="410" y="143" class="t" text-anchor="middle" fill="#8B5CF6">dV/dt FILTER</text>
+  <line x1="410" y1="150" x2="410" y2="175" class="w"/>
+  <line x1="395" y1="175" x2="425" y2="175" class="w"/>
+  <rect x="365" y="175" width="90" height="22" class="box" rx="3"/>
+  <text x="410" y="190" class="t" text-anchor="middle" fill="#10B981">MOTOR</text>
+  <text x="410" y="202" class="t" text-anchor="middle">${params.kw}kW</text>
+  <text x="410" y="240" class="t" text-anchor="middle" fill="#00C2FF">HMI / Keypad</text>
+  <rect x="370" y="245" width="80" height="18" class="box" rx="3"/>
+  <text x="410" y="258" class="t" text-anchor="middle">Speed Display</text>
+</svg>
+<div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:var(--mono);">VFD Drive — Power &amp; Signal Flow Diagram</div>
+</div>`,
+
+    smc: `
+<div class="circuit-area">
+<svg viewBox="0 0 500 280" width="100%" style="font-family:var(--mono);font-size:9px;">
+  <style>.w{stroke:#F5A623;stroke-width:1.5;fill:none} .t{fill:#7A8299;font-size:9px} .tb{fill:#E8EFF8;font-size:9px;font-weight:bold} .box{fill:#111827;stroke:#1E2D45;stroke-width:1}</style>
+  <text x="10" y="18" class="t">L1 L2 L3</text>
+  <line x1="25" y1="20" x2="25" y2="55" class="w"/>
+  <line x1="65" y1="20" x2="65" y2="55" class="w"/>
+  <line x1="105" y1="20" x2="105" y2="55" class="w"/>
+  <rect x="10" y="55" width="110" height="22" class="box" rx="3"/>
+  <text x="65" y="70" class="tb" text-anchor="middle" fill="#F5A623">MCCB ${calc.mccb}</text>
+  <line x1="25" y1="77" x2="25" y2="105" class="w"/>
+  <line x1="65" y1="77" x2="65" y2="105" class="w"/>
+  <line x1="105" y1="77" x2="105" y2="105" class="w"/>
+  <!-- Soft Starter -->
+  <rect x="10" y="105" width="110" height="50" class="box" rx="4" style="stroke:#F5A623;stroke-width:1.5;"/>
+  <text x="65" y="124" class="tb" text-anchor="middle" fill="#F5A623">SOFT STARTER</text>
+  <text x="65" y="138" class="t" text-anchor="middle">${params.kw}kW Thyristor</text>
+  <text x="65" y="150" class="t" text-anchor="middle">Ramp: 1–30s</text>
+  <line x1="25" y1="155" x2="25" y2="185" class="w"/>
+  <line x1="65" y1="155" x2="65" y2="185" class="w"/>
+  <line x1="105" y1="155" x2="105" y2="185" class="w"/>
+  <!-- Bypass Contactor -->
+  <rect x="10" y="185" width="110" height="22" class="box" rx="3"/>
+  <text x="65" y="200" class="tb" text-anchor="middle" fill="#00C2FF">BYPASS CTR ${calc.cont}</text>
+  <line x1="65" y1="207" x2="65" y2="230" class="w"/>
+  <rect x="10" y="230" width="110" height="22" class="box" rx="3"/>
+  <text x="65" y="245" class="tb" text-anchor="middle" fill="#10B981">MOTOR ${params.kw}kW</text>
+  <!-- Control -->
+  <rect x="200" y="80" width="260" height="170" class="box" rx="6"/>
+  <text x="330" y="105" class="t" text-anchor="middle">SOFT STARTER CONTROL</text>
+  <rect x="215" y="115" width="230" height="18" class="box" rx="3"/>
+  <text x="330" y="128" class="t" text-anchor="middle" fill="#F5A623">Voltage Ramp (Thyristor Firing Angle)</text>
+  <rect x="215" y="138" width="230" height="18" class="box" rx="3"/>
+  <text x="330" y="151" class="t" text-anchor="middle" fill="#EF4444">Current Limit Setting (2–5× FLC)</text>
+  <rect x="215" y="161" width="230" height="18" class="box" rx="3"/>
+  <text x="330" y="174" class="t" text-anchor="middle" fill="#10B981">Bypass ON after full speed</text>
+  <rect x="215" y="184" width="230" height="18" class="box" rx="3"/>
+  <text x="330" y="197" class="t" text-anchor="middle" fill="#8B5CF6">Ramp Down on STOP</text>
+  <rect x="215" y="207" width="230" height="18" class="box" rx="3"/>
+  <text x="330" y="220" class="t" text-anchor="middle">PTC Thermistor / Fault Relay</text>
+  <text x="330" y="248" class="t" text-anchor="middle" fill="#F5A623">Thyristors bypass after run — low heat</text>
+</svg>
+<div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:var(--mono);">Soft Starter (SMC) — Power Circuit with Bypass Contactor</div>
+</div>`,
+
+    reversing: `
+<div class="circuit-area">
+<svg viewBox="0 0 520 300" width="100%" style="font-family:var(--mono);font-size:9px;">
+  <style>.w{stroke:#EF4444;stroke-width:1.5;fill:none} .t{fill:#7A8299;font-size:9px} .tb{fill:#E8EFF8;font-size:9px;font-weight:bold} .box{fill:#111827;stroke:#1E2D45;stroke-width:1}</style>
+  <text x="10" y="18" class="t">L1 L2 L3</text>
+  <line x1="30" y1="20" x2="30" y2="55" class="w"/>
+  <line x1="70" y1="20" x2="70" y2="55" class="w"/>
+  <line x1="110" y1="20" x2="110" y2="55" class="w"/>
+  <rect x="10" y="55" width="120" height="22" class="box" rx="3"/>
+  <text x="70" y="70" class="tb" text-anchor="middle" fill="#F5A623">MCCB ${calc.mccb}</text>
+  <line x1="30" y1="77" x2="30" y2="105" class="w"/>
+  <line x1="70" y1="77" x2="70" y2="105" class="w"/>
+  <line x1="110" y1="77" x2="110" y2="105" class="w"/>
+  <!-- Bus bars -->
+  <line x1="10" y1="105" x2="140" y2="105" class="w"/>
+  <!-- Forward contactor -->
+  <line x1="40" y1="105" x2="40" y2="135" class="w"/>
+  <line x1="70" y1="105" x2="70" y2="135" class="w"/>
+  <line x1="100" y1="105" x2="100" y2="135" class="w"/>
+  <rect x="20" y="135" width="100" height="22" class="box" rx="3" style="stroke:#10B981;"/>
+  <text x="70" y="150" class="tb" text-anchor="middle" fill="#10B981">FWD CTR (KF)</text>
+  <line x1="40" y1="157" x2="40" y2="185" class="w"/>
+  <line x1="70" y1="157" x2="70" y2="185" class="w"/>
+  <line x1="100" y1="157" x2="100" y2="185" class="w"/>
+  <!-- Reverse contactor — phase swap L1↔L3 -->
+  <line x1="200" y1="105" x2="200" y2="135" class="w"/>
+  <line x1="230" y1="105" x2="230" y2="135" class="w"/>
+  <line x1="260" y1="105" x2="260" y2="135" class="w"/>
+  <rect x="180" y="135" width="100" height="22" class="box" rx="3" style="stroke:#EF4444;"/>
+  <text x="230" y="150" class="tb" text-anchor="middle" fill="#EF4444">REV CTR (KR)</text>
+  <text x="230" y="170" class="t" text-anchor="middle">L1↔L3 swapped</text>
+  <!-- TOR -->
+  <rect x="20" y="185" width="100" height="22" class="box" rx="3"/>
+  <text x="70" y="200" class="tb" text-anchor="middle" fill="#8B5CF6">T.O.RELAY</text>
+  <line x1="70" y1="207" x2="70" y2="235" class="w"/>
+  <rect x="20" y="235" width="100" height="22" class="box" rx="3"/>
+  <text x="70" y="250" class="tb" text-anchor="middle" fill="#10B981">MOTOR ${params.kw}kW</text>
+  <!-- Interlocks Box -->
+  <rect x="320" y="80" width="180" height="180" class="box" rx="6"/>
+  <text x="410" y="105" class="t" text-anchor="middle">INTERLOCK LOGIC</text>
+  <rect x="335" y="115" width="150" height="18" class="box" rx="3"/>
+  <text x="410" y="128" class="t" text-anchor="middle" fill="#EF4444">STOP (NC)</text>
+  <rect x="335" y="138" width="150" height="18" class="box" rx="3"/>
+  <text x="410" y="151" class="t" text-anchor="middle" fill="#10B981">FORWARD PB (NO)</text>
+  <rect x="335" y="161" width="150" height="18" class="box" rx="3"/>
+  <text x="410" y="174" class="t" text-anchor="middle" fill="#EF4444">REVERSE PB (NO)</text>
+  <rect x="335" y="184" width="150" height="18" class="box" rx="3"/>
+  <text x="410" y="197" class="t" text-anchor="middle" fill="#F5A623">KR NC in KF coil circuit</text>
+  <rect x="335" y="207" width="150" height="18" class="box" rx="3"/>
+  <text x="410" y="220" class="t" text-anchor="middle" fill="#F5A623">KF NC in KR coil circuit</text>
+  <rect x="335" y="230" width="150" height="18" class="box" rx="3"/>
+  <text x="410" y="243" class="t" text-anchor="middle">Mechanical Interlock</text>
+  <text x="410" y="270" class="t" text-anchor="middle" fill="#EF4444">STOP → 0.5s delay → F or R</text>
+</svg>
+<div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:var(--mono);">Reversing Starter — Dual Contactor with Double Interlock</div>
+</div>`,
+  };
+  return diagrams[id] || `<div class="info-box info"><span>ℹ️</span><span>Circuit diagram available for: DOL, Star-Delta, VFD, Soft Starter, Reversing. Select one of these starters to view.</span></div>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  SELECT STARTER
+// ═══════════════════════════════════════════════════
+function selectStarter(id) {
+  selectedStarter = STARTERS[id] || currentParams._recs.find(r=>r.id===id);
+  if(!selectedStarter) return;
+
+  // Update rec cards
+  document.querySelectorAll('.rec-card').forEach(card => {
+    const cardId = card.getAttribute('onclick').match(/'([^']+)'/)?.[1];
+    card.classList.toggle('selected', cardId === id);
+  });
+  // Update detail panel header
+  const dt = document.getElementById('detailTitle');
+  if(dt) dt.textContent = selectedStarter.icon + ' ' + selectedStarter.name;
+  const dp = document.getElementById('detailPanel');
+  if(dp) dp.querySelector('.panel-dot').style.background = selectedStarter.color;
+
+  switchTab(currentTab);
+}
+
+// ═══════════════════════════════════════════════════
+//  PDF EXPORT
+// ═══════════════════════════════════════════════════
+function generatePDF() {
+  if(!currentParams || !selectedStarter) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const W = 210, margin = 15;
+  let y = 0;
+
+  const colors = {
+    dark:   [8,12,20],
+    panel:  [17,24,39],
+    accent: [0,194,255],
+    gold:   [245,166,35],
+    green:  [16,185,129],
+    red:    [239,68,68],
+    text:   [232,239,248],
+    muted:  [90,112,144],
+    border: [30,45,69],
+  };
+
+  function pageHeader() {
+    doc.setFillColor(...colors.dark);
+    doc.rect(0, 0, W, 297, 'F');
+    doc.setFillColor(...colors.panel);
+    doc.rect(0, 0, W, 28, 'F');
+    doc.setDrawColor(...colors.accent);
+    doc.setLineWidth(0.5);
+    doc.line(0, 28, W, 28);
+    doc.setFontSize(14); doc.setFont('helvetica','bold');
+    doc.setTextColor(...colors.accent);
+    doc.text('AI MCC PANEL DESIGN REPORT', margin, 12);
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.setTextColor(...colors.muted);
+    doc.text('Apna Electromechanic Service  |  Motor Control Center  |  ' + new Date().toLocaleDateString('en-IN'), margin, 20);
+    doc.text('Page ' + doc.internal.getNumberOfPages(), W - margin, 20, {align:'right'});
+    y = 36;
+  }
+
+  function checkPage(needed=20) {
+    if(y + needed > 280) { doc.addPage(); pageHeader(); }
+  }
+
+  function sectionTitle(title, color=colors.accent) {
+    checkPage(14);
+    doc.setFillColor(...colors.panel);
+    doc.roundedRect(margin, y, W-margin*2, 9, 1, 1, 'F');
+    doc.setDrawColor(...color);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, margin, y+9);
+    doc.setFontSize(9); doc.setFont('helvetica','bold');
+    doc.setTextColor(...color);
+    doc.text(title.toUpperCase(), margin+4, y+6.2);
+    y += 13;
+  }
+
+  function infoRow(label, value, col=colors.text) {
+    checkPage(8);
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.setTextColor(...colors.muted);
+    doc.text(label, margin+2, y);
+    doc.setTextColor(...col);
+    doc.setFont('helvetica','bold');
+    doc.text(String(value), margin+70, y);
+    doc.setFont('helvetica','normal');
+    doc.setDrawColor(...colors.border);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y+2, W-margin, y+2);
+    y += 8;
+  }
+
+  function bulletItem(text, col=colors.text) {
+    checkPage(7);
+    doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+    doc.setTextColor(...col);
+    doc.circle(margin+3, y-1.5, 1, 'F');
+    const lines = doc.splitTextToSize(text, W-margin*2-10);
+    doc.text(lines, margin+7, y);
+    y += lines.length * 5 + 1;
+  }
+
+  // ── PAGE 1: COVER + MOTOR SUMMARY ──
+  pageHeader();
+
+  // Cover block
+  doc.setFillColor(...colors.panel);
+  doc.roundedRect(margin, y, W-margin*2, 40, 3, 3, 'F');
+  doc.setDrawColor(...colors.gold);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(margin, y, W-margin*2, 40, 3, 3, 'S');
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.setTextColor(...colors.gold);
+  doc.text(selectedStarter.icon + ' ' + selectedStarter.name, W/2, y+14, {align:'center'});
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.setTextColor(...colors.text);
+  doc.text('RECOMMENDED STARTER SYSTEM', W/2, y+24, {align:'center'});
+  doc.setFontSize(8); doc.setTextColor(...colors.muted);
+  doc.text(selectedStarter.short, W/2, y+33, {align:'center'});
+  y += 48;
+
+  // Motor summary
+  sectionTitle('1. Motor & Application Summary');
+  const appLabel = APP_LABELS[currentParams.application] || currentParams.application;
+  infoRow('Application Type', appLabel);
+  infoRow('Motor Power', currentParams.kw + ' kW / ' + currentCalc.hp + ' HP');
+  infoRow('Supply Voltage', currentParams.voltage + ' V (' + (currentParams.voltage==220?'Single':'Three') + '-phase)');
+  infoRow('Frequency', currentParams.freq + ' Hz');
+  infoRow('Motor Speed', currentParams.rpm + ' RPM');
+  infoRow('Efficiency Class', currentParams.effClass);
+  infoRow('Load Inertia', currentParams.inertia.charAt(0).toUpperCase()+currentParams.inertia.slice(1));
+  infoRow('Speed Control', currentParams.speedControl === 'yes' ? 'Variable Speed Required' : 'Fixed Speed');
+  infoRow('Reversing Required', currentParams.reversing === 'yes' ? 'Yes' : 'No');
+  infoRow('Starts Per Hour', currentParams.startsPerHour.replace('_',' '));
+  infoRow('Environment', currentParams.environment.replace(/_/g,' '));
+  infoRow('Budget Priority', currentParams.budget.charAt(0).toUpperCase()+currentParams.budget.slice(1));
+
+  // Page 2: Electrical specs
+  doc.addPage(); pageHeader();
+  sectionTitle('2. Electrical Parameters & Sizing');
+  infoRow('Full Load Current (FLC)', currentCalc.flc + ' A');
+  infoRow('MCCB / MCB Rating', currentCalc.mccb);
+  infoRow('Contactor Rating', currentCalc.cont);
+  infoRow('Thermal Overload Relay', currentCalc.torSet);
+  infoRow('Motor Cable Size', currentCalc.cable);
+  infoRow('Control Voltage', '230V AC via Control Transformer');
+  if(selectedStarter.id==='star_delta' || selectedStarter.id==='wye_delta_closed') {
+    infoRow('Y-Δ Transition Timer', '8–15 seconds (field adjustable)');
+    infoRow('Motor Winding', '6-lead double-wound (U1V1W1/U2V2W2)');
+  }
+  if(selectedStarter.id==='vfd') {
+    infoRow('VFD Ramp-Up Time', '5–60 seconds (programmable)');
+    infoRow('Speed Reference', '4–20 mA or 0–10V analog');
+    infoRow('Harmonic Filter', 'Line reactor + EMC filter required');
+  }
+  if(selectedStarter.id==='smc') {
+    infoRow('Soft Start Ramp', '1–30 seconds (adjustable)');
+    infoRow('Current Limit', '2–5× FLC (field settable)');
+    infoRow('Bypass Contactor', 'Engages at full speed — reduces heat');
+  }
+
+  y += 4;
+  sectionTitle('3. Bill of Materials (BOM)');
+  selectedStarter.components.forEach((c,i) => {
+    bulletItem((i+1) + '. ' + c);
+  });
+
+  // Page 3: Protection + AI Rankings
+  doc.addPage(); pageHeader();
+  sectionTitle('4. Protection Scheme');
+  selectedStarter.protection.forEach(p => bulletItem('• ' + p, colors.green));
+
+  y += 4;
+  sectionTitle('5. IEC Standards Compliance');
+  selectedStarter.standards.forEach(s => bulletItem('• ' + s, colors.accent));
+
+  y += 4;
+  sectionTitle('6. Starter Suitability Rankings (AI Analysis)');
+  currentParams._recs.forEach((r,i) => {
+    checkPage(10);
+    const bar = r.score;
+    const col = i===0 ? colors.gold : colors.muted;
+    doc.setFontSize(8); doc.setFont('helvetica', i===0?'bold':'normal');
+    doc.setTextColor(...col);
+    doc.text((i+1) + '. ' + r.name + (i===0?' ★ BEST FIT':''), margin+2, y);
+    doc.setFillColor(...(i===0?colors.gold:colors.accent));
+    doc.roundedRect(margin+95, y-4, (W-margin*2-100)*(bar/100), 5, 1, 1, 'F');
+    doc.setTextColor(...colors.muted);
+    doc.text(bar + '%', W-margin-4, y, {align:'right'});
+    y += 9;
+  });
+
+  // Page 4: Pros, Cons, Notes
+  doc.addPage(); pageHeader();
+  sectionTitle('7. Advantages of Selected Starter', colors.green);
+  selectedStarter.pros.forEach(p => bulletItem('✓ ' + p, colors.green));
+
+  y += 4;
+  sectionTitle('8. Limitations & Considerations', colors.red);
+  selectedStarter.cons.forEach(c => bulletItem('✗ ' + c, colors.red));
+
+  y += 4;
+  if(currentParams._notes && currentParams._notes.length) {
+    sectionTitle('9. AI Design Notes & Warnings', colors.gold);
+    currentParams._notes.forEach(n => {
+      const icon = n.type==='warn'?'⚠ ':n.type==='good'?'✓ ':'ℹ ';
+      const col = n.type==='warn'?colors.gold:n.type==='good'?colors.green:colors.accent;
+      bulletItem(icon + n.text, col);
+    });
+    y += 4;
+  }
+
+  // Footer disclaimer
+  checkPage(25);
+  doc.setFillColor(...colors.panel);
+  doc.roundedRect(margin, y, W-margin*2, 22, 2, 2, 'F');
+  doc.setFontSize(7); doc.setFont('helvetica','italic');
+  doc.setTextColor(...colors.muted);
+  const disc = 'This report is generated by the AI MCC Panel Design Assistant for reference purposes. All electrical designs must be reviewed and approved by a licensed electrical engineer before implementation. Component ratings are indicative — verify with manufacturer datasheets and applicable local standards (IEC, IS, NEC, etc.).';
+  const dlines = doc.splitTextToSize(disc, W-margin*2-8);
+  doc.text(dlines, margin+4, y+6);
+  y += 25;
+
+  doc.save('MCC_Panel_Report_' + selectedStarter.name.replace(/[^a-z0-9]/gi,'_') + '_' + currentParams.kw + 'kW.pdf');
+}
+
+// ═══════════════════════════════════════════════════
+//  RESET
+// ═══════════════════════════════════════════════════
+function resetAll() {
+  document.getElementById('resultArea').innerHTML = `
+    <div class="panel"><div class="panel-body">
+      <div class="result-empty">
+        <div class="empty-icon">🏭</div>
+        <p>ENTER MOTOR DATA TO BEGIN</p>
+        <p style="font-size:9px;margin-top:4px;color:#3a5070;">AI will recommend optimal starter type and generate full MCC panel specs</p>
+      </div>
+    </div></div>`;
+  currentParams = null; currentCalc = null; selectedStarter = null;
+}
+</script>
+</body>
+</html>
