@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VFD I/O Designer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#070B12;--surf:#0E1420;--panel:#131C2E;--border:#1C2A40;--border2:#243550;
+  --accent:#00D4FF;--gold:#F5A623;--green:#10B981;--red:#EF4444;--purple:#A78BFA;
+  --amber:#F59E0B;--blue:#3B82F6;
+  --di:#10B981;--do:#F5A623;--ai:#3B82F6;--ao:#A78BFA;
+  --text:#E8EFF8;--muted:#4A6080;--mono:'Share Tech Mono',monospace;--sans:'Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── TOP BAR ── */
+.topbar{
+  background:var(--surf);border-bottom:1px solid var(--border);
+  padding:0 16px;height:52px;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:50;
+}
+.brand{display:flex;align-items:center;gap:8px;}
+.brand-icon{width:32px;height:32px;background:linear-gradient(135deg,#0077B6,var(--accent));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.brand-name{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:2px;}
+.topbar-sep{width:1px;height:28px;background:var(--border);margin:0 4px;}
+.tb-btn{
+  display:flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border2);
+  color:var(--muted);border-radius:7px;padding:6px 12px;font-size:11px;cursor:pointer;
+  font-family:var(--mono);letter-spacing:0.5px;transition:all 0.2s;white-space:nowrap;
+}
+.tb-btn:hover{border-color:var(--accent);color:var(--accent);}
+.tb-btn.primary{background:linear-gradient(135deg,#005580,var(--accent));color:#000;border:none;font-weight:700;}
+.tb-btn.danger{border-color:var(--red);color:var(--red);}
+.tb-btn.success{border-color:var(--green);color:var(--green);}
+.topbar-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.project-name{
+  background:transparent;border:1px solid var(--border2);border-radius:6px;
+  padding:5px 10px;color:var(--text);font-size:12px;font-family:var(--mono);
+  outline:none;width:180px;
+}
+.project-name:focus{border-color:var(--accent);}
+
+/* ── MAIN LAYOUT ── */
+.workspace{display:flex;flex:1;overflow:hidden;}
+
+/* ── LEFT SIDEBAR ── */
+.sidebar{
+  width:220px;background:var(--surf);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;
+}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border2);}
+.sb-section{padding:10px 12px;}
+.sb-title{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+
+/* TOOL BUTTONS */
+.tool-btn{
+  display:flex;align-items:center;gap:8px;width:100%;background:transparent;
+  border:1px solid var(--border);border-radius:7px;padding:7px 10px;
+  color:var(--muted);font-size:11px;cursor:pointer;font-family:var(--sans);
+  transition:all 0.2s;margin-bottom:5px;text-align:left;
+}
+.tool-btn:hover{border-color:var(--accent);color:var(--text);}
+.tool-btn.active{background:rgba(0,212,255,0.08);border-color:var(--accent);color:var(--accent);}
+.tool-icon{font-size:16px;width:22px;text-align:center;}
+
+/* VFD TEMPLATES */
+.tmpl-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:8px;
+  padding:9px 10px;margin-bottom:6px;cursor:grab;transition:all 0.2s;
+  display:flex;align-items:center;gap:8px;
+}
+.tmpl-card:hover{border-color:var(--gold);transform:translateX(2px);}
+.tmpl-card:active{cursor:grabbing;}
+.tmpl-name{font-size:11px;font-weight:600;color:var(--text);}
+.tmpl-sub{font-size:9px;color:var(--muted);font-family:var(--mono);}
+
+/* IO TYPE BADGES */
+.io-badge{display:inline-block;border-radius:4px;padding:2px 6px;font-size:9px;font-weight:700;font-family:var(--mono);letter-spacing:0.5px;}
+.di-b{background:rgba(16,185,129,0.15);color:var(--di);}
+.do-b{background:rgba(245,166,35,0.15);color:var(--do);}
+.ai-b{background:rgba(59,130,246,0.15);color:var(--ai);}
+.ao-b{background:rgba(167,139,250,0.15);color:var(--ao);}
+
+/* ── CANVAS AREA ── */
+.canvas-wrap{
+  flex:1;position:relative;overflow:hidden;background:var(--bg);
+  background-image:radial-gradient(rgba(0,212,255,0.06) 1px,transparent 1px);
+  background-size:24px 24px;
+}
+#mainCanvas{display:block;cursor:default;}
+
+/* ── RIGHT PANEL ── */
+.right-panel{
+  width:300px;background:var(--surf);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;
+}
+.right-panel::-webkit-scrollbar{width:3px;}
+.right-panel::-webkit-scrollbar-thumb{background:var(--border2);}
+.rp-header{
+  background:var(--panel);border-bottom:1px solid var(--border);
+  padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--accent);
+  letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:8px;
+}
+.rp-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);}
+.rp-body{padding:12px;flex:1;}
+.rp-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:var(--muted);font-family:var(--mono);font-size:10px;text-align:center;gap:8px;}
+.rp-empty-icon{font-size:32px;opacity:0.3;}
+
+/* DEVICE EDITOR */
+.field{margin-bottom:10px;}
+.field label{display:block;font-size:9px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;font-family:var(--mono);}
+.field input,.field select{
+  width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border2);
+  border-radius:7px;padding:7px 10px;color:var(--text);font-size:12px;
+  outline:none;font-family:var(--sans);transition:border 0.2s;
+}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+
+/* IO TERMINAL LIST */
+.io-section-title{
+  font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
+  margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border);
+}
+.io-row{
+  display:flex;align-items:center;gap:6px;background:var(--panel);
+  border:1px solid var(--border);border-radius:7px;padding:7px 8px;margin-bottom:5px;
+}
+.io-row-num{
+  width:22px;height:22px;border-radius:5px;display:flex;align-items:center;
+  justify-content:center;font-size:9px;font-weight:700;font-family:var(--mono);flex-shrink:0;
+}
+.io-row-input{
+  flex:1;background:transparent;border:none;color:var(--text);font-size:11px;
+  font-family:var(--sans);outline:none;
+}
+.io-row-del{
+  background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:13px;
+  padding:2px 4px;border-radius:4px;transition:color 0.2s;
+}
+.io-row-del:hover{color:var(--red);}
+.add-io-btn{
+  width:100%;background:transparent;border:1px dashed var(--border2);border-radius:7px;
+  padding:6px;color:var(--muted);font-size:11px;cursor:pointer;font-family:var(--sans);
+  transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;
+  margin-top:4px;
+}
+.add-io-btn:hover{border-color:inherit;color:inherit;}
+
+/* WIRING DIAGRAM PANEL */
+.wire-panel{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column;z-index:30;}
+.wire-panel.show{display:flex;}
+.wire-header{background:var(--surf);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:12px;}
+.wire-title{font-family:var(--mono);font-size:13px;color:var(--accent);letter-spacing:2px;}
+.wire-close{margin-left:auto;background:transparent;border:1px solid var(--border2);color:var(--muted);border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:var(--mono);}
+.wire-close:hover{border-color:var(--red);color:var(--red);}
+#wireCanvas{display:block;flex:1;}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px);}
+.modal-bg.show{display:flex;}
+.modal{background:var(--surf);border:1px solid var(--border2);border-radius:14px;padding:24px;width:400px;max-width:95vw;}
+.modal-title{font-family:var(--mono);font-size:13px;color:var(--accent);margin-bottom:16px;letter-spacing:1px;}
+.modal-btns{display:flex;gap:8px;margin-top:16px;}
+.m-btn{flex:1;padding:9px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--mono);letter-spacing:0.5px;border:none;transition:all 0.2s;}
+.m-btn.ok{background:var(--accent);color:#000;}
+.m-btn.cancel{background:var(--panel);color:var(--muted);border:1px solid var(--border2);}
+
+/* STATUS BAR */
+.statusbar{
+  background:var(--surf);border-top:1px solid var(--border);
+  padding:4px 16px;font-family:var(--mono);font-size:10px;color:var(--muted);
+  display:flex;gap:16px;align-items:center;flex-shrink:0;
+}
+.status-item{display:flex;align-items:center;gap:5px;}
+.status-dot{width:6px;height:6px;border-radius:50%;}
+
+/* MINI LEGEND */
+.legend{display:flex;flex-direction:column;gap:4px;padding:8px 12px;}
+.leg-row{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--muted);}
+.leg-color{width:12px;height:12px;border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">⚡</div>
+    <div class="brand-name">VFD I/O DESIGNER</div>
+  </div>
+  <div class="topbar-sep"></div>
+  <button class="tb-btn" id="toolSelect" onclick="setTool('select')" title="Select & Move">🖱 SELECT</button>
+  <button class="tb-btn" id="toolDraw" onclick="setTool('draw')" title="Draw VFD Symbol">✏️ DRAW</button>
+  <button class="tb-btn" id="toolWire" onclick="setTool('wire')" title="Connect Wires">〰 WIRE</button>
+  <button class="tb-btn danger" onclick="deleteSelected()" title="Delete Selected">🗑 DELETE</button>
+  <div class="topbar-sep"></div>
+  <button class="tb-btn" onclick="showWiringDiagram()">📐 WIRING DIAGRAM</button>
+  <button class="tb-btn success" onclick="saveProject()">💾 SAVE</button>
+  <button class="tb-btn" onclick="exportProject()">📤 EXPORT</button>
+  <button class="tb-btn" onclick="document.getElementById('importFile').click()">📥 IMPORT</button>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importProject(event)"/>
+  <div class="topbar-sep"></div>
+  <button class="tb-btn primary" onclick="exportPDF()">📄 PDF</button>
+  <div class="topbar-right">
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);">PROJECT:</span>
+    <input class="project-name" id="projectName" value="VFD_Project_001" placeholder="Project name"/>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- LEFT SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-section">
+      <div class="sb-title">VFD Templates</div>
+      <div class="tmpl-card" draggable="true" ondragstart="startDrag(event,'vfd_standard')" ondblclick="addDevice('vfd_standard')">
+        <span style="font-size:20px;">🔄</span>
+        <div><div class="tmpl-name">Standard VFD</div><div class="tmpl-sub">DI×6 DO×3 AI×2 AO×2</div></div>
+      </div>
+      <div class="tmpl-card" draggable="true" ondragstart="startDrag(event,'vfd_basic')" ondblclick="addDevice('vfd_basic')">
+        <span style="font-size:20px;">⚡</span>
+        <div><div class="tmpl-name">Basic VFD</div><div class="tmpl-sub">DI×4 DO×2 AI×1 AO×1</div></div>
+      </div>
+      <div class="tmpl-card" draggable="true" ondragstart="startDrag(event,'vfd_advanced')" ondblclick="addDevice('vfd_advanced')">
+        <span style="font-size:20px;">🌀</span>
+        <div><div class="tmpl-name">Advanced VFD</div><div class="tmpl-sub">DI×8 DO×4 AI×4 AO×2</div></div>
+      </div>
+      <div class="tmpl-card" draggable="true" ondragstart="startDrag(event,'powerflex')" ondblclick="addDevice('powerflex')">
+        <span style="font-size:20px;">🟦</span>
+        <div><div class="tmpl-name">PowerFlex 753</div><div class="tmpl-sub">DI×6 DO×3 AI×2 AO×2</div></div>
+      </div>
+      <div class="tmpl-card" draggable="true" ondragstart="startDrag(event,'acs880')" ondblclick="addDevice('acs880')">
+        <span style="font-size:20px;">🔵</span>
+        <div><div class="tmpl-name">ABB ACS880</div><div class="tmpl-sub">DI×6 DO×3 AI×2 AO×2</div></div>
+      </div>
+      <div class="tmpl-card" draggable="true" ondragstart="startDrag(event,'g120')" ondblclick="addDevice('g120')">
+        <span style="font-size:20px;">🟩</span>
+        <div><div class="tmpl-name">Siemens G120</div><div class="tmpl-sub">DI×6 DO×3 AI×2 AO×2</div></div>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">I/O Legend</div>
+      <div class="legend">
+        <div class="leg-row"><div class="leg-color" style="background:var(--di);"></div>DI — Digital Input</div>
+        <div class="leg-row"><div class="leg-color" style="background:var(--do);"></div>DO — Digital Output</div>
+        <div class="leg-row"><div class="leg-color" style="background:var(--ai);"></div>AI — Analog Input</div>
+        <div class="leg-row"><div class="leg-color" style="background:var(--ao);"></div>AO — Analog Output</div>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">Canvas</div>
+      <button class="tool-btn" onclick="clearCanvas()"><span class="tool-icon">🗑</span>Clear All</button>
+      <button class="tool-btn" onclick="fitView()"><span class="tool-icon">🔲</span>Fit View</button>
+      <button class="tool-btn" onclick="zoomIn()"><span class="tool-icon">🔍</span>Zoom In</button>
+      <button class="tool-btn" onclick="zoomOut()"><span class="tool-icon">🔎</span>Zoom Out</button>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">Tip</div>
+      <div style="font-size:10px;color:var(--muted);line-height:1.6;font-family:var(--mono);">
+        • Double-click template to add<br>
+        • Drag template onto canvas<br>
+        • Click device to select & edit<br>
+        • Use WIRE tool to connect<br>
+        • Click WIRING DIAGRAM to view
+      </div>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-wrap" id="canvasWrap"
+    ondragover="event.preventDefault()"
+    ondrop="onDrop(event)">
+    <canvas id="mainCanvas"></canvas>
+
+    <!-- WIRING DIAGRAM OVERLAY -->
+    <div class="wire-panel" id="wirePanel">
+      <div class="wire-header">
+        <span style="font-size:18px;">📐</span>
+        <span class="wire-title">WIRING CONNECTION DIAGRAM</span>
+        <button class="wire-close" onclick="closeWiringDiagram()">✕ CLOSE</button>
+        <button class="tb-btn success" style="margin-left:8px" onclick="exportWiringPDF()">📄 EXPORT PDF</button>
+      </div>
+      <canvas id="wireCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="rp-header"><div class="rp-dot"></div>I/O ASSIGNMENT</div>
+    <div class="rp-body" id="rpBody">
+      <div class="rp-empty">
+        <div class="rp-empty-icon">🖱</div>
+        <div>Click a VFD device on the canvas to edit its I/O assignments</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="status-item"><div class="status-dot" style="background:var(--green);box-shadow:0 0 4px var(--green);"></div><span id="statusMsg">Ready</span></div>
+  <div class="status-item"><span>Devices: <b id="devCount">0</b></span></div>
+  <div class="status-item"><span>Tool: <b id="toolName">SELECT</b></span></div>
+  <div class="status-item" style="margin-left:auto;font-size:9px;opacity:0.5;">Apna Electromechanic Service — VFD I/O Designer</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Rename Device</div>
+    <div id="modalBody"></div>
+    <div class="modal-btns">
+      <button class="m-btn cancel" onclick="closeModal()">Cancel</button>
+      <button class="m-btn ok" id="modalOk" onclick="">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// TEMPLATES
+// ═══════════════════════════════════════════════════
+const TEMPLATES = {
+  vfd_standard:{
+    label:'Standard VFD', brand:'Generic', model:'STD-VFD',
+    di:['Forward Run','Reverse Run','Fault Reset','Emergency Stop','Speed Preset 1','Speed Preset 2'],
+    do:['Running','Fault','At Speed'],
+    ai:['Speed Reference (0-10V)','Torque Limit (4-20mA)'],
+    ao:['Output Frequency (0-10V)','Output Current (4-20mA)'],
+  },
+  vfd_basic:{
+    label:'Basic VFD', brand:'Generic', model:'BASIC-VFD',
+    di:['Run/Stop','Fault Reset','Forward/Reverse','Speed Preset'],
+    do:['Running','Fault'],
+    ai:['Speed Reference (0-10V)'],
+    ao:['Output Frequency (0-10V)'],
+  },
+  vfd_advanced:{
+    label:'Advanced VFD', brand:'Generic', model:'ADV-VFD',
+    di:['Forward Run','Reverse Run','Fault Reset','E-Stop','Speed Preset 1','Speed Preset 2','Jog Forward','Jog Reverse'],
+    do:['Running','Fault','At Speed','Ready'],
+    ai:['Speed Ref (0-10V)','Torque Ref (4-20mA)','PID Feedback (4-20mA)','Aux Analog'],
+    ao:['Output Freq (0-10V)','Output Current (4-20mA)'],
+  },
+  powerflex:{
+    label:'PowerFlex 753', brand:'Allen-Bradley', model:'20F1AND4P2JA0NNNNN',
+    di:['Start/Run','Direction','Speed Select 1','Speed Select 2','Fault Reset','External Fault'],
+    do:['Running','Faulted','At Speed'],
+    ai:['Speed Reference (4-20mA)','Process Feedback (4-20mA)'],
+    ao:['Output Frequency (4-20mA)','Output Current (4-20mA)'],
+  },
+  acs880:{
+    label:'ABB ACS880', brand:'ABB', model:'ACS880-01-09A4-3',
+    di:['DI1 Start','DI2 Stop','DI3 Direction','DI4 Fault Reset','DI5 Speed Sel 1','DI6 Speed Sel 2'],
+    do:['RO1 Running','RO2 Fault','RO3 At Speed'],
+    ai:['AI1 Speed Ref (0-10V)','AI2 Feedback (4-20mA)'],
+    ao:['AO1 Freq Out (0-10V)','AO2 Current (4-20mA)'],
+  },
+  g120:{
+    label:'Siemens G120', brand:'Siemens', model:'6SL3210-1KE21-3AF2',
+    di:['DI 0 ON/OFF1','DI 1 Reverse','DI 2 Fault Ack','DI 3 Jog','DI 4 Fixed Freq 1','DI 5 Fixed Freq 2'],
+    do:['DO 0 Running','DO 1 Fault','DO 2 At Setpoint'],
+    ai:['AI 0 Setpoint (0-10V)','AI 1 Feedback (4-20mA)'],
+    ao:['AO 0 Actual Speed (0-10V)','AO 1 Actual Current (4-20mA)'],
+  },
+};
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let devices=[], wires=[], selectedId=null, tool='select';
+let dragTemplateKey=null, dragOffX=0, dragOffY=0;
+let isMouseDown=false, mouseDownX=0, mouseDownY=0;
+let wiringStart=null;
+let scale=1, panX=0, panY=0, isPanning=false, panStartX=0, panStartY=0;
+let devIdCounter=1;
+
+// ═══════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════
+const canvas=document.getElementById('mainCanvas');
+const ctx=canvas.getContext('2d');
+
+function resize(){
+  const wrap=document.getElementById('canvasWrap');
+  canvas.width=wrap.clientWidth;
+  canvas.height=wrap.clientHeight;
+  render();
+}
+window.addEventListener('resize',resize);
+resize();
+
+// ═══════════════════════════════════════════════════
+// TOOL
+// ═══════════════════════════════════════════════════
+function setTool(t){
+  tool=t;
+  document.getElementById('toolSelect').classList.toggle('active',t==='select');
+  document.getElementById('toolDraw').classList.toggle('active',t==='draw');
+  document.getElementById('toolWire').classList.toggle('active',t==='wire');
+  document.getElementById('toolName').textContent=t.toUpperCase();
+  canvas.style.cursor = t==='wire'?'crosshair': t==='draw'?'cell':'default';
+  setStatus(t==='select'?'Click device to select. Drag to move.': t==='wire'?'Click a terminal pin to start a wire connection.':'Double-click template in sidebar to add device.');
+  wiringStart=null;
+}
+setTool('select');
+
+// ═══════════════════════════════════════════════════
+// DEVICE GEOMETRY
+// ═══════════════════════════════════════════════════
+const DW=200, PIN=14, GAP=22, HDR=36, FOOTER=24;
+function devHeight(d){ return HDR + Math.max(d.di.length+d.do.length, d.ai.length+d.ao.length)*GAP + FOOTER; }
+function leftPins(d){
+  let pins=[];
+  d.di.forEach((f,i)=>pins.push({type:'DI',index:i,fn:f,side:'L',row:i}));
+  d.do.forEach((f,i)=>pins.push({type:'DO',index:i,fn:f,side:'L',row:d.di.length+i}));
+  return pins;
+}
+function rightPins(d){
+  let pins=[];
+  d.ai.forEach((f,i)=>pins.push({type:'AI',index:i,fn:f,side:'R',row:i}));
+  d.ao.forEach((f,i)=>pins.push({type:'AO',index:i,fn:f,side:'R',row:d.ai.length+i}));
+  return pins;
+}
+function pinPos(d,pin){
+  const y = d.y + HDR + pin.row*GAP + GAP/2;
+  const x = pin.side==='L' ? d.x : d.x+DW;
+  return {x,y};
+}
+function pinColor(type){ return type==='DI'?'#10B981':type==='DO'?'#F5A623':type==='AI'?'#3B82F6':'#A78BFA'; }
+function hitPin(d,px,py,r=10){
+  for(let p of [...leftPins(d),...rightPins(d)]){
+    const pos=pinPos(d,p);
+    if(Math.hypot(pos.x-px,pos.y-py)<r) return {dev:d,pin:p,pos};
+  }
+  return null;
+}
+function hitDevice(px,py){
+  for(let i=devices.length-1;i>=0;i--){
+    const d=devices[i];
+    const h=devHeight(d);
+    if(px>=d.x&&px<=d.x+DW&&py>=d.y&&py<=d.y+h) return d;
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+  ctx.translate(panX,panY);
+  ctx.scale(scale,scale);
+
+  // Draw wires
+  wires.forEach(w=>{
+    const c=pinColor(w.fromType);
+    ctx.strokeStyle=c; ctx.lineWidth=2; ctx.globalAlpha=0.8;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(w.x1,w.y1);
+    // elbow routing
+    const mx=(w.x1+w.x2)/2;
+    ctx.lineTo(mx,w.y1); ctx.lineTo(mx,w.y2); ctx.lineTo(w.x2,w.y2);
+    ctx.stroke();
+    ctx.globalAlpha=1;
+    // Arrow
+    ctx.fillStyle=c;
+    ctx.beginPath(); ctx.moveTo(w.x2,w.y2); ctx.lineTo(w.x2-6,w.y2-4); ctx.lineTo(w.x2-6,w.y2+4); ctx.closePath(); ctx.fill();
+    // Label
+    ctx.fillStyle=c; ctx.font='9px "Share Tech Mono"';
+    ctx.fillText(w.label||'', mx+3, (w.y1+w.y2)/2-3);
+  });
+
+  // Draw devices
+  devices.forEach(d=>{
+    const h=devHeight(d);
+    const isSelected=d.id===selectedId;
+
+    // Shadow
+    if(isSelected){ ctx.shadowColor=`rgba(0,212,255,0.4)`; ctx.shadowBlur=20; }
+
+    // Body
+    ctx.fillStyle='#111827'; ctx.strokeStyle=isSelected?'#00D4FF':'#1C2A40'; ctx.lineWidth=isSelected?2:1;
+    roundRect(ctx,d.x,d.y,DW,h,8,'FillStroke'); ctx.shadowBlur=0;
+
+    // Header
+    const grad=ctx.createLinearGradient(d.x,d.y,d.x+DW,d.y);
+    grad.addColorStop(0,'#0D2137'); grad.addColorStop(1,'#0A1B30');
+    ctx.fillStyle=grad; roundRect(ctx,d.x,d.y,DW,HDR,{tl:8,tr:8,bl:0,br:0},'Fill');
+
+    // Header text
+    ctx.fillStyle='#00D4FF'; ctx.font='bold 11px "Share Tech Mono"';
+    ctx.fillText(d.label.substring(0,20), d.x+8, d.y+16);
+    ctx.fillStyle='#4A6080'; ctx.font='9px "Share Tech Mono"';
+    ctx.fillText(d.brand+' · '+d.model, d.x+8, d.y+28);
+
+    // VFD symbol (small rect with ~ inside)
+    ctx.strokeStyle='#00D4FF'; ctx.lineWidth=1;
+    ctx.strokeRect(d.x+DW-32, d.y+8, 24, 18);
+    ctx.strokeStyle='#F5A623'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(d.x+DW-30,d.y+18);
+    ctx.bezierCurveTo(d.x+DW-27,d.y+13,d.x+DW-22,d.y+23,d.x+DW-14,d.y+18); ctx.stroke();
+
+    // Left pins (DI, DO)
+    [...leftPins(d)].forEach(p=>{
+      const pos=pinPos(d,p);
+      const c=pinColor(p.type);
+      // Line
+      ctx.strokeStyle=c; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(pos.x,pos.y); ctx.lineTo(pos.x-PIN,pos.y); ctx.stroke();
+      // Dot
+      ctx.fillStyle=c; ctx.beginPath(); ctx.arc(pos.x-PIN,pos.y,3.5,0,Math.PI*2); ctx.fill();
+      // Label
+      ctx.fillStyle='#4A6080'; ctx.font='8px "Share Tech Mono"';
+      ctx.textAlign='right'; ctx.fillText(p.type+String(p.index+1).padStart(2,'0'), pos.x-18, pos.y-4);
+      ctx.fillStyle='#8090A8'; ctx.font='9px Inter,sans-serif';
+      ctx.textAlign='left'; ctx.fillText(p.fn.substring(0,20), pos.x+4, pos.y+3.5);
+    });
+
+    // Right pins (AI, AO)
+    [...rightPins(d)].forEach(p=>{
+      const pos=pinPos(d,p);
+      const c=pinColor(p.type);
+      ctx.strokeStyle=c; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(pos.x,pos.y); ctx.lineTo(pos.x+PIN,pos.y); ctx.stroke();
+      ctx.fillStyle=c; ctx.beginPath(); ctx.arc(pos.x+PIN,pos.y,3.5,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#4A6080'; ctx.font='8px "Share Tech Mono"';
+      ctx.textAlign='left'; ctx.fillText(p.type+String(p.index+1).padStart(2,'0'), pos.x+18, pos.y-4);
+      ctx.fillStyle='#8090A8'; ctx.font='9px Inter,sans-serif';
+      ctx.textAlign='right'; ctx.fillText(p.fn.substring(0,20), pos.x-4, pos.y+3.5);
+    });
+
+    ctx.textAlign='left';
+
+    // Footer
+    ctx.fillStyle='#0A1B30';
+    ctx.fillRect(d.x, d.y+h-FOOTER, DW, FOOTER);
+    ctx.fillStyle='#2A3F5F'; ctx.font='8px "Share Tech Mono"';
+    ctx.fillText(`DI:${d.di.length}  DO:${d.do.length}  AI:${d.ai.length}  AO:${d.ao.length}`, d.x+6, d.y+h-9);
+
+    // Selected highlight
+    if(isSelected){
+      ctx.strokeStyle='rgba(0,212,255,0.3)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+      ctx.strokeRect(d.x-6,d.y-6,DW+12,h+12); ctx.setLineDash([]);
+    }
+  });
+
+  // Wiring-in-progress
+  if(wiringStart){
+    ctx.strokeStyle=pinColor(wiringStart.pin.type); ctx.lineWidth=2; ctx.setLineDash([5,5]);
+    ctx.globalAlpha=0.6;
+    ctx.beginPath(); ctx.moveTo(wiringStart.pos.x,wiringStart.pos.y);
+    ctx.lineTo(wiringStart.mouseX||wiringStart.pos.x, wiringStart.mouseY||wiringStart.pos.y);
+    ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+  }
+
+  ctx.restore();
+}
+
+function roundRect(ctx,x,y,w,h,r,mode){
+  if(typeof r==='number') r={tl:r,tr:r,bl:r,br:r};
+  ctx.beginPath();
+  ctx.moveTo(x+r.tl,y);
+  ctx.lineTo(x+w-r.tr,y); ctx.arcTo(x+w,y,x+w,y+r.tr,r.tr);
+  ctx.lineTo(x+w,y+h-r.br); ctx.arcTo(x+w,y+h,x+w-r.br,y+h,r.br);
+  ctx.lineTo(x+r.bl,y+h); ctx.arcTo(x,y+h,x,y+h-r.bl,r.bl);
+  ctx.lineTo(x,y+r.tl); ctx.arcTo(x,y,x+r.tl,y,r.tl); ctx.closePath();
+  if(mode==='Fill'||mode==='FillStroke') ctx.fill();
+  if(mode==='Stroke'||mode==='FillStroke') ctx.stroke();
+}
+
+// ═══════════════════════════════════════════════════
+// MOUSE EVENTS
+// ═══════════════════════════════════════════════════
+function toWorld(ex,ey){
+  const rect=canvas.getBoundingClientRect();
+  return {x:(ex-rect.left-panX)/scale, y:(ey-rect.top-panY)/scale};
+}
+
+canvas.addEventListener('mousedown',e=>{
+  const {x,y}=toWorld(e.clientX,e.clientY);
+  isMouseDown=true; mouseDownX=e.clientX; mouseDownY=e.clientY;
+
+  if(tool==='wire'){
+    // Check if clicking a pin
+    for(let d of devices){
+      const h=hitPin(d,x,y);
+      if(h){
+        if(!wiringStart){ wiringStart={...h,mouseX:x,mouseY:y}; setStatus('Wire started from '+h.pin.type+' — click destination pin.'); }
+        else{
+          // Complete wire
+          if(h.dev.id!==wiringStart.dev.id){
+            wires.push({
+              id:'w'+(Date.now()),
+              fromDev:wiringStart.dev.id, fromPin:wiringStart.pin.type+wiringStart.pin.index,
+              fromType:wiringStart.pin.type, toDev:h.dev.id, toPin:h.pin.type+h.pin.index,
+              x1:wiringStart.pos.x, y1:wiringStart.pos.y, x2:h.pos.x, y2:h.pos.y,
+              label:wiringStart.pin.fn+' → '+h.pin.fn
+            });
+            setStatus('Wire connected: '+wiringStart.pin.fn+' → '+h.pin.fn);
+          }
+          wiringStart=null;
+        }
+        render(); return;
+      }
+    }
+    wiringStart=null; render(); return;
+  }
+
+  if(tool==='select'){
+    const d=hitDevice(x,y);
+    if(d){
+      selectedId=d.id;
+      dragOffX=x-d.x; dragOffY=y-d.y;
+      renderRightPanel(d);
+    } else {
+      selectedId=null;
+      renderRightPanel(null);
+      isPanning=true; panStartX=e.clientX; panStartY=e.clientY;
+    }
+    render();
+  }
+});
+
+canvas.addEventListener('mousemove',e=>{
+  const {x,y}=toWorld(e.clientX,e.clientY);
+  if(isMouseDown && tool==='select'){
+    if(selectedId){
+      const d=devices.find(d=>d.id===selectedId);
+      if(d){ d.x=x-dragOffX; d.y=y-dragOffY; render(); }
+    } else if(isPanning){
+      panX+=e.clientX-panStartX; panY+=e.clientY-panStartY;
+      panStartX=e.clientX; panStartY=e.clientY; render();
+    }
+  }
+  if(wiringStart){ wiringStart.mouseX=x; wiringStart.mouseY=y; render(); }
+});
+
+canvas.addEventListener('mouseup',e=>{
+  isMouseDown=false; isPanning=false;
+  // Update wire positions if device moved
+  updateWirePositions(); render();
+});
+
+canvas.addEventListener('dblclick',e=>{
+  if(tool==='select'){
+    const {x,y}=toWorld(e.clientX,e.clientY);
+    const d=hitDevice(x,y);
+    if(d) renameDevice(d);
+  }
+});
+
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const {x,y}=toWorld(e.clientX,e.clientY);
+  const delta=e.deltaY>0?0.9:1.1;
+  scale=Math.max(0.3,Math.min(3,scale*delta));
+  panX=e.clientX-(x*scale); panY=e.clientY-(y*scale);
+  render();
+},{passive:false});
+
+function updateWirePositions(){
+  wires.forEach(w=>{
+    const fd=devices.find(d=>d.id===w.fromDev);
+    const td=devices.find(d=>d.id===w.toDev);
+    if(fd&&td){
+      const ftype=w.fromPin.replace(/\d+/,'');
+      const fidx=parseInt(w.fromPin.replace(/\D/,''));
+      const ttype=w.toPin.replace(/\d+/,'');
+      const tidx=parseInt(w.toPin.replace(/\D/,''));
+      const allFPins=[...leftPins(fd),...rightPins(fd)];
+      const allTPins=[...leftPins(td),...rightPins(td)];
+      const fp=allFPins.find(p=>p.type===ftype&&p.index===fidx);
+      const tp=allTPins.find(p=>p.type===ttype&&p.index===tidx);
+      if(fp){ const pos=pinPos(fd,fp); w.x1=pos.x; w.y1=pos.y; }
+      if(tp){ const pos=pinPos(td,tp); w.x2=pos.x; w.y2=pos.y; }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// ADD DEVICE
+// ═══════════════════════════════════════════════════
+function addDevice(key, x, y){
+  const tmpl=TEMPLATES[key];
+  if(!tmpl) return;
+  const id='dev'+devIdCounter++;
+  const cx=((canvas.width/2)-panX)/scale;
+  const cy=((canvas.height/2)-panY)/scale;
+  const d={
+    id, key, label:tmpl.label, brand:tmpl.brand, model:tmpl.model,
+    x: x!==undefined ? x : cx-DW/2 + (devices.length%4)*30,
+    y: y!==undefined ? y : 80 + Math.floor(devices.length/4)*40,
+    di:[...tmpl.di], do:[...tmpl.do], ai:[...tmpl.ai], ao:[...tmpl.ao],
+  };
+  devices.push(d); selectedId=d.id;
+  renderRightPanel(d); updateDevCount(); render();
+  setStatus('Added: '+d.label);
+  autoSave();
+}
+
+// Drag & drop from sidebar
+function startDrag(e,key){ dragTemplateKey=key; e.dataTransfer.setData('text/plain',key); }
+function onDrop(e){
+  e.preventDefault();
+  const key=e.dataTransfer.getData('text/plain')||dragTemplateKey;
+  if(!key) return;
+  const rect=canvas.getBoundingClientRect();
+  const wx=(e.clientX-rect.left-panX)/scale - DW/2;
+  const wy=(e.clientY-rect.top-panY)/scale - 20;
+  addDevice(key,wx,wy);
+}
+
+// ═══════════════════════════════════════════════════
+// RIGHT PANEL — I/O EDITOR
+// ═══════════════════════════════════════════════════
+function renderRightPanel(d){
+  const body=document.getElementById('rpBody');
+  if(!d){ body.innerHTML=`<div class="rp-empty"><div class="rp-empty-icon">🖱</div><div>Click a VFD device on the canvas to edit its I/O assignments</div></div>`; return; }
+
+  body.innerHTML=`
+    <div class="field">
+      <label>Device Label</label>
+      <input value="${d.label}" oninput="updateDevField('${d.id}','label',this.value)" />
+    </div>
+    <div class="field">
+      <label>Brand / Model</label>
+      <input value="${d.brand}" oninput="updateDevField('${d.id}','brand',this.value)" style="margin-bottom:5px"/>
+      <input value="${d.model}" oninput="updateDevField('${d.id}','model',this.value)" />
+    </div>
+
+    ${ioSection(d,'di','DI','#10B981','Digital Inputs')}
+    ${ioSection(d,'do','DO','#F5A623','Digital Outputs')}
+    ${ioSection(d,'ai','AI','#3B82F6','Analog Inputs')}
+    ${ioSection(d,'ao','AO','#A78BFA','Analog Outputs')}
+
+    <button class="tb-btn danger" style="width:100%;margin-top:10px;justify-content:center;" onclick="removeDevice('${d.id}')">🗑 Remove Device</button>
+  `;
+}
+
+function ioSection(d,key,type,color,title){
+  return `
+    <div class="io-section-title" style="color:${color}">${type} — ${title} (${d[key].length})</div>
+    <div id="io_${d.id}_${key}">
+      ${d[key].map((fn,i)=>`
+        <div class="io-row">
+          <div class="io-row-num" style="background:${color}22;color:${color};">${type}${String(i+1).padStart(2,'0')}</div>
+          <input class="io-row-input" value="${fn}"
+            oninput="updateIOFn('${d.id}','${key}',${i},this.value)"
+            placeholder="Function name..." />
+          <button class="io-row-del" onclick="removeIO('${d.id}','${key}',${i})">✕</button>
+        </div>`).join('')}
+    </div>
+    <button class="add-io-btn" style="border-color:${color}44;color:${color}" onclick="addIO('${d.id}','${key}','${type}')">＋ Add ${type}</button>
+  `;
+}
+
+function updateDevField(id,field,val){
+  const d=devices.find(d=>d.id===id); if(!d) return;
+  d[field]=val; render(); autoSave();
+}
+function updateIOFn(id,key,idx,val){
+  const d=devices.find(d=>d.id===id); if(!d) return;
+  d[key][idx]=val; updateWirePositions(); render(); autoSave();
+}
+function addIO(id,key,type){
+  const d=devices.find(d=>d.id===id); if(!d) return;
+  d[key].push('New '+type+' Function');
+  renderRightPanel(d); render(); autoSave();
+}
+function removeIO(id,key,idx){
+  const d=devices.find(d=>d.id===id); if(!d) return;
+  d[key].splice(idx,1); renderRightPanel(d); render(); autoSave();
+}
+function removeDevice(id){
+  devices=devices.filter(d=>d.id!==id);
+  wires=wires.filter(w=>w.fromDev!==id&&w.toDev!==id);
+  selectedId=null; renderRightPanel(null); updateDevCount(); render(); autoSave();
+}
+
+// ═══════════════════════════════════════════════════
+// DELETE / RENAME
+// ═══════════════════════════════════════════════════
+function deleteSelected(){
+  if(selectedId) removeDevice(selectedId);
+}
+function renameDevice(d){
+  openModal('Rename Device',
+    `<div class="field"><label>Device Label</label><input id="renameInput" value="${d.label}" style="width:100%"/></div>`,
+    ()=>{ d.label=document.getElementById('renameInput').value; render(); closeModal(); autoSave(); }
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// WIRING DIAGRAM
+// ═══════════════════════════════════════════════════
+function showWiringDiagram(){
+  document.getElementById('wirePanel').classList.add('show');
+  drawWiringDiagram();
+}
+function closeWiringDiagram(){ document.getElementById('wirePanel').classList.remove('show'); }
+
+function drawWiringDiagram(){
+  const wc=document.getElementById('wireCanvas');
+  const wrap=document.getElementById('wirePanel');
+  wc.width=wrap.clientWidth; wc.height=wrap.clientHeight-56;
+  const wctx=wc.getContext('2d');
+
+  wctx.fillStyle='#070B12'; wctx.fillRect(0,0,wc.width,wc.height);
+  // Grid
+  wctx.strokeStyle='rgba(0,212,255,0.04)'; wctx.lineWidth=1;
+  for(let x=0;x<wc.width;x+=30){ wctx.beginPath();wctx.moveTo(x,0);wctx.lineTo(x,wc.height);wctx.stroke(); }
+  for(let y=0;y<wc.height;y+=30){ wctx.beginPath();wctx.moveTo(0,y);wctx.lineTo(wc.width,y);wctx.stroke(); }
+
+  if(devices.length===0){
+    wctx.fillStyle='#4A6080'; wctx.font='14px "Share Tech Mono"'; wctx.textAlign='center';
+    wctx.fillText('No devices on canvas. Add VFD devices first.', wc.width/2, wc.height/2);
+    return;
+  }
+
+  // Layout: each device gets a column section
+  const colW=Math.max(280, wc.width/Math.max(devices.length,1));
+  const ioTypes=[{key:'di',color:'#10B981',label:'DI'},{key:'do',color:'#F5A623',label:'DO'},{key:'ai',color:'#3B82F6',label:'AI'},{key:'ao',color:'#A78BFA',label:'AO'}];
+  const startY=70, rowH=22, devBoxW=colW-40;
+
+  devices.forEach((d,di)=>{
+    const cx=di*colW+20;
+    // Device header box
+    wctx.fillStyle='#0D2137'; wctx.strokeStyle='#00D4FF'; wctx.lineWidth=1.5;
+    roundRectW(wctx,cx,20,devBoxW,40,6,'FillStroke');
+    wctx.fillStyle='#00D4FF'; wctx.font='bold 11px "Share Tech Mono"'; wctx.textAlign='left';
+    wctx.fillText(d.label.substring(0,24), cx+8, 38);
+    wctx.fillStyle='#4A6080'; wctx.font='8px "Share Tech Mono"';
+    wctx.fillText(d.brand+' '+d.model, cx+8, 52);
+
+    let row=0;
+    ioTypes.forEach(({key,color,label})=>{
+      if(d[key].length===0) return;
+      // Section title
+      wctx.fillStyle=color+'33';
+      wctx.fillRect(cx, startY+row*rowH, devBoxW, 16);
+      wctx.fillStyle=color; wctx.font='bold 9px "Share Tech Mono"'; wctx.textAlign='left';
+      wctx.fillText(`── ${label} — ${['DI','DO','AI','AO'].includes(label)?['Digital Input','Digital Output','Analog Input','Analog Output'][['DI','DO','AI','AO'].indexOf(label)]:''}`, cx+4, startY+row*rowH+11);
+      row++;
+      d[key].forEach((fn,i)=>{
+        const y=startY+row*rowH;
+        // Row bg
+        wctx.fillStyle=i%2===0?'#0E1420':'#111827';
+        wctx.fillRect(cx,y,devBoxW,rowH-2);
+        // Terminal number
+        wctx.fillStyle=color; wctx.font='bold 8px "Share Tech Mono"';
+        wctx.fillText(label+String(i+1).padStart(2,'0'), cx+4, y+13);
+        // Function name
+        wctx.fillStyle='#C0CDE0'; wctx.font='10px Inter,sans-serif';
+        wctx.fillText(fn.substring(0,30), cx+36, y+13);
+        // Terminal dot (right side = wire connection point)
+        wctx.fillStyle=color;
+        wctx.beginPath(); wctx.arc(cx+devBoxW-8, y+rowH/2-1, 4, 0, Math.PI*2); wctx.fill();
+        // Left wire stub
+        wctx.strokeStyle=color; wctx.lineWidth=1.5;
+        wctx.beginPath(); wctx.moveTo(cx,y+rowH/2-1); wctx.lineTo(cx-10,y+rowH/2-1); wctx.stroke();
+        // Left terminal screw symbol
+        wctx.strokeStyle=color; wctx.lineWidth=1;
+        wctx.strokeRect(cx-14,y+rowH/2-5,8,8);
+        wctx.beginPath(); wctx.moveTo(cx-14,y+rowH/2-5); wctx.lineTo(cx-6,y+rowH/2+3); wctx.stroke();
+
+        row++;
+      });
+    });
+
+    // Device bottom border
+    const totalH=startY+row*rowH+8;
+    wctx.strokeStyle='#1C2A40'; wctx.lineWidth=1;
+    wctx.strokeRect(cx,startY-4,devBoxW,totalH-startY+4);
+  });
+
+  // Draw wires between devices
+  wires.forEach((w,wi)=>{
+    const fd=devices.find(d=>d.id===w.fromDev);
+    const td=devices.find(d=>d.id===w.toDev);
+    if(!fd||!td) return;
+    const fdi=devices.indexOf(fd), tdi=devices.indexOf(td);
+    const fcx=fdi*colW+20+devBoxW;
+    const tcx=tdi*colW+20;
+    const fy=startY+50+(wi%10)*4; // stagger
+    const color=pinColor2(w.fromType);
+    wctx.strokeStyle=color; wctx.lineWidth=1.5;
+    wctx.setLineDash([6,3]);
+    wctx.beginPath();
+    wctx.moveTo(fcx,fy); wctx.lineTo(tcx,fy);
+    wctx.stroke(); wctx.setLineDash([]);
+    wctx.fillStyle=color; wctx.font='8px "Share Tech Mono"'; wctx.textAlign='center';
+    wctx.fillText(w.label.substring(0,30),(fcx+tcx)/2,fy-3);
+  });
+}
+
+function pinColor2(t){ return t==='DI'?'#10B981':t==='DO'?'#F5A623':t==='AI'?'#3B82F6':'#A78BFA'; }
+
+function roundRectW(ctx,x,y,w,h,r,mode){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
+  if(mode==='Fill'||mode==='FillStroke') ctx.fill();
+  if(mode==='Stroke'||mode==='FillStroke') ctx.stroke();
+}
+
+// ═══════════════════════════════════════════════════
+// PDF EXPORT — WIRING DIAGRAM
+// ═══════════════════════════════════════════════════
+function exportWiringPDF(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210,M=12;
+  let y=0;
+
+  // BG
+  doc.setFillColor(7,11,18); doc.rect(0,0,W,H,'F');
+  doc.setFillColor(13,20,39); doc.rect(0,0,W,20,'F');
+  doc.setDrawColor(0,212,255); doc.setLineWidth(0.4); doc.line(0,20,W,20);
+
+  // Header
+  doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(0,212,255);
+  doc.text('VFD I/O WIRING DIAGRAM', M, 13);
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(74,96,128);
+  doc.text('Project: '+document.getElementById('projectName').value+'    Date: '+new Date().toLocaleDateString('en-IN')+'    Apna Electromechanic Service', M, 18);
+  doc.text('Page 1', W-M, 13, {align:'right'});
+
+  y=28;
+  const colW=(W-M*2)/Math.max(devices.length,1);
+  const ioTypes=[{key:'di',r:16,g:185,b:129,label:'DI',full:'Digital Input'},
+    {key:'do',r:245,g:166,b:35,label:'DO',full:'Digital Output'},
+    {key:'ai',r:59,g:130,b:246,label:'AI',full:'Analog Input'},
+    {key:'ao',r:167,g:139,b:250,label:'AO',full:'Analog Output'}];
+
+  devices.forEach((d,di)=>{
+    const cx=M+di*colW, cw=colW-4;
+    // Device box header
+    doc.setFillColor(13,33,55); doc.setDrawColor(0,212,255); doc.setLineWidth(0.5);
+    doc.roundedRect(cx,y,cw,12,1,1,'FD');
+    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(0,212,255);
+    doc.text(d.label.substring(0,22), cx+2, y+8);
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(100,130,160);
+    doc.text(d.brand+' '+d.model, cx+2, y+11);
+
+    let ry=y+14;
+    ioTypes.forEach(({key,r,g,b,label,full})=>{
+      if(d[key].length===0) return;
+      // Section
+      doc.setFillColor(r,g,b,40); doc.rect(cx,ry,cw,5,'F');
+      doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(r,g,b);
+      doc.text(label+' — '+full, cx+2, ry+3.5);
+      ry+=5;
+      d[key].forEach((fn,i)=>{
+        if(ry>H-12){ return; } // clamp
+        doc.setFillColor(i%2===0?14:17, i%2===0?20:24, i%2===0?39:43);
+        doc.rect(cx,ry,cw,5,'F');
+        doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(r,g,b);
+        doc.text(label+String(i+1).padStart(2,'0'), cx+1.5, ry+3.5);
+        doc.setFont('helvetica','normal'); doc.setTextColor(192,205,224);
+        doc.text(fn.substring(0,28), cx+12, ry+3.5);
+        // Wire terminal symbol
+        doc.setDrawColor(r,g,b); doc.setLineWidth(0.3);
+        doc.rect(cx+cw-7,ry+1,4,3);
+        ry+=5;
+      });
+    });
+
+    // Device outline
+    doc.setDrawColor(28,42,64); doc.setLineWidth(0.3);
+    doc.rect(cx,y,cw,ry-y);
+  });
+
+  // Wires section (bottom)
+  if(wires.length){
+    const wy=H-38;
+    doc.setFillColor(13,20,39); doc.rect(M,wy,W-M*2,36,'F');
+    doc.setDrawColor(28,42,64); doc.setLineWidth(0.3); doc.rect(M,wy,W-M*2,36);
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(0,212,255);
+    doc.text('WIRE CONNECTIONS', M+2, wy+6);
+    doc.setLineWidth(0.2); doc.setDrawColor(28,42,64); doc.line(M,wy+8,W-M,wy+8);
+    let wx=M+2, wwy=wy+13;
+    wires.forEach((w,i)=>{
+      const fd=devices.find(d=>d.id===w.fromDev);
+      const td=devices.find(d=>d.id===w.toDev);
+      if(!fd||!td) return;
+      const c=pinColor2(w.fromType);
+      const [r2,g2,b2]=c==='#10B981'?[16,185,129]:c==='#F5A623'?[245,166,35]:c==='#3B82F6'?[59,130,246]:[167,139,250];
+      doc.setFillColor(r2,g2,b2); doc.circle(wx+2,wwy-1,1.5,'F');
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(192,205,224);
+      doc.text(w.fromPin+' ('+fd.label+') → '+w.toPin+' ('+td.label+'): '+w.label.substring(0,30), wx+5, wwy);
+      wwy+=6;
+      if(wwy>H-8){ wx+=(W-M*2)/2; wwy=wy+13; }
+    });
+  }
+
+  // Legend
+  doc.setFillColor(10,27,48); doc.rect(W-50,20,38,22,'F');
+  doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(74,96,128);
+  doc.text('LEGEND', W-49,24);
+  [[16,185,129,'DI — Digital Input'],[245,166,35,'DO — Digital Output'],[59,130,246,'AI — Analog Input'],[167,139,250,'AO — Analog Output']].forEach(([r,g,b,lbl],i)=>{
+    doc.setFillColor(r,g,b); doc.rect(W-49,26+i*4,3,2.5,'F');
+    doc.setTextColor(192,205,224); doc.text(lbl, W-44,28+i*4);
+  });
+
+  doc.save('Wiring_Diagram_'+document.getElementById('projectName').value+'.pdf');
+}
+
+function exportPDF(){ showWiringDiagram(); setTimeout(exportWiringPDF,300); }
+
+// ═══════════════════════════════════════════════════
+// SAVE / LOAD / EXPORT
+// ═══════════════════════════════════════════════════
+function getProjectData(){
+  return { name:document.getElementById('projectName').value, devices, wires, v:2, date:new Date().toISOString() };
+}
+
+function autoSave(){
+  try{ localStorage.setItem('vfd_io_project', JSON.stringify(getProjectData())); } catch(e){}
+}
+
+function saveProject(){
+  autoSave();
+  setStatus('Project saved to browser ✓');
+  flashStatus();
+}
+
+function exportProject(){
+  const data=JSON.stringify(getProjectData(),null,2);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  a.download=document.getElementById('projectName').value+'.json';
+  a.click();
+  setStatus('Exported as JSON file ✓');
+}
+
+function importProject(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      document.getElementById('projectName').value=data.name||'Imported Project';
+      devices=data.devices||[];
+      wires=data.wires||[];
+      devIdCounter=devices.length+1;
+      selectedId=null; renderRightPanel(null); updateDevCount(); render();
+      setStatus('Project imported: '+file.name);
+    } catch(err){ alert('Invalid project file.'); }
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+
+function loadSaved(){
+  try{
+    const raw=localStorage.getItem('vfd_io_project');
+    if(!raw) return;
+    const data=JSON.parse(raw);
+    document.getElementById('projectName').value=data.name||'VFD_Project_001';
+    devices=data.devices||[];
+    wires=data.wires||[];
+    devIdCounter=Math.max(...devices.map(d=>parseInt(d.id.replace('dev',''))||0),0)+1;
+    updateDevCount(); render();
+    setStatus('Previous project restored ✓');
+  } catch(e){ console.log('No saved project.'); }
+}
+
+// ═══════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════
+function updateDevCount(){ document.getElementById('devCount').textContent=devices.length; }
+function setStatus(msg){ document.getElementById('statusMsg').textContent=msg; }
+function flashStatus(){ document.getElementById('statusMsg').style.color='#10B981'; setTimeout(()=>document.getElementById('statusMsg').style.color='',1500); }
+function clearCanvas(){ if(!confirm('Clear all devices and wires?')) return; devices=[]; wires=[]; selectedId=null; renderRightPanel(null); updateDevCount(); render(); autoSave(); }
+function zoomIn(){ scale=Math.min(3,scale*1.2); render(); }
+function zoomOut(){ scale=Math.max(0.3,scale*0.8); render(); }
+function fitView(){
+  if(!devices.length){ scale=1;panX=50;panY=50; render(); return; }
+  const xs=devices.map(d=>d.x), ys=devices.map(d=>d.y);
+  const minX=Math.min(...xs)-20, minY=Math.min(...ys)-20;
+  const maxX=Math.max(...devices.map(d=>d.x+DW))+20;
+  const maxY=Math.max(...devices.map(d=>d.y+devHeight(d)))+20;
+  const sc=Math.min(canvas.width/(maxX-minX), canvas.height/(maxY-minY), 1.5);
+  scale=sc; panX=-minX*sc+40; panY=-minY*sc+40; render();
+}
+
+// ── MODAL ──
+function openModal(title,body,okFn){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalBody').innerHTML=body;
+  document.getElementById('modalOk').onclick=okFn;
+  document.getElementById('modalBg').classList.add('show');
+  setTimeout(()=>{ const inp=document.querySelector('#modalBody input'); if(inp){ inp.focus(); inp.select(); } },50);
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+document.getElementById('modalBg').addEventListener('click',e=>{ if(e.target===document.getElementById('modalBg')) closeModal(); });
+
+// ── KEYBOARD ──
+document.addEventListener('keydown',e=>{
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(document.activeElement===document.body||document.activeElement===canvas) deleteSelected();
+  }
+  if(e.key==='Escape'){ wiringStart=null; render(); }
+  if(e.key==='s'&&(e.ctrlKey||e.metaKey)){ e.preventDefault(); saveProject(); }
+});
+
+// ── INIT ──
+loadSaved();
+if(devices.length===0){
+  // Add a demo device to get started
+  addDevice('powerflex', 60, 80);
+  addDevice('acs880', 320, 80);
+  selectedId=null; renderRightPanel(null); render();
+}
+setStatus('Ready — drag VFD templates from the left panel onto the canvas');
+</script>
+</body>
+</html>
