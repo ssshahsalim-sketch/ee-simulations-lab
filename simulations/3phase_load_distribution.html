@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3-Phase Load Distribution — Apna Electromechanic Service</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --navy: #0d1b2a;
+    --navy2: #152338;
+    --amber: #f5a623;
+    --amber-dim: #c47f0e;
+    --teal: #00b4a6;
+    --teal-dim: #008f84;
+    --red: #e84646;
+    --green: #27ae60;
+    --phA: #e74c3c;
+    --phB: #f39c12;
+    --phC: #2980b9;
+    --neutral: #8e44ad;
+    --grid: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.10);
+    --text: #e8edf3;
+    --text-dim: #8fa3b8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--navy);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: rgba(13,27,42,0.96);
+    border-bottom: 2px solid var(--amber);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(6px);
+  }
+  .logo-block { display: flex; align-items: center; gap: 14px; }
+  .logo-icon {
+    width: 46px; height: 46px;
+    background: var(--amber);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600; font-size: 18px;
+    color: var(--navy);
+  }
+  .logo-text h1 {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 900; font-size: 17px;
+    color: var(--amber); letter-spacing: 0.5px;
+  }
+  .logo-text p {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--text-dim); letter-spacing: 1px;
+  }
+  .header-phase-badges { display: flex; gap: 8px; }
+  .ph-badge {
+    padding: 4px 12px; border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; font-weight: 600; letter-spacing: 1px;
+  }
+  .ph-badge.A { background: rgba(231,76,60,0.2); color: var(--phA); border: 1px solid var(--phA); }
+  .ph-badge.B { background: rgba(243,156,18,0.2); color: var(--phB); border: 1px solid var(--phB); }
+  .ph-badge.C { background: rgba(41,128,185,0.2); color: var(--phC); border: 1px solid var(--phC); }
+
+  /* ── LAYOUT ── */
+  .app { display: grid; grid-template-columns: 340px 1fr; gap: 0; height: calc(100vh - 70px); }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-header h2 {
+    font-family: 'Archivo', sans-serif;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: var(--amber);
+  }
+  .rooms-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .rooms-list::-webkit-scrollbar { width: 4px; }
+  .rooms-list::-webkit-scrollbar-track { background: transparent; }
+  .rooms-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .add-room-bar {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    display: flex; gap: 8px;
+  }
+  .add-room-bar input {
+    flex: 1; background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 8px 12px; font-size: 13px;
+    font-family: 'Inter', sans-serif;
+  }
+  .add-room-bar input:focus { outline: none; border-color: var(--amber); }
+  .btn-add-room {
+    background: var(--amber); color: var(--navy);
+    border: none; border-radius: 6px;
+    padding: 8px 14px; font-weight: 700; cursor: pointer;
+    font-size: 18px; line-height: 1;
+  }
+  .btn-add-room:hover { background: var(--amber-dim); }
+
+  /* ── ROOM CARD ── */
+  .room-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .room-card:hover { border-color: rgba(255,255,255,0.2); }
+  .room-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.03);
+  }
+  .room-name {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 700; font-size: 13px; color: var(--text);
+  }
+  .room-meta { display: flex; align-items: center; gap: 8px; }
+  .room-watts {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--text-dim);
+  }
+  .phase-selector {
+    display: flex; gap: 2px;
+  }
+  .phase-btn {
+    width: 26px; height: 22px;
+    border-radius: 3px; border: 1px solid transparent;
+    cursor: pointer; font-size: 10px; font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+    transition: all 0.15s;
+    background: transparent; color: var(--text-dim);
+  }
+  .phase-btn.pA { border-color: rgba(231,76,60,0.4); }
+  .phase-btn.pA.active { background: var(--phA); color: #fff; border-color: var(--phA); }
+  .phase-btn.pB { border-color: rgba(243,156,18,0.4); }
+  .phase-btn.pB.active { background: var(--phB); color: var(--navy); border-color: var(--phB); }
+  .phase-btn.pC { border-color: rgba(41,128,185,0.4); }
+  .phase-btn.pC.active { background: var(--phC); color: #fff; border-color: var(--phC); }
+  .btn-del-room {
+    background: none; border: none; color: var(--text-dim);
+    cursor: pointer; padding: 0 4px; font-size: 16px;
+    transition: color 0.15s;
+  }
+  .btn-del-room:hover { color: var(--red); }
+
+  .room-loads { padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .load-row {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px; padding: 6px 10px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .load-type-icon { font-size: 16px; flex-shrink: 0; }
+  .load-info { flex: 1; min-width: 0; }
+  .load-name {
+    font-size: 12px; color: var(--text); font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .load-watt {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--text-dim);
+  }
+  .load-qty {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .qty-btn {
+    width: 20px; height: 20px; border-radius: 3px;
+    border: 1px solid var(--border); background: rgba(255,255,255,0.05);
+    color: var(--text); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .qty-btn:hover { background: var(--amber); color: var(--navy); border-color: var(--amber); }
+  .qty-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; min-width: 18px; text-align: center;
+  }
+  .btn-del-load {
+    background: none; border: none; color: rgba(255,255,255,0.2);
+    cursor: pointer; font-size: 14px; padding: 0 2px;
+    transition: color 0.15s;
+  }
+  .btn-del-load:hover { color: var(--red); }
+
+  .add-load-row {
+    display: flex; gap: 6px; margin-top: 4px;
+  }
+  .load-select {
+    flex: 1; background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border); border-radius: 5px;
+    color: var(--text); padding: 5px 8px; font-size: 12px;
+    font-family: 'Inter', sans-serif;
+  }
+  .load-select:focus { outline: none; border-color: var(--teal); }
+  .btn-add-load {
+    background: var(--teal); color: var(--navy);
+    border: none; border-radius: 5px; padding: 5px 10px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-add-load:hover { background: var(--teal-dim); }
+
+  .custom-load-row { display: flex; gap: 5px; margin-top: 4px; }
+  .custom-input {
+    flex: 1; background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border); border-radius: 5px;
+    color: var(--text); padding: 5px 8px; font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .custom-input::placeholder { color: var(--text-dim); }
+  .custom-input:focus { outline: none; border-color: var(--amber); }
+  .btn-add-custom {
+    background: rgba(245,166,35,0.15); color: var(--amber);
+    border: 1px solid var(--amber); border-radius: 5px;
+    padding: 5px 10px; font-size: 11px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-add-custom:hover { background: var(--amber); color: var(--navy); }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel { overflow-y: auto; display: flex; flex-direction: column; gap: 0; }
+  .right-panel::-webkit-scrollbar { width: 5px; }
+  .right-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── DASHBOARD ── */
+  .dashboard { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .dash-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 20px;
+  }
+  .kpi-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .kpi-label {
+    font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 6px;
+  }
+  .kpi-value {
+    font-family: 'Archivo', sans-serif;
+    font-size: 24px; font-weight: 900;
+    line-height: 1;
+  }
+  .kpi-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--text-dim); margin-top: 4px;
+  }
+  .kpi-card.ok .kpi-value { color: var(--green); }
+  .kpi-card.warn .kpi-value { color: var(--amber); }
+  .kpi-card.danger .kpi-value { color: var(--red); }
+  .kpi-card.neutral .kpi-value { color: var(--neutral); }
+
+  /* ── PHASE BARS ── */
+  .phase-bars { display: flex; flex-direction: column; gap: 12px; }
+  .phase-bar-row { display: flex; align-items: center; gap: 14px; }
+  .phase-bar-label {
+    width: 60px; font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600; font-size: 13px; flex-shrink: 0;
+  }
+  .phase-bar-label.A { color: var(--phA); }
+  .phase-bar-label.B { color: var(--phB); }
+  .phase-bar-label.C { color: var(--phC); }
+  .phase-bar-label.N { color: var(--neutral); }
+  .bar-track {
+    flex: 1; height: 22px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px; overflow: hidden;
+    position: relative;
+  }
+  .bar-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.4s cubic-bezier(0.25,1,0.5,1);
+    display: flex; align-items: center; padding-left: 8px;
+  }
+  .bar-fill.A { background: linear-gradient(90deg, var(--phA), rgba(231,76,60,0.6)); }
+  .bar-fill.B { background: linear-gradient(90deg, var(--phB), rgba(243,156,18,0.6)); }
+  .bar-fill.C { background: linear-gradient(90deg, var(--phC), rgba(41,128,185,0.6)); }
+  .bar-fill.N { background: linear-gradient(90deg, var(--neutral), rgba(142,68,173,0.5)); }
+  .bar-fill-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: #fff; font-weight: 600;
+    white-space: nowrap;
+  }
+  .bar-watts {
+    width: 90px; text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--text-dim); flex-shrink: 0;
+  }
+  .target-line {
+    position: absolute; top: 0; width: 2px; height: 100%;
+    background: rgba(255,255,255,0.35);
+    z-index: 2;
+  }
+
+  /* ── SUGGESTIONS ── */
+  .suggestions-section {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-title {
+    font-family: 'Archivo', sans-serif;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: var(--amber); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .suggestion-cards { display: flex; flex-direction: column; gap: 8px; }
+  .suggestion-card {
+    background: rgba(245,166,35,0.06);
+    border: 1px solid rgba(245,166,35,0.25);
+    border-radius: 8px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sug-icon { font-size: 20px; flex-shrink: 0; }
+  .sug-text { flex: 1; }
+  .sug-title { font-size: 12px; font-weight: 600; color: var(--text); }
+  .sug-detail { font-size: 11px; color: var(--text-dim); margin-top: 2px; font-family: 'IBM Plex Mono', monospace; }
+  .sug-action {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--amber);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .phase-arrow {
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .ph-chip {
+    display: inline-block; padding: 2px 6px; border-radius: 3px;
+    font-size: 10px; font-weight: 700; font-family: 'IBM Plex Mono', monospace;
+  }
+  .ph-chip.A { background: rgba(231,76,60,0.25); color: var(--phA); }
+  .ph-chip.B { background: rgba(243,156,18,0.25); color: var(--phB); }
+  .ph-chip.C { background: rgba(41,128,185,0.25); color: var(--phC); }
+  .no-suggestion {
+    color: var(--green); font-size: 13px;
+    display: flex; align-items: center; gap: 8px; padding: 8px 0;
+  }
+
+  /* ── LOAD TABLE ── */
+  .table-section { padding: 16px 24px; }
+  .load-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 12px;
+  }
+  .load-table th {
+    text-align: left; padding: 8px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text-dim); border-bottom: 1px solid var(--border);
+  }
+  .load-table td {
+    padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .load-table tr:hover td { background: rgba(255,255,255,0.03); }
+  .phase-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; margin-right: 6px;
+  }
+  .phase-dot.A { background: var(--phA); }
+  .phase-dot.B { background: var(--phB); }
+  .phase-dot.C { background: var(--phC); }
+  .phase-dot.unassigned { background: var(--text-dim); }
+
+  /* ── FOOTER ACTIONS ── */
+  .footer-actions {
+    padding: 14px 24px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 10px; justify-content: flex-end;
+    background: rgba(255,255,255,0.02);
+  }
+  .btn-primary {
+    background: var(--amber); color: var(--navy);
+    border: none; border-radius: 7px;
+    padding: 10px 22px; font-weight: 700;
+    font-family: 'Archivo', sans-serif; font-size: 13px;
+    cursor: pointer; display: flex; align-items: center; gap: 7px;
+    transition: all 0.15s;
+  }
+  .btn-primary:hover { background: var(--amber-dim); transform: translateY(-1px); }
+  .btn-secondary {
+    background: rgba(255,255,255,0.06); color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 10px 22px; font-weight: 600;
+    font-family: 'Archivo', sans-serif; font-size: 13px;
+    cursor: pointer; display: flex; align-items: center; gap: 7px;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+
+  /* ── STATUS BANNER ── */
+  .status-banner {
+    margin: 0 24px 12px;
+    padding: 10px 16px; border-radius: 8px;
+    font-size: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .status-banner.ok { background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.3); color: var(--green); }
+  .status-banner.warn { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); color: var(--amber); }
+  .status-banner.danger { background: rgba(232,70,70,0.1); border: 1px solid rgba(232,70,70,0.3); color: var(--red); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--navy2);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px;
+    width: 420px; max-height: 80vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal h3 {
+    font-family: 'Archivo', sans-serif;
+    font-size: 16px; font-weight: 800; margin-bottom: 16px;
+    color: var(--amber);
+  }
+  .modal-close {
+    position: absolute; top: 12px; right: 14px;
+    background: none; border: none; color: var(--text-dim);
+    font-size: 22px; cursor: pointer;
+  }
+
+  /* tooltip */
+  [data-tip] { position: relative; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 5px); left: 50%;
+    transform: translateX(-50%);
+    background: rgba(13,27,42,0.98); color: var(--text);
+    border: 1px solid var(--border);
+    padding: 4px 8px; border-radius: 4px; font-size: 10px;
+    white-space: nowrap; pointer-events: none; z-index: 99;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .empty-state {
+    text-align: center; padding: 40px 20px;
+    color: var(--text-dim);
+  }
+  .empty-state .big { font-size: 40px; margin-bottom: 10px; }
+  .empty-state p { font-size: 13px; }
+
+  /* Phasor diagram */
+  #phasor-canvas { display: block; margin: 0 auto; }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; height: auto; }
+    .left-panel { height: auto; max-height: 60vh; }
+    .dash-grid { grid-template-columns: repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-block">
+    <div class="logo-icon">⚡</div>
+    <div class="logo-text">
+      <h1>3-PHASE LOAD DISTRIBUTOR</h1>
+      <p>APNA ELECTROMECHANIC SERVICE · RESIDENTIAL PANEL TOOL</p>
+    </div>
+  </div>
+  <div class="header-phase-badges">
+    <span class="ph-badge A">Ph-A · R</span>
+    <span class="ph-badge B">Ph-B · Y</span>
+    <span class="ph-badge C">Ph-C · B</span>
+  </div>
+</header>
+
+<div class="app">
+  <!-- LEFT: Room Builder -->
+  <div class="left-panel">
+    <div class="panel-header">
+      <h2>Room / Circuit Builder</h2>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim)" id="room-count-label">0 rooms</span>
+    </div>
+    <div class="rooms-list" id="rooms-list">
+      <div class="empty-state">
+        <div class="big">🏠</div>
+        <p>Add a room below to start<br>configuring loads & phases</p>
+      </div>
+    </div>
+    <div class="add-room-bar">
+      <input type="text" id="new-room-name" placeholder="Room name (e.g. Master Bedroom)" />
+      <button class="btn-add-room" onclick="addRoom()" title="Add Room">+</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Dashboard -->
+  <div class="right-panel" id="right-panel">
+    <div class="dashboard">
+      <div class="section-title">Load Balance Dashboard</div>
+      <div class="dash-grid">
+        <div class="kpi-card neutral" id="kpi-total">
+          <div class="kpi-label">Total Load</div>
+          <div class="kpi-value" id="kpi-total-val">0</div>
+          <div class="kpi-sub">Watts</div>
+        </div>
+        <div class="kpi-card neutral" id="kpi-imbalance">
+          <div class="kpi-label">Imbalance</div>
+          <div class="kpi-value" id="kpi-imbalance-val">—</div>
+          <div class="kpi-sub">% deviation</div>
+        </div>
+        <div class="kpi-card neutral" id="kpi-neutral">
+          <div class="kpi-label">Neutral Current</div>
+          <div class="kpi-value" id="kpi-neutral-val">0</div>
+          <div class="kpi-sub">Amps (230V basis)</div>
+        </div>
+        <div class="kpi-card neutral" id="kpi-status">
+          <div class="kpi-label">Status</div>
+          <div class="kpi-value" style="font-size:16px" id="kpi-status-val">—</div>
+          <div class="kpi-sub" id="kpi-status-sub">No data yet</div>
+        </div>
+      </div>
+
+      <div id="status-banner-area"></div>
+
+      <div class="phase-bars" id="phase-bars">
+        <div class="phase-bar-row">
+          <span class="phase-bar-label A">Ph-A (R)</span>
+          <div class="bar-track" id="bar-track-A">
+            <div class="bar-fill A" id="bar-A" style="width:0%">
+              <span class="bar-fill-label" id="bar-A-label"></span>
+            </div>
+          </div>
+          <span class="bar-watts" id="bar-A-watts">0 W / 0 A</span>
+        </div>
+        <div class="phase-bar-row">
+          <span class="phase-bar-label B">Ph-B (Y)</span>
+          <div class="bar-track" id="bar-track-B">
+            <div class="bar-fill B" id="bar-B" style="width:0%">
+              <span class="bar-fill-label" id="bar-B-label"></span>
+            </div>
+          </div>
+          <span class="bar-watts" id="bar-B-watts">0 W / 0 A</span>
+        </div>
+        <div class="phase-bar-row">
+          <span class="phase-bar-label C">Ph-C (B)</span>
+          <div class="bar-track" id="bar-track-C">
+            <div class="bar-fill C" id="bar-C" style="width:0%">
+              <span class="bar-fill-label" id="bar-C-label"></span>
+            </div>
+          </div>
+          <span class="bar-watts" id="bar-C-watts">0 W / 0 A</span>
+        </div>
+        <div class="phase-bar-row">
+          <span class="phase-bar-label N" style="color:var(--neutral)">Neutral</span>
+          <div class="bar-track">
+            <div class="bar-fill N" id="bar-N" style="width:0%">
+              <span class="bar-fill-label" id="bar-N-label"></span>
+            </div>
+          </div>
+          <span class="bar-watts" id="bar-N-watts" style="color:var(--neutral)">0 A</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Suggestions -->
+    <div class="suggestions-section">
+      <div class="section-title">Smart Balancing Suggestions</div>
+      <div id="suggestions-area" class="suggestion-cards">
+        <div class="no-suggestion">
+          <span>💡</span> Add rooms and assign phases to see suggestions.
+        </div>
+      </div>
+    </div>
+
+    <!-- Phasor -->
+    <div style="padding:16px 24px; border-bottom:1px solid var(--border)">
+      <div class="section-title">Phasor / Load Vector Diagram</div>
+      <canvas id="phasor-canvas" width="320" height="200"></canvas>
+    </div>
+
+    <!-- Load Table -->
+    <div class="table-section">
+      <div class="section-title">All Loads Summary</div>
+      <table class="load-table" id="load-table">
+        <thead>
+          <tr>
+            <th>Room</th>
+            <th>Load</th>
+            <th>Qty</th>
+            <th>Watts</th>
+            <th>Total W</th>
+            <th>Phase</th>
+            <th>Current (A)</th>
+          </tr>
+        </thead>
+        <tbody id="load-tbody">
+          <tr><td colspan="7" style="color:var(--text-dim);padding:20px;text-align:center">No loads added yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn-secondary" onclick="resetAll()">🔄 Reset All</button>
+      <button class="btn-secondary" onclick="loadSample()">📋 Load Sample House</button>
+      <button class="btn-primary" onclick="generatePDF()">📄 Export PDF Report</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────
+const PRESET_LOADS = [
+  { name: 'LED Bulb (9W)', icon: '💡', watts: 9 },
+  { name: 'Tubelight (20W)', icon: '🔦', watts: 20 },
+  { name: 'CFL Bulb (18W)', icon: '💡', watts: 18 },
+  { name: 'Fan (75W)', icon: '🌀', watts: 75 },
+  { name: 'Exhaust Fan (55W)', icon: '💨', watts: 55 },
+  { name: 'AC 1-Ton (1000W)', icon: '❄️', watts: 1000 },
+  { name: 'AC 1.5-Ton (1500W)', icon: '❄️', watts: 1500 },
+  { name: 'AC 2-Ton (2000W)', icon: '❄️', watts: 2000 },
+  { name: 'TV 32" (80W)', icon: '📺', watts: 80 },
+  { name: 'TV 55" (150W)', icon: '📺', watts: 150 },
+  { name: 'Refrigerator (150W)', icon: '🧊', watts: 150 },
+  { name: 'Refrigerator DBD (250W)', icon: '🧊', watts: 250 },
+  { name: 'Washing Machine (500W)', icon: '🫧', watts: 500 },
+  { name: 'Microwave (1200W)', icon: '📡', watts: 1200 },
+  { name: 'Electric Kettle (1500W)', icon: '♨️', watts: 1500 },
+  { name: 'Geyser 15L (2000W)', icon: '🚿', watts: 2000 },
+  { name: 'Geyser 25L (3000W)', icon: '🚿', watts: 3000 },
+  { name: 'Mixer/Grinder (750W)', icon: '🥤', watts: 750 },
+  { name: 'Iron Box (1000W)', icon: '🧲', watts: 1000 },
+  { name: 'Computer (300W)', icon: '💻', watts: 300 },
+  { name: 'Laptop Charger (65W)', icon: '💻', watts: 65 },
+  { name: 'Wi-Fi Router (15W)', icon: '📶', watts: 15 },
+  { name: 'Water Pump (750W)', icon: '💧', watts: 750 },
+  { name: 'EV Charger (3300W)', icon: '🔌', watts: 3300 },
+  { name: 'Inverter/UPS (500W)', icon: '🔋', watts: 500 },
+  { name: 'Music System (100W)', icon: '🎵', watts: 100 },
+  { name: 'Induction Cooktop (2000W)', icon: '🍳', watts: 2000 },
+  { name: 'Dishwasher (1500W)', icon: '🍽️', watts: 1500 },
+  { name: 'Room Heater (1000W)', icon: '🔥', watts: 1000 },
+  { name: 'Chimney (200W)', icon: '🌪️', watts: 200 },
+];
+
+let rooms = [];
+let roomIdCounter = 0;
+
+// ── ROOM MANAGEMENT ──────────────────────────────────────────────────────
+function addRoom(name) {
+  const input = document.getElementById('new-room-name');
+  const roomName = name || input.value.trim();
+  if (!roomName) { input.focus(); return; }
+  rooms.push({
+    id: ++roomIdCounter,
+    name: roomName,
+    phase: 'A',
+    loads: []
+  });
+  input.value = '';
+  renderRooms();
+  recalculate();
+}
+
+function deleteRoom(id) {
+  rooms = rooms.filter(r => r.id !== id);
+  renderRooms();
+  recalculate();
+}
+
+function setPhase(id, phase) {
+  const r = rooms.find(r => r.id === id);
+  if (r) r.phase = phase;
+  renderRooms();
+  recalculate();
+}
+
+function addPresetLoad(roomId) {
+  const sel = document.getElementById('load-sel-' + roomId);
+  const idx = parseInt(sel.value);
+  if (isNaN(idx)) return;
+  const r = rooms.find(r => r.id === roomId);
+  const preset = PRESET_LOADS[idx];
+  // check if already exists
+  const existing = r.loads.find(l => l.name === preset.name);
+  if (existing) { existing.qty++; }
+  else { r.loads.push({ name: preset.name, icon: preset.icon, watts: preset.watts, qty: 1 }); }
+  sel.value = '';
+  renderRooms();
+  recalculate();
+}
+
+function addCustomLoad(roomId) {
+  const nameEl = document.getElementById('cname-' + roomId);
+  const wattEl = document.getElementById('cwatt-' + roomId);
+  const name = nameEl.value.trim();
+  const watts = parseFloat(wattEl.value);
+  if (!name || isNaN(watts) || watts <= 0) return;
+  const r = rooms.find(r => r.id === roomId);
+  r.loads.push({ name, icon: '⚡', watts, qty: 1 });
+  nameEl.value = ''; wattEl.value = '';
+  renderRooms();
+  recalculate();
+}
+
+function changeQty(roomId, loadIdx, delta) {
+  const r = rooms.find(r => r.id === roomId);
+  r.loads[loadIdx].qty = Math.max(0, r.loads[loadIdx].qty + delta);
+  if (r.loads[loadIdx].qty === 0) r.loads.splice(loadIdx, 1);
+  renderRooms();
+  recalculate();
+}
+
+function deleteLoad(roomId, loadIdx) {
+  const r = rooms.find(r => r.id === roomId);
+  r.loads.splice(loadIdx, 1);
+  renderRooms();
+  recalculate();
+}
+
+function roomTotalWatts(r) {
+  return r.loads.reduce((s, l) => s + l.watts * l.qty, 0);
+}
+
+// ── RENDER ROOMS ─────────────────────────────────────────────────────────
+function renderRooms() {
+  const el = document.getElementById('rooms-list');
+  document.getElementById('room-count-label').textContent = rooms.length + ' room' + (rooms.length !== 1 ? 's' : '');
+
+  if (rooms.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="big">🏠</div><p>Add a room below to start<br>configuring loads & phases</p></div>`;
+    return;
+  }
+
+  // Build options once
+  const optHtml = PRESET_LOADS.map((l, i) =>
+    `<option value="${i}">${l.icon} ${l.name} — ${l.watts}W</option>`
+  ).join('');
+
+  el.innerHTML = rooms.map(r => {
+    const total = roomTotalWatts(r);
+    const loadRows = r.loads.map((l, li) => `
+      <div class="load-row">
+        <span class="load-type-icon">${l.icon}</span>
+        <div class="load-info">
+          <div class="load-name">${l.name}</div>
+          <div class="load-watt">${l.watts}W × ${l.qty} = ${l.watts * l.qty}W</div>
+        </div>
+        <div class="load-qty">
+          <button class="qty-btn" onclick="changeQty(${r.id},${li},-1)">−</button>
+          <span class="qty-val">${l.qty}</span>
+          <button class="qty-btn" onclick="changeQty(${r.id},${li},+1)">+</button>
+        </div>
+        <button class="btn-del-load" onclick="deleteLoad(${r.id},${li})" title="Remove load">✕</button>
+      </div>`).join('');
+
+    return `
+    <div class="room-card">
+      <div class="room-card-header">
+        <span class="room-name">🏠 ${r.name}</span>
+        <div class="room-meta">
+          <span class="room-watts">${total}W</span>
+          <div class="phase-selector">
+            <button class="phase-btn pA ${r.phase==='A'?'active':''}" onclick="setPhase(${r.id},'A')">A</button>
+            <button class="phase-btn pB ${r.phase==='B'?'active':''}" onclick="setPhase(${r.id},'B')">B</button>
+            <button class="phase-btn pC ${r.phase==='C'?'active':''}" onclick="setPhase(${r.id},'C')">C</button>
+          </div>
+          <button class="btn-del-room" onclick="deleteRoom(${r.id})" title="Delete room">🗑</button>
+        </div>
+      </div>
+      <div class="room-loads">
+        ${loadRows || '<div style="color:var(--text-dim);font-size:11px;padding:4px 0">No loads — add below</div>'}
+        <div class="add-load-row">
+          <select class="load-select" id="load-sel-${r.id}" onchange="addPresetLoad(${r.id})">
+            <option value="">+ Add preset load…</option>
+            ${optHtml}
+          </select>
+        </div>
+        <div class="custom-load-row">
+          <input class="custom-input" id="cname-${r.id}" placeholder="Custom name" style="width:45%"/>
+          <input class="custom-input" id="cwatt-${r.id}" placeholder="Watts" type="number" min="1" style="width:30%"/>
+          <button class="btn-add-custom" onclick="addCustomLoad(${r.id})">+ Custom</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── CALCULATE & RENDER DASHBOARD ─────────────────────────────────────────
+function recalculate() {
+  const V = 230;
+  const phLoads = { A: 0, B: 0, C: 0 };
+  rooms.forEach(r => {
+    phLoads[r.phase] += roomTotalWatts(r);
+  });
+
+  const total = phLoads.A + phLoads.B + phLoads.C;
+  const iA = phLoads.A / V;
+  const iB = phLoads.B / V;
+  const iC = phLoads.C / V;
+
+  // Neutral current using phasor sum (120° apart)
+  // In = sqrt(iA² + iB² + iC² - iA*iB - iB*iC - iC*iA) — simplified vector sum
+  const iN = Math.sqrt(iA**2 + iB**2 + iC**2 - iA*iB - iB*iC - iC*iA);
+
+  // Imbalance %: (max-min)/avg * 100
+  const vals = [phLoads.A, phLoads.B, phLoads.C].filter(v => v > 0);
+  let imbalancePct = 0;
+  if (vals.length >= 2) {
+    const avg = total / 3;
+    const maxDev = Math.max(...[phLoads.A, phLoads.B, phLoads.C].map(v => Math.abs(v - avg)));
+    imbalancePct = avg > 0 ? (maxDev / avg) * 100 : 0;
+  }
+
+  // Max for bar scaling
+  const maxW = Math.max(phLoads.A, phLoads.B, phLoads.C, 500);
+  const maxI = Math.max(iA, iB, iC, 1);
+
+  // Update KPI cards
+  document.getElementById('kpi-total-val').textContent = total;
+  document.getElementById('kpi-imbalance-val').textContent = total > 0 ? imbalancePct.toFixed(1) + '%' : '—';
+  document.getElementById('kpi-neutral-val').textContent = iN.toFixed(2);
+
+  const kpiImb = document.getElementById('kpi-imbalance');
+  const kpiNeu = document.getElementById('kpi-neutral');
+  const kpiStat = document.getElementById('kpi-status');
+  const kpiStatV = document.getElementById('kpi-status-val');
+  const kpiStatS = document.getElementById('kpi-status-sub');
+
+  kpiImb.className = 'kpi-card ' + (imbalancePct > 20 ? 'danger' : imbalancePct > 10 ? 'warn' : 'ok');
+  kpiNeu.className = 'kpi-card ' + (iN > 10 ? 'danger' : iN > 5 ? 'warn' : 'ok');
+
+  let statusClass = 'ok', statusText = '✅ Balanced', statusSub = 'Load distribution is good';
+  if (total === 0) { statusClass = 'neutral'; statusText = '—'; statusSub = 'No loads configured'; }
+  else if (imbalancePct > 20) { statusClass = 'danger'; statusText = '⚠ Imbalanced'; statusSub = 'Redistribute loads immediately'; }
+  else if (imbalancePct > 10) { statusClass = 'warn'; statusText = '⚡ Fair'; statusSub = 'Minor rebalancing suggested'; }
+  kpiStat.className = 'kpi-card ' + statusClass;
+  kpiStatV.textContent = statusText; kpiStatS.textContent = statusSub;
+
+  // Status banner
+  const bannerArea = document.getElementById('status-banner-area');
+  if (total > 0) {
+    const cls = imbalancePct > 20 ? 'danger' : imbalancePct > 10 ? 'warn' : 'ok';
+    const msg = imbalancePct > 20
+      ? `⚠️ High imbalance detected (${imbalancePct.toFixed(1)}%). Neutral current = ${iN.toFixed(2)}A. This can cause overheating of neutral conductor.`
+      : imbalancePct > 10
+      ? `⚡ Moderate imbalance (${imbalancePct.toFixed(1)}%). Neutral current = ${iN.toFixed(2)}A. Consider shifting some loads.`
+      : `✅ System well balanced (${imbalancePct.toFixed(1)}% deviation). Neutral current = ${iN.toFixed(2)}A.`;
+    bannerArea.innerHTML = `<div class="status-banner ${cls}">${msg}</div>`;
+  } else {
+    bannerArea.innerHTML = '';
+  }
+
+  // Phase bars
+  ['A','B','C'].forEach(ph => {
+    const w = phLoads[ph];
+    const i = w / V;
+    const pct = maxW > 0 ? Math.min((w / maxW) * 100, 100) : 0;
+    document.getElementById('bar-' + ph).style.width = pct + '%';
+    document.getElementById('bar-' + ph + '-label').textContent = pct > 15 ? w + 'W' : '';
+    document.getElementById('bar-' + ph + '-watts').textContent = `${w}W / ${i.toFixed(1)}A`;
+    // target line at avg
+    const track = document.getElementById('bar-track-' + ph);
+    let tl = track.querySelector('.target-line');
+    if (!tl) { tl = document.createElement('div'); tl.className = 'target-line'; track.appendChild(tl); }
+    const avgPct = total > 0 ? Math.min(((total/3) / maxW) * 100, 100) : 0;
+    tl.style.left = avgPct + '%';
+    tl.title = `Target avg: ${(total/3).toFixed(0)}W`;
+  });
+  // Neutral bar
+  const nPct = maxI > 0 ? Math.min((iN / maxI) * 100, 100) : 0;
+  document.getElementById('bar-N').style.width = nPct + '%';
+  document.getElementById('bar-N-label').textContent = nPct > 15 ? iN.toFixed(2) + 'A' : '';
+  document.getElementById('bar-N-watts').textContent = iN.toFixed(2) + ' A';
+
+  // Suggestions
+  renderSuggestions(phLoads, total);
+
+  // Load table
+  renderLoadTable(phLoads);
+
+  // Phasor
+  drawPhasor(iA, iB, iC, iN);
+}
+
+// ── SUGGESTIONS ──────────────────────────────────────────────────────────
+function renderSuggestions(phLoads, total) {
+  const area = document.getElementById('suggestions-area');
+  if (total === 0) {
+    area.innerHTML = `<div class="no-suggestion"><span>💡</span> Add rooms and assign phases to see suggestions.</div>`;
+    return;
+  }
+  const avg = total / 3;
+  const suggestions = [];
+  const V = 230;
+
+  // Find most overloaded and underloaded
+  const phases = ['A','B','C'];
+  phases.forEach(from => {
+    if (phLoads[from] > avg * 1.10) {
+      // suggest moving loads FROM this phase
+      const overload = phLoads[from] - avg;
+      // find a room on this phase whose load is closest to the overload
+      const candidates = rooms
+        .filter(r => r.phase === from && roomTotalWatts(r) > 0)
+        .map(r => ({ room: r, watts: roomTotalWatts(r), diff: Math.abs(roomTotalWatts(r) - overload) }))
+        .sort((a, b) => a.diff - b.diff);
+
+      if (candidates.length > 0) {
+        const best = candidates[0];
+        // Find best target phase (most underloaded)
+        const target = phases.filter(p => p !== from).sort((a, b) => phLoads[a] - phLoads[b])[0];
+        if (phLoads[target] < phLoads[from]) {
+          suggestions.push({
+            room: best.room.name,
+            from, to: target,
+            watts: best.watts,
+            saving: (phLoads[from] - best.watts) - avg,
+          });
+        }
+      }
+    }
+  });
+
+  // Also check if unassigned rooms have issues (all on one phase)
+  const phaseCounts = { A: 0, B: 0, C: 0 };
+  rooms.forEach(r => phaseCounts[r.phase]++);
+  if (rooms.length >= 3 && (phaseCounts.A === 0 || phaseCounts.B === 0 || phaseCounts.C === 0)) {
+    const emptyPh = phases.find(p => phaseCounts[p] === 0);
+    if (emptyPh) {
+      suggestions.push({ type: 'empty', phase: emptyPh });
+    }
+  }
+
+  if (suggestions.length === 0) {
+    area.innerHTML = `<div class="no-suggestion"><span>✅</span> Load distribution is well balanced. No shifts required.</div>`;
+    return;
+  }
+
+  area.innerHTML = suggestions.map(s => {
+    if (s.type === 'empty') {
+      return `<div class="suggestion-card">
+        <span class="sug-icon">⚠️</span>
+        <div class="sug-text">
+          <div class="sug-title">Phase ${s.phase} is empty</div>
+          <div class="sug-detail">No rooms assigned to Phase-${s.phase}. Move some loads to utilize all 3 phases.</div>
+        </div>
+      </div>`;
+    }
+    const V = 230;
+    const newFromW = phLoads[s.from] - s.watts;
+    const newToW = phLoads[s.to] + s.watts;
+    return `<div class="suggestion-card">
+      <span class="sug-icon">🔄</span>
+      <div class="sug-text">
+        <div class="sug-title">Move "${s.room}" to Phase-${s.to}</div>
+        <div class="sug-detail">
+          Room load: ${s.watts}W (${(s.watts/V).toFixed(1)}A) &nbsp;|&nbsp;
+          Phase-${s.from}: ${phLoads[s.from]}W → ${newFromW}W &nbsp;|&nbsp;
+          Phase-${s.to}: ${phLoads[s.to]}W → ${newToW}W
+        </div>
+      </div>
+      <div class="sug-action">
+        <span class="phase-arrow">
+          <span class="ph-chip ${s.from}">Ph-${s.from}</span>
+          ➜
+          <span class="ph-chip ${s.to}">Ph-${s.to}</span>
+        </span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── LOAD TABLE ───────────────────────────────────────────────────────────
+function renderLoadTable(phLoads) {
+  const tbody = document.getElementById('load-tbody');
+  const V = 230;
+  let rows = '';
+  rooms.forEach(r => {
+    r.loads.forEach(l => {
+      const total = l.watts * l.qty;
+      const amp = (total / V).toFixed(2);
+      rows += `<tr>
+        <td>${r.name}</td>
+        <td>${l.icon} ${l.name}</td>
+        <td style="text-align:center">${l.qty}</td>
+        <td style="font-family:'IBM Plex Mono',monospace">${l.watts}W</td>
+        <td style="font-family:'IBM Plex Mono',monospace;font-weight:600">${total}W</td>
+        <td><span class="phase-dot ${r.phase}"></span>Phase-${r.phase}</td>
+        <td style="font-family:'IBM Plex Mono',monospace">${amp}A</td>
+      </tr>`;
+    });
+  });
+  if (!rows) rows = `<tr><td colspan="7" style="color:var(--text-dim);padding:20px;text-align:center">No loads added yet.</td></tr>`;
+  tbody.innerHTML = rows;
+}
+
+// ── PHASOR DIAGRAM ───────────────────────────────────────────────────────
+function drawPhasor(iA, iB, iC, iN) {
+  const canvas = document.getElementById('phasor-canvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w / 2, cy = h / 2;
+  const r = Math.min(cx, cy) - 30;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background
+  ctx.fillStyle = 'rgba(255,255,255,0.02)';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
+
+  const maxI = Math.max(iA, iB, iC, 1);
+
+  // Angles for 3-phase: A=90°, B=90-120=−30°, C=90-240=−150° (standard)
+  const angles = { A: Math.PI/2, B: Math.PI/2 - 2*Math.PI/3, C: Math.PI/2 - 4*Math.PI/3 };
+  const colors = { A: '#e74c3c', B: '#f39c12', C: '#2980b9' };
+  const labels = { A: 'Ph-A', B: 'Ph-B', C: 'Ph-C' };
+
+  ['A','B','C'].forEach(ph => {
+    const scale = (iA + iB + iC > 0) ? [iA,iB,iC][['A','B','C'].indexOf(ph)] / maxI : 0;
+    const len = scale * r * 0.85;
+    const ang = angles[ph];
+    const ex = cx + len * Math.cos(ang);
+    const ey = cy - len * Math.sin(ang);
+
+    // Draw phasor
+    ctx.strokeStyle = colors[ph];
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey); ctx.stroke();
+
+    // Arrowhead
+    const headLen = 10, headAng = 0.4;
+    ctx.fillStyle = colors[ph];
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - headLen * Math.cos(ang - headAng), ey + headLen * Math.sin(ang - headAng));
+    ctx.lineTo(ex - headLen * Math.cos(ang + headAng), ey + headLen * Math.sin(ang + headAng));
+    ctx.closePath(); ctx.fill();
+
+    // Label
+    const lx = cx + (len + 18) * Math.cos(ang);
+    const ly = cy - (len + 18) * Math.sin(ang);
+    ctx.fillStyle = colors[ph];
+    ctx.font = '600 11px IBM Plex Mono, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(labels[ph], lx, ly);
+
+    const vals = [iA,iB,iC];
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '9px IBM Plex Mono, monospace';
+    ctx.fillText(vals[['A','B','C'].indexOf(ph)].toFixed(1)+'A', lx, ly + 13);
+  });
+
+  // Neutral indicator (center dot)
+  const nScale = iN / Math.max(maxI, 1);
+  ctx.beginPath();
+  ctx.arc(cx, cy, Math.max(nScale * 20, 3), 0, Math.PI * 2);
+  ctx.fillStyle = iN > 0.5 ? `rgba(142,68,173,${Math.min(nScale + 0.2, 0.9)})` : 'rgba(255,255,255,0.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#8e44ad'; ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Center label
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = '10px IBM Plex Mono, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText('IN=' + iN.toFixed(2) + 'A', cx, cy + Math.max(nScale * 20, 3) + 5);
+}
+
+// ── SAMPLE DATA ──────────────────────────────────────────────────────────
+function loadSample() {
+  rooms = [];
+  roomIdCounter = 0;
+  const sample = [
+    { name: 'Living Room', phase: 'A', loads: [
+      { name: 'LED Bulb (9W)', icon: '💡', watts: 9, qty: 4 },
+      { name: 'Fan (75W)', icon: '🌀', watts: 75, qty: 2 },
+      { name: 'TV 55" (150W)', icon: '📺', watts: 150, qty: 1 },
+    ]},
+    { name: 'Master Bedroom', phase: 'B', loads: [
+      { name: 'AC 1.5-Ton (1500W)', icon: '❄️', watts: 1500, qty: 1 },
+      { name: 'Fan (75W)', icon: '🌀', watts: 75, qty: 1 },
+      { name: 'LED Bulb (9W)', icon: '💡', watts: 9, qty: 3 },
+    ]},
+    { name: 'Bedroom 2', phase: 'A', loads: [
+      { name: 'AC 1-Ton (1000W)', icon: '❄️', watts: 1000, qty: 1 },
+      { name: 'Fan (75W)', icon: '🌀', watts: 75, qty: 1 },
+      { name: 'LED Bulb (9W)', icon: '💡', watts: 9, qty: 2 },
+    ]},
+    { name: 'Kitchen', phase: 'C', loads: [
+      { name: 'Refrigerator DBD (250W)', icon: '🧊', watts: 250, qty: 1 },
+      { name: 'Microwave (1200W)', icon: '📡', watts: 1200, qty: 1 },
+      { name: 'Chimney (200W)', icon: '🌪️', watts: 200, qty: 1 },
+      { name: 'LED Bulb (9W)', icon: '💡', watts: 9, qty: 2 },
+    ]},
+    { name: 'Bathroom', phase: 'B', loads: [
+      { name: 'Geyser 15L (2000W)', icon: '🚿', watts: 2000, qty: 1 },
+      { name: 'Exhaust Fan (55W)', icon: '💨', watts: 55, qty: 1 },
+      { name: 'LED Bulb (9W)', icon: '💡', watts: 9, qty: 1 },
+    ]},
+    { name: 'Study Room', phase: 'C', loads: [
+      { name: 'Computer (300W)', icon: '💻', watts: 300, qty: 1 },
+      { name: 'LED Bulb (9W)', icon: '💡', watts: 9, qty: 2 },
+      { name: 'Wi-Fi Router (15W)', icon: '📶', watts: 15, qty: 1 },
+    ]},
+  ];
+  sample.forEach(s => {
+    rooms.push({ id: ++roomIdCounter, name: s.name, phase: s.phase, loads: s.loads });
+  });
+  renderRooms();
+  recalculate();
+}
+
+function resetAll() {
+  rooms = []; roomIdCounter = 0;
+  document.getElementById('new-room-name').value = '';
+  renderRooms();
+  recalculate();
+}
+
+// ── PDF REPORT ───────────────────────────────────────────────────────────
+function generatePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const V = 230;
+  const phLoads = { A: 0, B: 0, C: 0 };
+  rooms.forEach(r => phLoads[r.phase] += roomTotalWatts(r));
+  const total = phLoads.A + phLoads.B + phLoads.C;
+  const iA = phLoads.A/V, iB = phLoads.B/V, iC = phLoads.C/V;
+  const iN = Math.sqrt(iA**2 + iB**2 + iC**2 - iA*iB - iB*iC - iC*iA);
+  const avg = total/3;
+  const imbalancePct = avg > 0 ? (Math.max(...[phLoads.A,phLoads.B,phLoads.C].map(v=>Math.abs(v-avg)))/avg)*100 : 0;
+
+  const W = 210, M = 15;
+  let y = 0;
+
+  // ── Header band
+  doc.setFillColor(13, 27, 42);
+  doc.rect(0, 0, W, 28, 'F');
+  doc.setTextColor(245, 166, 35);
+  doc.setFontSize(15); doc.setFont('helvetica','bold');
+  doc.text('3-PHASE LOAD DISTRIBUTION REPORT', M, 11);
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.setTextColor(143, 163, 184);
+  doc.text('Apna Electromechanic Service  |  Thane, Maharashtra  |  ' + new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}), M, 18);
+  doc.text('Voltage: 230V (Ph-N)  |  Frequency: 50Hz  |  System: 3Ph 4W TN-S', M, 24);
+
+  y = 36;
+
+  // ── Summary KPIs
+  doc.setFillColor(21, 35, 56);
+  doc.roundedRect(M, y, W-2*M, 26, 2, 2, 'F');
+  const kpiX = [M+5, M+47, M+89, M+131];
+  const kpiData = [
+    ['TOTAL LOAD', total + ' W'],
+    ['IMBALANCE', imbalancePct.toFixed(1) + ' %'],
+    ['NEUTRAL CURRENT', iN.toFixed(2) + ' A'],
+    ['STATUS', imbalancePct > 20 ? 'IMBALANCED' : imbalancePct > 10 ? 'FAIR' : 'BALANCED'],
+  ];
+  kpiData.forEach(([label, val], i) => {
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(143,163,184);
+    doc.text(label, kpiX[i], y + 8);
+    doc.setFontSize(12); doc.setFont('helvetica','bold');
+    const col = i===3 ? (imbalancePct>20?[232,70,70]:imbalancePct>10?[243,156,18]:[39,174,96]) : [232,190,100];
+    doc.setTextColor(...col);
+    doc.text(val, kpiX[i], y + 18);
+  });
+
+  y += 34;
+
+  // ── Phase summary table
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(245,166,35);
+  doc.text('PHASE-WISE LOAD SUMMARY', M, y); y += 5;
+
+  const phCols = [M, M+40, M+80, M+115, M+150];
+  const phHdr = ['Phase','Load (W)','Current (A)','% of Total','Deviation from Avg'];
+  doc.setFillColor(21,35,56);
+  doc.rect(M, y, W-2*M, 7, 'F');
+  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(200,210,220);
+  phHdr.forEach((h,i) => doc.text(h, phCols[i]+1, y+5));
+  y += 8;
+
+  [['A','Phase-A (R)',231,76,60],['B','Phase-B (Y)',243,156,18],['C','Phase-C (B)',41,128,185]].forEach(([ph,lbl,r2,g2,b2]) => {
+    const w2 = phLoads[ph], cur = (w2/V).toFixed(2);
+    const pct = total>0?(w2/total*100).toFixed(1):'0.0';
+    const dev = avg>0?((w2-avg)/avg*100).toFixed(1):'—';
+    doc.setFillColor(r2,g2,b2);
+    doc.rect(M, y, 3, 6, 'F');
+    doc.setFont('helvetica','normal'); doc.setTextColor(30,30,30);
+    doc.setFillColor(ph==='A'?255:ph==='B'?255:230, ph==='A'?235:ph==='B'?245:240, ph==='A'?235:ph==='B'?225:255);
+    doc.rect(M+3, y, W-2*M-3, 6, 'F');
+    doc.setTextColor(40,40,40);
+    [lbl, w2, cur, pct+'%', (parseFloat(dev)>0?'+':'')+dev+'%'].forEach((v,i) => doc.text(String(v), phCols[i]+1+(i===0?3:0), y+4.5));
+    y += 7;
+  });
+
+  // Neutral row
+  doc.setFillColor(240,235,248);
+  doc.rect(M, y, W-2*M, 6, 'F');
+  doc.setFillColor(142,68,173); doc.rect(M, y, 3, 6, 'F');
+  doc.setTextColor(40,40,40);
+  doc.text('Neutral (In)', M+4, y+4.5);
+  doc.text('—', M+41, y+4.5);
+  doc.text(iN.toFixed(2), M+81, y+4.5);
+  doc.text('—', M+116, y+4.5);
+  doc.text(iN > 10 ? '⚠ HIGH' : iN > 5 ? '△ MODERATE' : '✓ LOW', M+151, y+4.5);
+  y += 12;
+
+  // ── Room-wise table
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(245,166,35);
+  doc.text('ROOM & LOAD DETAILS', M, y); y += 5;
+
+  const rCols = [M, M+50, M+90, M+115, M+135, M+160, M+178];
+  const rHdr = ['Room','Load Name','Qty','Unit(W)','Total(W)','Phase','Current(A)'];
+  doc.setFillColor(21,35,56);
+  doc.rect(M, y, W-2*M, 7, 'F');
+  doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(200,210,220);
+  rHdr.forEach((h,i) => doc.text(h, rCols[i]+1, y+5));
+  y += 8;
+
+  let alt = false;
+  const phColors = { A:[255,235,235], B:[255,248,225], C:[230,242,255] };
+  rooms.forEach(r => {
+    r.loads.forEach(l => {
+      const tw = l.watts*l.qty;
+      if (y > 270) { doc.addPage(); y = 20; }
+      doc.setFillColor(...(phColors[r.phase]||[248,248,248]));
+      doc.rect(M, y, W-2*M, 5.5, 'F');
+      const phC = {A:[231,76,60],B:[243,156,18],C:[41,128,185]};
+      doc.setFillColor(...(phC[r.phase]||[150,150,150]));
+      doc.rect(M, y, 2, 5.5, 'F');
+      doc.setFont('helvetica','normal'); doc.setTextColor(30,30,30); doc.setFontSize(7.5);
+      [r.name, l.name, l.qty, l.watts, tw, 'Ph-'+r.phase, (tw/V).toFixed(2)].forEach((v,i) => doc.text(String(v), rCols[i]+2+(i===0?1:0), y+4));
+      y += 6; alt = !alt;
+    });
+  });
+
+  y += 8;
+
+  // ── Suggestions
+  if (y > 230) { doc.addPage(); y = 20; }
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(245,166,35);
+  doc.text('LOAD BALANCING RECOMMENDATIONS', M, y); y += 6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(60,60,60);
+
+  const sugs = [];
+  const phases = ['A','B','C'];
+  phases.forEach(from => {
+    if (phLoads[from] > avg*1.10) {
+      const candidates = rooms.filter(r=>r.phase===from&&roomTotalWatts(r)>0)
+        .map(r=>({room:r,watts:roomTotalWatts(r),diff:Math.abs(roomTotalWatts(r)-(phLoads[from]-avg))}))
+        .sort((a,b)=>a.diff-b.diff);
+      if (candidates.length > 0) {
+        const best = candidates[0];
+        const target = phases.filter(p=>p!==from).sort((a,b)=>phLoads[a]-phLoads[b])[0];
+        sugs.push(`• Move "${best.room.name}" (${best.watts}W) from Phase-${from} → Phase-${target} to reduce imbalance.`);
+      }
+    }
+  });
+  if (sugs.length === 0) sugs.push('✓ System is well balanced. No load shifting required.');
+
+  sugs.forEach(s => {
+    if (y > 270) { doc.addPage(); y = 20; }
+    doc.setFillColor(255,250,235); doc.rect(M, y-4, W-2*M, 7, 'F');
+    doc.text(s, M+2, y); y += 8;
+  });
+
+  y += 4;
+
+  // ── Technical Notes
+  if (y > 240) { doc.addPage(); y = 20; }
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(245,166,35);
+  doc.text('TECHNICAL NOTES', M, y); y += 5;
+  const notes = [
+    'Neutral current is calculated using phasor method: In = sqrt(Ia² + Ib² + Ic² - Ia·Ib - Ib·Ic - Ic·Ia)',
+    'Imbalance % = (Max deviation from avg / avg) × 100  |  Target: < 10%  |  Warning: 10–20%  |  Critical: > 20%',
+    'All current values assume unity power factor (resistive loads). For inductive loads, actual current may be higher.',
+    'High neutral current (>10A) may cause overheating of neutral conductor. Use dedicated neutral for sensitive loads.',
+    'Standard: IS 732, IE Rules 1956, NBC 2016. MCB sizing: 1.25× rated current of circuit.',
+  ];
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(80,80,80);
+  notes.forEach(n => {
+    if (y > 272) { doc.addPage(); y = 20; }
+    doc.text('• ' + n, M, y, { maxWidth: W - 2*M - 2 }); y += 5;
+  });
+
+  // ── Footer
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    doc.setFillColor(13,27,42); doc.rect(0, 285, W, 12, 'F');
+    doc.setFontSize(7); doc.setTextColor(100,120,140);
+    doc.text('Apna Electromechanic Service  |  3-Phase Load Distribution Tool  |  apnaelectromechanic.in', M, 291);
+    doc.text(`Page ${p} of ${pageCount}`, W - M, 291, { align: 'right' });
+  }
+
+  doc.save('3Phase_Load_Report_' + new Date().toISOString().slice(0,10) + '.pdf');
+}
+
+// ── ENTER KEY on room input ───────────────────────────────────────────────
+document.getElementById('new-room-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addRoom();
+});
+
+// Init
+renderRooms();
+recalculate();
+</script>
+</body>
+</html>
