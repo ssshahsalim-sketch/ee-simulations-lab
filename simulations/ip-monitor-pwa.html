@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#060F1E">
+<meta name="description" content="IP address change monitor — Apna Electromechanic Service">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IP Monitor">
+<title>IP Monitor · Apna Electromechanic</title>
+
+<!-- Inline PWA manifest (works in Chrome/Edge; for full offline support host on HTTPS) -->
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22IP%20Monitor%20%E2%80%94%20Apna%20Electromechanic%22%2C%22short_name%22%3A%22IP%20Monitor%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23060F1E%22%2C%22theme_color%22%3A%22%23060F1E%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Crect%20width%3D'100'%20height%3D'100'%20fill%3D'%23060F1E'%2F%3E%3Ctext%20y%3D'.9em'%20font-size%3D'80'%20x%3D'10'%3E%F0%9F%8C%90%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+
+<!-- Apple touch icon fallback -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23060F1E' rx='20'/><text y='.9em' font-size='75' x='12'>🌐</text></svg>">
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+:root{
+  --deep:#060F1E;--panel:#0C1C30;--panel-raised:#102540;
+  --border:rgba(79,195,247,0.18);--border-bright:rgba(79,195,247,0.38);
+  --cyan:#4FC3F7;--cyan-bright:#7DE8FF;
+  --ink:#DFF1FB;--ink-dim:#7FA4BC;--ink-faint:#3E6278;
+  --green:#3DEB8C;--red:#FF5F5F;--amber:#FFD166;--copper:#FF8C42;
+  --mono:'IBM Plex Mono',monospace;--sans:'Inter',sans-serif;--display:'Archivo',sans-serif;
+  --sb:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;min-height:100%;}
+body{
+  font-family:var(--sans);background:var(--deep);color:var(--ink);
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% -5%,rgba(79,195,247,0.08) 0%,transparent 70%),
+    linear-gradient(rgba(79,195,247,0.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(79,195,247,0.04) 1px,transparent 1px);
+  background-size:auto,24px 24px,24px 24px;
+  padding-bottom:calc(16px + var(--sb));
+}
+button:focus-visible{outline:2px solid var(--cyan-bright);outline-offset:2px;}
+
+/* ---- top bar ---- */
+.appbar{
+  position:sticky;top:0;z-index:20;
+  background:rgba(6,15,30,0.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--border);
+  padding:12px 16px 10px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.ab-left{display:flex;align-items:center;gap:10px;}
+.logo{width:32px;height:32px;border:1px solid var(--cyan);background:rgba(79,195,247,0.08);display:flex;align-items:center;justify-content:center;flex:none;}
+.logo svg{width:17px;height:17px;color:var(--cyan-bright);}
+.appname{font-family:var(--display);font-weight:700;font-size:14px;color:var(--ink);line-height:1.2;}
+.appname small{display:block;font-family:var(--mono);font-size:8.5px;color:var(--ink-faint);letter-spacing:.08em;font-weight:400;}
+.pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:.05em;border:1px solid currentColor;padding:5px 9px;transition:color .3s,border-color .3s;white-space:nowrap;}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none;}
+.idle{color:var(--ink-faint);}
+.watching{color:var(--cyan-bright);animation:pb 2.4s ease-in-out infinite;}
+.changed{color:var(--amber);}
+.pill.error{color:var(--red);}
+@keyframes pb{0%,100%{border-color:rgba(79,195,247,.35);}50%{border-color:var(--cyan-bright);}}
+
+/* ---- main ---- */
+.main{max-width:560px;margin:0 auto;padding:14px 13px;}
+
+/* ---- install banner ---- */
+.install-banner{
+  border:1px solid var(--copper);background:rgba(255,140,66,.08);
+  padding:13px 14px;margin-bottom:14px;
+  display:flex;flex-direction:column;gap:8px;
+}
+.install-banner.hidden{display:none;}
+.ib-head{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--copper);display:flex;align-items:center;gap:8px;}
+.ib-body{font-size:12.5px;color:var(--ink-dim);line-height:1.55;}
+.ib-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.ib-btn{appearance:none;background:var(--copper);color:var(--deep);border:none;font-family:var(--mono);font-size:11px;padding:8px 14px;cursor:pointer;letter-spacing:.03em;}
+.ib-close{appearance:none;background:transparent;border:1px solid var(--border);color:var(--ink-faint);font-family:var(--mono);font-size:11px;padding:8px 12px;cursor:pointer;}
+
+/* ---- bg warning ---- */
+.bg-warn{
+  border:1px solid var(--amber);background:rgba(255,209,102,.07);
+  padding:10px 13px;margin-bottom:12px;
+  font-family:var(--mono);font-size:11px;color:var(--amber);
+  display:flex;align-items:flex-start;gap:8px;
+  opacity:0;transition:opacity .4s;
+}
+.bg-warn.show{opacity:1;}
+.bg-warn svg{flex:none;margin-top:1px;}
+
+/* ---- IP row ---- */
+.iprow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.ipcard{border:1px solid var(--border);background:var(--panel);padding:13px 11px;position:relative;overflow:hidden;}
+.ipcard::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--cyan);transition:background .5s;}
+.ipcard.flash::after{background:var(--amber);}
+.iclabel{font-family:var(--mono);font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:7px;}
+.icval{font-family:var(--mono);font-size:clamp(12px,3.5vw,15.5px);font-weight:600;color:var(--cyan-bright);word-break:break-all;min-height:19px;line-height:1.3;}
+.icval.empty{color:var(--ink-faint);font-weight:400;}
+.icsub{font-family:var(--mono);font-size:8.5px;color:var(--ink-faint);margin-top:5px;line-height:1.4;}
+.ic-changed-bg{animation:cabg .9s ease-out;}
+@keyframes cabg{0%{background:rgba(255,209,102,.18);}100%{background:var(--panel);}}
+
+/* ---- ring ---- */
+.ring-wrap{display:flex;justify-content:center;margin-bottom:12px;}
+.ring-wrap.hidden{display:none;}
+.ring-outer{position:relative;width:88px;height:88px;}
+.rsv{position:absolute;top:0;left:0;transform:rotate(-90deg);}
+.rt{fill:none;stroke:var(--panel-raised);stroke-width:5;}
+.ra{fill:none;stroke:var(--cyan);stroke-width:5;stroke-linecap:round;stroke-dasharray:251.2;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear,stroke .3s;}
+.ring-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+.ring-n{font-family:var(--mono);font-weight:600;font-size:20px;color:var(--cyan-bright);line-height:1;}
+.ring-u{font-family:var(--mono);font-size:8.5px;color:var(--ink-faint);letter-spacing:.06em;margin-top:2px;}
+.ring-lbl{font-family:var(--mono);font-size:8.5px;color:var(--ink-faint);text-align:center;margin-top:5px;}
+
+/* ---- stats ---- */
+.statrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.stat{border:1px solid var(--border);background:var(--panel);padding:10px 8px;text-align:center;}
+.sv{font-family:var(--mono);font-size:clamp(15px,4vw,20px);font-weight:600;color:var(--ink);line-height:1;}
+.sv.green{color:var(--green);}.sv.amber{color:var(--amber);}.sv.red{color:var(--red);}
+.sl{font-family:var(--mono);font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);margin-top:4px;}
+
+/* ---- net info ---- */
+.netbox{border:1px solid var(--border);background:var(--panel);padding:11px 13px;margin-bottom:12px;}
+.nb-title{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:9px;}
+.nbgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;}
+.nbrow{display:flex;flex-direction:column;gap:2px;}
+.nbk{font-family:var(--mono);font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);}
+.nbv{font-family:var(--mono);font-size:11.5px;color:var(--ink);}
+
+/* ---- controls ---- */
+.ctrlbox{border:1px solid var(--border);background:var(--panel);padding:13px;margin-bottom:12px;}
+.ctrow{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.ctrow:last-child{margin-bottom:0;}
+.ctlabel{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--ink-faint);flex:0 0 84px;}
+select.isel{
+  flex:1;appearance:none;background:var(--panel-raised);border:1px solid var(--border);
+  color:var(--ink);font-family:var(--mono);font-size:12px;padding:9px 10px;cursor:pointer;
+}
+.btn-big{
+  flex:1;appearance:none;border:none;font-family:var(--mono);font-size:12px;letter-spacing:.04em;
+  padding:12px 10px;cursor:pointer;transition:background .15s,color .15s;display:flex;align-items:center;justify-content:center;gap:7px;
+}
+.btn-big svg{width:13px;height:13px;flex:none;}
+.btn-go{background:var(--cyan);color:var(--deep);}
+.btn-go:hover{background:var(--cyan-bright);}
+.btn-stop{background:rgba(255,95,95,.12);border:1px solid var(--red);color:var(--red);}
+.btn-stop:hover{background:rgba(255,95,95,.22);}
+.btn-sm{appearance:none;border:1px solid var(--border);background:transparent;color:var(--ink-dim);font-family:var(--mono);font-size:10.5px;padding:8px 11px;cursor:pointer;transition:background .15s;}
+.btn-sm:hover{background:rgba(79,195,247,.06);color:var(--ink);}
+
+/* ---- notif toggle ---- */
+.nrow{display:flex;align-items:center;gap:10px;}
+.ntog{position:relative;width:48px;height:26px;border:1px solid var(--border);background:rgba(0,0,0,.2);cursor:pointer;flex:none;}
+.ntog .nk{position:absolute;top:2px;left:2px;width:20px;height:20px;background:var(--ink-faint);transition:left .2s,background .2s;}
+.ntog.on{border-color:var(--cyan);}
+.ntog.on .nk{left:26px;background:var(--cyan-bright);}
+.ntog-lbl{font-family:var(--mono);font-size:11px;color:var(--ink-dim);}
+.ntog-lbl b{color:var(--ink);}
+.notif-state{font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);margin-top:5px;}
+
+/* ---- wake lock row ---- */
+.wlrow{display:flex;align-items:center;gap:8px;}
+.wl-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);flex:none;}
+.wl-dot.on{background:var(--green);}
+.wl-txt{font-family:var(--mono);font-size:10px;color:var(--ink-faint);}
+
+/* ---- persistence note ---- */
+.persist-note{
+  border:1px solid var(--green);background:rgba(61,235,140,.06);
+  padding:10px 13px;margin-bottom:12px;
+  font-family:var(--mono);font-size:11px;color:var(--green);line-height:1.55;
+}
+.persist-note .ptag{font-size:9px;letter-spacing:.12em;text-transform:uppercase;opacity:.7;margin-bottom:4px;display:block;}
+
+/* ---- log ---- */
+.logcard{border:1px solid var(--border);background:var(--panel);overflow:hidden;}
+.lch{padding:10px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.lch span{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan-bright);}
+.log-empty{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);padding:22px 14px;text-align:center;}
+.ll{max-height:380px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.ll::-webkit-scrollbar{width:3px;}.ll::-webkit-scrollbar-track{background:var(--panel);}.ll::-webkit-scrollbar-thumb{background:var(--border-bright);}
+.le{padding:11px 13px;border-bottom:1px solid rgba(79,195,247,.07);animation:si .3s ease;}
+.le:last-child{border-bottom:none;}
+@keyframes si{from{opacity:0;transform:translateY(-5px);}to{opacity:1;transform:none;}}
+.le-time{font-family:var(--mono);font-size:9px;color:var(--ink-faint);display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.le-icon{width:12px;height:12px;flex:none;}
+.le.ev-start .le-icon{color:var(--cyan);}
+.le.ev-change .le-icon{color:var(--amber);}
+.le.ev-check .le-icon{color:var(--ink-faint);}
+.le.ev-stop .le-icon{color:var(--red);}
+.le.ev-resume .le-icon{color:var(--green);}
+.le-msg{font-family:var(--mono);font-size:11px;color:var(--ink-dim);line-height:1.5;}
+.le-diff{font-size:10px;margin-top:3px;line-height:1.5;}
+.old{color:var(--red);}.nw{color:var(--green);}
+
+/* ---- hosting guide ---- */
+.guide{border:1px solid var(--border);background:var(--panel);padding:14px;margin-top:14px;}
+.guide h3{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan-bright);margin:0 0 12px;}
+.gstep{display:flex;gap:10px;margin-bottom:10px;align-items:flex-start;}
+.gnum{width:22px;height:22px;flex:none;border:1px solid var(--cyan);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--cyan-bright);}
+.gtxt{font-size:12px;color:var(--ink-dim);line-height:1.5;}
+.gtxt code{font-family:var(--mono);font-size:11px;color:var(--cyan-bright);background:rgba(79,195,247,.08);padding:1px 5px;}
+.gtxt b{color:var(--ink);}
+
+footer{text-align:center;font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);padding:16px;border-top:1px solid var(--border);margin-top:16px;}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01ms!important;}}
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div class="ab-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 0v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9 4.9 19.1"/>
+      </svg>
+    </div>
+    <div class="appname">IP Monitor<small>APNA ELECTROMECHANIC SERVICE</small></div>
+  </div>
+  <div class="pill idle" id="pill"><span class="dot"></span><span id="ptxt">IDLE</span></div>
+</div>
+
+<div class="main">
+
+  <!-- Install banner -->
+  <div class="install-banner" id="install-banner">
+    <div class="ib-head">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      INSTALL AS AN APP ON YOUR PHONE
+    </div>
+    <div class="ib-body">
+      For the best experience: tap <b>"Add to Home Screen"</b> from your browser menu — it installs like a real app with its own icon. On Android Chrome: tap ⋮ menu → <b>Add to Home screen</b>. On iOS Safari: tap the Share button → <b>Add to Home Screen</b>.
+    </div>
+    <div class="ib-row">
+      <button class="ib-btn" id="install-btn" style="display:none;">Install App</button>
+      <button class="ib-close" id="dismiss-banner">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- Background warning -->
+  <div class="bg-warn" id="bg-warn">
+    <svg class="le-icon" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2L2 20h20L12 2zm0 14a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-7h1v5h-2V9h1z"/></svg>
+    App moved to background — monitoring is paused. Return here to resume.
+  </div>
+
+  <!-- Persist note -->
+  <div class="persist-note" id="persist-note" style="display:none;">
+    <span class="ptag">✓ SESSION RESUMED</span>
+    Monitoring resumed from last session. All previous log entries and IP history restored from device storage.
+  </div>
+
+  <!-- IP cards -->
+  <div class="iprow">
+    <div class="ipcard" id="card-local">
+      <div class="iclabel">LOCAL / DHCP</div>
+      <div class="icval empty" id="local-ip">—</div>
+      <div class="icsub" id="local-sub">Private IP from router</div>
+    </div>
+    <div class="ipcard" id="card-public">
+      <div class="iclabel">PUBLIC / ISP</div>
+      <div class="icval empty" id="public-ip">—</div>
+      <div class="icsub" id="public-sub">IP as seen by internet</div>
+    </div>
+  </div>
+
+  <!-- Countdown ring -->
+  <div class="ring-wrap hidden" id="ring-wrap">
+    <div>
+      <div class="ring-outer">
+        <svg class="rsv" viewBox="0 0 80 80" width="88" height="88">
+          <circle class="rt" cx="40" cy="40" r="32"/>
+          <circle class="ra" id="ra" cx="40" cy="40" r="32"/>
+        </svg>
+        <div class="ring-in">
+          <div class="ring-n" id="rnum">—</div>
+          <div class="ring-u">sec</div>
+        </div>
+      </div>
+      <div class="ring-lbl">next check</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="statrow">
+    <div class="stat"><div class="sv" id="st-checks">0</div><div class="sl">Checks</div></div>
+    <div class="stat"><div class="sv amber" id="st-changes">0</div><div class="sl">Changes</div></div>
+    <div class="stat"><div class="sv green" id="st-sessions">0</div><div class="sl">Sessions</div></div>
+    <div class="stat"><div class="sv" id="st-uptime">—</div><div class="sl">Uptime</div></div>
+  </div>
+
+  <!-- Network info -->
+  <div class="netbox">
+    <div class="nb-title">Device network info</div>
+    <div class="nbgrid">
+      <div class="nbrow"><div class="nbk">Connection</div><div class="nbv" id="ni-type">—</div></div>
+      <div class="nbrow"><div class="nbk">Speed class</div><div class="nbv" id="ni-speed">—</div></div>
+      <div class="nbrow"><div class="nbk">RTT estimate</div><div class="nbv" id="ni-rtt">—</div></div>
+      <div class="nbrow"><div class="nbk">Online status</div><div class="nbv" id="ni-online">—</div></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="ctrlbox">
+    <div class="ctrow">
+      <div class="ctlabel">INTERVAL</div>
+      <select class="isel" id="isel">
+        <option value="10">Every 10 seconds</option>
+        <option value="30" selected>Every 30 seconds</option>
+        <option value="60">Every 1 minute</option>
+        <option value="120">Every 2 minutes</option>
+        <option value="300">Every 5 minutes</option>
+        <option value="600">Every 10 minutes</option>
+      </select>
+    </div>
+    <div class="ctrow">
+      <button class="btn-big btn-go" id="btn-start">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Start Monitoring
+      </button>
+      <button class="btn-big btn-stop" id="btn-stop" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg> Stop
+      </button>
+      <button class="btn-sm" id="btn-now" title="Check now">⟳ Now</button>
+    </div>
+    <!-- Notifications -->
+    <div class="ctrow" style="flex-direction:column;align-items:flex-start;gap:6px;">
+      <div class="nrow">
+        <div class="ntog" id="ntog"><div class="nk"></div></div>
+        <div class="ntog-lbl">Notify me when IP changes</div>
+      </div>
+      <div class="notif-state" id="notif-state">Click the toggle to enable notifications</div>
+    </div>
+    <!-- Wake lock -->
+    <div class="ctrow">
+      <div class="ctlabel">SCREEN</div>
+      <div class="wlrow">
+        <div class="wl-dot" id="wl-dot"></div>
+        <div class="wl-txt" id="wl-txt">Screen lock: not held</div>
+        <button class="btn-sm" id="btn-wakelock" style="margin-left:auto;">Hold</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="logcard">
+    <div class="lch">
+      <span>Change Log <span id="log-count" style="color:var(--ink-faint);">(0)</span></span>
+      <button class="btn-sm" id="btn-clear" style="padding:4px 9px;font-size:9.5px;">CLEAR</button>
+    </div>
+    <div class="log-empty" id="log-empty">No events yet — press Start to begin monitoring.</div>
+    <div class="ll" id="ll" style="display:none;"></div>
+  </div>
+
+  <!-- Hosting guide -->
+  <div class="guide">
+    <h3>🚀 How to get TRUE background monitoring</h3>
+    <div class="gstep">
+      <div class="gnum">A</div>
+      <div class="gtxt"><b>Quick (5 min) — host free on GitHub Pages:</b> Create a free GitHub account → New repository → Upload this HTML as <code>index.html</code> → Settings → Pages → Enable. You get a free HTTPS URL like <code>yourname.github.io/ip-monitor</code>. Open that URL on your phone in Chrome, tap <b>Add to Home Screen</b>. The installed PWA then supports background periodic checks on Android Chrome.</div>
+    </div>
+    <div class="gstep">
+      <div class="gnum">B</div>
+      <div class="gtxt"><b>Best (Android) — Termux background script:</b> Install Termux from F-Droid → run <code>pkg install python termux-api</code> → run the Python script below. It checks your IP every 5 minutes and sends a real Android notification even with the screen off, forever.</div>
+    </div>
+    <pre style="background:var(--panel-raised);border:1px solid var(--border);padding:12px;font-family:var(--mono);font-size:10.5px;color:var(--cyan-bright);overflow-x:auto;margin:0 0 14px;line-height:1.6;">
+<span style="color:var(--ink-faint);"># Save as ip_monitor.py in Termux, then run:</span>
+<span style="color:var(--ink-faint);"># python ip_monitor.py &amp;</span>
+<span style="color:var(--ink-faint);"># (the &amp; runs it in background)</span>
+
+import subprocess, time, json, urllib.request
+
+INTERVAL = 300  <span style="color:var(--ink-faint);"># seconds between checks</span>
+last_public = None
+
+def get_public_ip():
+    try:
+        with urllib.request.urlopen(
+            'https://api.ipify.org?format=json', timeout=8) as r:
+            return json.load(r)['ip']
+    except:
+        return None
+
+def notify(title, msg):
+    subprocess.run(['termux-notification',
+        '--title', title, '--content', msg,
+        '--priority', 'high'])
+
+print('IP Monitor started.')
+while True:
+    ip = get_public_ip()
+    if ip and ip != last_public:
+        if last_public:
+            notify('IP Changed!',
+                f'Was: {last_public}\nNow: {ip}')
+        last_public = ip
+        print(f'IP: {ip}')
+    time.sleep(INTERVAL)
+    </pre>
+    <div class="gstep">
+      <div class="gnum">C</div>
+      <div class="gtxt"><b>iOS — closest option:</b> Apple's Shortcuts app with an Automation set to run on WiFi network change → run a Get URL action to ipify.org → compare → notify. Not as reliable but no extra apps needed.</div>
+    </div>
+  </div>
+</div>
+
+<footer>IP Monitor v2.0 — PWA · Apna Electromechanic Service · all data stays on your device</footer>
+
+<script>
+/* =========================================================
+   CONSTANTS & STORAGE KEY
+   ========================================================= */
+const CIRC = 2 * Math.PI * 32; // r=32 → ≈ 201
+const STORE_KEY = 'ams_ip_monitor_v2';
+
+/* =========================================================
+   STATE  (restored from localStorage on load)
+   ========================================================= */
+let state = {
+  monitoring: false,
+  pollSec: 30,
+  checkCount: 0,
+  changeCount: 0,
+  sessionCount: 0,
+  lastLocalIP: null,
+  lastPublicIP: null,
+  startTime: null,
+  log: []   // newest first
+};
+let timerId = null;
+let cdTimer = null;
+let cdVal = 0;
+let wakeLock = null;
+let notifEnabled = false;
+let deferredInstall = null;
+
+/* =========================================================
+   PERSIST
+   ========================================================= */
+function saveState(){
+  try{
+    const save = {...state, log: state.log.slice(0,200)};
+    localStorage.setItem(STORE_KEY, JSON.stringify(save));
+  }catch(e){}
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return false;
+    const s = JSON.parse(raw);
+    state.checkCount = s.checkCount||0;
+    state.changeCount = s.changeCount||0;
+    state.sessionCount = s.sessionCount||0;
+    state.lastLocalIP = s.lastLocalIP||null;
+    state.lastPublicIP = s.lastPublicIP||null;
+    state.pollSec = s.pollSec||30;
+    state.log = Array.isArray(s.log)?s.log:[];
+    return true;
+  }catch(e){ return false; }
+}
+
+/* =========================================================
+   UTILS
+   ========================================================= */
+const $ = id => document.getElementById(id);
+function fmtTime(ts){
+  return new Date(ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+function fmtDate(ts){
+  return new Date(ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+}
+function uptimeStr(){
+  if(!state.startTime) return '—';
+  const s=Math.floor((Date.now()-state.startTime)/1000);
+  const m=Math.floor(s/60),h=Math.floor(m/60);
+  if(h>0) return h+'h '+(m%60)+'m';
+  if(m>0) return m+'m '+(s%60)+'s';
+  return s+'s';
+}
+function pill(cls,txt){
+  const p=$('pill');p.className='pill '+cls;$('ptxt').textContent=txt;
+}
+
+/* =========================================================
+   NETWORK INFO
+   ========================================================= */
+function refreshNet(){
+  const conn=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+  const on=navigator.onLine;
+  $('ni-online').textContent=on?'✓ Online':'✗ Offline';
+  $('ni-online').style.color=on?'var(--green)':'var(--red)';
+  if(conn){
+    $('ni-type').textContent=conn.type||conn.effectiveType||'—';
+    $('ni-speed').textContent=conn.effectiveType?conn.effectiveType.toUpperCase():'—';
+    $('ni-rtt').textContent=conn.rtt?conn.rtt+'ms':'—';
+  } else {
+    $('ni-type').textContent='WiFi/Cellular';
+    $('ni-speed').textContent='—';$('ni-rtt').textContent='—';
+  }
+}
+window.addEventListener('online',refreshNet);
+window.addEventListener('offline',refreshNet);
+if(navigator.connection) navigator.connection.addEventListener('change',refreshNet);
+
+/* =========================================================
+   LOCAL IP via WebRTC
+   ========================================================= */
+function getLocalIP(){
+  return new Promise(resolve=>{
+    let found=false;
+    try{
+      const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+      pc.createDataChannel('');
+      pc.createOffer().then(o=>pc.setLocalDescription(o)).catch(()=>resolve(null));
+      const t=setTimeout(()=>{pc.close();if(!found)resolve(null);},4000);
+      pc.onicecandidate=e=>{
+        if(!e||!e.candidate){pc.close();clearTimeout(t);if(!found){found=true;resolve(null);}return;}
+        const re=/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/g;
+        let m;
+        while((m=re.exec(e.candidate.candidate))!==null){
+          const ip=m[1];
+          if(!ip.startsWith('127.')&&!ip.startsWith('169.254.')){
+            pc.close();clearTimeout(t);if(!found){found=true;resolve(ip);}return;
+          }
+        }
+      };
+    }catch(e){resolve(null);}
+  });
+}
+
+/* =========================================================
+   PUBLIC IP via ipify
+   ========================================================= */
+function getPublicIP(){
+  return fetch('https://api.ipify.org?format=json',{cache:'no-store',signal:AbortSignal.timeout(7000)})
+    .then(r=>r.json()).then(d=>d.ip).catch(()=>null);
+}
+
+/* =========================================================
+   IP CARD
+   ========================================================= */
+function setCard(cardId,valId,subId,ip,changed,subText){
+  const card=$(cardId),valEl=$(valId);
+  if(ip){valEl.textContent=ip;valEl.className='icval';}
+  else{valEl.textContent='Unavailable';valEl.className='icval empty';}
+  $(subId).textContent=subText||'';
+  if(changed&&ip){
+    card.classList.add('flash');
+    valEl.classList.add('ic-changed-bg');
+    setTimeout(()=>{card.classList.remove('flash');valEl.classList.remove('ic-changed-bg');},1400);
+  }
+}
+
+/* =========================================================
+   COUNTDOWN RING
+   ========================================================= */
+function ringTick(rem,total){
+  const arc=$(document.getElementById('ra'));
+  const offset=CIRC*(1-rem/total);
+  const raEl=$('ra');
+  raEl.style.strokeDashoffset=offset;
+  raEl.style.stroke=rem/total<0.25?'var(--amber)':'var(--cyan)';
+  $('rnum').textContent=rem;
+}
+function startCountdown(sec){
+  cdVal=sec;ringTick(cdVal,sec);
+  clearInterval(cdTimer);
+  cdTimer=setInterval(()=>{cdVal--;if(cdVal<=0){clearInterval(cdTimer);cdVal=0;}ringTick(cdVal,sec);},1000);
+}
+
+/* =========================================================
+   STATS DISPLAY
+   ========================================================= */
+function refreshStats(){
+  $('st-checks').textContent=state.checkCount;
+  $('st-changes').textContent=state.changeCount;
+  $('st-changes').className='sv'+(state.changeCount>0?' amber':'');
+  $('st-sessions').textContent=state.sessionCount;
+  $('st-uptime').textContent=uptimeStr();
+}
+setInterval(()=>{if(state.monitoring)$('st-uptime').textContent=uptimeStr();},1000);
+
+/* =========================================================
+   LOG
+   ========================================================= */
+const EV_ICON={
+  start:'<svg class="le-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm4 10-6 4V8l6 4z"/></svg>',
+  change:'<svg class="le-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4-4 4M7 21l-4-4 4-4M21 7H3M3 17h18"/></svg>',
+  check:'<svg class="le-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>',
+  stop:'<svg class="le-icon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>',
+  resume:'<svg class="le-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v16M8 12l8-6v12l-8-6z"/></svg>'
+};
+function addLog(type,msg,oldL,oldP,newL,newP){
+  const ts=Date.now();
+  const entry={type,msg,ts,oldL,oldP,newL,newP};
+  state.log.unshift(entry);
+  renderLogEntry(entry,true);
+  $('log-count').textContent='('+state.log.length+')';
+  $('log-empty').style.display='none';
+  $('ll').style.display='block';
+  saveState();
+}
+function renderLogEntry(e,prepend){
+  const div=document.createElement('div');
+  div.className='le ev-'+e.type;
+  let diff='';
+  if(e.newL&&e.oldL&&e.oldL!==e.newL) diff+='<div class="le-diff">Local  <span class="old">'+e.oldL+'</span> → <span class="nw">'+e.newL+'</span></div>';
+  if(e.newP&&e.oldP&&e.oldP!==e.newP) diff+='<div class="le-diff">Public <span class="old">'+e.oldP+'</span> → <span class="nw">'+e.newP+'</span></div>';
+  div.innerHTML='<div class="le-time">'+(EV_ICON[e.type]||'')+
+    '<span>'+fmtTime(e.ts)+'</span><span style="color:var(--ink-faint);">'+fmtDate(e.ts)+'</span></div>'+
+    '<div class="le-msg">'+e.msg+'</div>'+diff;
+  const ll=$('ll');
+  if(prepend) ll.insertBefore(div,ll.firstChild);
+  else ll.appendChild(div);
+}
+function rebuildLog(){
+  const ll=$('ll');ll.innerHTML='';
+  if(state.log.length===0){$('log-empty').style.display='block';ll.style.display='none';return;}
+  $('log-empty').style.display='none';ll.style.display='block';
+  state.log.forEach(e=>renderLogEntry(e,false));
+  $('log-count').textContent='('+state.log.length+')';
+}
+
+/* =========================================================
+   NOTIFICATIONS
+   ========================================================= */
+function updateNotifUI(){
+  const tog=$('ntog');
+  tog.classList.toggle('on',notifEnabled);
+  const perm=Notification.permission;
+  $('notif-state').textContent=
+    !('Notification' in window) ? 'Notifications not supported in this browser' :
+    perm==='denied' ? 'Blocked by browser — allow in site settings' :
+    perm==='granted'&&notifEnabled ? '✓ Notifications are ON — you will be alerted on IP change' :
+    perm==='granted'&&!notifEnabled ? 'Permission granted but toggle is off' :
+    'Click to request permission';
+}
+async function toggleNotif(){
+  if(!('Notification' in window)){$('notif-state').textContent='Not supported';return;}
+  if(notifEnabled){notifEnabled=false;updateNotifUI();return;}
+  if(Notification.permission==='granted'){ notifEnabled=true;updateNotifUI();return;}
+  if(Notification.permission==='denied'){$('notif-state').textContent='Blocked — allow in browser site settings';return;}
+  const p=await Notification.requestPermission();
+  notifEnabled=(p==='granted');
+  updateNotifUI();
+}
+function sendNotif(title,body){
+  if(!notifEnabled||Notification.permission!=='granted') return;
+  try{new Notification(title,{body,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="80">🌐</text></svg>'});}catch(e){}
+}
+
+/* =========================================================
+   WAKE LOCK
+   ========================================================= */
+async function requestWakeLock(){
+  if(!('wakeLock' in navigator)){$('wl-txt').textContent='Wake lock not supported in this browser';return;}
+  try{
+    wakeLock=await navigator.wakeLock.request('screen');
+    $('wl-dot').classList.add('on');
+    $('wl-txt').textContent='Screen lock held — phone stays awake while monitoring';
+    $('btn-wakelock').textContent='Release';
+    wakeLock.addEventListener('release',()=>{
+      wakeLock=null;
+      $('wl-dot').classList.remove('on');
+      $('wl-txt').textContent='Screen lock released';
+      $('btn-wakelock').textContent='Hold';
+    });
+  }catch(e){$('wl-txt').textContent='Could not hold wake lock: '+e.message;}
+}
+async function releaseWakeLock(){
+  if(wakeLock){await wakeLock.release();wakeLock=null;}
+}
+
+/* =========================================================
+   CORE CHECK
+   ========================================================= */
+async function doCheck(isFirst,isResume){
+  if(!isFirst&&!isResume) pill('watching','CHECKING…');
+  refreshNet();
+  const [localIP,publicIP]=await Promise.all([getLocalIP(),getPublicIP()]);
+  state.checkCount++;
+  const ol=state.lastLocalIP, op=state.lastPublicIP;
+  const lc=ol!==null&&localIP!==null&&localIP!==ol;
+  const pc=op!==null&&publicIP!==null&&publicIP!==op;
+  const changed=lc||pc;
+
+  setCard('card-local','local-ip','local-sub',localIP,lc,
+    localIP?'Private IP · DHCP lease from router':'WebRTC blocked by browser (try Chrome/Android)');
+  setCard('card-public','public-ip','public-sub',publicIP,pc,
+    publicIP?'As seen by internet / via ISP':'Could not reach ipify.org');
+
+  if(changed){ state.changeCount++; }
+  state.lastLocalIP=localIP;
+  state.lastPublicIP=publicIP;
+
+  if(isFirst){
+    addLog('start','Monitoring started. Initial IPs captured.',null,null,localIP,publicIP);
+  } else if(isResume){
+    addLog('resume','Session resumed. Current IPs read.',null,null,localIP,publicIP);
+  } else if(changed){
+    pill('changed','CHANGED!');
+    addLog('change','IP address changed!',ol,op,localIP,publicIP);
+    sendNotif('IP Address Changed',
+      (lc?'Local: '+ol+' → '+localIP+'\n':'')+
+      (pc?'Public: '+op+' → '+publicIP:''));
+    setTimeout(()=>{if(state.monitoring)pill('watching','WATCHING');},3000);
+  } else {
+    pill('watching','WATCHING');
+  }
+
+  refreshStats();
+  saveState();
+  if(state.monitoring) startCountdown(state.pollSec);
+}
+
+/* =========================================================
+   START / STOP
+   ========================================================= */
+function startMonitoring(isResume){
+  state.monitoring=true;
+  state.pollSec=parseInt($('isel').value);
+  if(!isResume){ state.startTime=Date.now(); state.sessionCount++; }
+  $('btn-start').style.display='none';
+  $('btn-stop').style.display='';
+  $('isel').disabled=true;
+  $('ring-wrap').classList.remove('hidden');
+  pill('watching','WATCHING');
+  doCheck(!isResume,isResume);
+  timerId=setInterval(()=>doCheck(false,false),state.pollSec*1000);
+  requestWakeLock();
+  saveState();
+}
+function stopMonitoring(){
+  state.monitoring=false;
+  clearInterval(timerId);clearInterval(cdTimer);
+  timerId=null;
+  releaseWakeLock();
+  $('btn-start').style.display='';
+  $('btn-stop').style.display='none';
+  $('isel').disabled=false;
+  $('ring-wrap').classList.add('hidden');
+  pill('idle','IDLE');
+  addLog('stop','Monitoring stopped. Uptime: '+uptimeStr()+'.');
+  state.startTime=null;
+  saveState();
+}
+
+/* =========================================================
+   PAGE VISIBILITY (background detection)
+   ========================================================= */
+document.addEventListener('visibilitychange',()=>{
+  const bg=$('bg-warn');
+  if(document.hidden){
+    bg.classList.add('show');
+    // Re-request wake lock when returning if it was released by OS
+  } else {
+    bg.classList.remove('show');
+    if(state.monitoring&&!wakeLock){ requestWakeLock(); }
+  }
+});
+
+/* =========================================================
+   INSTALL PROMPT (Android Chrome)
+   ========================================================= */
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredInstall=e;
+  $('install-btn').style.display='';
+  $('install-btn').addEventListener('click',async()=>{
+    deferredInstall.prompt();
+    const {outcome}=await deferredInstall.userChoice;
+    if(outcome==='accepted') $('install-banner').classList.add('hidden');
+    deferredInstall=null;
+  });
+});
+window.addEventListener('appinstalled',()=>{$('install-banner').classList.add('hidden');});
+$('dismiss-banner').addEventListener('click',()=>$('install-banner').classList.add('hidden'));
+
+/* =========================================================
+   BIND CONTROLS
+   ========================================================= */
+$('btn-start').addEventListener('click',()=>startMonitoring(false));
+$('btn-stop').addEventListener('click',stopMonitoring);
+$('btn-now').addEventListener('click',()=>{
+  clearInterval(timerId);clearInterval(cdTimer);
+  doCheck(false,false);
+  if(state.monitoring) timerId=setInterval(()=>doCheck(false,false),state.pollSec*1000);
+});
+$('ntog').addEventListener('click',toggleNotif);
+$('btn-wakelock').addEventListener('click',()=>{
+  if(wakeLock) releaseWakeLock();
+  else requestWakeLock();
+});
+$('btn-clear').addEventListener('click',()=>{
+  state.log=[];
+  $('ll').innerHTML='';$('ll').style.display='none';
+  $('log-empty').style.display='block';$('log-empty').textContent='Log cleared.';
+  $('log-count').textContent='(0)';
+  saveState();
+});
+$('isel').addEventListener('change',()=>{state.pollSec=parseInt($('isel').value);saveState();});
+
+/* =========================================================
+   INIT — restore state + auto-passive read
+   ========================================================= */
+window.addEventListener('load',()=>{
+  const resumed=loadState();
+
+  // Restore interval selector
+  $('isel').value=state.pollSec;
+
+  // Show notification UI
+  updateNotifUI();
+  refreshNet();
+
+  if(resumed){
+    rebuildLog();
+    refreshStats();
+    // Show last known IPs immediately
+    if(state.lastLocalIP) setCard('card-local','local-ip','local-sub',state.lastLocalIP,false,'Last known — from previous session');
+    if(state.lastPublicIP) setCard('card-public','public-ip','public-sub',state.lastPublicIP,false,'Last known — from previous session');
+
+    // If was monitoring before, auto-resume and show banner
+    if(state.log.length>0){
+      $('persist-note').style.display='block';
+      setTimeout(()=>$('persist-note').style.display='none',6000);
+      // Auto-start to refresh IPs
+      startMonitoring(true);
+    }
+  } else {
+    // First-ever open: silent passive read
+    setTimeout(async()=>{
+      const [l,p]=await Promise.all([getLocalIP(),getPublicIP()]);
+      state.lastLocalIP=l;state.lastPublicIP=p;
+      setCard('card-local','local-ip','local-sub',l,false,l?'Press Start to monitor':'WebRTC unavailable');
+      setCard('card-public','public-ip','public-sub',p,false,p?'Press Start to monitor':'Could not reach ipify.org');
+    },800);
+  }
+});
+</script>
+</body>
+</html>
