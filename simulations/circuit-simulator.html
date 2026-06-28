@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Electrical Circuit Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#06090F;--surf:#0C1018;--panel:#101520;--border:#1A2535;--b2:#243045;
+  --accent:#00CFFF;--gold:#F5A623;--green:#00E676;--red:#FF3D3D;--purple:#B388FF;
+  --amber:#FFB300;--blue:#448AFF;--text:#DDE6F0;--muted:#3D5068;
+  --mono:"Share Tech Mono",monospace;--sans:"Inter",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none;}
+.topbar{background:var(--surf);border-bottom:1px solid var(--border);padding:0 10px;height:46px;display:flex;align-items:center;gap:5px;flex-shrink:0;overflow-x:auto;}
+.topbar::-webkit-scrollbar{height:0;}
+.brand{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.brand-icon{width:26px;height:26px;background:linear-gradient(135deg,#003060,var(--accent));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;}
+.brand-nm{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:2px;}
+.sp{width:1px;height:22px;background:var(--border);margin:0 2px;flex-shrink:0;}
+.tb{display:flex;align-items:center;gap:4px;background:transparent;border:1px solid var(--b2);color:var(--muted);border-radius:5px;padding:4px 8px;font-size:9px;cursor:pointer;font-family:var(--mono);letter-spacing:.4px;transition:all .18s;white-space:nowrap;flex-shrink:0;}
+.tb:hover{border-color:var(--accent);color:var(--accent);}
+.tb.act{background:rgba(0,207,255,.1);border-color:var(--accent);color:var(--accent);}
+.tb.grn{border-color:var(--green);color:var(--green);}
+.tb.red{border-color:var(--red);color:var(--red);}
+.tb.gold{border-color:var(--gold);color:var(--gold);}
+.tb.prim{background:linear-gradient(135deg,#004070,var(--accent));color:#000;border:none;font-weight:700;}
+.pnm{background:transparent;border:1px solid var(--b2);border-radius:5px;padding:3px 7px;color:var(--text);font-size:10px;font-family:var(--mono);outline:none;width:140px;}
+.pnm:focus{border-color:var(--accent);}
+.workspace{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:185px;background:var(--surf);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--b2);}
+.ss{padding:7px 8px;}
+.stitle{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid var(--border);}
+.ci{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:5px 7px;margin-bottom:4px;cursor:grab;display:flex;align-items:center;gap:7px;transition:all .18s;}
+.ci:hover{border-color:var(--gold);transform:translateX(2px);}
+.ci-prev{width:38px;height:26px;flex-shrink:0;}
+.ci-name{font-size:9px;font-weight:600;color:var(--text);}
+.ci-sub{font-size:7px;color:var(--muted);font-family:var(--mono);}
+.toolbtn{display:flex;align-items:center;gap:5px;width:100%;background:transparent;border:1px solid var(--border);border-radius:5px;padding:5px 7px;color:var(--muted);font-size:9px;cursor:pointer;transition:all .18s;margin-bottom:3px;}
+.toolbtn:hover{border-color:var(--accent);color:var(--text);}
+.cwrap{flex:1;position:relative;overflow:hidden;background:var(--bg);background-image:radial-gradient(rgba(0,207,255,.04) 1px,transparent 1px);background-size:20px 20px;}
+#mainCV{display:block;cursor:default;}
+.rp{width:215px;background:var(--surf);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.rp::-webkit-scrollbar{width:3px;}
+.rp::-webkit-scrollbar-thumb{background:var(--b2);}
+.rphdr{background:var(--panel);border-bottom:1px solid var(--border);padding:7px 10px;font-family:var(--mono);font-size:8px;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:5px;}
+.rpdot{width:5px;height:5px;border-radius:50%;background:var(--accent);box-shadow:0 0 4px var(--accent);}
+.rpbody{padding:8px;flex:1;}
+.rpempty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:130px;color:var(--muted);font-family:var(--mono);font-size:8px;text-align:center;gap:5px;}
+.field{margin-bottom:7px;}
+.field label{display:block;font-size:7px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;font-family:var(--mono);}
+.field input,.field select{width:100%;background:rgba(0,0,0,.4);border:1px solid var(--b2);border-radius:5px;padding:5px 7px;color:var(--text);font-size:10px;outline:none;transition:border .18s;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.prop-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;font-size:10px;}
+.prop-label{color:var(--muted);font-family:var(--mono);font-size:8px;}
+.color-picker{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;}
+.cdot{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .18s;flex-shrink:0;}
+.cdot:hover,.cdot.sel{border-color:#fff;transform:scale(1.15);}
+.status{background:var(--surf);border-top:1px solid var(--border);padding:3px 10px;font-family:var(--mono);font-size:8px;color:var(--muted);display:flex;gap:10px;align-items:center;flex-shrink:0;}
+.sim-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:3px;}
+.sim-dot.on{background:var(--green);box-shadow:0 0 6px var(--green);}
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(3px);}
+.mbg.show{display:flex;}
+.modal{background:var(--surf);border:1px solid var(--b2);border-radius:10px;padding:18px;width:330px;max-width:95vw;}
+.mtitle{font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:12px;letter-spacing:1px;}
+.mbtns{display:flex;gap:6px;margin-top:12px;}
+.mbtn{flex:1;padding:7px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--mono);border:none;}
+.mbtn.ok{background:var(--accent);color:#000;}
+.mbtn.cancel{background:var(--panel);color:var(--muted);border:1px solid var(--b2);}
+.ctxmenu{position:fixed;background:var(--surf);border:1px solid var(--b2);border-radius:7px;padding:4px 0;z-index:150;min-width:145px;display:none;}
+.ctxmenu.show{display:block;}
+.ctx-item{padding:6px 13px;font-size:10px;cursor:pointer;color:var(--text);transition:background .12s;}
+.ctx-item:hover{background:var(--panel);}
+.ctx-item.danger{color:var(--red);}
+.ctx-sep{border-top:1px solid var(--border);margin:3px 0;}
+.relay-row{display:flex;align-items:center;gap:5px;font-size:9px;font-family:var(--mono);margin-bottom:4px;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="brand-icon">⚡</div><div class="brand-nm">CIRCUIT SIM</div></div>
+  <div class="sp"></div>
+  <button class="tb act" id="btnSel" onclick="setTool('select')" title="Select &amp; Move (S)">🖱 SELECT</button>
+  <button class="tb" id="btnWire" onclick="setTool('wire')" title="Draw Wire (W)">〰 WIRE</button>
+  <button class="tb red" onclick="deleteSelected()" title="Delete (Del)">🗑 DELETE</button>
+  <div class="sp"></div>
+  <button class="tb grn" id="simBtn" onclick="toggleSim()" title="Run Sim (Space)">▶ RUN SIM</button>
+  <button class="tb" onclick="resetSim()" title="Reset states">↺ RESET</button>
+  <div class="sp"></div>
+  <button class="tb" onclick="clearAll()">🗑 CLEAR</button>
+  <button class="tb grn" onclick="saveProject()" title="Ctrl+S">💾 SAVE</button>
+  <button class="tb" onclick="exportJSON()">📤 EXPORT</button>
+  <button class="tb" onclick="document.getElementById('impF').click()">📥 IMPORT</button>
+  <input type="file" id="impF" accept=".json" style="display:none" onchange="importProject(event)"/>
+  <div class="sp"></div>
+  <button class="tb" onclick="doZoomIn()">🔍+</button>
+  <button class="tb" onclick="doZoomOut()">🔍−</button>
+  <button class="tb" onclick="fitView()">⊡ FIT</button>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0;">
+    <span style="font-size:8px;color:var(--muted);font-family:var(--mono)">PROJECT:</span>
+    <input class="pnm" id="pnm" value="Circuit_001"/>
+  </div>
+</div>
+<div class="workspace">
+<div class="sidebar">
+  <div class="ss">
+    <div class="stitle">Power Rails</div>
+    <div class="ci" draggable="true" ondragstart="startDrag(event,'L')" ondblclick="addComp('L')">
+      <svg class="ci-prev" viewBox="0 0 38 26"><line x1="19" y1="2" x2="19" y2="24" stroke="#FF3D3D" stroke-width="3"/><text x="19" y="14" fill="#FF3D3D" font-size="9" text-anchor="middle" font-family="monospace">L</text></svg>
+      <div><div class="ci-name">Live Rail (L)</div><div class="ci-sub">Phase / +ve supply</div></div>
+    </div>
+    <div class="ci" draggable="true" ondragstart="startDrag(event,'N')" ondblclick="addComp('N')">
+      <svg class="ci-prev" viewBox="0 0 38 26"><line x1="19" y1="2" x2="19" y2="24" stroke="#448AFF" stroke-width="3"/><text x="19" y="14" fill="#448AFF" font-size="9" text-anchor="middle" font-family="monospace">N</text></svg>
+      <div><div class="ci-name">Neutral Rail (N)</div><div class="ci-sub">Return / −ve</div></div>
+    </div>
+  </div>
+  <div class="ss">
+    <div class="stitle">Push Buttons</div>
+    <div class="ci" draggable="true" ondragstart="startDrag(event,'PB_NO')" ondblclick="addComp('PB_NO')">
+      <svg class="ci-prev" viewBox="0 0 38 26"><line x1="2" y1="20" x2="14" y2="20" stroke="#00E676" stroke-width="1.5"/><line x1="24" y1="20" x2="36" y2="20" stroke="#00E676" stroke-width="1.5"/><line x1="14" y1="10" x2="24" y2="10" stroke="#00E676" stroke-width="2"/><circle cx="19" cy="5" r="4" fill="none" stroke="#00E676" stroke-width="1.5"/></svg>
+      <div><div class="ci-name">NO Push Button</div><div class="ci-sub">Momentary N/O</div></div>
+    </div>
+    <div class="ci" draggable="true" ondragstart="startDrag(event,'PB_NC')" ondblclick="addComp('PB_NC')">
+      <svg class="ci-prev" viewBox="0 0 38 26"><line x1="2" y1="20" x2="36" y2="20" stroke="#FF3D3D" stroke-width="1.5"/><line x1="14" y1="10" x2="24" y2="10" stroke="#FF3D3D" stroke-width="2"/><circle cx="19" cy="5" r="4" fill="none" stroke="#FF3D3D" stroke-width="1.5"/><line x1="22" y1="15" x2="20" y2="23" stroke="#FF3D3D" stroke-width="1.2"/></svg>
+      <div><div class="ci-name">NC Push Button</div><div class="ci-sub">Momentary N/C</div></div>
+    </div>
+  </div>
+  <div class="ss">
+    <div class="stitle">Selector Switch</div>
+    <div class="ci" draggable="true" ondragstart="startDrag(event,'SS2')" ondblclick="addComp('SS2')">
+      <svg class="ci-prev" viewBox="0 0 38 26"><line x1="2" y1="18" x2="12" y2="18" stroke="#B388FF" stroke-width="1.5"/><line x1="26" y1="18" x2="36" y2="18" stroke="#B388FF" stroke-width="1.5"/><rect x="11" y="11" width="16" height="13" rx="2" fill="none" stroke="#B388FF" stroke-width="1.5"/><line x1="19" y1="7" x2="25" y2="13" stroke="#FFB300" stroke-width="2"/></svg>
+      <div><div class="ci-name">2-Position Sel.</div><div class="ci-sub">OFF / ON block type</div></div>
+    </div>
+    <div class="ci" draggable="true" ondragstart="startDrag(event,'SS3')" ondblclick="addComp('SS3')">
+      <svg class="ci-prev" viewBox="0 0 38 26"><line x1="2" y1="18" x2="10" y2="18" stroke="#B388FF" stroke-width="1.5"/><line x1="28" y1="18" x2="36" y2="18" stroke="#B388FF" stroke-width="1.5"/><rect x="9" y="11" width="20" height="13" rx="2" fill="none" stroke="#B388FF" stroke-width="1.5"/><line x1="19" y1="7" x2="19" y2="11" stroke="#FFB300" stroke-width="2"/></svg>
+      <div><div class="ci-name">3-Position Sel.</div><div class="ci-sub">L / 0 / R block type</div></div>
+    </div>
+  </div>
+  <div class="ss">
+    <div class="stitle">Control Relay</div>
+    <div class="ci" draggable="true" ondragstart="startDrag(event,'COIL')" ondblclick="addComp('COIL')">
+      <svg class="ci-prev" viewBox="0 0 38 26"><rect x="7" y="8" width="24" height="11" rx="3" fill="none" stroke="#F5A623" stroke-width="1.5"/><line x1="2" y1="13" x2="7" y2="13" stroke="#F5A623" stroke-width="1.5"/><line x1="31" y1="13" x2="36" y2="13" stroke="#F5A623" stroke-width="1.5"/><text x="19" y="17" fill="#F5A623" font-size="6" text-anchor="middle" font-family="monospace">K</text></svg>
+      <div><div class="ci-name">Relay Coil</div><div class="ci-sub">Energise to operate</div></div>
+    </div>
+    <div class="ci" draggable="true" ondragstart="startDrag(event,'RNO')" ondblclick="addComp('RNO')">
+      <svg class="ci-prev" viewBox="0 0 38 26"><line x1="2" y1="20" x2="14" y2="20" stroke="#00CFFF" stroke-width="1.5"/><line x1="24" y1="20" x2="36" y2="20" stroke="#00CFFF" stroke-width="1.5"/><line x1="14" y1="20" x2="20" y2="13" stroke="#FFB300" stroke-width="1.5"/><text x="19" y="9" fill="#00CFFF" font-size="6" text-anchor="middle" font-family="monospace">NO</text></svg>
+      <div><div class="ci-name">Relay Contact NO</div><div class="ci-sub">Normally Open</div></div>
+    </div>
+    <div class="ci" draggable="true" ondragstart="startDrag(event,'RNC')" ondblclick="addComp('RNC')">
+      <svg class="ci-prev" viewBox="0 0 38 26"><line x1="2" y1="20" x2="36" y2="20" stroke="#00CFFF" stroke-width="1.5"/><line x1="14" y1="20" x2="20" y2="13" stroke="#FFB300" stroke-width="1.5"/><line x1="22" y1="14" x2="20" y2="22" stroke="#00CFFF" stroke-width="1.2"/><text x="19" y="9" fill="#00CFFF" font-size="6" text-anchor="middle" font-family="monospace">NC</text></svg>
+      <div><div class="ci-name">Relay Contact NC</div><div class="ci-sub">Normally Closed</div></div>
+    </div>
+  </div>
+  <div class="ss">
+    <div class="stitle">Indicator Lamp</div>
+    <div class="ci" draggable="true" ondragstart="startDrag(event,'LAMP')" ondblclick="addComp('LAMP')">
+      <svg class="ci-prev" viewBox="0 0 38 26"><circle cx="19" cy="13" r="8" fill="none" stroke="#FFB300" stroke-width="1.5"/><line x1="2" y1="13" x2="11" y2="13" stroke="#FFB300" stroke-width="1.5"/><line x1="27" y1="13" x2="36" y2="13" stroke="#FFB300" stroke-width="1.5"/><line x1="14" y1="8" x2="24" y2="18" stroke="#FFB300" stroke-width="1.2"/><line x1="24" y1="8" x2="14" y2="18" stroke="#FFB300" stroke-width="1.2"/></svg>
+      <div><div class="ci-name">Indicator Lamp</div><div class="ci-sub">Colour selectable</div></div>
+    </div>
+  </div>
+  <div class="ss">
+    <div class="stitle">Canvas Tools</div>
+    <button class="toolbtn" onclick="clearAll()">🗑 Clear Canvas</button>
+    <button class="toolbtn" onclick="fitView()">⊡ Fit View</button>
+    <button class="toolbtn" onclick="doSnapAll()">⊞ Snap Grid</button>
+    <div style="margin-top:7px;font-size:8px;color:var(--muted);line-height:1.7;font-family:var(--mono)">
+      S = Select tool<br>W = Wire tool<br>Space = Run/Stop<br>Del = Delete selected<br>Dbl-click = Properties<br>In sim: click PB / SS
+    </div>
+  </div>
+</div>
+<div class="cwrap" id="cwrap" ondragover="event.preventDefault()" ondrop="onCanvasDrop(event)">
+  <canvas id="mainCV"></canvas>
+</div>
+<div class="rp">
+  <div class="rphdr"><div class="rpdot"></div>PROPERTIES</div>
+  <div class="rpbody" id="rpBody">
+    <div class="rpempty"><div style="font-size:22px;opacity:.3">🖱</div><div>Click a component to edit properties</div></div>
+  </div>
+  <div style="padding:8px;border-top:1px solid var(--border)">
+    <div class="stitle">Relay Coils</div>
+    <div id="relayPanel"><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">No relay coils placed yet.</div></div>
+  </div>
+</div>
+</div>
+<div class="status">
+  <span class="sim-dot" id="simDot"></span>
+  <span id="statMsg">Ready — place components and wire them</span>
+  <span style="margin-left:8px">Comps: <b id="cCnt">0</b></span>
+  <span>Wires: <b id="wCnt">0</b></span>
+  <span>Tool: <b id="tNm">SELECT</b></span>
+  <span style="margin-left:auto;font-size:7px;opacity:.4">Apna Electromechanic Service — Electrical Circuit Simulator</span>
+</div>
+<div class="mbg" id="mbg">
+  <div class="modal">
+    <div class="mtitle" id="mtitle"></div>
+    <div id="mbody"></div>
+    <div class="mbtns"><button class="mbtn cancel" onclick="closeModal()">Cancel</button><button class="mbtn ok" id="mok">OK</button></div>
+  </div>
+</div>
+<div class="ctxmenu" id="ctx">
+  <div class="ctx-item" onclick="ctxDo('props')">⚙ Properties</div>
+  <div class="ctx-item" onclick="ctxDo('dup')">⧉ Duplicate</div>
+  <div class="ctx-item" onclick="ctxDo('rot')">↻ Rotate 90°</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="ctxDo('del')">🗑 Delete</div>
+</div>
+<script>
+// ── Constants ──────────────────────────────────────────
+var GRID = 20;
+var LCOLS = ['#FF3D3D','#FFB300','#00E676','#00CFFF','#FFFFFF','#FF6EC7'];
+var LNMS  = ['Red','Amber','Green','Blue','White','Pink'];
+
+// ── State ──────────────────────────────────────────────
+var comps=[], wires=[], selId=null, curTool='select';
+var viewSc=1, viewOX=0, viewOY=0;
+var isPanning=false, panSX=0, panSY=0;
+var mouseIsDown=false;
+var movingComp=null, moveDX=0, moveDY=0;
+var wireFrom=null;
+var dragTypeKey=null;
+var simRunning=false, simTimer=null;
+var cCtr=1, wCtr=1;
+var ctxComp=null, hoverComp=null;
+
+// ── Canvas ─────────────────────────────────────────────
+var CV = document.getElementById('mainCV');
+var CX = CV.getContext('2d');
+
+function resizeCanvas() {
+  var wrap = document.getElementById('cwrap');
+  CV.width  = wrap.clientWidth;
+  CV.height = wrap.clientHeight;
+  renderAll();
+}
+window.addEventListener('resize', resizeCanvas);
+setTimeout(resizeCanvas, 60);
+
+// ── Grid snap ─────────────────────────────────────────
+function sn(v) { return Math.round(v / GRID) * GRID; }
+
+// ── Component factory ─────────────────────────────────
+function mkComp(type, x, y) {
+  var id = 'c' + cCtr++;
+  var b  = { id:id, type:type, x:sn(x), y:sn(y), rot:0, label:'', energised:false };
+  switch(type) {
+    case 'L':    return Object.assign(b, {label:'L', w:20, h:60,
+                   pins:[{dx:0,dy:0},{dx:0,dy:60}]});
+    case 'N':    return Object.assign(b, {label:'N', w:20, h:60,
+                   pins:[{dx:0,dy:0},{dx:0,dy:60}]});
+    case 'PB_NO':return Object.assign(b, {label:'START', w:60, h:40,
+                   pins:[{dx:0,dy:20},{dx:60,dy:20}], pressed:false});
+    case 'PB_NC':return Object.assign(b, {label:'STOP', w:60, h:40,
+                   pins:[{dx:0,dy:20},{dx:60,dy:20}], pressed:false});
+    case 'SS2':  return Object.assign(b, {label:'SS', w:70, h:44,
+                   pins:[{dx:0,dy:22},{dx:70,dy:22}], pos:0});
+    case 'SS3':  return Object.assign(b, {label:'SS3', w:90, h:44,
+                   pins:[{dx:0,dy:22},{dx:90,dy:22}], pos:1});
+    case 'COIL': return Object.assign(b, {label:'K1', w:64, h:30,
+                   pins:[{dx:0,dy:15},{dx:64,dy:15}], relayTag:'K1'});
+    case 'RNO':  return Object.assign(b, {label:'K1', w:60, h:40,
+                   pins:[{dx:0,dy:20},{dx:60,dy:20}], relayTag:'K1', ctype:'NO'});
+    case 'RNC':  return Object.assign(b, {label:'K1', w:60, h:40,
+                   pins:[{dx:0,dy:20},{dx:60,dy:20}], relayTag:'K1', ctype:'NC'});
+    case 'LAMP': return Object.assign(b, {label:'L1', w:44, h:40,
+                   pins:[{dx:0,dy:20},{dx:44,dy:20}], color:'#FFB300'});
+  }
+  return b;
+}
+
+// ── Rounded rect helper (cross-browser) ───────────────
+function rrect(x,y,w,h,r) {
+  CX.beginPath();
+  CX.moveTo(x+r,y);
+  CX.lineTo(x+w-r,y); CX.arcTo(x+w,y,x+w,y+r,r);
+  CX.lineTo(x+w,y+h-r); CX.arcTo(x+w,y+h,x+w-r,y+h,r);
+  CX.lineTo(x+r,y+h); CX.arcTo(x,y+h,x,y+h-r,r);
+  CX.lineTo(x,y+r); CX.arcTo(x,y,x+r,y,r);
+  CX.closePath();
+}
+
+// ── Simulation helpers ────────────────────────────────
+function relayOn(tag) {
+  var coil = null;
+  for(var i=0;i<comps.length;i++){
+    if(comps[i].type==='COIL' && comps[i].relayTag===tag){ coil=comps[i]; break; }
+  }
+  return coil ? coil.energised : false;
+}
+
+function nodeEnergised(nx, ny) {
+  var visited = {};
+  var queue = [];
+  // Seed from all Live rail pins
+  for(var i=0;i<comps.length;i++){
+    var c=comps[i];
+    if(c.type==='L'){
+      for(var p=0;p<c.pins.length;p++) queue.push({x:c.x+c.pins[p].dx, y:c.y+c.pins[p].dy});
+    }
+  }
+  var step=0;
+  while(queue.length && step<5000) {
+    step++;
+    var node = queue.shift();
+    var key  = node.x+'|'+node.y;
+    if(visited[key]) continue;
+    visited[key]=true;
+    if(Math.abs(node.x-nx)<4 && Math.abs(node.y-ny)<4) return true;
+    // Spread through wires
+    for(var wi=0;wi<wires.length;wi++){
+      var w=wires[wi];
+      if(Math.abs(w.x1-node.x)<4&&Math.abs(w.y1-node.y)<4) queue.push({x:w.x2,y:w.y2});
+      if(Math.abs(w.x2-node.x)<4&&Math.abs(w.y2-node.y)<4) queue.push({x:w.x1,y:w.y1});
+    }
+    // Spread through components that pass current
+    for(var ci=0;ci<comps.length;ci++){
+      var comp=comps[ci];
+      var pins=comp.pins||[];
+      for(var pi=0;pi<pins.length;pi++){
+        var px=comp.x+pins[pi].dx, py=comp.y+pins[pi].dy;
+        if(Math.abs(px-node.x)<4&&Math.abs(py-node.y)<4){
+          if(passesCurrent(comp)){
+            for(var pi2=0;pi2<pins.length;pi2++){
+              if(pi2!==pi) queue.push({x:comp.x+pins[pi2].dx, y:comp.y+pins[pi2].dy});
+            }
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function passesCurrent(c) {
+  switch(c.type){
+    case 'L':    return true;
+    case 'N':    return true;
+    case 'PB_NO': return c.pressed===true;
+    case 'PB_NC': return c.pressed!==true;
+    case 'SS2':  return c.pos===1;
+    case 'SS3':  return c.pos===0||c.pos===2;
+    case 'COIL': return true;
+    case 'RNO':  return relayOn(c.relayTag||c.label);
+    case 'RNC':  return !relayOn(c.relayTag||c.label);
+    case 'LAMP': return true;
+  }
+  return false;
+}
+
+function runSim() {
+  // compute energisation
+  for(var i=0;i<comps.length;i++){
+    var c=comps[i];
+    var pins=c.pins||[];
+    if(pins.length===0){ c.energised=false; continue; }
+    var p0 = {x:c.x+pins[0].dx, y:c.y+pins[0].dy};
+    if(c.type==='LAMP'||c.type==='COIL'){
+      c.energised = nodeEnergised(p0.x,p0.y);
+    } else {
+      c.energised = false;
+      for(var pi=0;pi<pins.length;pi++){
+        if(nodeEnergised(c.x+pins[pi].dx, c.y+pins[pi].dy)){ c.energised=true; break; }
+      }
+    }
+  }
+  updateRelayPanel();
+  renderAll();
+}
+
+function wireEnergised(w) {
+  return nodeEnergised(w.x1,w.y1)||nodeEnergised(w.x2,w.y2);
+}
+
+// ── Draw helpers ──────────────────────────────────────
+function drawWire(w) {
+  var lit = simRunning && wireEnergised(w);
+  CX.strokeStyle = lit ? '#00E676' : '#253545';
+  CX.lineWidth   = lit ? 2 : 1.5;
+  CX.shadowColor = lit ? '#00E676' : 'transparent';
+  CX.shadowBlur  = lit ? 6 : 0;
+  CX.setLineDash([]);
+  CX.beginPath();
+  CX.moveTo(w.x1,w.y1);
+  var dx=Math.abs(w.x2-w.x1), dy=Math.abs(w.y2-w.y1);
+  if(dx>dy){ var mx=(w.x1+w.x2)/2; CX.lineTo(mx,w.y1); CX.lineTo(mx,w.y2); }
+  else      { var my=(w.y1+w.y2)/2; CX.lineTo(w.x1,my); CX.lineTo(w.x2,my); }
+  CX.lineTo(w.x2,w.y2);
+  CX.stroke();
+  CX.shadowBlur=0;
+  // junction dots
+  var col=CX.strokeStyle;
+  [[w.x1,w.y1],[w.x2,w.y2]].forEach(function(pt){
+    CX.fillStyle=col; CX.beginPath(); CX.arc(pt[0],pt[1],2.5,0,Math.PI*2); CX.fill();
+  });
+}
+
+function drawPowerRail(c) {
+  var col = c.type==='L' ? '#FF3D3D' : '#448AFF';
+  CX.strokeStyle=col; CX.lineWidth=3;
+  CX.beginPath(); CX.moveTo(c.x+10,c.y); CX.lineTo(c.x+10,c.y+c.h); CX.stroke();
+  for(var i=0;i<c.h;i+=8){
+    CX.strokeStyle=col+'44'; CX.lineWidth=1;
+    CX.beginPath(); CX.moveTo(c.x+4,c.y+i+4); CX.lineTo(c.x+16,c.y+i+4); CX.stroke();
+  }
+  CX.fillStyle=col; CX.font='bold 11px "Share Tech Mono"'; CX.textAlign='center';
+  CX.fillText(c.label, c.x+10, c.y+c.h/2+4);
+}
+
+function drawPB(c) {
+  var isNC = c.type==='PB_NC';
+  var pressed = c.pressed===true;
+  var col  = isNC ? '#FF3D3D' : '#00E676';
+  var lit  = simRunning && c.energised;
+  // Lead stubs
+  CX.strokeStyle = lit ? col : '#253545'; CX.lineWidth=1.5;
+  CX.beginPath(); CX.moveTo(c.x,c.y+20); CX.lineTo(c.x+14,c.y+20); CX.stroke();
+  CX.beginPath(); CX.moveTo(c.x+46,c.y+20); CX.lineTo(c.x+60,c.y+20); CX.stroke();
+
+  if(isNC) {
+    // NC: bar closed normally, breaks when pressed
+    var barY = pressed ? c.y+11 : c.y+20;
+    CX.strokeStyle = pressed?'#333':col; CX.lineWidth=2;
+    CX.beginPath(); CX.moveTo(c.x+14,barY); CX.lineTo(c.x+46,barY); CX.stroke();
+    // Diagonal slash mark for NC
+    CX.strokeStyle=col+'88'; CX.lineWidth=1;
+    CX.beginPath(); CX.moveTo(c.x+28,c.y+14); CX.lineTo(c.x+26,c.y+22); CX.stroke();
+    // Stem
+    CX.strokeStyle='#FFB300'; CX.lineWidth=1.5;
+    CX.beginPath(); CX.moveTo(c.x+30,barY); CX.lineTo(c.x+30,c.y+5); CX.stroke();
+  } else {
+    // NO: open gap normally, closes when pressed
+    if(!pressed){
+      CX.strokeStyle='#253545'; CX.lineWidth=2;
+      CX.beginPath(); CX.moveTo(c.x+14,c.y+20); CX.lineTo(c.x+25,c.y+20); CX.stroke();
+      CX.beginPath(); CX.moveTo(c.x+35,c.y+20); CX.lineTo(c.x+46,c.y+20); CX.stroke();
+    } else {
+      CX.strokeStyle=col; CX.lineWidth=2;
+      CX.beginPath(); CX.moveTo(c.x+14,c.y+20); CX.lineTo(c.x+46,c.y+20); CX.stroke();
+    }
+    // Moveable arm
+    var armY = pressed ? c.y+20 : c.y+12;
+    CX.strokeStyle=col; CX.lineWidth=2;
+    CX.beginPath(); CX.moveTo(c.x+16,armY); CX.lineTo(c.x+44,armY); CX.stroke();
+    // Stem
+    CX.strokeStyle='#FFB300'; CX.lineWidth=1.5;
+    CX.beginPath(); CX.moveTo(c.x+30,armY); CX.lineTo(c.x+30,c.y+5); CX.stroke();
+  }
+  // Button cap
+  var capFill = pressed ? '#444' : col;
+  CX.fillStyle=capFill; CX.strokeStyle=col; CX.lineWidth=1.2;
+  CX.beginPath(); CX.arc(c.x+30,c.y+5,5,0,Math.PI*2); CX.fill(); CX.stroke();
+  // Press hint
+  if(simRunning){
+    CX.fillStyle=col+'66'; CX.font='7px sans-serif'; CX.textAlign='center';
+    CX.fillText('TAP',c.x+30,c.y+38);
+  }
+}
+
+function drawSelector(c) {
+  var n   = c.type==='SS2' ? 2 : 3;
+  var pos = c.pos===undefined ? (n===2?0:1) : c.pos;
+  var col = '#B388FF';
+  var lit = simRunning && c.energised;
+  // Lead stubs
+  CX.strokeStyle=lit?col:'#253545'; CX.lineWidth=1.5;
+  CX.beginPath(); CX.moveTo(c.x,c.y+22); CX.lineTo(c.x+10,c.y+22); CX.stroke();
+  CX.beginPath(); CX.moveTo(c.x+c.w-10,c.y+22); CX.lineTo(c.x+c.w,c.y+22); CX.stroke();
+  // Body
+  CX.strokeStyle=col; CX.lineWidth=1.5; CX.fillStyle='#141828';
+  rrect(c.x+8,c.y+10,c.w-16,24,4); CX.fill(); CX.stroke();
+  // Position dots
+  var spread = c.w-28;
+  for(var i=0;i<n;i++){
+    var dx2 = c.x+14 + (n===1?0:i*spread/(n-1));
+    CX.fillStyle = i===pos ? '#FFB300' : '#253545';
+    CX.beginPath(); CX.arc(dx2,c.y+22,3,0,Math.PI*2); CX.fill();
+  }
+  // Handle arrow
+  var hx = c.x+14 + (n===1?0:pos*spread/(n-1));
+  CX.strokeStyle='#FFB300'; CX.lineWidth=2;
+  CX.beginPath(); CX.moveTo(c.x+c.w/2,c.y+10); CX.lineTo(hx,c.y+22); CX.stroke();
+  // Labels
+  var lbls = n===2 ? ['OFF','ON'] : ['L','0','R'];
+  for(var j=0;j<n;j++){
+    var lx2=c.x+14+(n===1?0:j*spread/(n-1));
+    CX.fillStyle = j===pos?'#FFB300':'#3D5068';
+    CX.font='7px "Share Tech Mono"'; CX.textAlign='center';
+    CX.fillText(lbls[j],lx2,c.y+40);
+  }
+  if(simRunning){
+    CX.fillStyle=col+'66'; CX.font='7px sans-serif'; CX.textAlign='center';
+    CX.fillText('TAP',c.x+c.w/2,c.y+c.h+2);
+  }
+}
+
+function drawCoil(c) {
+  var tag = c.relayTag||c.label;
+  var en  = simRunning && relayOn(tag);
+  var col = en ? '#FF9800' : '#F5A623';
+  // Leads
+  CX.strokeStyle='#253545'; CX.lineWidth=1.5;
+  CX.beginPath(); CX.moveTo(c.x,c.y+15); CX.lineTo(c.x+8,c.y+15); CX.stroke();
+  CX.beginPath(); CX.moveTo(c.x+56,c.y+15); CX.lineTo(c.x+64,c.y+15); CX.stroke();
+  // Coil body
+  CX.strokeStyle=col; CX.lineWidth=en?2:1.5;
+  CX.fillStyle=en?'rgba(255,152,0,.13)':'rgba(245,166,35,.05)';
+  if(en){CX.shadowColor=col;CX.shadowBlur=10;}
+  rrect(c.x+8,c.y+4,48,22,4); CX.fill(); CX.stroke(); CX.shadowBlur=0;
+  // Windings
+  CX.strokeStyle=col+'77'; CX.lineWidth=1;
+  for(var wi=1;wi<6;wi++){
+    CX.beginPath(); CX.moveTo(c.x+8+wi*7,c.y+4); CX.lineTo(c.x+8+wi*7,c.y+26); CX.stroke();
+  }
+  CX.fillStyle=col; CX.font='bold 8px "Share Tech Mono"'; CX.textAlign='center';
+  CX.fillText(tag,c.x+32,c.y+18);
+  if(en){
+    CX.fillStyle='#FFB300'; CX.font='7px "Share Tech Mono"'; CX.textAlign='center';
+    CX.fillText('ENERGISED',c.x+32,c.y+28);
+  }
+}
+
+function drawRelayContact(c) {
+  var tag = c.relayTag||c.label;
+  var isNC = c.ctype==='NC';
+  var rOn  = simRunning && relayOn(tag);
+  // NO closes when relay ON; NC opens when relay ON
+  var closed = isNC ? !rOn : rOn;
+  var col    = closed ? '#00CFFF' : '#253545';
+  // Leads
+  CX.strokeStyle=col; CX.lineWidth=1.5;
+  CX.beginPath(); CX.moveTo(c.x,c.y+20); CX.lineTo(c.x+14,c.y+20); CX.stroke();
+  CX.beginPath(); CX.moveTo(c.x+46,c.y+20); CX.lineTo(c.x+60,c.y+20); CX.stroke();
+  // Bar
+  if(closed){
+    if(closed){CX.shadowColor='#00CFFF';CX.shadowBlur=5;}
+    CX.strokeStyle='#00CFFF'; CX.lineWidth=2;
+    CX.beginPath(); CX.moveTo(c.x+14,c.y+20); CX.lineTo(c.x+46,c.y+20); CX.stroke();
+    CX.shadowBlur=0;
+  } else {
+    CX.strokeStyle='#253545'; CX.lineWidth=2;
+    CX.beginPath(); CX.moveTo(c.x+14,c.y+20); CX.lineTo(c.x+25,c.y+20); CX.stroke();
+    CX.beginPath(); CX.moveTo(c.x+35,c.y+20); CX.lineTo(c.x+46,c.y+20); CX.stroke();
+  }
+  // Moving arm
+  var armY = closed ? c.y+20 : c.y+13;
+  CX.strokeStyle='#FFB300'; CX.lineWidth=1.5;
+  CX.beginPath(); CX.moveTo(c.x+14,c.y+20); CX.lineTo(c.x+32,armY); CX.stroke();
+  // NC diagonal slash
+  if(isNC){
+    CX.strokeStyle='#00CFFF88'; CX.lineWidth=1;
+    CX.beginPath(); CX.moveTo(c.x+27,c.y+14); CX.lineTo(c.x+25,c.y+22); CX.stroke();
+  }
+  // Type label
+  CX.fillStyle=closed?'#00CFFF':'#3D5068';
+  CX.font='7px "Share Tech Mono"'; CX.textAlign='center';
+  CX.fillText(isNC?'NC':'NO',c.x+30,c.y+9);
+  // Relay reference
+  CX.fillStyle='#FFB30088'; CX.font='7px "Share Tech Mono"'; CX.textAlign='center';
+  CX.fillText(tag,c.x+30,c.y+37);
+}
+
+function drawLamp(c) {
+  var col = c.color||'#FFB300';
+  var lit = simRunning && c.energised;
+  if(lit){CX.shadowColor=col;CX.shadowBlur=18;}
+  CX.strokeStyle=lit?col:col+'55'; CX.lineWidth=1.5;
+  CX.fillStyle=lit?col+'44':'transparent';
+  CX.beginPath(); CX.arc(c.x+22,c.y+20,12,0,Math.PI*2); CX.fill(); CX.stroke();
+  CX.shadowBlur=0;
+  // X cross inside
+  CX.strokeStyle=lit?col:col+'55'; CX.lineWidth=1.2;
+  CX.beginPath(); CX.moveTo(c.x+22-8,c.y+12); CX.lineTo(c.x+22+8,c.y+28); CX.stroke();
+  CX.beginPath(); CX.moveTo(c.x+22+8,c.y+12); CX.lineTo(c.x+22-8,c.y+28); CX.stroke();
+  // Leads
+  CX.strokeStyle=lit?col:'#253545'; CX.lineWidth=1.5;
+  CX.beginPath(); CX.moveTo(c.x,c.y+20); CX.lineTo(c.x+10,c.y+20); CX.stroke();
+  CX.beginPath(); CX.moveTo(c.x+34,c.y+20); CX.lineTo(c.x+44,c.y+20); CX.stroke();
+}
+
+function drawComp(c) {
+  CX.save();
+  // Rotation
+  var cx2=c.x+(c.w||60)/2, cy2=c.y+(c.h||40)/2;
+  CX.translate(cx2,cy2); CX.rotate((c.rot||0)*Math.PI/180); CX.translate(-cx2,-cy2);
+  // Selection / hover glow
+  if(c.id===selId){CX.shadowColor='rgba(0,207,255,.5)';CX.shadowBlur=14;}
+  else if(c===hoverComp){CX.shadowColor='rgba(255,179,0,.3)';CX.shadowBlur=8;}
+
+  switch(c.type){
+    case 'L': case 'N': drawPowerRail(c); break;
+    case 'PB_NO': case 'PB_NC': drawPB(c); break;
+    case 'SS2': case 'SS3': drawSelector(c); break;
+    case 'COIL': drawCoil(c); break;
+    case 'RNO': case 'RNC': drawRelayContact(c); break;
+    case 'LAMP': drawLamp(c); break;
+  }
+  CX.shadowBlur=0;
+
+  // Label above component
+  if(c.label && c.type!=='L' && c.type!=='N'){
+    CX.fillStyle='#607080'; CX.font='8px "Share Tech Mono"'; CX.textAlign='center';
+    CX.fillText(c.label, c.x+(c.w||60)/2, c.y-4);
+  }
+  // Pin dots
+  var pins=c.pins||[];
+  for(var i=0;i<pins.length;i++){
+    CX.fillStyle='#1E2E40';
+    CX.beginPath(); CX.arc(c.x+pins[i].dx,c.y+pins[i].dy,3,0,Math.PI*2); CX.fill();
+  }
+  CX.restore();
+}
+
+function renderAll() {
+  CX.clearRect(0,0,CV.width,CV.height);
+  CX.save();
+  CX.translate(viewOX,viewOY); CX.scale(viewSc,viewSc);
+  for(var i=0;i<wires.length;i++) drawWire(wires[i]);
+  for(var i=0;i<comps.length;i++) drawComp(comps[i]);
+  // Wire-in-progress ghost
+  if(wireFrom){
+    CX.strokeStyle='#FFB300'; CX.lineWidth=1.5; CX.setLineDash([5,4]); CX.globalAlpha=.55;
+    CX.beginPath(); CX.moveTo(wireFrom.x,wireFrom.y);
+    CX.lineTo(wireFrom.mx||wireFrom.x,wireFrom.my||wireFrom.y);
+    CX.stroke(); CX.setLineDash([]); CX.globalAlpha=1;
+  }
+  CX.restore();
+}
+
+// ── Coordinate helpers ────────────────────────────────
+function toWorld(ex,ey){
+  var r=CV.getBoundingClientRect();
+  return {x:(ex-r.left-viewOX)/viewSc, y:(ey-r.top-viewOY)/viewSc};
+}
+function compAt(wx,wy){
+  for(var i=comps.length-1;i>=0;i--){
+    var c=comps[i];
+    if(wx>=c.x&&wx<=c.x+(c.w||60)&&wy>=c.y&&wy<=c.y+(c.h||40)) return c;
+  }
+  return null;
+}
+function pinAt(wx,wy,rad){
+  rad=rad||11;
+  for(var i=0;i<comps.length;i++){
+    var c=comps[i];
+    var pins=c.pins||[];
+    for(var p=0;p<pins.length;p++){
+      var px=c.x+pins[p].dx, py=c.y+pins[p].dy;
+      if(Math.hypot(px-wx,py-wy)<rad) return {comp:c,pin:pins[p],x:px,y:py};
+    }
+  }
+  return null;
+}
+
+// ── Canvas events ─────────────────────────────────────
+CV.addEventListener('mousedown',function(e){
+  if(e.button===2) return;
+  var w=toWorld(e.clientX,e.clientY);
+  mouseIsDown=true;
+
+  if(curTool==='wire'){
+    var ph=pinAt(w.x,w.y);
+    if(ph){
+      if(!wireFrom){ wireFrom={x:ph.x,y:ph.y,mx:ph.x,my:ph.y}; setStatus('Wire started — click another pin'); }
+      else {
+        if(Math.hypot(ph.x-wireFrom.x,ph.y-wireFrom.y)>5){
+          wires.push({id:'w'+wCtr++,x1:wireFrom.x,y1:wireFrom.y,x2:ph.x,y2:ph.y});
+          updCounts(); if(simRunning) runSim();
+          setStatus('Wire connected');
+        }
+        wireFrom=null;
+      }
+      renderAll(); return;
+    }
+    // Wire to canvas point
+    if(wireFrom){
+      var sx=sn(w.x), sy=sn(w.y);
+      wires.push({id:'w'+wCtr++,x1:wireFrom.x,y1:wireFrom.y,x2:sx,y2:sy});
+      wireFrom={x:sx,y:sy,mx:sx,my:sy};
+      updCounts(); if(simRunning) runSim();
+      renderAll();
+    } else { setStatus('Click a component pin to start a wire'); }
+    return;
+  }
+
+  // Select tool
+  var c=compAt(w.x,w.y);
+  if(c){
+    selId=c.id; movingComp=c; moveDX=w.x-c.x; moveDY=w.y-c.y;
+    renderProps(c);
+  } else {
+    selId=null; movingComp=null;
+    isPanning=true; panSX=e.clientX; panSY=e.clientY;
+    renderProps(null);
+  }
+  renderAll();
+});
+
+CV.addEventListener('mousemove',function(e){
+  var w=toWorld(e.clientX,e.clientY);
+  if(wireFrom){ wireFrom.mx=w.x; wireFrom.my=w.y; renderAll(); return; }
+  if(mouseIsDown&&movingComp&&!isPanning){
+    movingComp.x=sn(w.x-moveDX); movingComp.y=sn(w.y-moveDY);
+    if(simRunning) runSim(); else renderAll(); return;
+  }
+  if(mouseIsDown&&isPanning){
+    viewOX+=e.clientX-panSX; viewOY+=e.clientY-panSY;
+    panSX=e.clientX; panSY=e.clientY; renderAll(); return;
+  }
+  // Hover
+  var hc=compAt(w.x,w.y);
+  if(hc!==hoverComp){ hoverComp=hc; renderAll(); }
+});
+
+CV.addEventListener('mouseup',function(){
+  mouseIsDown=false; isPanning=false; movingComp=null;
+  if(simRunning) runSim();
+});
+
+CV.addEventListener('dblclick',function(e){
+  var w=toWorld(e.clientX,e.clientY);
+  var c=compAt(w.x,w.y); if(!c) return;
+  selId=c.id; renderProps(c);
+});
+
+CV.addEventListener('click',function(e){
+  var w=toWorld(e.clientX,e.clientY);
+  var c=compAt(w.x,w.y); if(!c||!simRunning) return;
+  handleSimClick(c);
+});
+
+CV.addEventListener('contextmenu',function(e){
+  e.preventDefault();
+  var w=toWorld(e.clientX,e.clientY);
+  var c=compAt(w.x,w.y);
+  ctxComp=c;
+  if(c){ selId=c.id; renderProps(c); renderAll(); }
+  showCtx(e.clientX,e.clientY);
+});
+
+CV.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var w=toWorld(e.clientX,e.clientY);
+  var d=e.deltaY>0?.88:1.14;
+  viewSc=Math.max(.18,Math.min(4,viewSc*d));
+  viewOX=e.clientX-w.x*viewSc; viewOY=e.clientY-w.y*viewSc;
+  renderAll();
+},{passive:false});
+
+// ── Sim click interactions ─────────────────────────────
+function handleSimClick(c){
+  if(c.type==='PB_NO'||c.type==='PB_NC'){
+    c.pressed=true; runSim();
+    setTimeout(function(){ c.pressed=false; runSim(); },280);
+    return;
+  }
+  if(c.type==='SS2'){ c.pos=(c.pos+1)%2; runSim(); return; }
+  if(c.type==='SS3'){ c.pos=(c.pos+1)%3; runSim(); return; }
+}
+
+// ── Sim toggle ────────────────────────────────────────
+function toggleSim(){
+  simRunning=!simRunning;
+  var btn=document.getElementById('simBtn');
+  var dot=document.getElementById('simDot');
+  if(simRunning){
+    btn.textContent='⏹ STOP SIM'; btn.className='tb red';
+    dot.classList.add('on');
+    setStatus('Simulation running — click push buttons and selector switches to interact');
+    simTimer=setInterval(runSim,80);
+    runSim();
+  } else {
+    clearInterval(simTimer); simTimer=null;
+    btn.textContent='▶ RUN SIM'; btn.className='tb grn';
+    dot.classList.remove('on');
+    for(var i=0;i<comps.length;i++) comps[i].energised=false;
+    setStatus('Simulation stopped');
+    renderAll(); updateRelayPanel();
+  }
+}
+
+function resetSim(){
+  for(var i=0;i<comps.length;i++){
+    var c=comps[i];
+    c.energised=false; c.pressed=false;
+    if(c.type==='SS2') c.pos=0;
+    if(c.type==='SS3') c.pos=1;
+  }
+  if(simRunning) runSim(); else renderAll();
+  updateRelayPanel();
+}
+
+// ── Tool switching ─────────────────────────────────────
+function setTool(t){
+  curTool=t; wireFrom=null;
+  document.getElementById('btnSel').classList.toggle('act',t==='select');
+  document.getElementById('btnWire').classList.toggle('act',t==='wire');
+  document.getElementById('tNm').textContent=t.toUpperCase();
+  CV.style.cursor=t==='wire'?'crosshair':'default';
+  setStatus(t==='wire'?'WIRE — click component pins to connect':'SELECT — click to select, drag to move');
+  renderAll();
+}
+
+// ── Add component ─────────────────────────────────────
+function addComp(type,ax,ay){
+  var cx2=((CV.width/2)-viewOX)/viewSc;
+  var cy2=((CV.height/2)-viewOY)/viewSc;
+  var c=mkComp(type, ax!==undefined?ax:cx2-30, ay!==undefined?ay:cy2-20);
+  comps.push(c); selId=c.id; renderProps(c); updCounts();
+  if(simRunning) runSim(); else renderAll();
+  updateRelayPanel();
+}
+function startDrag(e,k){ dragTypeKey=k; e.dataTransfer.setData('text/plain',k); }
+function onCanvasDrop(e){
+  e.preventDefault();
+  var k=e.dataTransfer.getData('text/plain')||dragTypeKey; if(!k) return;
+  var r=CV.getBoundingClientRect();
+  var x=(e.clientX-r.left-viewOX)/viewSc, y=(e.clientY-r.top-viewOY)/viewSc;
+  addComp(k,sn(x-30),sn(y-20));
+}
+
+// ── Properties panel ──────────────────────────────────
+function renderProps(c){
+  var b=document.getElementById('rpBody');
+  if(!c){b.innerHTML='<div class="rpempty"><div style="font-size:22px;opacity:.3">&#128379;</div><div>Click a component to edit properties</div></div>';return;}
+  var parts=[];
+  parts.push('<div class="field"><label>Label / Name</label><input id="propLbl" value="'+esc(c.label||'')+'" oninput="updComp(this)" data-id="'+c.id+'" data-field="label"/></div>');
+  if(c.type==='COIL'){
+    parts.push('<div class="field"><label>Relay Tag (e.g. K1, K2)</label><input value="'+esc(c.relayTag||c.label||'')+'" oninput="updRelayTag(this)" data-id="'+c.id+'"/></div>');
+  }
+  if(c.type==='RNO'||c.type==='RNC'){
+    var coils=comps.filter(function(x){return x.type==='COIL';});
+    var opts='';
+    if(!coils.length){ opts='<option value="">— Place a relay coil first —</option>'; }
+    for(var i=0;i<coils.length;i++){
+      var v=coils[i].relayTag||coils[i].label;
+      opts+='<option value="'+v+'"'+(c.relayTag===v?' selected':'')+'>'+v+'</option>';
+    }
+    parts.push('<div class="field"><label>Linked Relay Coil</label><select onchange="updRelayLink(this)" data-id="'+c.id+'">'+opts+'</select></div>');
+    parts.push('<div class="prop-row"><span class="prop-label">Contact Type</span><span style="font-family:var(--mono);font-size:10px;color:var(--accent)">'+(c.ctype||'NO')+'</span></div>');
+  }
+  if(c.type==='LAMP'){
+    var colPicker='<div class="field"><label>Lamp Colour</label><div class="color-picker">';
+    for(var ci=0;ci<LCOLS.length;ci++){
+      colPicker+='<div class="cdot'+(c.color===LCOLS[ci]?' sel':'')+'" style="background:'+LCOLS[ci]+'" title="'+LNMS[ci]+'" onclick="setLC(\''+c.id+'\',\''+LCOLS[ci]+'\')"></div>';
+    }
+    var li=LCOLS.indexOf(c.color);
+    colPicker+='</div><div style="font-size:8px;color:'+c.color+';font-family:var(--mono);margin-top:4px">'+(li>=0?LNMS[li]:'Custom')+'</div></div>';
+    parts.push(colPicker);
+  }
+  if(c.type==='SS2'||c.type==='SS3'){
+    var pn=c.type==='SS2'?2:3;
+    var posOpts='';
+    for(var pi=0;pi<pn;pi++) posOpts+='<option value="'+pi+'"'+(c.pos===pi?' selected':'')+'>'+pi+'</option>';
+    parts.push('<div class="prop-row"><span class="prop-label">Current Position</span><span style="font-family:var(--mono);font-size:10px;color:var(--gold)">'+(c.pos!==undefined?c.pos:0)+'</span></div>');
+    parts.push('<div class="field"><label>Start Position</label><select onchange="updPos(this)" data-id="'+c.id+'">'+posOpts+'</select></div>');
+  }
+  if(c.type==='COIL'){
+    var en=simRunning&&relayOn(c.relayTag||c.label);
+    var stateCol=en?'#00E676':'#253545';
+    var stateTxt=en?'ENERGISED':'off';
+    var stateFontCol=en?'#00E676':'#3D5068';
+    parts.push('<div class="prop-row"><span class="prop-label">State</span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+stateCol+'"></span><span style="font-size:9px;margin-left:4px;font-family:var(--mono);color:'+stateFontCol+'">'+stateTxt+'</span></div>');
+  }
+  parts.push('<div style="display:flex;gap:5px;margin-top:8px"><button class="tb" style="flex:1;justify-content:center" onclick="rotComp(\''+c.id+'\')">&#8635; Rotate</button><button class="tb red" style="flex:1;justify-content:center" onclick="delComp(\''+c.id+'\')">&#128465; Del</button></div>');
+  b.innerHTML=parts.join('');
+}
+function updComp(el){var id=el.dataset.id,f=el.dataset.field,v=el.value;var c=comps.find(function(x){return x.id===id;});if(!c)return;c[f]=v;if(simRunning)runSim();else renderAll();}
+function updRelayTag(el){var id=el.dataset.id,v=el.value;var c=comps.find(function(x){return x.id===id;});if(!c)return;c.relayTag=v;c.label=v;if(simRunning)runSim();else renderAll();updateRelayPanel();}
+function updRelayLink(el){var id=el.dataset.id,v=el.value;var c=comps.find(function(x){return x.id===id;});if(!c)return;c.relayTag=v;if(simRunning)runSim();else renderAll();}
+function updPos(el){var id=el.dataset.id,v=+el.value;var c=comps.find(function(x){return x.id===id;});if(!c)return;c.pos=v;if(simRunning)runSim();else renderAll();}
+function setLC(id,col){var c=comps.find(function(x){return x.id===id;});if(!c)return;c.color=col;renderAll();}
+function rotComp(id){var c=comps.find(function(x){return x.id===id;});if(!c)return;c.rot=((c.rot||0)+90)%360;renderAll();}
+function delComp(id){
+  comps=comps.filter(function(c){return c.id!==id;});
+  if(selId===id){selId=null;renderProps(null);}
+  updCounts();updateRelayPanel();
+  if(simRunning)runSim();else renderAll();
+}
+function deleteSelected(){ if(selId) delComp(selId); }
+
+function updateRelayPanel(){
+  var el=document.getElementById('relayPanel');
+  var coils=comps.filter(function(c){return c.type==='COIL';});
+  if(!coils.length){el.innerHTML='<div style="font-size:8px;color:var(--muted);font-family:var(--mono)">No relay coils placed yet.</div>';return;}
+  var h='';
+  for(var i=0;i<coils.length;i++){
+    var c=coils[i];
+    var tag=c.relayTag||c.label;
+    var en=simRunning&&relayOn(tag);
+    var contacts=comps.filter(function(x){return (x.type==='RNO'||x.type==='RNC')&&x.relayTag===tag;});
+    h+='<div class="relay-row"><div style="width:8px;height:8px;border-radius:50%;background:'+(en?'#00E676':'#253545')+'"></div>';
+    h+='<b style="color:'+(en?'#FFB300':'var(--text)')+'">'+tag+'</b>';
+    h+='<span style="color:var(--muted)">'+(en?'ON':'off')+'</span></div>';
+    h+='<div style="font-size:7px;color:var(--muted);margin-left:14px;margin-bottom:4px">'+contacts.length+' contact(s) linked</div>';
+  }
+  el.innerHTML=h;
+}
+
+// ── Context menu ──────────────────────────────────────
+function showCtx(cx,cy){
+  var m=document.getElementById('ctx');
+  m.style.left=cx+'px'; m.style.top=cy+'px'; m.classList.add('show');
+}
+function hideCtx(){ document.getElementById('ctx').classList.remove('show'); }
+document.addEventListener('click',hideCtx);
+function ctxDo(a){
+  hideCtx(); if(!ctxComp) return;
+  var c=ctxComp;
+  if(a==='del') delComp(c.id);
+  else if(a==='dup'){var nc=JSON.parse(JSON.stringify(c));nc.id='c'+cCtr++;nc.x+=GRID*2;nc.y+=GRID*2;comps.push(nc);selId=nc.id;updCounts();renderAll();}
+  else if(a==='rot') rotComp(c.id);
+  else if(a==='props'){selId=c.id;renderProps(c);}
+}
+
+// ── Utilities ─────────────────────────────────────────
+function updCounts(){document.getElementById('cCnt').textContent=comps.length;document.getElementById('wCnt').textContent=wires.length;}
+function setStatus(m){document.getElementById('statMsg').textContent=m;}
+function clearAll(){if(!confirm('Clear everything?'))return;comps=[];wires=[];selId=null;wireFrom=null;renderProps(null);updCounts();updateRelayPanel();renderAll();}
+function fitView(){
+  if(!comps.length){viewSc=1;viewOX=60;viewOY=60;renderAll();return;}
+  var xs=comps.map(function(c){return c.x;}),ys=comps.map(function(c){return c.y;});
+  var mnX=Math.min.apply(null,xs)-30,mnY=Math.min.apply(null,ys)-30;
+  var mxX=Math.max.apply(null,comps.map(function(c){return c.x+(c.w||60);}))+30;
+  var mxY=Math.max.apply(null,comps.map(function(c){return c.y+(c.h||40);}))+30;
+  viewSc=Math.min(CV.width/(mxX-mnX),CV.height/(mxY-mnY),.95);
+  viewOX=-mnX*viewSc+30; viewOY=-mnY*viewSc+30; renderAll();
+}
+function doZoomIn(){viewSc=Math.min(4,viewSc*1.2);renderAll();}
+function doZoomOut(){viewSc=Math.max(.18,viewSc*.82);renderAll();}
+function doSnapAll(){comps.forEach(function(c){c.x=sn(c.x);c.y=sn(c.y);});renderAll();}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── Modal ─────────────────────────────────────────────
+function openModal(t,body,okFn){document.getElementById('mtitle').textContent=t;document.getElementById('mbody').innerHTML=body;document.getElementById('mok').onclick=okFn;document.getElementById('mbg').classList.add('show');}
+function closeModal(){document.getElementById('mbg').classList.remove('show');}
+document.getElementById('mbg').addEventListener('click',function(e){if(e.target===document.getElementById('mbg'))closeModal();});
+
+// ── Save / Load ───────────────────────────────────────
+function getData(){return{name:document.getElementById('pnm').value,comps:comps,wires:wires,v:2,date:new Date().toISOString()};}
+function autoSave(){try{localStorage.setItem('ckt_v2',JSON.stringify(getData()));}catch(e){}}
+function saveProject(){autoSave();setStatus('Saved to browser ✓');var el=document.getElementById('statMsg');el.style.color='var(--green)';setTimeout(function(){el.style.color='';},1400);}
+function exportJSON(){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(getData(),null,2)],{type:'application/json'}));a.download=document.getElementById('pnm').value+'.json';a.click();setStatus('Exported ✓');}
+function importProject(e){
+  var f=e.target.files[0];if(!f)return;
+  var r=new FileReader();
+  r.onload=function(ev){
+    try{
+      var d=JSON.parse(ev.target.result);
+      document.getElementById('pnm').value=d.name||'Imported';
+      comps=d.comps||[];wires=d.wires||[];
+      cCtr=Math.max.apply(null,comps.map(function(c){return parseInt((c.id||'c0').replace('c',''))||0;}).concat([0]))+1;
+      wCtr=Math.max.apply(null,wires.map(function(w){return parseInt((w.id||'w0').replace('w',''))||0;}).concat([0]))+1;
+      selId=null;renderProps(null);updCounts();updateRelayPanel();renderAll();setStatus('Imported: '+f.name);
+    }catch(err){alert('Invalid file.');}
+  };
+  r.readAsText(f);e.target.value='';
+}
+function loadSaved(){
+  try{
+    var raw=localStorage.getItem('ckt_v2');if(!raw)return;
+    var d=JSON.parse(raw);
+    document.getElementById('pnm').value=d.name||'Circuit_001';
+    comps=d.comps||[];wires=d.wires||[];
+    cCtr=Math.max.apply(null,comps.map(function(c){return parseInt((c.id||'c0').replace('c',''))||0;}).concat([0]))+1;
+    wCtr=Math.max.apply(null,wires.map(function(w){return parseInt((w.id||'w0').replace('w',''))||0;}).concat([0]))+1;
+    updCounts();updateRelayPanel();renderAll();setStatus('Project restored ✓');
+  }catch(e){}
+}
+
+// ── Keyboard shortcuts ────────────────────────────────
+document.addEventListener('keydown',function(e){
+  var ae=document.activeElement.tagName;
+  if(ae==='INPUT'||ae==='SELECT'||ae==='TEXTAREA') return;
+  if(e.key==='Delete'||e.key==='Backspace') deleteSelected();
+  if(e.key==='Escape'){wireFrom=null;selId=null;renderProps(null);renderAll();}
+  if(e.key===' '){e.preventDefault();toggleSim();}
+  if(e.key==='s'&&!e.ctrlKey&&!e.metaKey) setTool('select');
+  if(e.key==='w'&&!e.ctrlKey&&!e.metaKey) setTool('wire');
+  if(e.key==='f'||e.key==='F') fitView();
+  if((e.key==='s'||e.key==='S')&&(e.ctrlKey||e.metaKey)){e.preventDefault();saveProject();}
+});
+
+// ── Demo circuit on first load ────────────────────────
+loadSaved();
+if(comps.length===0){
+  // Start-Stop DOL circuit with seal-in
+  // L rail | STOP(NC) | START(NO) | K1 coil | N rail
+  // K1 NO (seal-in) parallel with START
+  // K1 NO | Green RUN lamp | N rail (second rung)
+  addComp('L',   40, 80);
+  addComp('PB_NC',100,120); comps[comps.length-1].label='STOP';
+  addComp('PB_NO',200,120); comps[comps.length-1].label='START';
+  addComp('COIL', 310,120); comps[comps.length-1].relayTag='K1'; comps[comps.length-1].label='K1';
+  addComp('N',   420, 80);
+  // Seal-in
+  addComp('RNO', 200,180); comps[comps.length-1].relayTag='K1'; comps[comps.length-1].label='K1';
+  // Run lamp rung
+  addComp('RNO', 200,250); comps[comps.length-1].relayTag='K1'; comps[comps.length-1].label='K1';
+  addComp('LAMP',310,250); comps[comps.length-1].color='#00E676'; comps[comps.length-1].label='RUN';
+
+  // Wires — rung 1
+  wires.push({id:'w1',x1:50,y1:140,x2:100,y2:140});
+  wires.push({id:'w2',x1:160,y1:140,x2:200,y2:140});
+  wires.push({id:'w3',x1:260,y1:140,x2:310,y2:135});
+  wires.push({id:'w4',x1:374,y1:135,x2:430,y2:140});
+  // Seal-in parallel
+  wires.push({id:'w5',x1:160,y1:140,x2:160,y2:200});
+  wires.push({id:'w6',x1:160,y1:200,x2:200,y2:200});
+  wires.push({id:'w7',x1:260,y1:200,x2:310,y2:200});
+  wires.push({id:'w8',x1:310,y1:200,x2:310,y2:135});
+  // Lamp rung
+  wires.push({id:'w9', x1:50,y1:140,x2:50,y2:270});
+  wires.push({id:'w10',x1:50,y1:270,x2:200,y2:270});
+  wires.push({id:'w11',x1:260,y1:270,x2:310,y2:270});
+  wires.push({id:'w12',x1:354,y1:270,x2:430,y2:270});
+  wires.push({id:'w13',x1:430,y1:140,x2:430,y2:270});
+  wCtr=20;
+  selId=null; renderProps(null); updCounts(); updateRelayPanel();
+  fitView();
+}
+setStatus('Ready — Press SPACE to run, click STOP/START buttons, W = wire tool, S = select tool');
+</script>
+</body>
+</html>
