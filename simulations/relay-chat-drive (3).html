@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relay — Chat & Document Exchange (Google Drive)</title>
+<style>
+  :root{
+    --ink:#12151b;
+    --panel:#1a1f27;
+    --panel-raised:#20262f;
+    --hairline:#2a3038;
+    --text:#e8e6e1;
+    --text-dim:#8b92a0;
+    --text-faint:#565d68;
+    --amber:#e8a33d;
+    --amber-dim:#8a6428;
+    --teal:#4fb0a8;
+    --teal-dim:#2e6862;
+    --danger:#d0685a;
+    --radius:3px;
+    --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --disp: 'Space Grotesk', var(--sans);
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{background:var(--ink); color:var(--text); font-family:var(--sans); display:flex; flex-direction:column; overflow:hidden;}
+  ::selection{background:var(--amber-dim); color:var(--text);}
+  button{font-family:inherit; cursor:pointer;}
+  input,textarea{font-family:inherit;}
+  a{color:var(--teal);}
+
+  .backdrop{position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:repeating-linear-gradient(0deg, rgba(232,163,61,0.015) 0px, rgba(232,163,61,0.015) 1px, transparent 1px, transparent 3px);
+    opacity:0.6;}
+
+  /* ---------- Screens (gate / setup / room) ---------- */
+  .screen{position:fixed; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; background:var(--ink); overflow-y:auto; padding:24px;}
+  .screen.hidden{display:none;}
+  .card{width:min(440px, 92vw); border:1px solid var(--hairline); background:var(--panel); padding:34px 30px 28px; position:relative; margin:auto;}
+  .card::before{content:""; position:absolute; top:0; left:0; width:28px; height:2px; background:var(--amber);}
+  .eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:0.14em; color:var(--text-faint); text-transform:uppercase; margin-bottom:14px;}
+  .title{font-family:var(--disp); font-weight:700; font-size:26px; letter-spacing:-0.01em; margin-bottom:8px;}
+  .title span{color:var(--amber);}
+  .sub{font-size:13.5px; color:var(--text-dim); line-height:1.55; margin-bottom:24px;}
+  .field-label{font-family:var(--mono); font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); display:block; margin-bottom:8px; margin-top:16px;}
+  .field-label:first-child{margin-top:0;}
+  input[type=text], input[type=password]{
+    width:100%; background:var(--ink); border:1px solid var(--hairline); color:var(--text);
+    padding:11px 13px; font-size:13.5px; border-radius:var(--radius); outline:none; transition:border-color .15s;
+  }
+  input[type=text]:focus, input[type=password]:focus{border-color:var(--amber);}
+  .btn{width:100%; margin-top:18px; border:none; padding:12px 14px; font-weight:600; font-size:14px; border-radius:var(--radius); letter-spacing:0.01em; transition:filter .15s, opacity .15s;}
+  .btn-primary{background:var(--amber); color:#1a1207;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-primary:disabled{opacity:0.35; cursor:not-allowed;}
+  .btn-outline{background:none; border:1px solid var(--hairline); color:var(--text-dim);}
+  .btn-outline:hover{border-color:var(--teal); color:var(--teal);}
+  .foot-note{margin-top:16px; font-size:11.5px; color:var(--text-faint); line-height:1.55;}
+  .foot-note a{color:var(--text-faint); text-decoration:underline;}
+  .divider{display:flex; align-items:center; gap:10px; margin:22px 0; color:var(--text-faint); font-family:var(--mono); font-size:10.5px; letter-spacing:0.08em;}
+  .divider::before, .divider::after{content:""; flex:1; height:1px; background:var(--hairline);}
+  .helper-box{background:var(--panel-raised); border:1px solid var(--hairline); border-left:2px solid var(--teal); padding:12px 14px; border-radius:var(--radius); font-size:12px; color:var(--text-dim); line-height:1.6; margin-bottom:6px;}
+  .helper-box b{color:var(--text);}
+  .helper-box ol{margin:6px 0 0 18px;}
+  .err-box{background:rgba(208,104,90,0.1); border:1px solid var(--danger); color:#f0b5ac; padding:10px 13px; border-radius:var(--radius); font-size:12px; margin-top:14px; display:none;}
+  .err-box.active{display:block;}
+  .copy-row{display:flex; gap:8px; margin-top:8px;}
+  .copy-row input{flex:1;}
+  .copy-row button{flex-shrink:0; padding:0 14px; background:var(--panel-raised); border:1px solid var(--hairline); color:var(--text-dim); border-radius:var(--radius); font-size:11.5px; font-family:var(--mono);}
+  .copy-row button:hover{border-color:var(--amber); color:var(--amber);}
+  .spinner-inline{display:inline-block; width:13px; height:13px; border:2px solid var(--text-faint); border-top-color:var(--amber); border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:6px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- App shell ---------- */
+  #app{display:none; height:100vh; flex-direction:column; position:relative; z-index:1;}
+  #app.active{display:flex;}
+  header{display:flex; align-items:center; justify-content:space-between; padding:14px 22px; border-bottom:1px solid var(--hairline); background:var(--panel); flex-shrink:0; gap:10px;}
+  .brand{display:flex; align-items:center; gap:10px; min-width:0;}
+  .brand-mark{width:9px; height:9px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); flex-shrink:0;}
+  .brand-mark.offline{background:var(--danger); box-shadow:0 0 8px var(--danger);}
+  .brand-mark.syncing{background:var(--amber); box-shadow:0 0 8px var(--amber);}
+  .brand-name{font-family:var(--disp); font-weight:700; font-size:16px; letter-spacing:-0.01em;}
+  .brand-sub{font-family:var(--mono); font-size:10.5px; color:var(--text-faint); letter-spacing:0.06em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .header-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .who{font-family:var(--mono); font-size:11px; color:var(--text-dim); padding:6px 10px; border:1px solid var(--hairline); border-radius:var(--radius); white-space:nowrap;}
+  .who b{color:var(--amber); font-weight:500;}
+  .icon-btn{background:none; border:1px solid var(--hairline); color:var(--text-faint); padding:6px 10px; border-radius:var(--radius); font-size:11px; font-family:var(--mono); transition:all .15s; white-space:nowrap;}
+  .icon-btn:hover{border-color:var(--text-dim); color:var(--text-dim);}
+
+  main{flex:1; display:flex; min-height:0;}
+  #thread{flex:1; overflow-y:auto; padding:26px 26px 10px; display:flex; flex-direction:column; gap:4px;}
+  #thread::-webkit-scrollbar{width:8px;}
+  #thread::-webkit-scrollbar-thumb{background:var(--hairline); border-radius:4px;}
+  #thread::-webkit-scrollbar-track{background:transparent;}
+  .empty-state{margin:auto; text-align:center; color:var(--text-faint); max-width:300px;}
+  .empty-state .glyph{font-family:var(--mono); font-size:11px; letter-spacing:0.14em; color:var(--amber-dim); text-transform:uppercase; margin-bottom:10px;}
+  .empty-state p{font-size:13px; line-height:1.6;}
+
+  .msg-row{display:flex; flex-direction:column; max-width:62%; margin:9px 0; animation:rise .25s ease-out;}
+  @keyframes rise{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+  .msg-row.mine{align-self:flex-end; align-items:flex-end;}
+  .msg-row.theirs{align-self:flex-start; align-items:flex-start;}
+  .msg-meta{font-family:var(--mono); font-size:10.5px; color:var(--text-faint); margin-bottom:5px; display:flex; gap:7px; align-items:center;}
+  .msg-row.mine .msg-meta{flex-direction:row-reverse;}
+  .msg-meta .name{color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;}
+  .msg-row.mine .msg-meta .name{color:var(--amber-dim);}
+  .bubble{background:var(--panel-raised); border:1px solid var(--hairline); border-radius:var(--radius); padding:11px 14px; font-size:14px; line-height:1.5; color:var(--text); word-wrap:break-word; white-space:pre-wrap;}
+  .msg-row.mine .bubble{background:rgba(232,163,61,0.08); border-color:var(--amber-dim);}
+
+  .attach-card{display:flex; align-items:center; gap:11px; background:var(--panel-raised); border:1px solid var(--hairline); border-left:2px solid var(--teal); border-radius:var(--radius); padding:10px 13px; min-width:230px; text-decoration:none; color:var(--text); transition:border-color .15s, background .15s;}
+  .msg-row.mine .attach-card{border-left-color:var(--amber);}
+  .attach-card:hover{background:var(--panel);}
+  .attach-icon{font-family:var(--mono); font-size:9.5px; letter-spacing:0.02em; color:var(--ink); background:var(--teal); padding:5px 6px; border-radius:2px; text-transform:uppercase; flex-shrink:0; min-width:34px; text-align:center;}
+  .msg-row.mine .attach-icon{background:var(--amber);}
+  .attach-info{min-width:0; flex:1;}
+  .attach-name{font-size:12.5px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .attach-size{font-family:var(--mono); font-size:10px; color:var(--text-faint); margin-top:2px;}
+  .attach-dl{font-family:var(--mono); font-size:9.5px; color:var(--text-faint); letter-spacing:0.06em;}
+  .attach-uploading{opacity:0.55;}
+
+  #composer-wrap{border-top:1px solid var(--hairline); background:var(--panel); padding:14px 22px 16px; flex-shrink:0;}
+  #filePreview{display:none; align-items:center; gap:10px; background:var(--panel-raised); border:1px solid var(--amber-dim); border-radius:var(--radius); padding:8px 12px; margin-bottom:10px; font-size:12.5px;}
+  #filePreview.active{display:flex;}
+  #filePreview .fname{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-dim);}
+  #filePreview button{background:none; border:none; color:var(--danger); font-family:var(--mono); font-size:11px;}
+  .composer-row{display:flex; align-items:flex-end; gap:10px;}
+  #attachBtn{background:var(--ink); border:1px solid var(--hairline); color:var(--text-dim); width:42px; height:42px; border-radius:var(--radius); flex-shrink:0; font-size:17px; display:flex; align-items:center; justify-content:center; transition:border-color .15s, color .15s;}
+  #attachBtn:hover{border-color:var(--teal); color:var(--teal);}
+  #msgInput{flex:1; background:var(--ink); border:1px solid var(--hairline); color:var(--text); padding:11px 14px; border-radius:var(--radius); font-size:14px; resize:none; max-height:120px; outline:none; transition:border-color .15s; line-height:1.4;}
+  #msgInput:focus{border-color:var(--amber-dim);}
+  #sendBtn{background:var(--amber); color:#1a1207; border:none; width:42px; height:42px; border-radius:var(--radius); flex-shrink:0; font-weight:600; font-size:15px; transition:filter .15s, opacity .15s;}
+  #sendBtn:hover{filter:brightness(1.08);}
+  #sendBtn:disabled{opacity:0.35; cursor:not-allowed;}
+  .composer-hint{font-family:var(--mono); font-size:10px; color:var(--text-faint); margin-top:8px; letter-spacing:0.02em;}
+
+  @media (max-width:640px){
+    .msg-row{max-width:82%;}
+    header{padding:12px 16px; flex-wrap:wrap;}
+    #thread{padding:18px 16px 8px;}
+    #composer-wrap{padding:12px 14px 14px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="backdrop"></div>
+
+<!-- Screen 1: Setup (Client ID) -->
+<div class="screen" id="screenSetup">
+  <div class="card">
+    <div class="eyebrow">Relay // One-time setup</div>
+    <div class="title">Connect <span>Google Drive</span></div>
+    <div class="sub">Relay stores every message and file in a Google Drive folder you control. This needs a free OAuth Client ID from your own Google Cloud project — takes about 3 minutes, once.</div>
+
+    <div class="helper-box">
+      <b>How to get a Client ID:</b>
+      <ol>
+        <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">console.cloud.google.com/apis/credentials</a></li>
+        <li>Create a project (or pick one), then enable the <b>Google Drive API</b></li>
+        <li>Create credentials → <b>OAuth client ID</b> → Application type: <b>Web application</b></li>
+        <li>On the <b>Data Access</b> tab of Google Auth Platform, add the <b>Google Drive API .../auth/drive</b> scope (full Drive access — needed so joining a shared room works, not just drive.file)</li>
+        <li>Under "Authorized JavaScript origins" add the exact URL you're serving this file from (e.g. <code>http://localhost:8000</code> or your Render/GitHub Pages domain) — <b>not</b> a file:// path</li>
+        <li>Copy the generated Client ID and paste it below</li>
+      </ol>
+    </div>
+
+    <label class="field-label">Google OAuth Client ID</label>
+    <input type="text" id="clientIdInput" placeholder="1234567890-abc...apps.googleusercontent.com">
+    <button class="btn btn-primary" id="saveClientIdBtn">Save & continue</button>
+    <div class="err-box" id="setupErr"></div>
+    <div class="foot-note">Stored only in this browser's local storage. Never sent anywhere except Google.</div>
+  </div>
+</div>
+
+<!-- Screen 2: Sign in -->
+<div class="screen hidden" id="screenSignin">
+  <div class="card">
+    <div class="eyebrow">Relay // Identity</div>
+    <div class="title">Sign in with <span>Google</span></div>
+    <div class="sub">Your files and messages will be written to your Google Drive, shareable with anyone you invite to the room.</div>
+    <button class="btn btn-primary" id="signInBtn">Sign in with Google</button>
+    <div class="err-box" id="signinErr"></div>
+    <button class="btn btn-outline" id="changeClientIdBtn" style="margin-top:10px;">Change Client ID</button>
+  </div>
+</div>
+
+<!-- Screen 3: Room choice -->
+<div class="screen hidden" id="screenRoom">
+  <div class="card">
+    <div class="eyebrow">Relay // Room</div>
+    <div class="title">Start or <span>join a room</span></div>
+    <div class="sub">A room is a folder in your Google Drive. Create one and share its ID with others, or paste an ID someone shared with you.</div>
+
+    <button class="btn btn-primary" id="createRoomBtn">Create a new room</button>
+
+    <div class="divider">OR</div>
+
+    <label class="field-label">Room ID</label>
+    <input type="text" id="roomIdInput" placeholder="Paste a room ID shared with you">
+    <button class="btn btn-outline" id="joinRoomBtn">Join this room</button>
+
+    <div class="err-box" id="roomErr"></div>
+  </div>
+</div>
+
+<!-- Screen 4: Display name -->
+<div class="screen hidden" id="screenName">
+  <div class="card">
+    <div class="eyebrow">Relay // Display name</div>
+    <div class="title">Who's <span>posting</span>?</div>
+    <div class="sub">This is shown next to your messages in the room.</div>
+    <label class="field-label">Display name</label>
+    <input type="text" id="nameInput" placeholder="e.g. Salim" maxlength="24">
+    <button class="btn btn-primary" id="enterRoomBtn" disabled>Enter room</button>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="brand-mark syncing" id="connMark"></div>
+      <div style="min-width:0;">
+        <div class="brand-name">Relay</div>
+        <div class="brand-sub" id="statusLine">CONNECTING…</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="who">You: <b id="meName"></b></div>
+      <button class="icon-btn" id="roomInfoBtn">Room info</button>
+      <button class="icon-btn" id="switchRoomBtn">Switch room</button>
+      <button class="icon-btn" id="signOutBtn">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="thread">
+      <div class="empty-state" id="emptyState">
+        <div class="glyph">— No transmissions yet —</div>
+        <p>Send the first message or attach a document below to get things started.</p>
+      </div>
+    </div>
+  </main>
+
+  <div id="composer-wrap">
+    <div id="filePreview">
+      <span class="fname" id="fnameLabel"></span>
+      <button id="removeFileBtn">REMOVE</button>
+    </div>
+    <div class="composer-row">
+      <button id="attachBtn" title="Attach document">📎</button>
+      <textarea id="msgInput" rows="1" placeholder="Write a message…"></textarea>
+      <input type="file" id="fileInput" style="display:none">
+      <button id="sendBtn">➤</button>
+    </div>
+    <div class="composer-hint">ENTER to send · SHIFT+ENTER for new line · files stored in your Google Drive</div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(function(){
+  const SCOPE = 'https://www.googleapis.com/auth/drive';
+  const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+  const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
+
+  const els = {
+    setup: document.getElementById('screenSetup'),
+    signin: document.getElementById('screenSignin'),
+    room: document.getElementById('screenRoom'),
+    name: document.getElementById('screenName'),
+    app: document.getElementById('app'),
+    clientIdInput: document.getElementById('clientIdInput'),
+    saveClientIdBtn: document.getElementById('saveClientIdBtn'),
+    setupErr: document.getElementById('setupErr'),
+    signInBtn: document.getElementById('signInBtn'),
+    signinErr: document.getElementById('signinErr'),
+    changeClientIdBtn: document.getElementById('changeClientIdBtn'),
+    createRoomBtn: document.getElementById('createRoomBtn'),
+    roomIdInput: document.getElementById('roomIdInput'),
+    joinRoomBtn: document.getElementById('joinRoomBtn'),
+    roomErr: document.getElementById('roomErr'),
+    nameInput: document.getElementById('nameInput'),
+    enterRoomBtn: document.getElementById('enterRoomBtn'),
+    meName: document.getElementById('meName'),
+    connMark: document.getElementById('connMark'),
+    statusLine: document.getElementById('statusLine'),
+    roomInfoBtn: document.getElementById('roomInfoBtn'),
+    switchRoomBtn: document.getElementById('switchRoomBtn'),
+    signOutBtn: document.getElementById('signOutBtn'),
+    thread: document.getElementById('thread'),
+    emptyState: document.getElementById('emptyState'),
+    msgInput: document.getElementById('msgInput'),
+    sendBtn: document.getElementById('sendBtn'),
+    attachBtn: document.getElementById('attachBtn'),
+    fileInput: document.getElementById('fileInput'),
+    filePreview: document.getElementById('filePreview'),
+    fnameLabel: document.getElementById('fnameLabel'),
+    removeFileBtn: document.getElementById('removeFileBtn'),
+  };
+
+  const DEFAULT_CLIENT_ID = '849145486545-v9pqc0q2fmrk1dc21bg564980bnl6v45.apps.googleusercontent.com';
+  let CLIENT_ID = localStorage.getItem('relay_client_id') || DEFAULT_CLIENT_ID;
+  let accessToken = '';
+  let tokenClient = null;
+  let myName = localStorage.getItem('relay_name') || '';
+  let roomFolderId = localStorage.getItem('relay_room_id') || '';
+  let messagesFileId = '';
+  let pendingFile = null;
+  let lastRenderedIds = new Set();
+  let pollTimer = null;
+  let writeLock = false;
+
+  function showScreen(name){
+    [els.setup, els.signin, els.room, els.name, els.app].forEach(s => s.classList.add('hidden'));
+    els.app.classList.remove('active');
+    if(name === 'app'){ els.app.classList.remove('hidden'); els.app.classList.add('active'); }
+    else els[name].classList.remove('hidden');
+  }
+
+  function showErr(el, msg){ el.textContent = msg; el.classList.add('active'); }
+  function clearErr(el){ el.textContent=''; el.classList.remove('active'); }
+
+  // ---------- Boot sequence ----------
+  function boot(){
+    if(!CLIENT_ID){
+      showScreen('setup');
+      return;
+    }
+    initTokenClient();
+    showScreen('signin');
+  }
+
+  els.saveClientIdBtn.addEventListener('click', () => {
+    const val = els.clientIdInput.value.trim();
+    if(!val.includes('.apps.googleusercontent.com')){
+      showErr(els.setupErr, 'That doesn\'t look like a valid Client ID — it should end in .apps.googleusercontent.com');
+      return;
+    }
+    CLIENT_ID = val;
+    localStorage.setItem('relay_client_id', CLIENT_ID);
+    clearErr(els.setupErr);
+    initTokenClient();
+    showScreen('signin');
+  });
+
+  els.changeClientIdBtn.addEventListener('click', () => {
+    els.clientIdInput.value = CLIENT_ID;
+    showScreen('setup');
+  });
+
+  function initTokenClient(){
+    function attempt(){
+      if(!window.google || !google.accounts || !google.accounts.oauth2){
+        setTimeout(attempt, 200);
+        return;
+      }
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPE,
+        callback: (resp) => {
+          if(resp.error){
+            showErr(els.signinErr, 'Sign-in failed: ' + resp.error + '. Check that this page\'s URL is listed under Authorized JavaScript origins in your Google Cloud OAuth client.');
+            return;
+          }
+          accessToken = resp.access_token;
+          onSignedIn();
+        }
+      });
+    }
+    attempt();
+  }
+
+  els.signInBtn.addEventListener('click', () => {
+    clearErr(els.signinErr);
+    if(!tokenClient){
+      showErr(els.signinErr, 'Still loading Google\'s sign-in library — try again in a second.');
+      return;
+    }
+    tokenClient.requestAccessToken();
+  });
+
+  function onSignedIn(){
+    if(roomFolderId){
+      goToNameOrApp();
+    } else {
+      showScreen('room');
+    }
+  }
+
+  els.signOutBtn.addEventListener('click', () => {
+    if(pollTimer) clearInterval(pollTimer);
+    if(accessToken && window.google) google.accounts.oauth2.revoke(accessToken, () => {});
+    accessToken = '';
+    showScreen('signin');
+  });
+
+  // ---------- Room create / join ----------
+  els.createRoomBtn.addEventListener('click', async () => {
+    clearErr(els.roomErr);
+    els.createRoomBtn.disabled = true;
+    els.createRoomBtn.innerHTML = '<span class="spinner-inline"></span>Creating room…';
+    try{
+      const folder = await driveCreateFolder('Relay Chat Room — ' + new Date().toISOString().slice(0,10));
+      await driveSetAnyoneWriter(folder.id);
+      const file = await driveCreateJsonFile(folder.id, 'messages.json', []);
+      roomFolderId = folder.id;
+      messagesFileId = file.id;
+      localStorage.setItem('relay_room_id', roomFolderId);
+      goToNameOrApp();
+    }catch(e){
+      console.error(e);
+      showErr(els.roomErr, 'Could not create the room: ' + e.message);
+    }finally{
+      els.createRoomBtn.disabled = false;
+      els.createRoomBtn.textContent = 'Create a new room';
+    }
+  });
+
+  els.joinRoomBtn.addEventListener('click', async () => {
+    clearErr(els.roomErr);
+    const id = els.roomIdInput.value.trim();
+    if(!id) return;
+    els.joinRoomBtn.disabled = true;
+    try{
+      const found = await driveFindMessagesFile(id);
+      if(!found){
+        showErr(els.roomErr, 'Could not find a messages file in that room — check the ID or make sure it was shared with "anyone with the link".');
+        return;
+      }
+      roomFolderId = id;
+      messagesFileId = found.id;
+      localStorage.setItem('relay_room_id', roomFolderId);
+      goToNameOrApp();
+    }catch(e){
+      console.error(e);
+      showErr(els.roomErr, 'Could not join that room: ' + e.message);
+    }finally{
+      els.joinRoomBtn.disabled = false;
+    }
+  });
+
+  function goToNameOrApp(){
+    if(myName){
+      startApp();
+    } else {
+      showScreen('name');
+      els.nameInput.focus();
+    }
+  }
+
+  els.nameInput.addEventListener('input', () => {
+    els.enterRoomBtn.disabled = els.nameInput.value.trim().length === 0;
+  });
+  els.nameInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && !els.enterRoomBtn.disabled) confirmName();
+  });
+  els.enterRoomBtn.addEventListener('click', confirmName);
+  function confirmName(){
+    myName = els.nameInput.value.trim();
+    localStorage.setItem('relay_name', myName);
+    startApp();
+  }
+
+  els.roomInfoBtn.addEventListener('click', () => {
+    const link = roomFolderId;
+    prompt('Share this Room ID with anyone you want in the chat:', link);
+  });
+
+  els.switchRoomBtn.addEventListener('click', () => {
+    if(pollTimer) clearInterval(pollTimer);
+    roomFolderId = '';
+    messagesFileId = '';
+    localStorage.removeItem('relay_room_id');
+    lastRenderedIds = new Set();
+    els.thread.querySelectorAll('.msg-row').forEach(n => n.remove());
+    clearErr(els.roomErr);
+    els.roomIdInput.value = '';
+    showScreen('room');
+  });
+
+  // ---------- Drive REST helpers ----------
+  function authHeaders(extra){
+    return Object.assign({ 'Authorization': 'Bearer ' + accessToken }, extra || {});
+  }
+
+  async function driveCreateFolder(name){
+    const res = await fetch(`${DRIVE_API}/files`, {
+      method: 'POST',
+      headers: authHeaders({'Content-Type':'application/json'}),
+      body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder' })
+    });
+    if(!res.ok) throw new Error('folder create failed (' + res.status + ')');
+    return res.json();
+  }
+
+  async function driveSetAnyoneWriter(fileId){
+    const res = await fetch(`${DRIVE_API}/files/${fileId}/permissions`, {
+      method: 'POST',
+      headers: authHeaders({'Content-Type':'application/json'}),
+      body: JSON.stringify({ role: 'writer', type: 'anyone' })
+    });
+    if(!res.ok) throw new Error('permission set failed (' + res.status + ')');
+    return res.json();
+  }
+
+  async function driveSetAnyoneReader(fileId){
+    const res = await fetch(`${DRIVE_API}/files/${fileId}/permissions`, {
+      method: 'POST',
+      headers: authHeaders({'Content-Type':'application/json'}),
+      body: JSON.stringify({ role: 'reader', type: 'anyone' })
+    });
+    if(!res.ok) throw new Error('permission set failed (' + res.status + ')');
+    return res.json();
+  }
+
+  async function driveCreateJsonFile(parentId, name, dataArr){
+    const metadata = { name, parents: [parentId], mimeType: 'application/json' };
+    const boundary = '-------relayBoundary';
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(dataArr)}\r\n` +
+      `--${boundary}--`;
+    const res = await fetch(`${DRIVE_UPLOAD}/files?uploadType=multipart&fields=id`, {
+      method: 'POST',
+      headers: authHeaders({'Content-Type': `multipart/related; boundary=${boundary}`}),
+      body
+    });
+    if(!res.ok) throw new Error('file create failed (' + res.status + ')');
+    return res.json();
+  }
+
+  async function driveFindMessagesFile(folderId){
+    const q = encodeURIComponent(`'${folderId}' in parents and name='messages.json' and trashed=false`);
+    const res = await fetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`, { headers: authHeaders() });
+    if(!res.ok) throw new Error('lookup failed (' + res.status + ')');
+    const data = await res.json();
+    return data.files && data.files.length ? data.files[0] : null;
+  }
+
+  async function driveReadJson(fileId){
+    const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, { headers: authHeaders() });
+    if(!res.ok) throw new Error('read failed (' + res.status + ')');
+    return res.json();
+  }
+
+  async function driveWriteJson(fileId, dataArr){
+    const res = await fetch(`${DRIVE_UPLOAD}/files/${fileId}?uploadType=media`, {
+      method: 'PATCH',
+      headers: authHeaders({'Content-Type':'application/json'}),
+      body: JSON.stringify(dataArr)
+    });
+    if(!res.ok) throw new Error('write failed (' + res.status + ')');
+    return res.json();
+  }
+
+  async function driveUploadAttachment(file, folderId){
+    const metadata = { name: file.name, parents: [folderId] };
+    const boundary = '-------relayFileBoundary';
+    const arrayBuffer = await file.arrayBuffer();
+    const base64Data = arrayBufferToBase64(arrayBuffer);
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+      `--${boundary}\r\nContent-Type: ${file.type || 'application/octet-stream'}\r\nContent-Transfer-Encoding: base64\r\n\r\n${base64Data}\r\n` +
+      `--${boundary}--`;
+    const res = await fetch(`${DRIVE_UPLOAD}/files?uploadType=multipart&fields=id,webContentLink`, {
+      method: 'POST',
+      headers: authHeaders({'Content-Type': `multipart/related; boundary=${boundary}`}),
+      body
+    });
+    if(!res.ok) throw new Error('upload failed (' + res.status + ')');
+    const result = await res.json();
+    await driveSetAnyoneReader(result.id);
+    return result;
+  }
+
+  function arrayBufferToBase64(buffer){
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const chunk = 0x8000;
+    for(let i=0; i<bytes.length; i+=chunk){
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+    }
+    return btoa(binary);
+  }
+
+  // ---------- App ----------
+  function startApp(){
+    els.meName.textContent = myName;
+    lastRenderedIds = new Set();
+    els.thread.querySelectorAll('.msg-row').forEach(n => n.remove());
+    showScreen('app');
+    refreshMessages(true);
+    pollTimer = setInterval(() => refreshMessages(false), 5000);
+  }
+
+  async function refreshMessages(isInitial){
+    try{
+      if(!messagesFileId){
+        const found = await driveFindMessagesFile(roomFolderId);
+        if(found) messagesFileId = found.id;
+        else throw new Error('room file missing');
+      }
+      const messages = await driveReadJson(messagesFileId);
+      setStatus('live');
+      renderMessages(messages, isInitial);
+    }catch(e){
+      console.error(e);
+      setStatus('offline');
+    }
+  }
+
+  function setStatus(state){
+    els.connMark.className = 'brand-mark';
+    if(state === 'live'){ els.statusLine.textContent = 'LIVE · ROOM ' + roomFolderId.slice(0,8) + '…'; }
+    else if(state === 'offline'){ els.connMark.classList.add('offline'); els.statusLine.textContent = 'CONNECTION ISSUE — RETRYING'; }
+    else { els.connMark.classList.add('syncing'); els.statusLine.textContent = 'SYNCING…'; }
+  }
+
+  function humanSize(bytes){
+    if(bytes < 1024) return bytes + ' B';
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/(1024*1024)).toFixed(1) + ' MB';
+  }
+  function extTag(filename){
+    const parts = filename.split('.');
+    const ext = parts.length > 1 ? parts.pop().toUpperCase() : 'FILE';
+    return ext.slice(0,4);
+  }
+  function fmtTime(ts){ return new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+  function escapeHtml(str){ const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+
+  function renderMessages(messages, isInitial){
+    if(messages.length === 0){ els.emptyState.style.display='block'; return; }
+    els.emptyState.style.display='none';
+    const wasNearBottom = (els.thread.scrollHeight - els.thread.scrollTop - els.thread.clientHeight) < 120;
+    let added = false;
+    messages.forEach(m => {
+      if(!lastRenderedIds.has(m.id)){
+        els.thread.appendChild(renderMessage(m));
+        lastRenderedIds.add(m.id);
+        added = true;
+      }
+    });
+    if(added && (isInitial || wasNearBottom)) els.thread.scrollTop = els.thread.scrollHeight;
+  }
+
+  function renderMessage(m){
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (m.sender === myName ? 'mine' : 'theirs');
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.innerHTML = `<span class="name">${escapeHtml(m.sender === myName ? 'You' : m.sender)}</span><span>${fmtTime(m.timestamp)}</span>`;
+    row.appendChild(meta);
+    if(m.text){
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = m.text;
+      row.appendChild(bubble);
+    }
+    if(m.file){
+      const card = document.createElement('a');
+      card.className = 'attach-card';
+      card.href = m.file.link;
+      card.target = '_blank';
+      card.rel = 'noopener';
+      card.innerHTML = `
+        <div class="attach-icon">${extTag(m.file.name)}</div>
+        <div class="attach-info">
+          <div class="attach-name">${escapeHtml(m.file.name)}</div>
+          <div class="attach-size">${humanSize(m.file.size)}</div>
+        </div>
+        <div class="attach-dl">↓ OPEN</div>`;
+      row.appendChild(card);
+    }
+    return row;
+  }
+
+  // ---------- Composer ----------
+  els.msgInput.addEventListener('input', () => {
+    els.msgInput.style.height = 'auto';
+    els.msgInput.style.height = Math.min(els.msgInput.scrollHeight, 120) + 'px';
+  });
+  els.msgInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+  });
+  els.sendBtn.addEventListener('click', sendMessage);
+  els.attachBtn.addEventListener('click', () => els.fileInput.click());
+
+  els.fileInput.addEventListener('change', () => {
+    const f = els.fileInput.files[0];
+    if(!f) return;
+    pendingFile = f;
+    els.fnameLabel.textContent = f.name + '  ·  ' + humanSize(f.size);
+    els.filePreview.classList.add('active');
+  });
+  els.removeFileBtn.addEventListener('click', () => {
+    pendingFile = null;
+    els.fileInput.value = '';
+    els.filePreview.classList.remove('active');
+  });
+
+  async function sendMessage(){
+    const text = els.msgInput.value.trim();
+    if(!text && !pendingFile) return;
+    if(writeLock) return;
+    writeLock = true;
+    els.sendBtn.disabled = true;
+    const original = els.sendBtn.textContent;
+    els.sendBtn.textContent = '…';
+
+    try{
+      const newMsg = {
+        id: Date.now() + '-' + Math.random().toString(36).slice(2,8),
+        sender: myName,
+        text: text || null,
+        timestamp: Date.now(),
+        file: null
+      };
+
+      if(pendingFile){
+        const uploaded = await driveUploadAttachment(pendingFile, roomFolderId);
+        newMsg.file = {
+          name: pendingFile.name,
+          size: pendingFile.size,
+          link: uploaded.webContentLink || `https://drive.google.com/uc?id=${uploaded.id}&export=download`
+        };
+      }
+
+      const current = await driveReadJson(messagesFileId);
+      current.push(newMsg);
+      await driveWriteJson(messagesFileId, current);
+
+      els.msgInput.value = '';
+      els.msgInput.style.height = 'auto';
+      pendingFile = null;
+      els.fileInput.value = '';
+      els.filePreview.classList.remove('active');
+      await refreshMessages(true);
+    }catch(e){
+      console.error(e);
+      alert('Could not send that: ' + e.message + '\n\nIf this says 401 or 403, your sign-in session may have expired — try signing out and back in.');
+    }finally{
+      writeLock = false;
+      els.sendBtn.disabled = false;
+      els.sendBtn.textContent = original;
+    }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
