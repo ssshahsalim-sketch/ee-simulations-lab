@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Token Calculator &amp; Breakdown Simulator — Apna Electromechanic Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1620;
+    --bg-grid: rgba(79,216,232,0.045);
+    --panel:#0e1f2f;
+    --panel-alt:#112637;
+    --line:#1d3a52;
+    --line-bright:#2c5573;
+    --cyan:#4fd8e8;
+    --cyan-dim:#2a8fa0;
+    --cyan-soft: rgba(79,216,232,0.12);
+    --amber:#ffab5c;
+    --amber-dim:#c47a35;
+    --coral:#ff7a70;
+    --text:#e7f2f5;
+    --text-dim:#8fadbc;
+    --text-faint:#5c7688;
+    --word:#4fd8e8;
+    --subword:#2a8fa0;
+    --number:#ffab5c;
+    --punct:#ff7a70;
+    --space: rgba(255,255,255,0.05);
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+    --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+    --radius: 3px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0/32px 32px,
+      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px) 0 0/32px 32px,
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.5;
+    padding:28px 20px 60px;
+    min-height:100vh;
+  }
+
+  .wrap{max-width:1080px; margin:0 auto;}
+
+  /* ===== Header ===== */
+  header{ margin-bottom:28px; }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.18em;
+    color:var(--cyan-dim);
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:8px;height:8px;
+    background:var(--cyan);
+    box-shadow:0 0 8px var(--cyan);
+    border-radius:1px;
+    flex-shrink:0;
+  }
+  h1{
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:clamp(24px,4vw,36px);
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+    color:var(--text);
+  }
+  h1 span{color:var(--cyan);}
+  .sub{
+    color:var(--text-dim);
+    font-size:14.5px;
+    max-width:640px;
+  }
+  .rule{
+    height:1px;
+    background:linear-gradient(90deg, var(--cyan-dim), var(--line) 40%, transparent);
+    margin:20px 0;
+  }
+
+  /* ===== Panel base ===== */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    position:relative;
+  }
+  .panel::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:1px;
+    background:linear-gradient(90deg, var(--cyan-dim), transparent 60%);
+    opacity:.7;
+  }
+  .panel-label{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    padding:12px 16px 0;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .panel-label b{color:var(--cyan-dim); font-weight:600;}
+
+  /* ===== Grid: input + readout ===== */
+  .grid-top{
+    display:grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap:16px;
+    margin-bottom:16px;
+  }
+  @media (max-width:760px){ .grid-top{grid-template-columns:1fr;} }
+
+  textarea{
+    width:100%;
+    min-height:160px;
+    resize:vertical;
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:14.5px;
+    padding:14px;
+    margin-top:10px;
+    outline:none;
+  }
+  textarea:focus{border-color:var(--cyan-dim); box-shadow:0 0 0 3px var(--cyan-soft);}
+  textarea::placeholder{color:var(--text-faint);}
+
+  .samples{
+    display:flex; flex-wrap:wrap; gap:8px;
+    padding:12px 16px 16px;
+  }
+  .chip-btn{
+    font-family:var(--mono);
+    font-size:11.5px;
+    background:transparent;
+    border:1px solid var(--line-bright);
+    color:var(--text-dim);
+    padding:6px 10px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    transition:.15s;
+  }
+  .chip-btn:hover{border-color:var(--cyan); color:var(--cyan); background:var(--cyan-soft);}
+
+  .input-body{padding:0 16px 4px;}
+
+  /* ===== Readout / instrument panel ===== */
+  .readout-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:1px;
+    background:var(--line);
+    margin-top:10px;
+    border-top:1px solid var(--line);
+  }
+  .readout-cell{
+    background:var(--panel);
+    padding:14px 16px;
+  }
+  .readout-num{
+    font-family:var(--mono);
+    font-size:26px;
+    font-weight:600;
+    color:var(--cyan);
+    line-height:1.1;
+  }
+  .readout-num.amber{color:var(--amber);}
+  .readout-tag{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-top:4px;
+  }
+  .ratio-bar-track{
+    margin:14px 16px 16px;
+    height:6px;
+    background:var(--panel-alt);
+    border-radius:4px;
+    overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .ratio-bar-fill{
+    height:100%;
+    background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));
+    width:0%;
+    transition:width .25s ease;
+  }
+  .ratio-note{
+    padding:0 16px 14px;
+    font-size:11.5px;
+    color:var(--text-faint);
+    font-family:var(--mono);
+  }
+
+  /* ===== Pulse train ===== */
+  .scope{
+    margin-bottom:16px;
+    padding-bottom:14px;
+  }
+  .scope-strip{
+    margin:12px 16px 0;
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 12px;
+    min-height:70px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:3px;
+    position:relative;
+  }
+  .scope-strip::before{
+    content:"";
+    position:absolute; left:12px; right:12px; top:50%;
+    height:1px;
+    background:var(--line-bright);
+    z-index:0;
+  }
+  .pulse{
+    position:relative;
+    z-index:1;
+    font-family:var(--mono);
+    font-size:12px;
+    padding:6px 7px;
+    border-radius:2px;
+    color:#04141c;
+    font-weight:600;
+    white-space:pre;
+    cursor:default;
+    border-bottom:3px solid transparent;
+    transition:transform .1s;
+  }
+  .pulse:hover{ transform:translateY(-2px); }
+  .pulse.word{ background:var(--word); }
+  .pulse.subword{ background:var(--subword); color:#dff9fc;}
+  .pulse.number{ background:var(--number); }
+  .pulse.punct{ background:var(--punct); color:#2b0a08;}
+  .pulse.space{
+    background:var(--space);
+    color:transparent;
+    min-width:14px;
+    border:1px dashed var(--line-bright);
+  }
+  .empty-scope{
+    color:var(--text-faint);
+    font-family:var(--mono);
+    font-size:12.5px;
+    padding:8px 4px;
+  }
+
+  .legend{
+    display:flex; flex-wrap:wrap; gap:14px;
+    margin:12px 16px 0;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-dim);
+  }
+  .legend-item{display:flex; align-items:center; gap:6px;}
+  .swatch{width:11px; height:11px; border-radius:2px; display:inline-block;}
+
+  /* ===== Ledger ===== */
+  .ledger-toggle{
+    background:none;border:none;color:var(--cyan-dim);
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+    cursor:pointer; text-transform:uppercase;
+  }
+  .ledger-table-wrap{
+    margin:0 16px 14px;
+    max-height:220px;
+    overflow-y:auto;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    display:none;
+  }
+  .ledger-table-wrap.open{display:block;}
+  table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px;}
+  thead th{
+    position:sticky; top:0;
+    background:var(--panel-alt);
+    text-align:left; padding:8px 10px;
+    color:var(--text-faint);
+    font-weight:500;
+    border-bottom:1px solid var(--line);
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    font-size:10px;
+  }
+  tbody td{padding:6px 10px; border-bottom:1px solid var(--line); color:var(--text-dim);}
+  tbody tr:hover{background:var(--cyan-soft);}
+  .tag-dot{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px;}
+
+  /* ===== Cost calculator ===== */
+  .cost-panel{margin-bottom:16px; padding-bottom:18px;}
+  .model-tabs{
+    display:flex; gap:8px; flex-wrap:wrap;
+    padding:12px 16px 0;
+  }
+  .model-tab{
+    font-family:var(--mono); font-size:12px;
+    padding:8px 12px;
+    border:1px solid var(--line-bright);
+    border-radius:var(--radius);
+    background:var(--panel-alt);
+    color:var(--text-dim);
+    cursor:pointer;
+  }
+  .model-tab.active{
+    border-color:var(--cyan); color:var(--cyan); background:var(--cyan-soft);
+  }
+  .cost-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    padding:16px;
+  }
+  @media (max-width:700px){ .cost-grid{grid-template-columns:1fr 1fr;} }
+  .field label{
+    display:block; font-family:var(--mono); font-size:10px;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint);
+    margin-bottom:6px;
+  }
+  .field input[type=number]{
+    width:100%;
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    color:var(--cyan);
+    font-family:var(--mono);
+    font-size:14px;
+    padding:8px 10px;
+    outline:none;
+  }
+  .field input[type=number]:focus{border-color:var(--cyan-dim);}
+  .field .unit{font-size:10px; color:var(--text-faint); margin-top:3px;}
+
+  .slider-row{padding:4px 16px 16px;}
+  .slider-row label{
+    font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
+    display:flex; justify-content:space-between; margin-bottom:8px;
+  }
+  .slider-row label b{color:var(--amber);}
+  input[type=range]{
+    width:100%; -webkit-appearance:none; appearance:none;
+    height:4px; border-radius:2px;
+    background:var(--line-bright); outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:16px; height:16px; border-radius:50%;
+    background:var(--cyan); cursor:pointer;
+    border:2px solid #04141c;
+    box-shadow:0 0 6px var(--cyan);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px; height:16px; border-radius:50%;
+    background:var(--cyan); cursor:pointer; border:2px solid #04141c;
+  }
+
+  .cost-result{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:1px;
+    background:var(--line);
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    margin-top:4px;
+  }
+  @media (max-width:700px){ .cost-result{grid-template-columns:1fr;} }
+  .cost-cell{background:var(--panel); padding:14px 16px;}
+  .cost-cell .val{font-family:var(--mono); font-size:20px; color:var(--amber); font-weight:600;}
+  .cost-cell .tag{font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-faint); margin-top:4px;}
+
+  .disclaimer{
+    font-size:11.5px; color:var(--text-faint); padding:12px 16px 0;
+    font-family:var(--mono); line-height:1.6;
+  }
+  .disclaimer a{color:var(--cyan-dim);}
+
+  /* ===== Education ===== */
+  .edu-panel{margin-bottom:16px;}
+  .accordion-item{border-top:1px solid var(--line);}
+  .accordion-item:first-child{border-top:none;}
+  .accordion-head{
+    width:100%;
+    background:none; border:none;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 16px;
+    cursor:pointer;
+    color:var(--text);
+    font-family:var(--sans); font-size:14.5px; font-weight:600;
+    text-align:left;
+  }
+  .accordion-head:hover{color:var(--cyan);}
+  .accordion-head .plus{
+    font-family:var(--mono); color:var(--cyan-dim); font-size:18px; transition:transform .2s;
+  }
+  .accordion-item.open .plus{transform:rotate(45deg);}
+  .accordion-body{
+    max-height:0; overflow:hidden; transition:max-height .25s ease;
+    font-size:13.5px; color:var(--text-dim);
+  }
+  .accordion-item.open .accordion-body{max-height:600px;}
+  .accordion-body-inner{padding:0 16px 18px; line-height:1.7;}
+  .accordion-body-inner code{
+    background:var(--panel-alt); border:1px solid var(--line);
+    padding:1px 6px; border-radius:2px; font-family:var(--mono); font-size:12.5px; color:var(--cyan);
+  }
+  .mini-compare{
+    display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;
+  }
+  .mini-card{
+    background:var(--panel-alt); border:1px solid var(--line); border-radius:var(--radius);
+    padding:10px 12px; flex:1; min-width:140px;
+  }
+  .mini-card .w{font-family:var(--mono); font-size:13px; color:var(--text); margin-bottom:6px;}
+  .mini-card .t{font-family:var(--mono); font-size:11px; color:var(--cyan-dim);}
+
+  footer{
+    margin-top:24px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center;
+    flex-wrap:wrap; gap:8px;
+    font-family:var(--mono); font-size:11px; color:var(--text-faint);
+  }
+  footer b{color:var(--cyan-dim);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Apna Electromechanic Service // Engineering Tools</div>
+    <h1>Token Calculator <span>&amp; Breakdown Simulator</span></h1>
+    <p class="sub">Type or paste text below to see how a language model would chop it into tokens — the discrete units it actually reads, counts, and bills by.</p>
+  </header>
+
+  <div class="rule"></div>
+
+  <!-- INPUT + READOUT -->
+  <div class="grid-top">
+    <div class="panel">
+      <div class="panel-label">01 // Input Text</div>
+      <div class="input-body">
+        <textarea id="inputText" placeholder="Start typing, or load a sample below…">The quick brown fox jumps over 12 lazy dogs. Tokenization isn't just splitting by spaces!</textarea>
+      </div>
+      <div class="samples">
+        <button class="chip-btn" data-sample="short">Short sentence</button>
+        <button class="chip-btn" data-sample="tech">Technical paragraph</button>
+        <button class="chip-btn" data-sample="code">Code snippet</button>
+        <button class="chip-btn" data-sample="long">Longer passage</button>
+        <button class="chip-btn" data-sample="clear">Clear</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">02 // Live Readout</div>
+      <div class="readout-grid">
+        <div class="readout-cell">
+          <div class="readout-num" id="statChars">0</div>
+          <div class="readout-tag">Characters</div>
+        </div>
+        <div class="readout-cell">
+          <div class="readout-num" id="statWords">0</div>
+          <div class="readout-tag">Words</div>
+        </div>
+        <div class="readout-cell">
+          <div class="readout-num amber" id="statTokens">0</div>
+          <div class="readout-tag">Est. Tokens (sim)</div>
+        </div>
+        <div class="readout-cell">
+          <div class="readout-num" id="statRatio">0.0</div>
+          <div class="readout-tag">Tokens / Word</div>
+        </div>
+      </div>
+      <div class="ratio-bar-track"><div class="ratio-bar-fill" id="ratioBar"></div></div>
+      <div class="ratio-note" id="ratioNote">1.0 = every word is one token. Higher = more splitting.</div>
+    </div>
+  </div>
+
+  <!-- PULSE TRAIN -->
+  <div class="panel scope">
+    <div class="panel-label">03 // Token Pulse Train <b id="pulseCount">0 pulses</b></div>
+    <div class="scope-strip" id="scopeStrip">
+      <div class="empty-scope">// waiting for input signal…</div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="swatch" style="background:var(--word)"></span>word</div>
+      <div class="legend-item"><span class="swatch" style="background:var(--subword)"></span>subword continuation</div>
+      <div class="legend-item"><span class="swatch" style="background:var(--number)"></span>number</div>
+      <div class="legend-item"><span class="swatch" style="background:var(--punct)"></span>punctuation</div>
+      <div class="legend-item"><span class="swatch" style="background:var(--space); border:1px dashed var(--line-bright)"></span>space</div>
+    </div>
+    <div style="padding:10px 16px 0;">
+      <button class="ledger-toggle" id="ledgerToggle">▸ Show token ledger (table view)</button>
+    </div>
+    <div class="ledger-table-wrap" id="ledgerWrap">
+      <table>
+        <thead><tr><th>#</th><th>Token</th><th>Type</th><th>Chars</th></tr></thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- COST CALCULATOR -->
+  <div class="panel cost-panel">
+    <div class="panel-label">04 // Cost Calculator</div>
+    <div class="model-tabs" id="modelTabs">
+      <button class="model-tab active" data-in="2" data-out="10">Claude Sonnet 5 (intro, thru Aug 2026)</button>
+      <button class="model-tab" data-in="5" data-out="25">Claude Opus 4.8</button>
+      <button class="model-tab" data-in="1" data-out="5">Claude Haiku 4.5</button>
+      <button class="model-tab" data-in="" data-out="" id="customTab">Custom / other model</button>
+    </div>
+
+    <div class="cost-grid">
+      <div class="field">
+        <label for="rateIn">Input rate</label>
+        <input type="number" id="rateIn" value="2" min="0" step="0.01">
+        <div class="unit">USD per 1M input tokens</div>
+      </div>
+      <div class="field">
+        <label for="rateOut">Output rate</label>
+        <input type="number" id="rateOut" value="10" min="0" step="0.01">
+        <div class="unit">USD per 1M output tokens</div>
+      </div>
+      <div class="field">
+        <label for="outTokensManual">Expected output tokens</label>
+        <input type="number" id="outTokensManual" value="300" min="0" step="10">
+        <div class="unit">or drag slider below</div>
+      </div>
+      <div class="field">
+        <label for="callsPerDay">Calls per day</label>
+        <input type="number" id="callsPerDay" value="50" min="0" step="1">
+        <div class="unit">for monthly projection</div>
+      </div>
+    </div>
+
+    <div class="slider-row">
+      <label>Output tokens (drag to match the field above) <b id="outSliderVal">300</b></label>
+      <input type="range" id="outSlider" min="0" max="4000" value="300" step="10">
+    </div>
+
+    <div class="cost-result">
+      <div class="cost-cell">
+        <div class="val" id="costInput">$0.000000</div>
+        <div class="tag">Input cost (this text)</div>
+      </div>
+      <div class="cost-cell">
+        <div class="val" id="costOutput">$0.000000</div>
+        <div class="tag">Output cost (estimate)</div>
+      </div>
+      <div class="cost-cell">
+        <div class="val" id="costTotal">$0.000000</div>
+        <div class="tag">Total per call</div>
+      </div>
+    </div>
+    <div class="cost-result" style="margin-top:0;">
+      <div class="cost-cell" style="grid-column:1/-1;">
+        <div class="val" id="costMonthly">$0.00</div>
+        <div class="tag">Projected monthly cost at <span id="callsPerDayEcho">50</span> calls/day, 30 days</div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      Default rates reflect Anthropic's published Claude API pricing at time of writing (Sonnet 5 introductory rate applies through Aug 31, 2026). Rates change — edit the fields above with current numbers for any model, and see <a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener">platform.claude.com/docs pricing</a> for the latest.
+    </div>
+  </div>
+
+  <!-- EDUCATION -->
+  <div class="panel edu-panel">
+    <div class="panel-label">05 // How Tokenization Works</div>
+
+    <div class="accordion-item open">
+      <button class="accordion-head"><span>What actually is a "token"?</span><span class="plus">+</span></button>
+      <div class="accordion-body">
+        <div class="accordion-body-inner">
+          A token is the smallest chunk of text a language model reads or writes — not always a whole word, and not always a single character. Models learn a fixed vocabulary of tens of thousands of these chunks, then break any input into the fewest pieces from that vocabulary. Common short words usually survive as one token; longer or unusual words often get split into pieces, called subword tokens. As a rough rule of thumb, Anthropic's own documentation notes that one token is roughly 4 characters or about three-quarters of a word in English.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <button class="accordion-head"><span>Why not just count words?</span><span class="plus">+</span></button>
+      <div class="accordion-body">
+        <div class="accordion-body-inner">
+          Word count and token count drift apart fast. Short, common words often map to a single token, but longer, rarer, or compound words get sliced into pieces:
+          <div class="mini-compare">
+            <div class="mini-card"><div class="w">cat</div><div class="t">≈ 1 token</div></div>
+            <div class="mini-card"><div class="w">tokenization</div><div class="t">≈ 3–4 tokens</div></div>
+            <div class="mini-card"><div class="w">electromechanical</div><div class="t">≈ 4–5 tokens</div></div>
+            <div class="mini-card"><div class="w">3,847,201</div><div class="t">≈ 3–4 tokens</div></div>
+          </div>
+          Numbers, code, and non-English scripts (like Hindi in Devanagari) typically use more tokens per character than plain English prose, because the model's vocabulary was trained mostly on English text. That's why a Hinglish WhatsApp-style message can cost noticeably more per word than an equivalent English sentence.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <button class="accordion-head"><span>Why does this matter for cost?</span><span class="plus">+</span></button>
+      <div class="accordion-body">
+        <div class="accordion-body-inner">
+          AI APIs bill per token, separately for what you send (input) and what the model generates (output) — output is typically priced several times higher than input. A system prompt, a long document, or a chatty back-and-forth all add up token by token, which is why the cost calculator above splits input and output and lets you project a daily workload into a monthly bill.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <button class="accordion-head"><span>A note on this simulator's accuracy</span><span class="plus">+</span></button>
+      <div class="accordion-body">
+        <div class="accordion-body-inner">
+          The pulse train above uses a simplified, rule-based splitting pattern built for teaching the concept — it is <em>not</em> the exact tokenizer used by Claude, GPT, or any other production model. Real tokenizers (usually Byte-Pair Encoding or similar) are trained statistically on huge text corpora, so their exact split points differ from this approximation. Treat the token count here as a reasonable ballpark for learning, not a billing-grade figure — for exact counts, use the model provider's official tokenizer or API usage response.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div><b>Apna Electromechanic Service</b> — Engineering Tools Suite</div>
+    <div>Offline-capable · single-file HTML · no build step</div>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const inputText = document.getElementById('inputText');
+
+  const SAMPLES = {
+    short: "The quick brown fox jumps over 12 lazy dogs. Tokenization isn't just splitting by spaces!",
+    tech: "A three-phase induction motor draws unbalanced neutral current when single-phase loads are distributed unevenly across L1, L2, and L3. Proper load balancing reduces I²R losses and prevents transformer overheating in residential distribution panels.",
+    code: "function calculateLoad(phaseA, phaseB, phaseC) {\n  const total = phaseA + phaseB + phaseC;\n  const neutral = Math.sqrt(phaseA**2 + phaseB**2 + phaseC**2 - phaseA*phaseB - phaseB*phaseC - phaseA*phaseC);\n  return { total, neutral };\n}",
+    long: "Understanding how large language models process text starts with tokenization. Before any prediction happens, raw text is converted into a sequence of integers, each representing a token from the model's vocabulary. This vocabulary is built once, during training, using an algorithm like Byte-Pair Encoding, which repeatedly merges the most frequent adjacent character pairs until it reaches a target vocabulary size — often somewhere between 50,000 and 200,000 entries. The result is a compromise: common words get their own single token, so the model doesn't waste capacity on them, while rare words, typos, technical jargon, and numbers get broken into smaller, reusable pieces. This is also why pricing, context limits, and even model behavior can shift subtly between languages — English-heavy training data means English text is usually the most token-efficient input you can send.",
+    clear: ""
+  };
+
+  document.querySelectorAll('[data-sample]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      inputText.value = SAMPLES[btn.dataset.sample];
+      render();
+    });
+  });
+
+  // ---- Approximate educational tokenizer ----
+  function splitWord(word){
+    if(word.length <= 4) return [{text:word, cat:'word'}];
+    let pieces = [];
+    let idx = 0, first = true;
+    while(idx < word.length){
+      const size = first ? Math.min(4, word.length - idx) : Math.min(3, word.length - idx);
+      pieces.push(word.slice(idx, idx+size));
+      idx += size; first = false;
+    }
+    if(pieces.length > 1 && pieces[pieces.length-1].length < 2){
+      const last = pieces.pop();
+      pieces[pieces.length-1] += last;
+    }
+    return pieces.map((p,i)=>({text:p, cat: i===0 ? 'word' : 'subword'}));
+  }
+
+  function splitNumber(num){
+    let pieces = [];
+    for(let i=0;i<num.length;i+=3) pieces.push(num.slice(i,i+3));
+    return pieces.map(p=>({text:p, cat:'number'}));
+  }
+
+  function splitPunct(run){
+    if(/^(.)\1*$/.test(run) && run.length <= 3) return [{text:run, cat:'punct'}];
+    return run.split('').map(c=>({text:c, cat:'punct'}));
+  }
+
+  function tokenize(text){
+    const tokens = [];
+    const re = /(\s+)|([A-Za-z]+)|([0-9]+)|([^\sA-Za-z0-9]+)/g;
+    let m;
+    while((m = re.exec(text)) !== null){
+      if(m[1] !== undefined) tokens.push({text:m[1], cat:'space'});
+      else if(m[2] !== undefined) tokens.push(...splitWord(m[2]));
+      else if(m[3] !== undefined) tokens.push(...splitNumber(m[3]));
+      else if(m[4] !== undefined) tokens.push(...splitPunct(m[4]));
+    }
+    return tokens;
+  }
+
+  const CAT_LABEL = { word:'word', subword:'subword', number:'number', punct:'punctuation', space:'space' };
+
+  const scopeStrip = document.getElementById('scopeStrip');
+  const pulseCount = document.getElementById('pulseCount');
+  const ledgerBody = document.getElementById('ledgerBody');
+  const ledgerWrap = document.getElementById('ledgerWrap');
+  const ledgerToggle = document.getElementById('ledgerToggle');
+
+  ledgerToggle.addEventListener('click', ()=>{
+    const open = ledgerWrap.classList.toggle('open');
+    ledgerToggle.textContent = (open ? '▾ Hide token ledger (table view)' : '▸ Show token ledger (table view)');
+  });
+
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function render(){
+    const text = inputText.value;
+    const chars = text.length;
+    const words = text.trim().length ? text.trim().split(/\s+/).length : 0;
+    const tokens = tokenize(text);
+    const tokenCount = tokens.length;
+    const ratio = words > 0 ? (tokenCount / words) : 0;
+
+    document.getElementById('statChars').textContent = chars.toLocaleString();
+    document.getElementById('statWords').textContent = words.toLocaleString();
+    document.getElementById('statTokens').textContent = tokenCount.toLocaleString();
+    document.getElementById('statRatio').textContent = ratio.toFixed(2);
+
+    const barPct = Math.min(100, (ratio / 3) * 100);
+    document.getElementById('ratioBar').style.width = barPct + '%';
+    const note = document.getElementById('ratioNote');
+    if(words === 0){ note.textContent = '1.0 = every word is one token. Higher = more splitting.'; }
+    else if(ratio < 1.15) note.textContent = 'Very token-efficient — mostly short, common words.';
+    else if(ratio < 1.6) note.textContent = 'Typical for everyday English prose.';
+    else note.textContent = 'Token-heavy — lots of long words, numbers, or code.';
+
+    // Pulse train
+    scopeStrip.innerHTML = '';
+    if(tokenCount === 0){
+      scopeStrip.innerHTML = '<div class="empty-scope">// waiting for input signal…</div>';
+    } else {
+      const frag = document.createDocumentFragment();
+      tokens.forEach(t=>{
+        const el = document.createElement('span');
+        el.className = 'pulse ' + t.cat;
+        el.textContent = t.cat === 'space' ? '·' : t.text;
+        el.title = (t.cat === 'space' ? '(space)' : t.text) + '  —  ' + CAT_LABEL[t.cat];
+        frag.appendChild(el);
+      });
+      scopeStrip.appendChild(frag);
+    }
+    pulseCount.textContent = tokenCount.toLocaleString() + ' pulses';
+
+    // Ledger
+    ledgerBody.innerHTML = '';
+    const rows = document.createDocumentFragment();
+    tokens.forEach((t,i)=>{
+      const tr = document.createElement('tr');
+      const display = t.cat === 'space' ? '(space)' : escapeHtml(t.text);
+      tr.innerHTML = `<td>${i+1}</td><td>${display}</td><td><span class="tag-dot" style="background:var(--${t.cat})"></span>${CAT_LABEL[t.cat]}</td><td>${t.text.length}</td>`;
+      rows.appendChild(tr);
+    });
+    ledgerBody.appendChild(rows);
+
+    updateCost(tokenCount);
+  }
+
+  // ---- Cost calculator ----
+  const rateIn = document.getElementById('rateIn');
+  const rateOut = document.getElementById('rateOut');
+  const outSlider = document.getElementById('outSlider');
+  const outManual = document.getElementById('outTokensManual');
+  const outSliderVal = document.getElementById('outSliderVal');
+  const callsPerDay = document.getElementById('callsPerDay');
+  const callsEcho = document.getElementById('callsPerDayEcho');
+
+  outSlider.addEventListener('input', ()=>{
+    outManual.value = outSlider.value;
+    outSliderVal.textContent = outSlider.value;
+    updateCost(currentTokenCount());
+  });
+  outManual.addEventListener('input', ()=>{
+    const v = Math.max(0, Math.min(4000, Number(outManual.value)||0));
+    outSlider.value = v;
+    outSliderVal.textContent = outManual.value;
+    updateCost(currentTokenCount());
+  });
+  [rateIn, rateOut, callsPerDay].forEach(el=>{
+    el.addEventListener('input', ()=>updateCost(currentTokenCount()));
+  });
+
+  function currentTokenCount(){
+    return tokenize(inputText.value).length;
+  }
+
+  document.querySelectorAll('.model-tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      document.querySelectorAll('.model-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      if(tab.id === 'customTab'){
+        rateIn.focus();
+      } else {
+        rateIn.value = tab.dataset.in;
+        rateOut.value = tab.dataset.out;
+      }
+      updateCost(currentTokenCount());
+    });
+  });
+
+  function updateCost(inputTokens){
+    const rIn = Number(rateIn.value) || 0;
+    const rOut = Number(rateOut.value) || 0;
+    const outTok = Number(outManual.value) || 0;
+    const calls = Number(callsPerDay.value) || 0;
+
+    const costIn = (inputTokens / 1e6) * rIn;
+    const costOut = (outTok / 1e6) * rOut;
+    const costTotal = costIn + costOut;
+    const monthly = costTotal * calls * 30;
+
+    document.getElementById('costInput').textContent = '$' + costIn.toFixed(6);
+    document.getElementById('costOutput').textContent = '$' + costOut.toFixed(6);
+    document.getElementById('costTotal').textContent = '$' + costTotal.toFixed(6);
+    document.getElementById('costMonthly').textContent = '$' + monthly.toLocaleString(undefined,{maximumFractionDigits:2});
+    callsEcho.textContent = calls.toLocaleString();
+  }
+
+  // Accordion
+  document.querySelectorAll('.accordion-head').forEach(head=>{
+    head.addEventListener('click', ()=>{
+      head.parentElement.classList.toggle('open');
+    });
+  });
+
+  inputText.addEventListener('input', render);
+  render();
+})();
+</script>
+</body>
+</html>
