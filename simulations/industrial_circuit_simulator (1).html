@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Industrial Circuit Simulator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#efefed;--surf:#fff;--panel:#f5f5f3;--brd:#d2d1cc;--brd2:#aaa9a4;
+  --tx:#181816;--tx2:#585654;--tx3:#888682;
+  --blue:#2563eb;--blue-bg:#eff6ff;
+  --green:#16a34a;--red:#dc2626;--red-bg:#fef2f2;
+  --amber:#d97706;
+  --woff:#444;--won:#16a34a;
+  --r:6px;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* HEADER */
+#hdr{background:var(--surf);border-bottom:1px solid var(--brd);padding:6px 14px;display:flex;align-items:center;gap:9px;flex-shrink:0;height:44px}
+#hdr h1{font-size:14px;font-weight:600;white-space:nowrap}
+.vsep{width:1px;height:20px;background:var(--brd);flex-shrink:0}
+.hb{padding:4px 10px;border-radius:var(--r);border:1px solid var(--brd);background:var(--panel);font-size:12px;cursor:pointer;color:var(--tx2);white-space:nowrap;transition:.12s}
+.hb:hover{background:var(--surf);border-color:var(--brd2)}
+.hb.red{border-color:#fca5a5;color:var(--red)}.hb.red:hover{background:var(--red-bg)}
+#dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pu 1.4s ease-in-out infinite;flex-shrink:0}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* LAYOUT */
+#main{display:flex;flex:1;min-height:0;overflow:hidden}
+
+/* LEFT PANEL */
+#lp{width:188px;background:var(--panel);border-right:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+#lps{flex:1;overflow-y:auto}
+.ct{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px 3px;border-top:1px solid var(--brd)}
+.ct:first-child{border-top:none}
+.cb{display:flex;align-items:center;gap:7px;padding:5px 8px 5px 11px;cursor:grab;border:none;background:none;width:100%;text-align:left;font-size:11.5px;color:var(--tx);transition:.1s;border-left:3px solid transparent}
+.cb:hover{background:rgba(37,99,235,.06);border-left-color:var(--blue)}
+.tb{display:flex;align-items:center;gap:7px;padding:5px 8px 5px 11px;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-size:11.5px;color:var(--tx);border-left:3px solid transparent;transition:.1s}
+.tb:hover{background:rgba(0,0,0,.04)}
+.tb.tw{border-left-color:var(--blue);background:var(--blue-bg);color:var(--blue);font-weight:500}
+.tb.td{border-left-color:var(--red);background:var(--red-bg);color:var(--red);font-weight:500}
+
+/* CANVAS */
+#ca{flex:1;position:relative;overflow:hidden;background:var(--bg);min-width:0}
+#cv{display:block}
+#ca.cp{cursor:crosshair}#ca.cw{cursor:cell}#ca.cd{cursor:not-allowed}
+#tip{position:absolute;background:rgba(18,18,16,.9);color:#fff;font-size:11px;padding:4px 9px;border-radius:5px;pointer-events:none;display:none;z-index:50;white-space:nowrap}
+
+/* RIGHT PANEL */
+#rp{width:198px;background:var(--panel);border-left:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.rph{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;padding:7px 12px 5px;border-bottom:1px solid var(--brd)}
+#rps{flex:1;overflow-y:auto}
+.pr{padding:5px 12px;border-bottom:1px solid var(--brd)}
+.pl{font-size:10px;color:var(--tx3);margin-bottom:2px}
+.pv{font-size:12px;font-weight:500}
+.pi{width:100%;padding:4px 7px;border:1px solid var(--brd);border-radius:var(--r);font-size:12px;background:var(--surf);color:var(--tx)}
+.pi:focus{outline:none;border-color:var(--blue)}
+.pb2{width:100%;padding:5px 8px;border-radius:var(--r);border:1px solid var(--brd);background:var(--surf);font-size:12px;cursor:pointer;color:var(--tx2)}
+.pb2.dr{border-color:#fca5a5;color:var(--red)}.pb2.dr:hover{background:var(--red-bg)}
+.rpf{padding:8px 12px;border-top:1px solid var(--brd);flex-shrink:0}
+.lg{display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:11px;color:var(--tx2)}
+.ll{height:2px;width:18px;border-radius:1px}
+
+/* STATUS */
+#sb{background:var(--surf);border-top:1px solid var(--brd);padding:3px 14px;font-size:11px;color:var(--tx3);display:flex;gap:14px;align-items:center;flex-shrink:0;height:25px}
+.ss{width:1px;height:13px;background:var(--brd)}
+
+/* MODAL */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;align-items:center;justify-content:center}
+.mo.open{display:flex}
+.mb{background:var(--surf);border-radius:10px;border:1px solid var(--brd);padding:18px;width:370px;max-width:92vw;max-height:80vh;overflow-y:auto}
+.mb h3{font-size:14px;font-weight:600;margin-bottom:10px}
+.mbs{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+.mbn{padding:5px 14px;border-radius:var(--r);border:1px solid var(--brd);background:var(--panel);font-size:12px;cursor:pointer}
+.mbn.p{background:var(--blue);color:#fff;border-color:var(--blue)}
+.ht{width:100%;font-size:11.5px;border-collapse:collapse}
+.ht th{text-align:left;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;padding:3px 5px;border-bottom:1px solid var(--brd)}
+.ht td{padding:4px 5px;border-bottom:1px solid var(--brd);color:var(--tx2);vertical-align:top}
+.ht td:first-child{color:var(--tx);font-weight:500;white-space:nowrap;width:42%}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <h1>⚡ Industrial Circuit Simulator</h1>
+  <div class="vsep"></div>
+  <button class="hb" onclick="loadExample()">▶ Example</button>
+  <button class="hb" onclick="saveCircuit()">↓ Save</button>
+  <button class="hb" onclick="document.getElementById('fi').click()">↑ Load</button>
+  <button class="hb" onclick="resetSim()">↺ Reset</button>
+  <button class="hb red" onclick="clearAll()">✕ Clear</button>
+  <button class="hb" onclick="openHelp()">? Help</button>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tx3)">
+    <div id="dot"></div>Simulation live
+  </div>
+</div>
+
+<div id="main">
+  <!-- LEFT PANEL -->
+  <div id="lp">
+    <div id="lps">
+
+      <div class="ct">Push Buttons</div>
+      <button class="cb" draggable="true" ondragstart="ds(event,'NO_PB')" onclick="sp('NO_PB')" title="Normally Open — momentary, springs back">
+        <svg width="42" height="30" viewBox="0 0 42 30"><line x1="1" y1="20" x2="11" y2="20" stroke="#555" stroke-width="1.8" stroke-linecap="round"/><line x1="31" y1="20" x2="41" y2="20" stroke="#555" stroke-width="1.8" stroke-linecap="round"/><line x1="11" y1="20" x2="11" y2="13" stroke="#555" stroke-width="1.5"/><line x1="31" y1="20" x2="31" y2="13" stroke="#555" stroke-width="1.5"/><line x1="8" y1="10" x2="34" y2="10" stroke="#555" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="10" x2="21" y2="4" stroke="#999" stroke-width="1.5"/><line x1="14" y1="3" x2="28" y2="3" stroke="#555" stroke-width="2.5" stroke-linecap="round"/></svg>
+        NO Push button
+      </button>
+      <button class="cb" draggable="true" ondragstart="ds(event,'NC_PB')" onclick="sp('NC_PB')" title="Normally Closed — momentary, springs back">
+        <svg width="42" height="30" viewBox="0 0 42 30"><line x1="1" y1="20" x2="11" y2="20" stroke="#555" stroke-width="1.8" stroke-linecap="round"/><line x1="31" y1="20" x2="41" y2="20" stroke="#555" stroke-width="1.8" stroke-linecap="round"/><line x1="11" y1="20" x2="11" y2="13" stroke="#555" stroke-width="1.5"/><line x1="31" y1="20" x2="31" y2="13" stroke="#555" stroke-width="1.5"/><line x1="11" y1="13" x2="31" y2="13" stroke="#555" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="11" x2="23" y2="7" stroke="#555" stroke-width="1.5"/><line x1="21" y1="7" x2="21" y2="3" stroke="#999" stroke-width="1.5"/><line x1="14" y1="2" x2="28" y2="2" stroke="#555" stroke-width="2.5" stroke-linecap="round"/></svg>
+        NC Push button
+      </button>
+
+      <div class="ct">Selector Switches</div>
+      <button class="cb" draggable="true" ondragstart="ds(event,'SS2')" onclick="sp('SS2')" title="2-position selector: XO contact logic">
+        <svg width="42" height="30" viewBox="0 0 42 30"><line x1="1" y1="22" x2="14" y2="22" stroke="#555" stroke-width="1.8"/><line x1="28" y1="22" x2="41" y2="22" stroke="#555" stroke-width="1.8"/><circle cx="14" cy="22" r="2.5" fill="none" stroke="#555" stroke-width="1.5"/><circle cx="28" cy="22" r="2.5" fill="none" stroke="#555" stroke-width="1.5"/><line x1="16" y1="22" x2="26" y2="22" stroke="#555" stroke-width="2"/><line x1="21" y1="22" x2="21" y2="14" stroke="#999" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="14" y1="13" x2="28" y2="13" stroke="#555" stroke-width="2"/><circle cx="21" cy="8" r="6" fill="#f5f5f3" stroke="#888" stroke-width="1.5"/><line x1="21" y1="8" x2="17" y2="5" stroke="#333" stroke-width="1.8"/><text x="12" y="6" font-size="5" fill="#666" font-family="sans-serif">ON</text><text x="24" y="6" font-size="5" fill="#666" font-family="sans-serif">OFF</text></svg>
+        2-pos selector (SS2)
+      </button>
+      <button class="cb" draggable="true" ondragstart="ds(event,'SS3')" onclick="sp('SS3')" title="3-position selector: LEFT/MID/RIGHT with XDO/OXO/OOX contacts">
+        <svg width="42" height="30" viewBox="0 0 42 30"><circle cx="21" cy="7" r="6" fill="#f5f5f3" stroke="#888" stroke-width="1.5"/><line x1="21" y1="7" x2="21" y2="2" stroke="#333" stroke-width="1.8"/><line x1="21" y1="13" x2="21" y2="17" stroke="#999" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="1" y1="20" x2="14" y2="20" stroke="#555" stroke-width="1.8"/><circle cx="14" cy="20" r="2" fill="none" stroke="#555" stroke-width="1.2"/><circle cx="28" cy="20" r="2" fill="none" stroke="#555" stroke-width="1.2"/><line x1="28" y1="20" x2="41" y2="20" stroke="#555" stroke-width="1.8"/><line x1="16" y1="20" x2="26" y2="20" stroke="#555" stroke-width="1.8"/><line x1="1" y1="26" x2="14" y2="26" stroke="#555" stroke-width="1.5"/><circle cx="14" cy="26" r="2" fill="none" stroke="#555" stroke-width="1.2"/><circle cx="28" cy="26" r="2" fill="none" stroke="#555" stroke-width="1.2"/><line x1="28" y1="26" x2="41" y2="26" stroke="#555" stroke-width="1.5"/><text x="4" y="5" font-size="4.5" fill="#666" font-family="sans-serif">L</text><text x="19" y="5" font-size="4.5" fill="#666" font-family="sans-serif">M</text><text x="34" y="5" font-size="4.5" fill="#666" font-family="sans-serif">R</text></svg>
+        3-pos selector (SS3)
+      </button>
+
+      <div class="ct">Contacts</div>
+      <button class="cb" draggable="true" ondragstart="ds(event,'NO_C')" onclick="sp('NO_C')" title="NO Auxiliary Contact — link via tag to relay">
+        <svg width="42" height="24" viewBox="0 0 42 24"><line x1="1" y1="16" x2="13" y2="16" stroke="#555" stroke-width="1.8"/><line x1="29" y1="16" x2="41" y2="16" stroke="#555" stroke-width="1.8"/><circle cx="13" cy="16" r="2.5" fill="#555"/><circle cx="29" cy="16" r="2.5" fill="#555"/><line x1="13" y1="16" x2="13" y2="9" stroke="#555" stroke-width="1.5"/><line x1="29" y1="16" x2="29" y2="9" stroke="#555" stroke-width="1.5"/><line x1="10" y1="7" x2="32" y2="7" stroke="#555" stroke-width="2" stroke-linecap="round"/></svg>
+        NO Contact
+      </button>
+      <button class="cb" draggable="true" ondragstart="ds(event,'NC_C')" onclick="sp('NC_C')" title="NC Auxiliary Contact — link via tag to relay">
+        <svg width="42" height="24" viewBox="0 0 42 24"><line x1="1" y1="16" x2="13" y2="16" stroke="#555" stroke-width="1.8"/><line x1="29" y1="16" x2="41" y2="16" stroke="#555" stroke-width="1.8"/><circle cx="13" cy="16" r="2.5" fill="#555"/><circle cx="29" cy="16" r="2.5" fill="#555"/><line x1="13" y1="16" x2="13" y2="9" stroke="#555" stroke-width="1.5"/><line x1="29" y1="16" x2="29" y2="9" stroke="#555" stroke-width="1.5"/><line x1="13" y1="9" x2="29" y2="9" stroke="#555" stroke-width="2" stroke-linecap="round"/><line x1="17" y1="7" x2="24" y2="3" stroke="#555" stroke-width="1.5"/></svg>
+        NC Contact
+      </button>
+
+      <div class="ct">Outputs</div>
+      <button class="cb" draggable="true" ondragstart="ds(event,'RELAY')" onclick="sp('RELAY')" title="Control Relay coil — single circle">
+        <svg width="42" height="28" viewBox="0 0 42 28"><line x1="1" y1="14" x2="9" y2="14" stroke="#555" stroke-width="1.8"/><line x1="33" y1="14" x2="41" y2="14" stroke="#555" stroke-width="1.8"/><circle cx="21" cy="14" r="12" fill="none" stroke="#555" stroke-width="1.8"/></svg>
+        Relay / CR coil
+      </button>
+      <button class="cb" draggable="true" ondragstart="ds(event,'KM')" onclick="sp('KM')" title="Contactor coil — double circle (KM)">
+        <svg width="42" height="28" viewBox="0 0 42 28"><line x1="1" y1="14" x2="7" y2="14" stroke="#555" stroke-width="1.8"/><line x1="35" y1="14" x2="41" y2="14" stroke="#555" stroke-width="1.8"/><circle cx="21" cy="14" r="14" fill="none" stroke="#555" stroke-width="1.8"/><circle cx="21" cy="14" r="9" fill="none" stroke="#555" stroke-width="1.2"/></svg>
+        Contactor (KM)
+      </button>
+      <button class="cb" draggable="true" ondragstart="ds(event,'LAMP')" onclick="sp('LAMP')" title="Pilot indicator lamp">
+        <svg width="42" height="28" viewBox="0 0 42 28"><line x1="1" y1="14" x2="9" y2="14" stroke="#555" stroke-width="1.8"/><line x1="33" y1="14" x2="41" y2="14" stroke="#555" stroke-width="1.8"/><circle cx="21" cy="14" r="12" fill="none" stroke="#555" stroke-width="1.8"/><line x1="13" y1="6" x2="29" y2="22" stroke="#555" stroke-width="1.5"/><line x1="29" y1="6" x2="13" y2="22" stroke="#555" stroke-width="1.5"/></svg>
+        Pilot lamp
+      </button>
+      <button class="cb" draggable="true" ondragstart="ds(event,'SOL')" onclick="sp('SOL')" title="Solenoid valve coil">
+        <svg width="42" height="28" viewBox="0 0 42 28"><line x1="1" y1="14" x2="8" y2="14" stroke="#555" stroke-width="1.8"/><line x1="34" y1="14" x2="41" y2="14" stroke="#555" stroke-width="1.8"/><rect x="8" y="5" width="26" height="18" rx="2" fill="none" stroke="#555" stroke-width="1.8"/><line x1="13" y1="9" x2="29" y2="9" stroke="#999" stroke-width="1.2"/><line x1="13" y1="14" x2="29" y2="14" stroke="#999" stroke-width="1.2"/><line x1="13" y1="19" x2="29" y2="19" stroke="#999" stroke-width="1.2"/><text x="21" y="16" text-anchor="middle" font-size="6" fill="#888" font-family="sans-serif">SOL</text></svg>
+        Solenoid (SOL)
+      </button>
+
+      <div class="ct">Timers</div>
+      <button class="cb" draggable="true" ondragstart="ds(event,'TON')" onclick="sp('TON')" title="On-delay: output ON after preset once energized">
+        <svg width="42" height="28" viewBox="0 0 42 28"><line x1="1" y1="14" x2="7" y2="14" stroke="#555" stroke-width="1.8"/><line x1="35" y1="14" x2="41" y2="14" stroke="#555" stroke-width="1.8"/><rect x="7" y="4" width="28" height="20" rx="3" fill="none" stroke="#555" stroke-width="1.5"/><text x="21" y="13" text-anchor="middle" font-size="7" fill="#555" font-family="sans-serif" font-weight="600">TON</text><text x="21" y="21" text-anchor="middle" font-size="5" fill="#888" font-family="sans-serif">on-delay</text></svg>
+        TON on-delay
+      </button>
+      <button class="cb" draggable="true" ondragstart="ds(event,'TOF')" onclick="sp('TOF')" title="Off-delay: output stays ON for preset after de-energized">
+        <svg width="42" height="28" viewBox="0 0 42 28"><line x1="1" y1="14" x2="7" y2="14" stroke="#555" stroke-width="1.8"/><line x1="35" y1="14" x2="41" y2="14" stroke="#555" stroke-width="1.8"/><rect x="7" y="4" width="28" height="20" rx="3" fill="none" stroke="#555" stroke-width="1.5"/><text x="21" y="13" text-anchor="middle" font-size="7" fill="#555" font-family="sans-serif" font-weight="600">TOF</text><text x="21" y="21" text-anchor="middle" font-size="5" fill="#888" font-family="sans-serif">off-delay</text></svg>
+        TOF off-delay
+      </button>
+      <button class="cb" draggable="true" ondragstart="ds(event,'TOFR')" onclick="sp('TOFR')" title="Retentive off-delay: accumulates timing across cycles">
+        <svg width="42" height="28" viewBox="0 0 42 28"><line x1="1" y1="14" x2="7" y2="14" stroke="#555" stroke-width="1.8"/><line x1="35" y1="14" x2="41" y2="14" stroke="#555" stroke-width="1.8"/><rect x="7" y="4" width="28" height="20" rx="3" fill="none" stroke="#555" stroke-width="1.5"/><text x="21" y="13" text-anchor="middle" font-size="6.5" fill="#555" font-family="sans-serif" font-weight="600">TOFR</text><text x="21" y="21" text-anchor="middle" font-size="5" fill="#888" font-family="sans-serif">retentive</text></svg>
+        TOFR retentive
+      </button>
+
+      <div class="ct">Tools</div>
+      <button class="tb" id="bw" onclick="toggleWire()">
+        <svg width="17" height="13" viewBox="0 0 17 13"><line x1="1" y1="6.5" x2="16" y2="6.5" stroke="currentColor" stroke-width="2" stroke-dasharray="3,2"/><circle cx="1" cy="6.5" r="2" fill="currentColor"/><circle cx="16" cy="6.5" r="2" fill="currentColor"/></svg>
+        Wire  [W]
+      </button>
+      <button class="tb" id="bd" onclick="toggleDel()">
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2,4h12M6,4V2h4v2M3,4l1,9h8l1-9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        Delete  [D]
+      </button>
+      <button class="tb" onclick="setMode('select')">
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M3,2l10,6-5,1-2,5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        Select  [Esc]
+      </button>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="ca">
+    <canvas id="cv"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="rp">
+    <div class="rph">Properties</div>
+    <div id="rps">
+      <div style="padding:13px 12px;font-size:12px;color:var(--tx3);line-height:1.7">
+        Click a component to select it.<br>
+        Click push buttons to toggle.<br>
+        Click ◀ ▶ on selector switches to rotate knob.
+      </div>
+    </div>
+    <div class="rpf">
+      <div style="font-size:10px;color:var(--tx3);margin-bottom:4px">Legend</div>
+      <div class="lg"><div class="ll" style="background:var(--won)"></div>Energized / ON</div>
+      <div class="lg"><div class="ll" style="background:var(--woff)"></div>De-energized</div>
+      <div class="lg"><div class="ll" style="background:#f59e0b;height:3px"></div>Timer running</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--tx3)">Simulation speed</div>
+      <input type="range" min="1" max="20" value="10" id="spd" style="width:100%;margin-top:3px" oninput="setSpd(+this.value)">
+      <div id="spdl" style="font-size:10px;color:var(--tx3);margin-top:2px">100 ms cycle</div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="sb">
+  <span id="sbm">Mode: Select</span>
+  <span class="ss"></span>
+  <span id="sbc">0 components · 0 wires</span>
+  <span class="ss"></span>
+  <span id="sbh">Click a component from the left panel to place it</span>
+</div>
+
+<!-- HELP MODAL -->
+<div class="mo" id="hm">
+  <div class="mb">
+    <h3>How to use</h3>
+    <table class="ht">
+      <tr><th>Action</th><th>How</th></tr>
+      <tr><td>Place component</td><td>Click name in left panel → click canvas</td></tr>
+      <tr><td>Drag to place</td><td>Drag directly onto canvas</td></tr>
+      <tr><td>Move</td><td>Drag in Select mode</td></tr>
+      <tr><td>Draw wire</td><td>W key → click two terminal dots</td></tr>
+      <tr><td>Toggle push button</td><td>Click it — momentary, auto-releases</td></tr>
+      <tr><td>Rotate selector knob</td><td>Click ◀ or ▶ arrows beside knob</td></tr>
+      <tr><td>Link relay contacts</td><td>Give contact same Tag as coil (e.g. CR1)</td></tr>
+      <tr><td>Link timer contacts</td><td>Give contact same Tag as timer (e.g. T1)</td></tr>
+      <tr><td>Set timer preset</td><td>Select timer → edit Preset in Properties</td></tr>
+      <tr><td>Delete</td><td>D key → click component or wire</td></tr>
+      <tr><td>Save / Load</td><td>JSON file via Save/Load buttons</td></tr>
+    </table>
+    <div style="margin-top:10px;font-size:11.5px;color:var(--tx2);line-height:1.65">
+      <b>2-pos SS (SS2):</b> LEFT pos (ON) = XO contact closed. RIGHT pos (OFF) = contact open.<br>
+      <b>3-pos SS (SS3):</b> XDO row closes at LEFT, OXO row closes at MID, OOX row closes at RIGHT.<br>
+      <b>Relay circle:</b> Clean circle symbol — no text inside, tag shown above.<br>
+      <b>Wire power:</b> Green = energized path, dark = de-energized.
+    </div>
+    <div class="mbs"><button class="mbn p" onclick="closeHelp()">Got it</button></div>
+  </div>
+</div>
+
+<input type="file" id="fi" accept=".json" style="display:none" onchange="loadFile(event)">
+
+<script>
+// ═══════════════════════════════════════════════
+// COMPONENT DEFINITIONS
+// w,h = bounding box; termY = where L/R terminals sit (offset from top)
+// ═══════════════════════════════════════════════
+const DEFS = {
+  NO_PB: { w:68, h:52, termY:38, label:'PB',  cat:'pb',      defClosed:false, momentary:true,  desc:'NO Push Button' },
+  NC_PB: { w:68, h:52, termY:38, label:'PB',  cat:'pb',      defClosed:true,  momentary:true,  desc:'NC Push Button' },
+  SS2:   { w:82, h:72, termY:58, label:'SS',  cat:'ss2',     defClosed:false, momentary:false, desc:'2-pos Selector Switch' },
+  SS3:   { w:82, h:100,termY:60, label:'SS',  cat:'ss3',     defClosed:false, momentary:false, desc:'3-pos Selector Switch' },
+  NO_C:  { w:66, h:36, termY:22, label:'CR',  cat:'contact', defClosed:false, desc:'NO Auxiliary Contact' },
+  NC_C:  { w:66, h:36, termY:22, label:'CR',  cat:'contact', defClosed:true,  desc:'NC Auxiliary Contact' },
+  RELAY: { w:52, h:52, termY:26, label:'CR',  cat:'coil',    desc:'Control Relay Coil' },
+  KM:    { w:56, h:56, termY:28, label:'KM',  cat:'coil',    desc:'Contactor Coil (KM)' },
+  LAMP:  { w:52, h:52, termY:26, label:'PL',  cat:'output',  desc:'Pilot Lamp' },
+  SOL:   { w:70, h:48, termY:24, label:'SOL', cat:'output',  desc:'Solenoid Coil' },
+  TON:   { w:78, h:60, termY:30, label:'TON', cat:'timer',   desc:'On-Delay Timer', tt:'TON', preset:3000 },
+  TOF:   { w:78, h:60, termY:30, label:'TOF', cat:'timer',   desc:'Off-Delay Timer', tt:'TOF', preset:3000 },
+  TOFR:  { w:78, h:60, termY:30, label:'TOFR',cat:'timer',   desc:'Retentive Off-Delay', tt:'TOFR', preset:3000 },
+};
+
+// ═══════════════════════════════════════════════
+// CANVAS / STATE
+// ═══════════════════════════════════════════════
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const ca  = document.getElementById('ca');
+
+let W=0, H=0;
+function resize(){ const r=ca.getBoundingClientRect(); W=cv.width=r.width; H=cv.height=r.height; draw(); }
+new ResizeObserver(resize).observe(ca);
+
+const GRID = 20;
+const snap = v => Math.round(v/GRID)*GRID;
+const rawPt = e => { const r=cv.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; };
+const snPt  = e => { const p=rawPt(e); return {x:snap(p.x),y:snap(p.y)}; };
+
+let comps=[], wires=[], nid=1;
+let selId=null, mode='select', placeT=null, wireA=null, mouse={x:0,y:0};
+let drag=null, dragOff={x:0,y:0};
+let simT=null, simSpd=100;
+
+// ═══════════════════════════════════════════════
+// FACTORY
+// ═══════════════════════════════════════════════
+function mk(type,x,y){
+  const d=DEFS[type], id=nid++;
+  return { id, type, x, y,
+    tag:'', label:d.label+id,
+    closed: d.defClosed??false,
+    energized:false, pressed:false,
+    ssPos:0,                      // SS2: 0=LEFT(ON) 1=RIGHT(OFF)  SS3: 0=L 1=M 2=R
+    preset:d.preset||3000,
+    tVal:0, tDone:false, tRun:false, tStart:0, tAccum:0,
+  };
+}
+
+// ═══════════════════════════════════════════════
+// TERMINALS  — always at component's termY row
+// ═══════════════════════════════════════════════
+function terms(c){
+  const d=DEFS[c.type];
+  return { L:{x:0,y:d.termY}, R:{x:d.w,y:d.termY} };
+}
+const twp = (c,p) => { const t=terms(c)[p]; return {x:c.x+t.x, y:c.y+t.y}; };
+
+function nearTerm(px,py){
+  for(const c of comps){
+    for(const [p,t] of Object.entries(terms(c))){
+      if(Math.hypot(px-c.x-t.x, py-c.y-t.y)<14) return {c,p};
+    }
+  }
+  return null;
+}
+function nearComp(px,py){
+  for(let i=comps.length-1;i>=0;i--){
+    const c=comps[i],d=DEFS[c.type];
+    if(px>=c.x&&px<=c.x+d.w&&py>=c.y&&py<=c.y+d.h) return c;
+  }
+  return null;
+}
+function nearWire(px,py){
+  for(let i=wires.length-1;i>=0;i--){
+    const w=wires[i];
+    const fc=comps.find(c=>c.id===w.fId), tc=comps.find(c=>c.id===w.tId);
+    if(!fc||!tc) continue;
+    const fp=twp(fc,w.fp), tp=twp(tc,w.tp);
+    const mx=(fp.x+tp.x)/2;
+    for(const [x1,y1,x2,y2] of [[fp.x,fp.y,mx,fp.y],[mx,fp.y,mx,tp.y],[mx,tp.y,tp.x,tp.y]]){
+      const len=Math.hypot(x2-x1,y2-y1); if(len<1) continue;
+      const d=Math.abs((y2-y1)*px-(x2-x1)*py+x2*y1-y2*x1)/len;
+      if(d<7&&px>=Math.min(x1,x2)-6&&px<=Math.max(x1,x2)+6&&py>=Math.min(y1,y2)-6&&py<=Math.max(y1,y2)+6) return wires[i];
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════
+// SIMULATION ENGINE
+// ═══════════════════════════════════════════════
+function conducts(c){
+  const d=DEFS[c.type];
+  if(d.cat==='pb'||d.cat==='contact') return c.closed;
+  if(d.cat==='ss2') return c.ssPos===0;  // LEFT=ON closed
+  return false;  // coils/outputs/timers are loads, not conductors
+}
+
+// SS3 per-row closed state
+function ss3RowClosed(c, row){ return c.ssPos===row; } // row 0=L,1=M,2=R
+
+function simulate(){
+  const byId={};
+  comps.forEach(c=>byId[c.id]=c);
+
+  // Seed: L terminal with no incoming wire = on hot rail
+  const pwr=new Set();
+  comps.forEach(c=>{
+    const wL=wires.some(w=>(w.tId===c.id&&w.tp==='L')||(w.fId===c.id&&w.fp==='L'));
+    if(!wL) pwr.add(c.id+':L');
+  });
+
+  // Propagate through closed contacts and wires
+  let chg=true,it=0;
+  while(chg&&it++<40){
+    chg=false;
+    // Within component: if conducts, both terminals share power
+    for(const c of comps){
+      if(conducts(c)){
+        if(pwr.has(c.id+':L')&&!pwr.has(c.id+':R')){pwr.add(c.id+':R');chg=true;}
+        if(pwr.has(c.id+':R')&&!pwr.has(c.id+':L')){pwr.add(c.id+':L');chg=true;}
+      }
+    }
+    // Through wires: powered terminal transfers to connected terminal
+    for(const w of wires){
+      const pairs=[{s:`${w.fId}:${w.fp}`,d:`${w.tId}:${w.tp}`},{s:`${w.tId}:${w.tp}`,d:`${w.fId}:${w.fp}`}];
+      for(const {s,dd} of pairs.map(p=>({s:p.s,dd:p.d}))){
+        if(pwr.has(s)&&!pwr.has(dd)){pwr.add(dd);chg=true;}
+      }
+    }
+  }
+
+  // Mark wires energized
+  for(const w of wires) w.on=pwr.has(w.fId+':'+w.fp)||pwr.has(w.tId+':'+w.tp);
+
+  // Energize coils/outputs/timers
+  for(const c of comps){
+    const d=DEFS[c.type];
+    const p=pwr.has(c.id+':L')||pwr.has(c.id+':R');
+    if(d.cat==='coil'||d.cat==='output') c.energized=p;
+    if(d.cat==='timer') runTimer(c,p);
+  }
+
+  // Drive auxiliary contacts from coils/timers via tag
+  for(const c of comps){
+    if(c.type!=='NO_C'&&c.type!=='NC_C') continue;
+    if(!c.tag) continue;
+    const coil=comps.find(x=>(x.type==='RELAY'||x.type==='KM')&&x.tag===c.tag);
+    if(coil){ c.closed=c.type==='NO_C'?coil.energized:!coil.energized; continue; }
+    const tmr=comps.find(x=>['TON','TOF','TOFR'].includes(x.type)&&x.tag===c.tag);
+    if(tmr){ c.closed=c.type==='NO_C'?tmr.tDone:!tmr.tDone; }
+  }
+
+  draw(); updateSB();
+}
+
+function runTimer(c,pwr){
+  const now=Date.now(), pt=c.preset||3000, tt=DEFS[c.type].tt;
+  if(tt==='TON'){
+    if(pwr){
+      if(!c.tRun){c.tRun=true;c.tStart=now;c.tDone=false;}
+      c.tVal=Math.min(now-c.tStart,pt);
+      if(c.tVal>=pt) c.tDone=true;
+    } else { c.tRun=false;c.tDone=false;c.tVal=0; }
+    c.energized=pwr;
+  } else if(tt==='TOF'){
+    if(pwr){c.tRun=false;c.tDone=true;c.tVal=0;c.energized=true;}
+    else {
+      if(c.energized&&!c.tRun){c.tRun=true;c.tStart=now;}
+      if(c.tRun){c.tVal=now-c.tStart;if(c.tVal>=pt){c.tDone=false;c.tRun=false;}}
+      c.energized=false;
+    }
+  } else if(tt==='TOFR'){
+    if(pwr){c.tDone=true;c.tRun=false;c.energized=true;}
+    else {
+      if((c.tDone||c.energized)&&!c.tRun){c.tRun=true;c.tStart=now;}
+      if(c.tRun){
+        c.tVal=(now-c.tStart)+(c.tAccum||0);
+        if(c.tVal>=pt){c.tDone=false;c.tRun=false;c.tAccum=0;c.tVal=0;}
+        else c.tAccum=c.tVal;
+      }
+      c.energized=false;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// DRAW HELPERS
+// ═══════════════════════════════════════════════
+const OFF='#444', ON='#16a34a', AMB='#d97706';
+
+function L(col,w=2){ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap='round'; ctx.lineJoin='round'; }
+function ln(x1,y1,x2,y2){ ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke(); }
+function cl(x,y,r,fc,sc,sw=1.8){ ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2); if(fc){ctx.fillStyle=fc;ctx.fill();} ctx.strokeStyle=sc;ctx.lineWidth=sw;ctx.stroke(); }
+function dt(x,y,c,r=3){ ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill(); }
+function tx(s,x,y,sz,c,al='center',w='normal'){ ctx.font=`${w} ${sz}px system-ui,sans-serif`;ctx.fillStyle=c;ctx.textAlign=al;ctx.fillText(s,x,y); }
+
+function drawGrid(){
+  ctx.save();ctx.strokeStyle='rgba(0,0,0,0.05)';ctx.lineWidth=0.5;
+  for(let x=0;x<W;x+=GRID){ln(x,0,x,H);}
+  for(let y=0;y<H;y+=GRID){ln(0,y,W,y);}
+  ctx.restore();
+}
+
+function drawWire(w){
+  const fc=comps.find(c=>c.id===w.fId), tc=comps.find(c=>c.id===w.tId);
+  if(!fc||!tc) return;
+  const fp=twp(fc,w.fp), tp=twp(tc,w.tp), mx=(fp.x+tp.x)/2;
+  ctx.save();
+  ctx.strokeStyle=w.on?ON:OFF; ctx.lineWidth=w.on?2.5:1.8; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath();ctx.moveTo(fp.x,fp.y);ctx.lineTo(mx,fp.y);ctx.lineTo(mx,tp.y);ctx.lineTo(tp.x,tp.y);ctx.stroke();
+  ctx.restore();
+}
+
+function drawTerms(c){
+  const sel=selId===c.id;
+  for(const t of Object.values(terms(c))){
+    ctx.save();
+    ctx.beginPath(); ctx.arc(c.x+t.x, c.y+t.y, mode==='wire'?5:3.5, 0, Math.PI*2);
+    ctx.fillStyle = mode==='wire'?'#2563eb':(sel?'#2563eb':'#555');
+    ctx.fill();
+    if(mode==='wire'){ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();}
+    ctx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════
+// COMPONENT RENDERERS
+// ═══════════════════════════════════════════════
+function drawComp(c){
+  const d=DEFS[c.type], x=c.x, y=c.y, w=d.w, h=d.h;
+  const cx=x+w/2, ty=y+d.termY;  // ty = terminal Y world coord
+  const sel=selId===c.id;
+
+  ctx.save();
+  if(sel){ ctx.strokeStyle='#2563eb';ctx.lineWidth=2;ctx.setLineDash([4,3]);ctx.strokeRect(x-5,y-5,w+10,h+10);ctx.setLineDash([]); }
+  if(c.tag) tx(c.tag, cx, y-6, 10,'#2563eb');
+
+  if(d.cat==='pb')      drawPB(c,x,y,w,h,cx,ty);
+  else if(d.cat==='ss2') drawSS2(c,x,y,w,h,cx,ty);
+  else if(d.cat==='ss3') drawSS3(c,x,y,w,h,cx,ty);
+  else if(d.cat==='contact') drawContact(c,x,y,w,h,cx,ty);
+  else if(d.cat==='coil')    drawCoil(c,x,y,w,h,cx,ty);
+  else if(d.cat==='output')  drawOutput(c,x,y,w,h,cx,ty);
+  else if(d.cat==='timer')   drawTimerComp(c,x,y,w,h,cx,ty);
+
+  tx(c.label, cx, y+h+13, 10,'#666');
+  drawTerms(c);
+  ctx.restore();
+}
+
+// ── PUSH BUTTON  (T-bar actuator style per reference image 1)
+function drawPB(c,x,y,w,h,cx,ty){
+  const col = c.closed ? ON : OFF;
+  const isNC = c.type==='NC_PB';
+
+  ctx.save(); L(col,2);
+  // Lead lines to terminal points
+  ln(x, ty, x+14, ty);
+  ln(x+w-14, ty, x+w, ty);
+  dt(x+14, ty, col, 3);
+  dt(x+w-14, ty, col, 3);
+
+  // Vertical stems up
+  const stemTop = ty - 14;
+  ln(x+14, ty, x+14, stemTop);
+  ln(x+w-14, ty, x+w-14, stemTop);
+
+  if(isNC){
+    // NC: bar connects when closed (normally closed = released state = bar across)
+    if(c.closed){
+      ln(x+14, stemTop, x+w-14, stemTop);
+    } else {
+      ln(x+8, stemTop-5, x+w-8, stemTop-5);  // gap — bar raised when open
+    }
+    // NC diagonal mark through contact bar
+    ctx.strokeStyle='#888'; ctx.lineWidth=1.5;
+    ln(cx-6, stemTop+4, cx+5, stemTop-4);
+  } else {
+    // NO: gap when open, bar touches when closed
+    if(c.closed){
+      ln(x+14, stemTop, x+w-14, stemTop);
+    } else {
+      ln(x+8, stemTop-5, x+w-8, stemTop-5);  // floating bar
+    }
+  }
+
+  // Actuator stem (dashed vertical up to T-bar)
+  ctx.strokeStyle='#aaa'; ctx.lineWidth=1.3;
+  const tbarY = stemTop - 12;
+  ln(cx, stemTop-5, cx, tbarY+1);
+
+  // T-bar (the flat actuator bar — this is the distinctive T-bar style)
+  ctx.strokeStyle = c.pressed ? col : '#666'; ctx.lineWidth=2.8;
+  ln(x+6, tbarY, x+w-6, tbarY);
+
+  ctx.restore();
+}
+
+// ── 2-POSITION SELECTOR SWITCH
+// pos 0 = LEFT (ON)  → XO contact: 1-2 CLOSED
+// pos 1 = RIGHT (OFF)→ XO contact: 1-2 OPEN
+function drawSS2(c,x,y,w,h,cx,ty){
+  const pos=c.ssPos, closed=pos===0;
+  ctx.save();
+
+  // ── Knob (top area)
+  const kx=cx, ky=y+22;
+  // Arrow buttons ◀ ▶
+  ctx.fillStyle='#bbb';
+  ctx.beginPath(); ctx.moveTo(kx-26,ky); ctx.lineTo(kx-18,ky-6); ctx.lineTo(kx-18,ky+6); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(kx+26,ky); ctx.lineTo(kx+18,ky-6); ctx.lineTo(kx+18,ky+6); ctx.closePath(); ctx.fill();
+  // Knob body
+  cl(kx,ky,12,'#f0f0ee','#888',1.5);
+  // Knob pointer — LEFT: upper-left angle, RIGHT: upper-right angle
+  const pa = pos===0 ? -Math.PI*0.75 : -Math.PI*0.25;
+  ctx.strokeStyle='#222'; ctx.lineWidth=2;
+  ln(kx, ky, kx+10*Math.cos(pa), ky+10*Math.sin(pa));
+  // Position labels
+  tx('ON',  kx-16, ky-16, 8,'#555');
+  tx('OFF', kx+16, ky-16, 8,'#555');
+
+  // Dashed actuator stem
+  ctx.strokeStyle='#aaa'; ctx.lineWidth=1.2; ctx.setLineDash([3,3]);
+  ln(cx, ky+12, cx, ty-10);
+  ctx.setLineDash([]);
+
+  // ── Contact block (L1/XO row)
+  const ecol = closed ? ON : OFF;
+  L(ecol, 1.8);
+  // Lead wires
+  ln(x, ty, x+16, ty);
+  ln(x+w-16, ty, x+w, ty);
+  dt(x+16, ty, ecol, 2.5);
+  dt(x+w-16, ty, ecol, 2.5);
+  // Stems up
+  ln(x+16, ty, x+16, ty-9);
+  ln(x+w-16, ty, x+w-16, ty-9);
+  // Bridge or gap
+  if(closed){ ln(x+16, ty-9, x+w-16, ty-9); }
+  else       { ln(x+10, ty-14, x+w-10, ty-14); }
+  // Contact notation
+  tx('XO', x+16, ty+12, 8,'#888','left');
+  tx('1', x+14, ty+12, 7,'#888','right');
+  tx('2', x+w-14, ty+12, 7,'#888','left');
+
+  ctx.restore();
+}
+
+// ── 3-POSITION SELECTOR SWITCH
+// pos 0=LEFT, 1=MID, 2=RIGHT
+// Three contact rows shown vertically:
+//   Row A: XDO (pins 1-2)  — closed at LEFT (pos 0)
+//   Row B: OXO (pins 3-4)  — closed at MID  (pos 1)
+//   Row C: OOX (pins 5-6)  — closed at RIGHT (pos 2)
+// Each row has its own L/R terminals via SS3's multi-row layout
+function drawSS3(c,x,y,w,h,cx,ty){
+  const pos=c.ssPos;
+  ctx.save();
+
+  // ── Knob
+  const kx=cx, ky=y+20;
+  ctx.fillStyle='#bbb';
+  ctx.beginPath(); ctx.moveTo(kx-26,ky); ctx.lineTo(kx-18,ky-6); ctx.lineTo(kx-18,ky+6); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(kx+26,ky); ctx.lineTo(kx+18,ky-6); ctx.lineTo(kx+18,ky+6); ctx.closePath(); ctx.fill();
+  cl(kx,ky,12,'#f0f0ee','#888',1.5);
+  const pas=[-Math.PI*0.75, -Math.PI/2, -Math.PI*0.25];
+  ctx.strokeStyle='#222'; ctx.lineWidth=2;
+  ln(kx,ky, kx+10*Math.cos(pas[pos]), ky+10*Math.sin(pas[pos]));
+  tx('L', kx-18, ky-16, 8,'#555');
+  tx('M', kx,    ky-24, 8,'#555');
+  tx('R', kx+18, ky-16, 8,'#555');
+
+  // Dashed actuator stem
+  ctx.strokeStyle='#aaa'; ctx.lineWidth=1.2; ctx.setLineDash([3,3]);
+  ln(cx, ky+12, cx, ty-8);
+  ctx.setLineDash([]);
+
+  // ── Three contact rows
+  const rowDefs = [
+    {label:'XDO', closedAt:0, yOff:0},    // row A at ty
+    {label:'OXO', closedAt:1, yOff:18},   // row B below
+    {label:'OOX', closedAt:2, yOff:36},   // row C below
+  ];
+
+  for(const {label,closedAt,yOff} of rowDefs){
+    const ry = ty + yOff;
+    const cl2 = pos===closedAt ? ON : OFF;
+    L(cl2, 1.6);
+    ln(x, ry, x+15, ry);
+    ln(x+w-15, ry, x+w, ry);
+    dt(x+15, ry, cl2, 2.2);
+    dt(x+w-15, ry, cl2, 2.2);
+    ln(x+15, ry, x+15, ry-8);
+    ln(x+w-15, ry, x+w-15, ry-8);
+    if(pos===closedAt){ ln(x+15, ry-8, x+w-15, ry-8); }
+    else              { ln(x+10, ry-12, x+w-10, ry-12); }
+    tx(label, cx, ry-14, 7,'#666');
+  }
+
+  ctx.restore();
+}
+
+// ── AUXILIARY CONTACT
+function drawContact(c,x,y,w,h,cx,ty){
+  const col=c.closed?ON:OFF;
+  const isNC=c.type==='NC_C';
+  ctx.save(); L(col,1.8);
+  ln(x, ty, x+15, ty);
+  ln(x+w-15, ty, x+w, ty);
+  dt(x+15, ty, col, 2.8);
+  dt(x+w-15, ty, col, 2.8);
+  ln(x+15, ty, x+15, ty-11);
+  ln(x+w-15, ty, x+w-15, ty-11);
+  if(isNC){
+    if(c.closed){ ln(x+15, ty-11, x+w-15, ty-11); }
+    else        { ln(x+9,  ty-16, x+w-9,  ty-16); }
+    ctx.strokeStyle='#888'; ctx.lineWidth=1.5;
+    ln(cx-5, ty-6, cx+5, ty-14);
+  } else {
+    if(c.closed){ ln(x+15, ty-11, x+w-15, ty-11); }
+    else        { ln(x+9,  ty-16, x+w-9,  ty-16); }
+  }
+  if(c.tag) tx('▲'+c.tag, cx, y+h-1, 8, c.closed?ON:'#bbb');
+  ctx.restore();
+}
+
+// ── RELAY / CONTACTOR COIL  — clean circle, no text inside
+function drawCoil(c,x,y,w,h,cx,ty){
+  const en=c.energized, isKM=c.type==='KM';
+  const r=isKM?14:12;
+  const col=en?AMB:OFF;
+  ctx.save();
+  L(col,2);
+  ln(x, ty, cx-r, ty);
+  ln(cx+r, ty, x+w, ty);
+  cl(cx, ty, r, en?'#fef3c7':'#f5f5f3', col, 2);
+  if(isKM) cl(cx, ty, r-5, 'none', en?AMB+'88':'#ccc', 1.3);
+  if(en){ ctx.strokeStyle='#fbbf24';ctx.lineWidth=2.5;ctx.globalAlpha=.28;cl(cx,ty,r+5,'none','#fbbf24',2.5);ctx.globalAlpha=1; }
+  ctx.restore();
+}
+
+// ── LAMP / SOLENOID
+function drawOutput(c,x,y,w,h,cx,ty){
+  const en=c.energized;
+  ctx.save();
+  if(c.type==='LAMP'){
+    const r=12;
+    L(en?AMB:'#888',2);
+    ln(x,ty,cx-r,ty); ln(cx+r,ty,x+w,ty);
+    cl(cx,ty,r, en?'#fef08a':'#e5e5e3', en?AMB:'#aaa', 2);
+    ctx.strokeStyle=en?'#ca8a04':'#aaa'; ctx.lineWidth=1.8;
+    ln(cx-8,ty-8,cx+8,ty+8); ln(cx+8,ty-8,cx-8,ty+8);
+    if(en){ctx.strokeStyle='#fde047';ctx.lineWidth=2.5;ctx.globalAlpha=.32;cl(cx,ty,r+5,'none','#fde047',2.5);ctx.globalAlpha=1;}
+  } else if(c.type==='SOL'){
+    L(en?ON:OFF,2);
+    ln(x,ty,x+10,ty); ln(x+w-10,ty,x+w,ty);
+    ctx.strokeStyle=en?ON:OFF; ctx.fillStyle=en?'#f0fdf4':'#f5f5f3';
+    ctx.beginPath(); ctx.roundRect(x+10,ty-14,w-20,28,3); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle=en?'#15803d':'#c0c0c0'; ctx.lineWidth=1.2;
+    for(let i=-1;i<=1;i++) ln(x+16,ty+i*7,x+w-16,ty+i*7);
+    if(en){tx('ACT',cx,ty+4,8,ON);}
+  }
+  ctx.restore();
+}
+
+// ── TIMER BOX
+function drawTimerComp(c,x,y,w,h,cx,ty){
+  const en=c.energized, run=c.tRun, done=c.tDone;
+  const pt=c.preset||3000, pct=Math.min((c.tVal||0)/pt,1);
+  const bc=run?AMB:(done?ON:'#bbb');
+  const bg=run?'#fffbeb':(done?'#f0fdf4':'#f5f5f3');
+  ctx.save();
+  L(bc,2); ln(x,ty,x+9,ty); ln(x+w-9,ty,x+w,ty);
+  ctx.strokeStyle=bc; ctx.fillStyle=bg;
+  ctx.beginPath(); ctx.roundRect(x+9,y+6,w-18,h-12,4); ctx.fill(); ctx.stroke();
+  tx(c.type,  cx, y+20, 9, bc, 'center','600');
+  tx('PT='+(pt/1000).toFixed(1)+'s', cx, y+31, 8,'#888');
+  ctx.fillStyle='#e5e7eb'; ctx.fillRect(x+13,y+34,w-26,5);
+  ctx.fillStyle=run?'#f59e0b':(done?ON:'#d1d5db'); ctx.fillRect(x+13,y+34,(w-26)*pct,5);
+  tx((c.tVal/1000).toFixed(1)+'s', cx, y+h-9, 8, done?ON:'#888');
+  if(done) tx('✓',cx-16,y+h-9,10,ON);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════
+// MASTER DRAW
+// ═══════════════════════════════════════════════
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  drawGrid();
+  wires.forEach(w=>drawWire(w));
+
+  // Wire preview
+  if(mode==='wire'&&wireA){
+    const fp=twp(wireA.c,wireA.p), mx=(fp.x+mouse.x)/2;
+    ctx.save(); ctx.strokeStyle='#2563eb'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]); ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(fp.x,fp.y); ctx.lineTo(mx,fp.y); ctx.lineTo(mx,mouse.y); ctx.lineTo(mouse.x,mouse.y); ctx.stroke();
+    ctx.restore();
+  }
+  // Placement ghost
+  if(mode==='place'&&placeT){
+    const d=DEFS[placeT];
+    ctx.save(); ctx.globalAlpha=.32; ctx.strokeStyle='#2563eb'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+    ctx.strokeRect(mouse.x-d.w/2, mouse.y-d.h/2, d.w, d.h); ctx.restore();
+  }
+  comps.forEach(c=>drawComp(c));
+}
+
+// ═══════════════════════════════════════════════
+// SELECTOR SWITCH ARROW HIT TEST
+// ═══════════════════════════════════════════════
+function ssArrow(c,px,py){
+  const d=DEFS[c.type];
+  const kx=c.x+d.w/2, ky=c.y+(d.cat==='ss3'?20:22);
+  if(Math.abs(py-ky)>12) return null;
+  if(px>=c.x&&px<=kx-14) return 'L';
+  if(px>kx+14&&px<=c.x+d.w) return 'R';
+  return null;
+}
+
+// ═══════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════
+cv.addEventListener('mousemove', e=>{
+  const raw=rawPt(e);
+  mouse={x:snap(raw.x),y:snap(raw.y)};
+  const tip=document.getElementById('tip');
+  const hc=nearComp(raw.x,raw.y);
+  if(hc&&mode==='select'){
+    const d=DEFS[hc.type]; let s=d.desc+(hc.tag?' ['+hc.tag+']':'');
+    if(d.cat==='ss2') s+=' — '+(hc.ssPos===0?'LEFT (XO closed)':'RIGHT (XO open)');
+    else if(d.cat==='ss3') s+=' — '+['LEFT (XDO)','MID (OXO)','RIGHT (OOX)'][hc.ssPos];
+    else if(d.cat==='pb'||d.cat==='contact') s+=' — '+(hc.closed?'CLOSED':'OPEN');
+    else if(d.cat==='coil'||d.cat==='output') s+=' — '+(hc.energized?'ENERGIZED':'de-energized');
+    else if(d.cat==='timer') s+=' — '+(hc.tRun?'RUNNING '+(hc.tVal/1000).toFixed(1)+'s':hc.tDone?'DONE':'idle');
+    tip.style.display='block'; tip.style.left=(raw.x+14)+'px'; tip.style.top=(raw.y-28)+'px'; tip.textContent=s;
+  } else tip.style.display='none';
+  if(mode!=='select') draw();
+});
+
+cv.addEventListener('click', e=>{
+  const raw=rawPt(e), sp=snPt(e);
+
+  // PLACE
+  if(mode==='place'&&placeT){
+    const d=DEFS[placeT];
+    const nc=mk(placeT, sp.x-d.w/2, sp.y-d.h/2);
+    comps.push(nc); setMode('select'); selId=nc.id; updateProps(); simulate(); return;
+  }
+
+  // WIRE
+  if(mode==='wire'){
+    const ht=nearTerm(raw.x,raw.y);
+    if(ht){
+      if(!wireA){ wireA=ht; document.getElementById('sbh').textContent='Click destination terminal'; }
+      else {
+        if(wireA.c.id!==ht.c.id){
+          const ex=wires.some(w=>(w.fId===wireA.c.id&&w.fp===wireA.p&&w.tId===ht.c.id&&w.tp===ht.p)||(w.fId===ht.c.id&&w.fp===ht.p&&w.tId===wireA.c.id&&w.tp===wireA.p));
+          if(!ex) wires.push({id:nid++,fId:wireA.c.id,fp:wireA.p,tId:ht.c.id,tp:ht.p,on:false});
+        }
+        wireA=null; document.getElementById('sbh').textContent='Click next terminal or Esc to stop';
+      }
+    } else wireA=null;
+    simulate(); return;
+  }
+
+  // DELETE
+  if(mode==='delete'){
+    const hc=nearComp(raw.x,raw.y);
+    if(hc){ comps=comps.filter(c=>c.id!==hc.id); wires=wires.filter(w=>w.fId!==hc.id&&w.tId!==hc.id); if(selId===hc.id){selId=null;updateProps();} simulate(); return; }
+    const hw=nearWire(raw.x,raw.y);
+    if(hw){ wires=wires.filter(w=>w!==hw); simulate(); } return;
+  }
+
+  // SELECT
+  const hc=nearComp(raw.x,raw.y);
+  if(hc){
+    const d=DEFS[hc.type];
+    // Selector switch arrow interaction
+    if(d.cat==='ss2'||d.cat==='ss3'){
+      const arr=ssArrow(hc,raw.x,raw.y);
+      if(arr){
+        const maxPos=d.cat==='ss3'?2:1;
+        if(arr==='L') hc.ssPos=Math.max(0,hc.ssPos-1);
+        if(arr==='R') hc.ssPos=Math.min(maxPos,hc.ssPos+1);
+        simulate();
+      }
+      selId=hc.id; updateProps(); return;
+    }
+    // Push button momentary
+    if(d.cat==='pb'){
+      hc.closed=!d.defClosed; hc.pressed=true; simulate();
+      setTimeout(()=>{ hc.closed=d.defClosed; hc.pressed=false; simulate(); }, 280);
+    }
+    selId=hc.id; updateProps(); draw();
+  } else { selId=null; updateProps(); draw(); }
+});
+
+// Drag to move
+cv.addEventListener('mousedown',e=>{ if(mode!=='select') return; const raw=rawPt(e); const hc=nearComp(raw.x,raw.y); if(hc){drag=hc;dragOff={x:raw.x-hc.x,y:raw.y-hc.y};} });
+cv.addEventListener('mousemove',e=>{ if(!drag) return; const raw=rawPt(e); drag.x=snap(raw.x-dragOff.x); drag.y=snap(raw.y-dragOff.y); draw(); });
+cv.addEventListener('mouseup',()=>{ if(drag){drag=null;simulate();} });
+
+// Drag from panel
+cv.addEventListener('dragover',e=>e.preventDefault());
+cv.addEventListener('drop',e=>{
+  e.preventDefault();
+  const t=e.dataTransfer.getData('text'); if(!t||!DEFS[t]) return;
+  const d=DEFS[t], raw=rawPt(e);
+  const nc=mk(t,snap(raw.x-d.w/2),snap(raw.y-d.h/2));
+  comps.push(nc); setMode('select'); selId=nc.id; updateProps(); simulate();
+});
+
+// Keyboard
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.key==='Escape'){setMode('select');wireA=null;draw();}
+  if(e.key==='w'||e.key==='W') toggleWire();
+  if(e.key==='d'||e.key==='D') toggleDel();
+  if((e.key==='Delete'||e.key==='Backspace')&&selId){
+    comps=comps.filter(c=>c.id!==selId); wires=wires.filter(w=>w.fId!==selId&&w.tId!==selId);
+    selId=null; updateProps(); simulate();
+  }
+});
+
+// ═══════════════════════════════════════════════
+// MODES
+// ═══════════════════════════════════════════════
+function setMode(m){
+  mode=m;
+  ca.className=m==='place'?'cp':m==='wire'?'cw':m==='delete'?'cd':'';
+  document.getElementById('sbm').textContent='Mode: '+m.charAt(0).toUpperCase()+m.slice(1);
+  document.getElementById('bw').className='tb'+(m==='wire'?' tw':'');
+  document.getElementById('bd').className='tb'+(m==='delete'?' td':'');
+  if(m!=='wire') wireA=null;
+  if(m!=='place') placeT=null;
+}
+function sp(t){ placeT=t; setMode('place'); document.getElementById('sbh').textContent='Click canvas to place '+DEFS[t].desc; }
+function ds(e,t){ e.dataTransfer.setData('text',t); }
+function toggleWire(){ setMode(mode==='wire'?'select':'wire'); if(mode==='wire') document.getElementById('sbh').textContent='Click a terminal dot to start wiring'; }
+function toggleDel(){  setMode(mode==='delete'?'select':'delete'); if(mode==='delete') document.getElementById('sbh').textContent='Click component or wire to delete'; }
+
+// ═══════════════════════════════════════════════
+// PROPERTIES PANEL
+// ═══════════════════════════════════════════════
+function updateProps(){
+  const el=document.getElementById('rps');
+  const c=comps.find(c=>c.id===selId);
+  if(!c){ el.innerHTML='<div style="padding:13px 12px;font-size:12px;color:var(--tx3);line-height:1.7">Click a component.<br><br>W = wire mode<br>D = delete mode<br>Esc = select<br>Del = remove selected</div>'; return; }
+  const d=DEFS[c.type];
+
+  let stHtml='';
+  if(d.cat==='ss2') stHtml=`<div class="pr"><div class="pl">Position</div><div class="pv" style="color:${c.ssPos===0?'var(--green)':'var(--tx3)'}">${c.ssPos===0?'◀ LEFT — XO closed':'RIGHT ▶ — XO open'}</div></div>`;
+  else if(d.cat==='ss3') stHtml=`<div class="pr"><div class="pl">Position</div><div class="pv">${['◀ LEFT (XDO)','▲ MID (OXO)','RIGHT ▶ (OOX)'][c.ssPos]}</div></div>`;
+  else if(d.cat==='pb'||d.cat==='contact') stHtml=`<div class="pr"><div class="pl">State</div><div class="pv" style="color:${c.closed?'var(--green)':'var(--tx3)'}">${c.closed?'● CLOSED':'○ OPEN'}</div></div>`;
+  else if(d.cat==='coil'||d.cat==='output') stHtml=`<div class="pr"><div class="pl">State</div><div class="pv" style="color:${c.energized?'var(--amber)':'var(--tx3)'}">${c.energized?'● ENERGIZED':'○ de-energized'}</div></div>`;
+  else if(d.cat==='timer') stHtml=`<div class="pr"><div class="pl">Timer</div><div class="pv">${c.tRun?'⏱ RUNNING '+(c.tVal/1000).toFixed(2)+'s':c.tDone?'✓ DONE':'○ idle'}</div></div>`;
+
+  el.innerHTML=`
+    <div class="pr"><div class="pl">Type</div><div class="pv" style="font-size:11px">${d.desc}</div></div>
+    ${stHtml}
+    <div class="pr"><div class="pl">Tag / address</div>
+      <input class="pi" value="${c.tag||''}" placeholder="e.g. CR1, KM1, T1" oninput="pp('tag',this.value)">
+      ${d.cat==='contact'?'<div style="font-size:10px;color:var(--tx3);margin-top:2px">Set same tag as a relay/contactor or timer to link</div>':''}
+    </div>
+    <div class="pr"><div class="pl">Label</div><input class="pi" value="${c.label||''}" oninput="pp('label',this.value)"></div>
+    ${d.cat==='timer'?`<div class="pr"><div class="pl">Preset (seconds)</div><input class="pi" type="number" min="0.1" step="0.1" value="${(c.preset/1000).toFixed(1)}" oninput="pp('preset',parseFloat(this.value)*1000||3000)"></div>`:''}
+    ${d.cat==='ss2'?'<div class="pr" style="font-size:11px;color:var(--tx3)">Click ◀ ▶ arrows beside the knob to rotate it</div>':''}
+    ${d.cat==='ss3'?'<div class="pr" style="font-size:11px;color:var(--tx3)">Click ◀ ▶ arrows to rotate knob through L / M / R positions</div>':''}
+    <div class="pr" style="border:none"><button class="pb2 dr" onclick="delSel()">Delete component</button></div>`;
+}
+function pp(k,v){ const c=comps.find(c=>c.id===selId); if(c){c[k]=v;simulate();} }
+function delSel(){ comps=comps.filter(c=>c.id!==selId); wires=wires.filter(w=>w.fId!==selId&&w.tId!==selId); selId=null; updateProps(); simulate(); }
+
+// ═══════════════════════════════════════════════
+// STATUS / SPEED / RESET / SAVE / LOAD
+// ═══════════════════════════════════════════════
+function updateSB(){ document.getElementById('sbc').textContent=comps.length+' components · '+wires.length+' wires'; }
+function setSpd(v){ simSpd=Math.round(1000/v); document.getElementById('spdl').textContent=simSpd+' ms cycle'; restart(); }
+function restart(){ if(simT) clearInterval(simT); simT=setInterval(simulate,simSpd); }
+function resetSim(){ comps.forEach(c=>{ const d=DEFS[c.type]; c.closed=d.defClosed??false; c.energized=false; c.pressed=false; c.ssPos=0; c.tVal=0;c.tDone=false;c.tRun=false;c.tAccum=0; }); simulate(); }
+function clearAll(){ if(!confirm('Clear all components and wires?')) return; comps=[];wires=[];selId=null;updateProps();simulate(); }
+function saveCircuit(){ const b=new Blob([JSON.stringify({comps,wires,nid,v:3},null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='circuit_'+new Date().toISOString().slice(0,10)+'.json'; a.click(); }
+function loadFile(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=ev=>{ try{const d=JSON.parse(ev.target.result);comps=d.comps||[];wires=d.wires||[];nid=d.nid||nid;selId=null;updateProps();simulate();}catch(err){alert('Load failed: '+err.message);} }; r.readAsText(f); e.target.value=''; }
+function openHelp(){ document.getElementById('hm').classList.add('open'); }
+function closeHelp(){ document.getElementById('hm').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════
+// EXAMPLE CIRCUIT  (mirrors reference image 1)
+// Rung 1: PB1(NO,Start) → PB2(NC,Stop) → CR1 coil + PL1 lamp
+//         CR1-1 seal contact bridges PB1
+// Rung 2: SS1(SS2) → CR2 coil
+// Rung 3: CR2-1(NO) → SOL1 solenoid
+// ═══════════════════════════════════════════════
+function loadExample(){
+  if(comps.length&&!confirm('Replace current circuit?')) return;
+  nid=1; comps=[]; wires=[];
+
+  // Rung 1
+  const pb1  = mk('NO_PB',     60, 60);  pb1.label='PB1'; pb1.tag='';
+  const pb2  = mk('NC_PB',    200, 60);  pb2.label='PB2'; pb2.tag='';
+  const cr1  = mk('RELAY',    350, 52);  cr1.label='CR1'; cr1.tag='CR1';
+  const pl1  = mk('LAMP',     460, 52);  pl1.label='PL1'; pl1.tag='';
+  const seal = mk('NO_C',      60,170);  seal.label='CR1-1'; seal.tag='CR1';
+
+  // Rung 2
+  const ss1  = mk('SS2',       60,280);  ss1.label='SS1'; ss1.tag='';
+  const cr2  = mk('RELAY',    350,272);  cr2.label='CR2'; cr2.tag='CR2';
+
+  // Rung 3
+  const cr21 = mk('NO_C',      60,390);  cr21.label='CR2-1'; cr21.tag='CR2';
+  const sol1 = mk('SOL',      350,378);  sol1.label='SOL1'; sol1.tag='';
+
+  comps.push(pb1,pb2,cr1,pl1,seal,ss1,cr2,cr21,sol1);
+
+  const w=(a,ap,b,bp)=>wires.push({id:nid++,fId:a.id,fp:ap,tId:b.id,tp:bp,on:false});
+  // Rung 1 main path
+  w(pb1,'R', pb2,'L');
+  w(pb2,'R', cr1,'L');
+  w(cr1,'R', pl1,'L');
+  // Seal-in contact (bridges PB1)
+  w(seal,'R', pb2,'L');
+  // Rung 2
+  w(ss1,'R', cr2,'L');
+  // Rung 3
+  w(cr21,'R', sol1,'L');
+
+  selId=null; updateProps(); simulate();
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+restart();
+loadExample();
+resize();
+</script>
+</body>
+</html>
