@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VFD Power Circuit Simulator | Apna Electromechanic Service</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --bg:#071019; --bg2:#0c1a27; --grid:#122436; --panel:#0e1f30; --panel-border:#1c3a52;
+  --paper:#0a1622; --cyan:#3ee6e0; --amber:#ffb84d; --red:#ff6b6b; --blue:#5aa9ff;
+  --green:#6fdc8c; --ink:#cfe8ee; --ink-dim:#7fa0ac; --title:#f2fbfc;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px) 0 0/28px 28px,
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0/28px 28px,
+    radial-gradient(ellipse at top, #0c2032 0%, var(--bg) 60%);
+  color:var(--ink); font-family:'Consolas','Courier New',monospace; min-height:100vh; padding:18px;
+}
+.wrap{max-width:1320px;margin:0 auto;}
+header{ text-align:center; padding:18px 10px 22px; border-bottom:2px solid var(--panel-border); margin-bottom:18px; position:relative;}
+header .brand{ font-size:11px; letter-spacing:2px; color:var(--amber); text-transform:uppercase; margin-bottom:6px;}
+header h1{ font-size:clamp(20px,4vw,34px); color:var(--title); letter-spacing:2.5px; margin:0; text-shadow:0 0 18px rgba(62,230,224,0.25);}
+header .sub{ color:var(--ink-dim); font-size:12.5px; margin-top:8px; letter-spacing:0.5px;}
+.corner-tag{ position:absolute; top:6px; right:6px; font-size:10px; color:var(--ink-dim); border:1px solid var(--panel-border); padding:3px 8px; border-radius:3px;}
+
+.tabs{ display:flex; gap:4px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid var(--panel-border);}
+.tab-btn{ background:var(--panel); color:var(--ink-dim); border:1px solid var(--panel-border); border-bottom:none; padding:10px 16px; font-family:inherit; font-size:12.5px; letter-spacing:1px; cursor:pointer; border-radius:6px 6px 0 0; text-transform:uppercase;}
+.tab-btn.active{ color:var(--cyan); background:var(--paper); border-color:var(--cyan);}
+.tab-panel{ display:none; animation:fadein .25s ease;}
+.tab-panel.active{ display:block;}
+@keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+.grid2{ display:grid; grid-template-columns: 320px 1fr; gap:18px;}
+@media (max-width:920px){ .grid2{ grid-template-columns:1fr;} }
+
+.panel{ background:var(--panel); border:1px solid var(--panel-border); border-radius:8px; padding:16px;}
+.panel h2{ font-size:13px; letter-spacing:2px; color:var(--cyan); text-transform:uppercase; margin:0 0 12px; border-bottom:1px dashed var(--panel-border); padding-bottom:8px;}
+.panel h3{ font-size:11.5px; letter-spacing:1px; color:var(--amber); text-transform:uppercase; margin:14px 0 8px;}
+
+select, input[type=number], input[type=range], input[type=text]{
+  width:100%; background:var(--paper); color:var(--ink); border:1px solid var(--panel-border);
+  padding:8px 10px; border-radius:4px; font-family:inherit; font-size:13px; margin-bottom:10px;
+}
+label{ font-size:10.5px; color:var(--ink-dim); letter-spacing:1px; text-transform:uppercase; display:block; margin-bottom:4px;}
+.row2{ display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+
+.btn{ background:linear-gradient(180deg,#123145,#0c2232); color:var(--cyan); border:1px solid var(--cyan);
+  padding:9px 14px; border-radius:5px; cursor:pointer; font-family:inherit; font-size:12px;
+  letter-spacing:1px; text-transform:uppercase; width:100%; margin-top:4px;}
+.btn:hover{ background:#0f2a3d; box-shadow:0 0 10px rgba(62,230,224,0.35);}
+.btn.secondary{ color:var(--amber); border-color:var(--amber);}
+.btn.run{ color:var(--green); border-color:var(--green);}
+.btn.stop{ color:var(--red); border-color:var(--red);}
+.btn.small{ width:auto; padding:6px 12px; font-size:11px;}
+.btnrow{ display:flex; gap:8px;}
+.btnrow .btn{ flex:1; }
+
+.alarm{ display:flex; gap:8px; align-items:flex-start; padding:9px 10px; border-radius:5px; margin-bottom:8px; font-size:12px; line-height:1.5;}
+.alarm.critical{ background:#2a1414; border-left:3px solid var(--red); color:#ffc3c3;}
+.alarm.warning{ background:#241a08; border-left:3px solid var(--amber); color:#ffe2ad;}
+.alarm.ok{ background:#0e2418; border-left:3px solid var(--green); color:#c8f5d6;}
+.alarm.info{ background:#0c2030; border-left:3px solid var(--blue); color:#cfe6ff;}
+.alarm .tag{ font-weight:bold; text-transform:uppercase; font-size:9.5px; letter-spacing:1px; min-width:60px;}
+
+.stage-card{ background:var(--paper); border:1px solid var(--panel-border); border-radius:8px; padding:14px;}
+.cap{ text-align:center; font-size:11px; letter-spacing:1.5px; color:var(--ink-dim); text-transform:uppercase; margin-top:6px;}
+
+.infobar{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-top:14px;}
+.stat{ background:var(--paper); border:1px solid var(--panel-border); border-radius:6px; padding:10px; text-align:center;}
+.stat .v{ font-size:17px; color:var(--cyan); font-weight:bold;}
+.stat .l{ font-size:9px; color:var(--ink-dim); text-transform:uppercase; letter-spacing:1px; margin-top:3px;}
+
+table{ width:100%; border-collapse:collapse; font-size:12px;}
+th,td{ padding:7px 9px; border:1px solid var(--panel-border); text-align:center;}
+th{ background:var(--paper); color:var(--amber); text-transform:uppercase; font-size:10px; letter-spacing:1px;}
+
+.desc-box{ background:var(--paper); border-left:3px solid var(--cyan); padding:10px 12px; font-size:12.5px; line-height:1.6; border-radius:0 6px 6px 0; margin-top:10px;}
+.note-box{ background:#1a1508; border-left:3px solid var(--amber); padding:10px 12px; font-size:12px; line-height:1.6; border-radius:0 6px 6px 0; margin-top:10px; color:#ffe2ad;}
+
+.gauge-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:8px;}
+.gauge{ background:var(--paper); border:1px solid var(--panel-border); border-radius:8px; padding:12px; text-align:center;}
+.gauge .val{ font-size:22px; color:var(--cyan); font-weight:bold;}
+.gauge .unit{ font-size:10px; color:var(--ink-dim);}
+.gauge .lab{ font-size:10px; color:var(--amber); text-transform:uppercase; letter-spacing:1px; margin-top:4px;}
+.gauge.alert .val{ color:var(--red); }
+.stat.alert{ border-color:var(--red); }
+.stat.alert .v{ color:var(--red); }
+
+.log{ background:var(--paper); border:1px solid var(--panel-border); border-radius:6px; padding:10px; height:160px; overflow-y:auto; font-size:11px; line-height:1.7;}
+.log .l-critical{ color:var(--red);}
+.log .l-warning{ color:var(--amber);}
+.log .l-ok{ color:var(--green);}
+.log .l-info{ color:var(--blue);}
+
+.legend{ display:flex; gap:14px; justify-content:center; margin-top:6px; font-size:11px; flex-wrap:wrap;}
+.legend span{ display:flex; align-items:center; gap:5px;}
+.swatch{ width:12px; height:3px; display:inline-block; border-radius:2px;}
+
+footer{ text-align:center; color:var(--ink-dim); font-size:11px; margin-top:30px; padding:14px 0; border-top:1px solid var(--panel-border);}
+
+.pill-toggle{ display:flex; border:1px solid var(--panel-border); border-radius:5px; overflow:hidden; margin-bottom:10px;}
+.pill-toggle button{ flex:1; background:var(--paper); color:var(--ink-dim); border:none; padding:7px; font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer; text-transform:uppercase;}
+.pill-toggle button.active{ background:#173040; color:var(--cyan);}
+
+.scope-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+@media (max-width:920px){ .scope-grid{ grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="corner-tag">Engineering Tools Suite</div>
+  <div class="brand">Apna Electromechanic Service</div>
+  <h1>VFD POWER CIRCUIT SIMULATOR</h1>
+  <div class="sub">Motor / VFD Sizing &middot; Line &amp; Load Reactor Selection &middot; dV/dt &amp; Sine Filter Guidance &middot; Live Waveforms &amp; Monitoring</div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="config">System Configurator</button>
+  <button class="tab-btn" data-tab="scope">Live Waveforms</button>
+  <button class="tab-btn" data-tab="monitor">Live Monitoring</button>
+  <button class="tab-btn" data-tab="fault">Fault Simulation</button>
+  <button class="tab-btn" data-tab="ref">Engineering Reference</button>
+</div>
+
+<!-- ============ CONFIGURATOR TAB ============ -->
+<div class="tab-panel active" id="tab-config">
+  <div class="grid2">
+    <div class="panel">
+      <h2>Motor Nameplate</h2>
+      <label>Phase</label>
+      <select id="motorPhase"><option value="3">3-Phase</option><option value="1">1-Phase</option></select>
+      <label>Supply Voltage</label>
+      <select id="motorVoltage"></select>
+      <label>Motor Rating (HP)</label>
+      <select id="motorHP"></select>
+      <label>Number of Poles</label>
+      <select id="motorPoles"><option value="2">2-Pole</option><option value="4" selected>4-Pole</option><option value="6">6-Pole</option><option value="8">8-Pole</option></select>
+      <div class="stat" style="margin-top:6px;"><div class="v" id="motorFlaOut">-- A</div><div class="l">Motor Full Load Amps (NEC 430.250/248)</div></div>
+
+      <h3>VFD Selection</h3>
+      <label>VFD Voltage Class</label>
+      <select id="vfdVoltage"></select>
+      <label>VFD Rating (HP)</label>
+      <select id="vfdHP"></select>
+      <div class="stat" style="margin-top:6px;"><div class="v" id="vfdCurrentOut">-- A</div><div class="l">VFD Rated Output Current</div></div>
+
+      <h3>Reactors &amp; Filters</h3>
+      <label>AC Line Reactor</label>
+      <select id="lineReactor"><option value="0">None</option><option value="3">3% Impedance</option><option value="5" selected>5% Impedance</option></select>
+      <label>VFD-to-Motor Cable Length (ft)</label>
+      <input type="number" id="cableLength" value="150" min="5" max="1000" step="5">
+      <label>VFD-to-Motor Cable Size</label>
+      <select id="cableSize"></select>
+      <div class="stat" style="margin-top:6px;"><div class="v" id="vdropOut">-- V (--%)</div><div class="l">Estimated Voltage Drop</div></div>
+      <label style="margin-top:10px;">Output Filter Installed</label>
+      <select id="outputFilter">
+        <option value="none">None</option>
+        <option value="loadReactor">Load Reactor</option>
+        <option value="dvdt" selected>dV/dt Filter</option>
+        <option value="sine">Sine Wave Filter</option>
+      </select>
+      <button class="btn secondary small" id="autoRecommend" style="width:100%;">Auto-Recommend Filter for Distance</button>
+      <button class="btn secondary small" id="autoCableSize" style="width:100%;margin-top:6px;">Auto-Size Cable for VFD Current</button>
+      <button class="btn small" id="pdfBtn" style="width:100%;margin-top:14px;">&#8681; Download PDF Report</button>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h2>System Alarms &amp; Sizing Check</h2>
+        <div id="alarmList"></div>
+      </div>
+
+      <div class="stage-card" style="margin-top:16px;">
+        <svg id="threeLineSvg" viewBox="0 0 900 260" style="width:100%;height:auto;"></svg>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--blue)"></i>Line-side current (utility &rarr; VFD)</span>
+          <span><i class="swatch" style="background:var(--amber)"></i>Load-side current (VFD &rarr; motor)</span>
+        </div>
+        <div class="cap">Three-Line Power Circuit Diagram (animated current flow)</div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2>Configuration Summary</h2>
+        <div class="infobar" id="summaryStats"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ WAVEFORMS TAB ============ -->
+<div class="tab-panel" id="tab-scope">
+  <div class="grid2">
+    <div class="panel">
+      <h2>Scope Controls</h2>
+      <label>Output Frequency (Hz)</label>
+      <input type="range" id="scopeFreq" min="1" max="60" value="45">
+      <div class="stat"><div class="v" id="scopeFreqOut">45 Hz</div><div class="l">Fundamental Frequency</div></div>
+      <label>Motor Load (%)</label>
+      <input type="range" id="scopeLoad" min="0" max="150" value="80">
+      <div class="stat"><div class="v" id="scopeLoadOut">80 %</div><div class="l">Load on Motor</div></div>
+      <label>Carrier (Switching) Frequency</label>
+      <select id="scopeCarrier">
+        <option value="8">2 kHz</option>
+        <option value="12" selected>4 kHz</option>
+        <option value="20">8 kHz</option>
+        <option value="32">16 kHz</option>
+      </select>
+      <label>What-if: Line Reactor</label>
+      <select id="scopeLineReactor"><option value="0">None</option><option value="3">3%</option><option value="5" selected>5%</option></select>
+      <label>What-if: Output Filter</label>
+      <select id="scopeFilter">
+        <option value="none">None</option>
+        <option value="loadReactor">Load Reactor</option>
+        <option value="dvdt" selected>dV/dt Filter</option>
+        <option value="sine">Sine Wave Filter</option>
+      </select>
+      <div class="note-box">These controls are independent "what-if" settings so you can compare waveform behaviour without changing your saved configuration on the Configurator tab.</div>
+    </div>
+
+    <div>
+      <div class="scope-grid">
+        <div class="stage-card">
+          <div class="pill-toggle">
+            <button class="lineViewBtn active" data-v="current">Current</button>
+            <button class="lineViewBtn" data-v="voltage">Voltage</button>
+          </div>
+          <svg id="lineScopeSvg" viewBox="0 0 420 220" style="width:100%;height:auto;"></svg>
+          <div class="cap">Line Side (Utility &rarr; VFD Input)</div>
+          <div class="infobar" style="margin-top:10px;">
+            <div class="stat"><div class="v" id="lineThdOut">--</div><div class="l">Approx. Input THDi</div></div>
+            <div class="stat"><div class="v" id="lineCrestOut">--</div><div class="l">Approx. Crest Factor</div></div>
+          </div>
+        </div>
+        <div class="stage-card">
+          <div class="pill-toggle">
+            <button class="loadViewBtn" data-v="current">Current</button>
+            <button class="loadViewBtn active" data-v="voltage">Voltage</button>
+          </div>
+          <svg id="loadScopeSvg" viewBox="0 0 420 220" style="width:100%;height:auto;"></svg>
+          <div class="cap">Load Side (VFD Output &rarr; Motor)</div>
+          <div class="infobar" style="margin-top:10px;">
+            <div class="stat"><div class="v" id="loadRippleOut">--</div><div class="l">Est. Current Ripple</div></div>
+            <div class="stat"><div class="v" id="loadDvdtOut">--</div><div class="l">Relative dV/dt Stress</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="desc-box" style="margin-top:16px;">
+        <b>Key clarification:</b> the VFD <i>output voltage</i> is genuinely pulsating &mdash; a train of fast PWM pulses switched at the carrier frequency. The VFD <i>output current</i>, however, is generally close to sinusoidal at the fundamental frequency, because the motor's leakage inductance naturally filters out most of the high-frequency switching content. Only a fairly small ripple at the carrier frequency normally remains superimposed on the fundamental current &mdash; that ripple shrinks further with a load reactor and becomes negligible with a sine wave filter.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LIVE MONITOR TAB ============ -->
+<div class="tab-panel" id="tab-monitor">
+  <div class="panel">
+    <div class="btnrow">
+      <button class="btn run" id="runBtn">&#9658; Run</button>
+      <button class="btn stop" id="stopBtn">&#9632; Stop</button>
+    </div>
+    <div class="gauge-grid" id="gaugeGrid"></div>
+    <div class="note-box" style="margin-top:14px;">Cable voltage drop is calculated from the Configurator tab's cable length and conductor size (line-to-line, 0.85 assumed motor power factor). On long, undersized runs this drop can noticeably reduce the voltage actually reaching the motor terminals relative to the VFD's own V/Hz output &mdash; watch for reduced torque and higher current draw on such runs, especially at low speed where the V/Hz output is already small.</div>
+  </div>
+  <div class="panel" style="margin-top:16px;">
+    <h2>Alarm / Event Log</h2>
+    <div class="log" id="eventLog"></div>
+  </div>
+</div>
+
+<!-- ============ FAULT SIMULATION TAB ============ -->
+<div class="tab-panel" id="tab-fault">
+  <div class="grid2">
+    <div class="panel">
+      <h2>Fault Injection</h2>
+      <div class="stat" style="margin-bottom:12px;">
+        <div class="v" id="faultStatusOut">SYSTEM NORMAL</div>
+        <div class="l">CB / System Status</div>
+      </div>
+      <button class="btn stop" id="faultMotorGround">Inject: Motor Ground Fault</button>
+      <button class="btn stop" id="faultVfdOC">Inject: VFD Overcurrent Trip</button>
+      <button class="btn stop" id="faultVfdOT">Inject: VFD Overtemperature Trip</button>
+      <button class="btn run" id="faultClear" style="margin-top:14px;">Clear Fault / Reclose CB</button>
+      <div class="note-box" style="margin-top:14px;">Injecting a fault here also stops the drive on the Live Monitoring tab and opens the upstream circuit breaker in the diagram, exactly as a real protection trip would. Clear the fault to reclose the CB and re-enable Run.</div>
+    </div>
+    <div>
+      <div class="stage-card">
+        <svg id="faultSvg" viewBox="0 0 900 320" style="width:100%;height:auto;"></svg>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--blue)"></i>Line-side current</span>
+          <span><i class="swatch" style="background:var(--amber)"></i>Load-side current</span>
+          <span><i class="swatch" style="background:var(--red)"></i>Tripped / de-energized</span>
+        </div>
+        <div class="cap">3-Phase Power Circuit &mdash; CB/Fuse &middot; Line Reactor &middot; VFD &middot; Load Reactor/Filter &middot; Cable &middot; Motor</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ REFERENCE TAB ============ -->
+<div class="tab-panel" id="tab-ref">
+  <div class="scope-grid">
+    <div class="panel">
+      <h2>VFD Sizing Rule of Thumb</h2>
+      <div class="desc-box">
+        Select a VFD whose <b>continuous rated output current</b> is at least equal to (and normally 100&ndash;125% of) the motor's full-load amps (FLA) from the nameplate &mdash; not just matching HP labels, since actual motor FLA can vary by design and efficiency class. Oversizing a VFD by more than one frame size is generally avoided because the drive's electronic overload protection is scaled to the VFD, not the motor, reducing protection accuracy, and because larger drives can have degraded low-speed current regulation for a small motor.
+      </div>
+      <h3>Motor Full-Load Current Reference (3-Phase, NEC Table 430.250, representative)</h3>
+      <table id="flaRefTable"></table>
+    </div>
+    <div class="panel">
+      <h2>Reflected Wave &amp; dV/dt Filter Selection</h2>
+      <div class="desc-box">
+        Fast IGBT switching edges (often &lt;0.1&mu;s rise time) launch a voltage wave down the motor cable. If the cable is electrically long relative to that rise time, the wave reflects at the motor's high-impedance terminals and can momentarily <b>double</b> the DC bus voltage at the motor &mdash; well beyond the drive's own DC bus rating. This "reflected wave" or "voltage doubling" effect stresses the first few turns of the motor winding insulation and accelerates bearing wear from induced shaft voltages. Longer cables and higher system voltages both increase the risk, which is why NEMA MG-1 Parts 30/31 style guidance ties the required protection level to both cable length and voltage class.
+      </div>
+      <h3>Approximate Distance Thresholds by Voltage Class</h3>
+      <table id="distRefTable"></table>
+      <div class="note-box">These thresholds are simplified, illustrative approximations derived from common industry application guidance (NEMA MG-1 Parts 30/31, drive manufacturer cable-length tables). Always confirm against the specific VFD manufacturer's cable-length and dV/dt application data for a final design.</div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:16px;">
+    <h2>V/Hz Control Curve</h2>
+    <svg id="vhzSvg" viewBox="0 0 500 220" style="width:100%;max-width:520px;display:block;margin:0 auto;"></svg>
+    <div class="desc-box">
+      Below base frequency (typically 50/60 Hz), the VFD holds output voltage proportional to frequency (constant V/Hz), which keeps magnetic flux &mdash; and therefore available torque &mdash; roughly constant: this is the <b>constant-torque region</b>. Above base frequency, voltage cannot exceed the drive's rated output, so V/Hz falls and available torque declines while power capability stays roughly constant: the <b>constant-power (field-weakening) region</b>. A frequently overlooked point: standard self-cooled (shaft-fan) motors lose cooling airflow at low speed, so continuous operation much below roughly 20&ndash;30% of base speed at full torque often needs a derating factor or an auxiliary blower &mdash; check the motor's inverter-duty data sheet.
+    </div>
+  </div>
+</div>
+
+<footer>Apna Electromechanic Service &mdash; Engineering Tools Suite &nbsp;|&nbsp; Offline single-file tool &middot; Reference: NEC 430.248/430.250, NEMA MG-1 Parts 30/31, IEC 61800-3 &nbsp;|&nbsp; For training &amp; commissioning reference use &mdash; verify all sizing against manufacturer data before installation</footer>
+</div>
+
+<script>
+/* ============================================================
+   DATA TABLES
+   ============================================================ */
+const THREE_PHASE_FLA = {
+  230:[[0.5,2.2],[0.75,3.2],[1,4.2],[1.5,6.0],[2,6.8],[3,9.6],[5,15.2],[7.5,22],[10,28],[15,42],[20,54],[25,68],[30,80],[40,104],[50,130],[60,154],[75,192],[100,248]],
+  460:[[0.5,1.1],[0.75,1.6],[1,2.1],[1.5,3.0],[2,3.4],[3,4.8],[5,7.6],[7.5,11],[10,14],[15,21],[20,27],[25,34],[30,40],[40,52],[50,65],[60,77],[75,96],[100,124]],
+  480:[[0.5,1.1],[0.75,1.6],[1,2.1],[1.5,3.0],[2,3.4],[3,4.8],[5,7.6],[7.5,11],[10,14],[15,21],[20,27],[25,34],[30,40],[40,52],[50,65],[60,77],[75,96],[100,124]],
+  575:[[0.5,0.9],[0.75,1.3],[1,1.7],[1.5,2.4],[2,2.7],[3,3.9],[5,6.1],[7.5,9],[10,11],[15,17],[20,22],[25,27],[30,32],[40,41],[50,52],[60,62],[75,77],[100,99]]
+};
+const SINGLE_PHASE_FLA = {
+  115:[[0.5,9.8],[0.75,13.8],[1,16],[1.5,20],[2,24],[3,34],[5,56],[7.5,80],[10,100]],
+  230:[[0.5,4.9],[0.75,6.9],[1,8],[1.5,10],[2,12],[3,17],[5,28],[7.5,40],[10,50]]
+};
+
+function flaTable(phase, voltage){
+  return phase===1 ? SINGLE_PHASE_FLA[voltage] : THREE_PHASE_FLA[voltage];
+}
+function lookupFLA(phase, voltage, hp){
+  const t = flaTable(phase, voltage);
+  const row = t.find(r=>r[0]===hp);
+  return row ? row[1] : null;
+}
+function vfdCurrentFor(voltage, hp){
+  // VFD continuous output current rating approximated as 1.1x the matching 3-phase motor FLA at same hp/voltage
+  const row = THREE_PHASE_FLA[voltage].find(r=>r[0]===hp);
+  return row ? Math.round(row[1]*1.1*10)/10 : null;
+}
+
+function filterThresholds(voltage){
+  const base=[50,100,250]; // 480V baseline: loadReactorAt, dvdtAt, sineAt (feet)
+  const scale = 480/voltage;
+  return { loadReactorAt: Math.round(base[0]*scale), dvdtAt: Math.round(base[1]*scale), sineAt: Math.round(base[2]*scale) };
+}
+function recommendFilter(distanceFt, voltage){
+  const th = filterThresholds(voltage);
+  if(distanceFt <= th.loadReactorAt) return 'none';
+  if(distanceFt <= th.dvdtAt) return 'loadReactor';
+  if(distanceFt <= th.sineAt) return 'dvdt';
+  return 'sine';
+}
+const FILTER_NAMES = {none:'None', loadReactor:'Load Reactor', dvdt:'dV/dt Filter', sine:'Sine Wave Filter'};
+const FILTER_ORDER = {none:0, loadReactor:1, dvdt:2, sine:3};
+
+/* Cable conductor reference (copper, PVC conduit, approx NEC Chapter 9 Table 9 R/X in ohm/1000ft,
+   and approx 75C ampacity per NEC Table 310.16, 3 current-carrying conductors) */
+const CABLE_TABLE = [
+  {size:'14 AWG', r:3.1,  x:0.058, amp:20},
+  {size:'12 AWG', r:2.0,  x:0.054, amp:25},
+  {size:'10 AWG', r:1.2,  x:0.050, amp:35},
+  {size:'8 AWG',  r:0.78, x:0.052, amp:50},
+  {size:'6 AWG',  r:0.49, x:0.051, amp:65},
+  {size:'4 AWG',  r:0.31, x:0.048, amp:85},
+  {size:'3 AWG',  r:0.25, x:0.048, amp:100},
+  {size:'2 AWG',  r:0.19, x:0.045, amp:115},
+  {size:'1 AWG',  r:0.15, x:0.046, amp:130},
+  {size:'1/0 AWG',r:0.12, x:0.044, amp:150},
+  {size:'2/0 AWG',r:0.10, x:0.043, amp:175},
+  {size:'3/0 AWG',r:0.077,x:0.042, amp:200},
+  {size:'4/0 AWG',r:0.062,x:0.041, amp:230},
+  {size:'250 kcmil',r:0.054,x:0.041, amp:255},
+  {size:'300 kcmil',r:0.045,x:0.040, amp:285},
+  {size:'350 kcmil',r:0.039,x:0.039, amp:310},
+  {size:'400 kcmil',r:0.035,x:0.039, amp:335},
+  {size:'500 kcmil',r:0.029,x:0.038, amp:380}
+];
+function recommendCableIndex(current){
+  for(let i=0;i<CABLE_TABLE.length;i++){ if(CABLE_TABLE[i].amp >= current*1.25) return i; }
+  return CABLE_TABLE.length-1;
+}
+function computeVoltageDrop(current, voltage, cableFt, cableIdx){
+  const c = CABLE_TABLE[cableIdx] || CABLE_TABLE[0];
+  const pf = 0.85; // typical induction motor displacement power factor near rated load
+  const sinPf = Math.sqrt(Math.max(0,1-pf*pf));
+  const vdrop = Math.sqrt(3) * current * cableFt * (c.r*pf + c.x*sinPf) / 1000;
+  const pct = voltage ? (vdrop/voltage)*100 : 0;
+  return {vdrop, pct, cable:c};
+}
+
+/* ============================================================
+   POPULATE SELECTS
+   ============================================================ */
+function populateVoltageSelect(sel, phase){
+  const opts = phase===1 ? [115,230] : [230,460,480,575];
+  sel.innerHTML = opts.map(v=>`<option value="${v}" ${v===480?'selected':''}>${v} V</option>`).join('');
+}
+function populateHPSelect(sel, phase, voltage){
+  const t = flaTable(phase, voltage);
+  sel.innerHTML = t.map(r=>`<option value="${r[0]}">${r[0]} HP</option>`).join('');
+}
+function populateVfdVoltageSelect(sel){
+  sel.innerHTML = [230,460,480,575].map(v=>`<option value="${v}" ${v===480?'selected':''}>${v} V</option>`).join('');
+}
+function populateVfdHPSelect(sel, voltage){
+  sel.innerHTML = THREE_PHASE_FLA[voltage].map(r=>`<option value="${r[0]}">${r[0]} HP</option>`).join('');
+}
+
+const motorPhaseEl = document.getElementById('motorPhase');
+const motorVoltageEl = document.getElementById('motorVoltage');
+const motorHPEl = document.getElementById('motorHP');
+const motorPolesEl = document.getElementById('motorPoles');
+const vfdVoltageEl = document.getElementById('vfdVoltage');
+const vfdHPEl = document.getElementById('vfdHP');
+const lineReactorEl = document.getElementById('lineReactor');
+const cableLengthEl = document.getElementById('cableLength');
+const cableSizeEl = document.getElementById('cableSize');
+const outputFilterEl = document.getElementById('outputFilter');
+
+function populateCableSizeSelect(){
+  cableSizeEl.innerHTML = CABLE_TABLE.map((c,i)=>`<option value="${i}">${c.size} (${c.amp} A ampacity)</option>`).join('');
+}
+populateCableSizeSelect();
+
+populateVoltageSelect(motorVoltageEl, 3);
+populateHPSelect(motorHPEl, 3, 480);
+motorHPEl.value = '1';
+populateVfdVoltageSelect(vfdVoltageEl);
+populateVfdHPSelect(vfdHPEl, 480);
+vfdHPEl.value = '1';
+cableSizeEl.value = recommendCableIndex(vfdCurrentFor(480,1));
+
+motorPhaseEl.addEventListener('change', ()=>{
+  const phase = parseInt(motorPhaseEl.value,10);
+  populateVoltageSelect(motorVoltageEl, phase);
+  populateHPSelect(motorHPEl, phase, parseInt(motorVoltageEl.value,10));
+  renderAll();
+});
+motorVoltageEl.addEventListener('change', ()=>{
+  populateHPSelect(motorHPEl, parseInt(motorPhaseEl.value,10), parseInt(motorVoltageEl.value,10));
+  renderAll();
+});
+[motorHPEl, motorPolesEl].forEach(el=>el.addEventListener('change', renderAll));
+vfdVoltageEl.addEventListener('change', ()=>{
+  populateVfdHPSelect(vfdHPEl, parseInt(vfdVoltageEl.value,10));
+  renderAll();
+});
+[vfdHPEl, lineReactorEl, outputFilterEl, cableSizeEl].forEach(el=>el.addEventListener('change', renderAll));
+cableLengthEl.addEventListener('input', renderAll);
+
+document.getElementById('autoRecommend').addEventListener('click', ()=>{
+  const motor = getMotor();
+  const rec = recommendFilter(parseFloat(cableLengthEl.value)||0, motor.voltage);
+  outputFilterEl.value = rec;
+  renderAll();
+});
+document.getElementById('autoCableSize').addEventListener('click', ()=>{
+  const vfd = getVfd();
+  const motor = getMotor();
+  cableSizeEl.value = recommendCableIndex(vfd.current || motor.fla || 0);
+  renderAll();
+});
+
+/* ============================================================
+   GET CURRENT STATE
+   ============================================================ */
+function getMotor(){
+  const phase = parseInt(motorPhaseEl.value,10);
+  const voltage = parseInt(motorVoltageEl.value,10);
+  const hp = parseFloat(motorHPEl.value);
+  const poles = parseInt(motorPolesEl.value,10);
+  const fla = lookupFLA(phase, voltage, hp);
+  return {phase, voltage, hp, poles, fla};
+}
+function getVfd(){
+  const voltage = parseInt(vfdVoltageEl.value,10);
+  const hp = parseFloat(vfdHPEl.value);
+  const current = vfdCurrentFor(voltage, hp);
+  return {voltage, hp, current};
+}
+
+/* ============================================================
+   ALARMS
+   ============================================================ */
+function computeAlarms(motor, vfd, cableFt, selectedFilter, lineReactorPct, cableIdx){
+  const alarms=[];
+  if(motor.voltage !== vfd.voltage){
+    alarms.push({level:'critical', text:`Voltage mismatch: motor is rated ${motor.voltage} V but VFD is rated ${vfd.voltage} V. Do not connect &mdash; risk of immediate damage on power-up.`});
+  }
+  if(motor.phase===1){
+    alarms.push({level:'warning', text:'Motor is single-phase. Standard single-phase induction motors (capacitor-start/run) are generally NOT suitable for closed-loop variable-frequency control unless specifically designed and rated for inverter duty. Confirm motor compatibility before proceeding.'});
+  }
+  if(motor.fla && vfd.current){
+    const ratio = vfd.current/motor.fla;
+    if(ratio < 1.0){
+      alarms.push({level:'critical', text:`VFD undersized: rated output current (${vfd.current} A) is below motor FLA (${motor.fla} A). Expect nuisance overload trips and elevated risk of drive damage under load.`});
+    } else if(ratio < 1.1){
+      alarms.push({level:'warning', text:`VFD closely matched at ${(ratio*100).toFixed(0)}% of FLA. Acceptable, but leaves little margin; verify duty cycle and ambient temperature derating.`});
+    } else if(ratio <= 1.5){
+      alarms.push({level:'ok', text:`VFD sizing looks good: rated output current is ${(ratio*100).toFixed(0)}% of motor FLA.`});
+    } else {
+      alarms.push({level:'warning', text:`VFD may be oversized (rated current is ${(ratio*100).toFixed(0)}% of motor FLA). This can reduce motor overload protection accuracy and degrade low-speed current regulation. Confirm parameter-based electronic overload settings are entered for the actual motor, not the drive rating.`});
+    }
+  }
+  const rec = recommendFilter(cableFt, motor.voltage);
+  if(FILTER_ORDER[selectedFilter] < FILTER_ORDER[rec]){
+    alarms.push({level:'critical', text:`Cable length ${cableFt} ft at ${motor.voltage} V requires at least a ${FILTER_NAMES[rec]}, but "${FILTER_NAMES[selectedFilter]}" is selected. Reflected-wave voltage doubling at the motor terminals risks winding insulation and bearing damage over time.`});
+  } else if(FILTER_ORDER[selectedFilter] > FILTER_ORDER[rec] && selectedFilter!=='none'){
+    alarms.push({level:'info', text:`Selected output protection exceeds the minimum required for this run length &mdash; extra margin, not a problem.`});
+  } else {
+    alarms.push({level:'ok', text:`Output filter selection is adequate for a ${cableFt} ft cable run at ${motor.voltage} V.`});
+  }
+  if(lineReactorPct==='0'){
+    alarms.push({level:'info', text:'No AC line reactor selected. A 3&ndash;5% line reactor is recommended on most VFD installations to reduce input current distortion, limit inrush, and buffer the DC bus capacitors from upstream line transients.'});
+  } else {
+    alarms.push({level:'ok', text:`${lineReactorPct}% line reactor selected &mdash; reduces input current THD and adds some protection against line-side transients.`});
+  }
+  if(vfd.current!=null && cableIdx!=null){
+    const vd = computeVoltageDrop(vfd.current, motor.voltage, cableFt, cableIdx);
+    if(vd.pct > 8){
+      alarms.push({level:'critical', text:`Cable voltage drop is approximately ${vd.vdrop.toFixed(1)} V (${vd.pct.toFixed(1)}%) on ${vd.cable.size} over ${cableFt} ft &mdash; well above the typical 5% guideline. Motor will see reduced torque and higher current at speed; upsize the conductor.`});
+    } else if(vd.pct > 5){
+      alarms.push({level:'warning', text:`Cable voltage drop is approximately ${vd.vdrop.toFixed(1)} V (${vd.pct.toFixed(1)}%) on ${vd.cable.size} over ${cableFt} ft &mdash; above the typical 5% guideline. Consider a larger conductor, especially if running near full load at low frequency.`});
+    } else {
+      alarms.push({level:'ok', text:`Cable voltage drop is approximately ${vd.vdrop.toFixed(1)} V (${vd.pct.toFixed(1)}%) on ${vd.cable.size} over ${cableFt} ft &mdash; within the typical 5% guideline.`});
+    }
+  }
+  return alarms;
+}
+
+function renderAlarms(){
+  const motor = getMotor(), vfd = getVfd();
+  const cableFt = parseFloat(cableLengthEl.value)||0;
+  const cableIdx = parseInt(cableSizeEl.value,10);
+  const alarms = computeAlarms(motor, vfd, cableFt, outputFilterEl.value, lineReactorEl.value, cableIdx);
+  const list = document.getElementById('alarmList');
+  list.innerHTML = alarms.map(a=>`<div class="alarm ${a.level}"><span class="tag">${a.level}</span><span>${a.text}</span></div>`).join('');
+  return alarms;
+}
+
+/* ============================================================
+   THREE-LINE DIAGRAM
+   ============================================================ */
+let diagramSegments = [];
+let diagramColors = [];
+function renderThreeLine(){
+  const motor = getMotor(), vfd = getVfd();
+  const cableFt = parseFloat(cableLengthEl.value)||0;
+  const hasLineReactor = lineReactorEl.value !== '0';
+  const filter = outputFilterEl.value;
+  const svg = document.getElementById('threeLineSvg');
+  let html = '';
+  const y = 130;
+  function block(x,w,label1,label2,active){
+    const stroke = active===false ? '#3a4c58' : '#3ee6e0';
+    const fill = active===false ? '#0c1620' : '#10222f';
+    html += `<rect x="${x}" y="${y-38}" width="${w}" height="76" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+    html += `<text x="${x+w/2}" y="${y-6}" fill="${active===false?'#5a7080':'#f2fbfc'}" font-size="12" text-anchor="middle" font-weight="bold">${label1}</text>`;
+    if(label2) html += `<text x="${x+w/2}" y="${y+12}" fill="${active===false?'#4a606c':'#7fa0ac'}" font-size="10" text-anchor="middle">${label2}</text>`;
+  }
+  function wire(x1,x2){ html += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#2a4a5e" stroke-width="2"/>`; }
+
+  // Utility
+  block(10,80,'UTILITY',motor.voltage+'V 3ph',true);
+  wire(90,130);
+  // Disconnect
+  block(130,60,'DISC.','/BREAKER',true);
+  wire(190,230);
+  // Line reactor
+  block(230,90,hasLineReactor?(lineReactorEl.value+'% LINE'):'NO LINE',hasLineReactor?'REACTOR':'REACTOR',hasLineReactor);
+  wire(320,360);
+  // VFD
+  block(360,110,'VFD','RECT-DC-INV',true);
+  wire(470,510);
+  // Output filter
+  block(510,110,FILTER_NAMES[filter].toUpperCase(),filter==='none'?'(NONE)':'FILTER',filter!=='none');
+  wire(620,660);
+  // Cable
+  html += `<text x="700" y="${y-46}" fill="#ffb84d" font-size="11" text-anchor="middle">${cableFt} ft cable</text>`;
+  wire(660,740);
+  // Motor
+  block(740,120,'MOTOR',motor.hp+' HP '+motor.voltage+'V',true);
+
+  // animated dots holders
+  diagramSegments = [ [90,130],[190,230],[320,360],[470,510],[620,660],[660,740] ];
+  diagramColors = ['#5aa9ff','#5aa9ff','#5aa9ff','#ffb84d','#ffb84d','#ffb84d'];
+  html += `<g id="flowDots"></g>`;
+
+  svg.innerHTML = html;
+}
+
+let flowRAF = null;
+function animateFlow(){
+  if(flowRAF) cancelAnimationFrame(flowRAF);
+  const g = document.getElementById('flowDots');
+  function frame(t){
+    if(!g){ flowRAF = requestAnimationFrame(frame); return; }
+    let html='';
+    diagramSegments.forEach((seg,i)=>{
+      const [x1,x2] = seg;
+      const speed = 0.0006;
+      for(let k=0;k<2;k++){
+        const phase = ((t*speed) + k*0.5 + i*0.15) % 1;
+        const x = x1 + (x2-x1)*phase;
+        html += `<circle cx="${x.toFixed(1)}" cy="130" r="3.2" fill="${diagramColors[i]}"/>`;
+      }
+    });
+    g.innerHTML = html;
+    flowRAF = requestAnimationFrame(frame);
+  }
+  flowRAF = requestAnimationFrame(frame);
+}
+
+/* ============================================================
+   FAULT SIMULATION - 3-PHASE DIAGRAM
+   ============================================================ */
+let faultActive = false;
+let faultReason = '';
+let faultDotSegments = [];
+let faultDotRows = [80,160,240];
+let faultFlowRAF = null;
+
+function coilHoriz(x1,x2,y,color,dashed){
+  const n=6, amp=6;
+  let d = `M ${x1},${y} `;
+  for(let i=1;i<n;i++){
+    const t=i/n;
+    const x=x1+(x2-x1)*t;
+    const s=(i%2===0?1:-1)*amp;
+    d += `L ${x.toFixed(1)},${(y+s).toFixed(1)} `;
+  }
+  d += `L ${x2},${y}`;
+  return `<path d="${d}" stroke="${color}" stroke-width="2" fill="none" ${dashed?'stroke-dasharray="3,2"':''}/>`;
+}
+
+function renderFaultDiagram(){
+  const motor = getMotor();
+  const hasLineReactor = lineReactorEl.value !== '0';
+  const filter = outputFilterEl.value;
+  const cableFt = parseFloat(cableLengthEl.value)||0;
+  const svg = document.getElementById('faultSvg');
+  const rows = faultDotRows;
+  const tripped = faultActive;
+  let html = '';
+
+  if(tripped){
+    html += `<text x="450" y="24" fill="#ff6b6b" font-size="15" text-anchor="middle" font-weight="bold">\u26A0 TRIPPED: ${faultReason}</text>`;
+  } else {
+    html += `<text x="450" y="24" fill="#6fdc8c" font-size="13" text-anchor="middle" letter-spacing="1">SYSTEM NORMAL &mdash; CB CLOSED</text>`;
+  }
+
+  html += `<text x="40" y="50" fill="#7fa0ac" font-size="11" text-anchor="middle">UTILITY</text>`;
+  html += `<text x="40" y="${rows[2]+40}" fill="#7fa0ac" font-size="10" text-anchor="middle">${motor.voltage}V 3ph</text>`;
+  html += `<text x="710" y="46" fill="#ffb84d" font-size="11" text-anchor="middle">${cableFt} ft cable</text>`;
+
+  const wireIdle = tripped ? '#243038' : '#2a4a5e';
+  const passiveWire = tripped ? '#243038' : '#3a5164';
+
+  rows.forEach((y,i)=>{
+    const label = ['A','B','C'][i];
+    html += `<text x="10" y="${y+4}" fill="#7fa0ac" font-size="10">${label}</text>`;
+    html += `<line x1="20" y1="${y}" x2="70" y2="${y}" stroke="${wireIdle}" stroke-width="2"/>`;
+    html += `<line x1="70" y1="${y}" x2="110" y2="${y}" stroke="${wireIdle}" stroke-width="2"/>`;
+
+    if(tripped){
+      html += `<line x1="110" y1="${y}" x2="128" y2="${y}" stroke="#5a7080" stroke-width="2"/>`;
+      html += `<line x1="128" y1="${y}" x2="149" y2="${y-18}" stroke="#ff6b6b" stroke-width="2.5"/>`;
+      html += `<circle cx="128" cy="${y}" r="3" fill="#ff6b6b"/>`;
+      html += `<circle cx="150" cy="${y}" r="3" fill="#5a7080"/>`;
+    } else {
+      html += `<line x1="110" y1="${y}" x2="150" y2="${y}" stroke="#3ee6e0" stroke-width="2.5"/>`;
+      html += `<circle cx="118" cy="${y}" r="3" fill="#3ee6e0"/>`;
+      html += `<circle cx="142" cy="${y}" r="3" fill="#3ee6e0"/>`;
+    }
+
+    html += `<line x1="150" y1="${y}" x2="190" y2="${y}" stroke="${wireIdle}" stroke-width="2"/>`;
+    if(hasLineReactor){
+      html += coilHoriz(190,280,y, tripped?'#5a7080':'#5aa9ff', tripped);
+    } else {
+      html += `<line x1="190" y1="${y}" x2="280" y2="${y}" stroke="${passiveWire}" stroke-width="2" stroke-dasharray="4,3"/>`;
+    }
+    html += `<line x1="280" y1="${y}" x2="330" y2="${y}" stroke="${wireIdle}" stroke-width="2"/>`;
+    html += `<line x1="450" y1="${y}" x2="490" y2="${y}" stroke="${wireIdle}" stroke-width="2"/>`;
+
+    if(filter!=='none'){
+      html += coilHoriz(490,590,y, tripped?'#5a7080':'#ffb84d', tripped);
+    } else {
+      html += `<line x1="490" y1="${y}" x2="590" y2="${y}" stroke="${passiveWire}" stroke-width="2" stroke-dasharray="4,3"/>`;
+    }
+    html += `<line x1="590" y1="${y}" x2="640" y2="${y}" stroke="${wireIdle}" stroke-width="2"/>`;
+    html += `<line x1="640" y1="${y}" x2="780" y2="${y}" stroke="${tripped?'#243038':'#ffb84d'}" stroke-width="2" ${tripped?'stroke-dasharray="4,3"':''}/>`;
+  });
+
+  html += `<rect x="330" y="${rows[0]-30}" width="120" height="${rows[2]-rows[0]+60}" rx="8" fill="#10222f" stroke="${tripped?'#3a4c58':'#3ee6e0'}" stroke-width="2"/>`;
+  html += `<text x="390" y="${rows[1]+4}" fill="${tripped?'#5a7080':'#f2fbfc'}" font-size="13" text-anchor="middle" font-weight="bold">VFD</text>`;
+  html += `<text x="390" y="${rows[1]+20}" fill="${tripped?'#4a606c':'#7fa0ac'}" font-size="9" text-anchor="middle">RECT-DC-INV</text>`;
+
+  const my = rows[1];
+  html += `<circle cx="820" cy="${my}" r="34" fill="#10222f" stroke="${tripped?'#3a4c58':'#3ee6e0'}" stroke-width="2.5"/>`;
+  html += `<text x="820" y="${my+6}" fill="${tripped?'#5a7080':'#f2fbfc'}" font-size="18" text-anchor="middle" font-weight="bold">M</text>`;
+  html += `<text x="820" y="${my+52}" fill="#7fa0ac" font-size="10" text-anchor="middle">${motor.hp} HP ${motor.voltage}V</text>`;
+
+  html += `<g id="faultFlowDots"></g>`;
+  svg.innerHTML = html;
+
+  faultDotSegments = [[70,110],[150,190],[280,330],[450,490],[590,640],[640,780]];
+}
+
+function animateFaultFlow(){
+  if(faultFlowRAF) cancelAnimationFrame(faultFlowRAF);
+  function frame(t){
+    const g = document.getElementById('faultFlowDots');
+    if(!g){ faultFlowRAF = requestAnimationFrame(frame); return; }
+    let html='';
+    if(!faultActive){
+      faultDotRows.forEach((y,ri)=>{
+        faultDotSegments.forEach((seg,i)=>{
+          const [x1,x2]=seg;
+          const speed=0.0006;
+          const color = i<3 ? '#5aa9ff' : '#ffb84d';
+          for(let k=0;k<2;k++){
+            const phase = ((t*speed)+k*0.5+i*0.15+ri*0.07)%1;
+            const x = x1+(x2-x1)*phase;
+            html += `<circle cx="${x.toFixed(1)}" cy="${y}" r="2.6" fill="${color}"/>`;
+          }
+        });
+      });
+    }
+    g.innerHTML = html;
+    faultFlowRAF = requestAnimationFrame(frame);
+  }
+  faultFlowRAF = requestAnimationFrame(frame);
+}
+
+function updateFaultStatus(){
+  const el = document.getElementById('faultStatusOut');
+  if(!el) return;
+  if(faultActive){
+    el.textContent = 'TRIPPED';
+    el.parentElement.classList.add('alert');
+  } else {
+    el.textContent = 'SYSTEM NORMAL';
+    el.parentElement.classList.remove('alert');
+  }
+}
+
+function triggerFault(reason){
+  faultActive = true;
+  faultReason = reason;
+  monitorRunning = false;
+  if(monitorRAF) cancelAnimationFrame(monitorRAF);
+  rampFreq = 0;
+  renderGauges(0);
+  logEvent('critical', `TRIP: ${reason}. Upstream CB opened, VFD output de-energized.`);
+  const rb = document.getElementById('runBtn');
+  if(rb) rb.disabled = true;
+  renderFaultDiagram();
+  updateFaultStatus();
+}
+function clearFaultState(){
+  faultActive = false;
+  faultReason = '';
+  logEvent('ok','Fault cleared. CB reclosed. System ready to run.');
+  const rb = document.getElementById('runBtn');
+  if(rb) rb.disabled = false;
+  renderFaultDiagram();
+  updateFaultStatus();
+}
+document.getElementById('faultMotorGround').addEventListener('click', ()=>triggerFault('Motor Ground Fault (Earth Leakage)'));
+document.getElementById('faultVfdOC').addEventListener('click', ()=>triggerFault('VFD Overcurrent Trip'));
+document.getElementById('faultVfdOT').addEventListener('click', ()=>triggerFault('VFD Overtemperature Trip'));
+document.getElementById('faultClear').addEventListener('click', clearFaultState);
+
+/* ============================================================
+   SUMMARY STATS
+   ============================================================ */
+function renderSummary(){
+  const motor = getMotor(), vfd = getVfd();
+  const cableFt = parseFloat(cableLengthEl.value)||0;
+  const cableIdx = parseInt(cableSizeEl.value,10);
+  const rec = recommendFilter(cableFt, motor.voltage);
+  const vd = (vfd.current!=null) ? computeVoltageDrop(vfd.current, motor.voltage, cableFt, cableIdx) : null;
+  const el = document.getElementById('summaryStats');
+  el.innerHTML = `
+    <div class="stat"><div class="v">${motor.fla ?? '--'} A</div><div class="l">Motor FLA</div></div>
+    <div class="stat"><div class="v">${vfd.current ?? '--'} A</div><div class="l">VFD Rated Current</div></div>
+    <div class="stat"><div class="v">${(1.414*motor.voltage).toFixed(0)} VDC</div><div class="l">Approx. DC Bus Voltage</div></div>
+    <div class="stat"><div class="v">${FILTER_NAMES[rec]}</div><div class="l">Min. Filter Needed</div></div>
+    <div class="stat"><div class="v">${lineReactorEl.value==='0'?'None':lineReactorEl.value+'%'}</div><div class="l">Line Reactor</div></div>
+    <div class="stat"><div class="v">${vd ? vd.vdrop.toFixed(1)+' V' : '--'}</div><div class="l">Cable Voltage Drop</div></div>
+    <div class="stat"><div class="v">${vd ? (motor.voltage-vd.vdrop).toFixed(0)+' V' : '--'}</div><div class="l">Motor Terminal Voltage</div></div>
+  `;
+  document.getElementById('motorFlaOut').textContent = (motor.fla ?? '--') + ' A';
+  document.getElementById('vfdCurrentOut').textContent = (vfd.current ?? '--') + ' A';
+  document.getElementById('vdropOut').textContent = vd ? `${vd.vdrop.toFixed(1)} V (${vd.pct.toFixed(1)}%)` : '-- V (--%)';
+}
+
+/* ============================================================
+   WAVEFORM GENERATION (shared helpers)
+   ============================================================ */
+function gauss(x,c,w){ return Math.exp(-((x-c)*(x-c))/(2*w*w)); }
+
+function lineSideCurrentPts(reactorPct, numPoints, cycles){
+  const blend = reactorPct==0 ? 0 : (reactorPct==3 ? 0.45 : 0.6);
+  const pts=[];
+  for(let i=0;i<=numPoints;i++){
+    const theta = (i/numPoints)*360*cycles;
+    const t = ((theta%360)+360)%360;
+    let val;
+    if(t<180){ val = gauss(t,60,18)+gauss(t,120,18); }
+    else { const t2=t-180; val = -(gauss(t2,60,18)+gauss(t2,120,18)); }
+    const pureSine = Math.sin(theta*Math.PI/180);
+    pts.push((1-blend)*val + blend*pureSine*1.15);
+  }
+  const max = Math.max(...pts.map(Math.abs)) || 1;
+  return pts.map(v=>v/max);
+}
+function lineSideVoltagePts(numPoints, cycles){
+  const pts=[];
+  for(let i=0;i<=numPoints;i++){
+    const theta=(i/numPoints)*360*cycles;
+    pts.push(Math.sin(theta*Math.PI/180));
+  }
+  return pts;
+}
+function triangleWave(x){ x = x-Math.floor(x); return 4*Math.abs(x-0.5)-1; }
+function movingAverageCircular(arr,w){
+  if(w<=1) return arr.slice();
+  const n=arr.length; const out=new Array(n);
+  const half=Math.floor(w/2);
+  for(let i=0;i<n;i++){
+    let sum=0,cnt=0;
+    for(let k=-half;k<=half;k++){
+      sum += arr[(i+k+n)%n]; cnt++;
+    }
+    out[i]=sum/cnt;
+  }
+  return out;
+}
+function pwmVoltagePts(carrierPulsesPerCycle, numPoints, cycles, filterType){
+  const pts=[];
+  for(let i=0;i<numPoints;i++){
+    const t=(i/numPoints)*cycles;
+    const ref = Math.sin(2*Math.PI*t);
+    const tri = triangleWave(t*carrierPulsesPerCycle);
+    pts.push(ref>tri?1:-1);
+  }
+  const smoothWindow = filterType==='sine'?21:(filterType==='dvdt'?7:1);
+  return movingAverageCircular(pts, smoothWindow);
+}
+function loadSideCurrentPts(filterType, numPoints, cycles){
+  const rippleAmp = filterType==='sine'?0.02:(filterType==='dvdt'?0.06:(filterType==='loadReactor'?0.08:0.15));
+  const pts=[];
+  for(let i=0;i<=numPoints;i++){
+    const t=(i/numPoints)*cycles;
+    pts.push(Math.sin(2*Math.PI*t)+rippleAmp*Math.sin(2*Math.PI*t*9));
+  }
+  return pts;
+}
+function pointsToPath(pts,W,H,ampScale){
+  const n=pts.length;
+  const max=Math.max(...pts.map(Math.abs))||1;
+  let d='';
+  for(let i=0;i<n;i++){
+    const x=(i/(n-1))*W;
+    const yv=H/2 - (pts[i]/max)*ampScale;
+    d += (i===0?'M':'L')+x.toFixed(1)+','+yv.toFixed(1)+' ';
+  }
+  return d;
+}
+function scopeBackground(W,H){
+  let s = `<rect x="0" y="0" width="${W}" height="${H}" fill="#040a10"/>`;
+  for(let gx=0; gx<=W; gx+=W/8){ s+= `<line x1="${gx}" y1="0" x2="${gx}" y2="${H}" stroke="#12222f" stroke-width="1"/>`; }
+  for(let gy=0; gy<=H; gy+=H/6){ s+= `<line x1="0" y1="${gy}" x2="${W}" y2="${gy}" stroke="#12222f" stroke-width="1"/>`; }
+  s += `<line x1="0" y1="${H/2}" x2="${W}" y2="${H/2}" stroke="#2a4a5e" stroke-width="1"/>`;
+  return s;
+}
+
+/* ============================================================
+   WAVEFORMS TAB LOGIC
+   ============================================================ */
+let lineView = 'current', loadView = 'voltage';
+document.querySelectorAll('.lineViewBtn').forEach(b=>b.addEventListener('click', ()=>{
+  document.querySelectorAll('.lineViewBtn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); lineView=b.dataset.v; renderScope();
+}));
+document.querySelectorAll('.loadViewBtn').forEach(b=>b.addEventListener('click', ()=>{
+  document.querySelectorAll('.loadViewBtn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); loadView=b.dataset.v; renderScope();
+}));
+['scopeFreq','scopeLoad','scopeCarrier','scopeLineReactor','scopeFilter'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', renderScope);
+  document.getElementById(id).addEventListener('change', renderScope);
+});
+
+function renderScope(){
+  const freq = parseInt(document.getElementById('scopeFreq').value,10);
+  const load = parseInt(document.getElementById('scopeLoad').value,10);
+  const carrier = parseInt(document.getElementById('scopeCarrier').value,10);
+  const lr = parseInt(document.getElementById('scopeLineReactor').value,10);
+  const filt = document.getElementById('scopeFilter').value;
+  document.getElementById('scopeFreqOut').textContent = freq+' Hz';
+  document.getElementById('scopeLoadOut').textContent = load+' %';
+
+  const W=420,H=220,amp=75,N=400,cycles=2;
+  // LINE SIDE
+  const linePts = lineView==='current' ? lineSideCurrentPts(lr,N,cycles) : lineSideVoltagePts(N,cycles);
+  let lineHtml = scopeBackground(W,H);
+  lineHtml += `<path d="${pointsToPath(linePts,W,H,amp)}" stroke="${lineView==='current'?'#5aa9ff':'#3ee6e0'}" stroke-width="2" fill="none"/>`;
+  document.getElementById('lineScopeSvg').innerHTML = lineHtml;
+  const thdMap = {0:'~85-100%',3:'~35-40%',5:'~28-32%'};
+  document.getElementById('lineThdOut').textContent = thdMap[lr];
+  const crestMap = {0:'~2.4-2.8',3:'~1.8',5:'~1.6'};
+  document.getElementById('lineCrestOut').textContent = crestMap[lr];
+
+  // LOAD SIDE
+  const loadPts = loadView==='current' ? loadSideCurrentPts(filt,N,cycles) : pwmVoltagePts(carrier,N,cycles,filt);
+  let loadHtml = scopeBackground(W,H);
+  loadHtml += `<path d="${pointsToPath(loadPts,W,H,amp)}" stroke="${loadView==='current'?'#ffb84d':'#ff6b6b'}" stroke-width="1.6" fill="none"/>`;
+  document.getElementById('loadScopeSvg').innerHTML = loadHtml;
+  const rippleMap = {none:'High (~15%)', loadReactor:'Moderate (~8%)', dvdt:'Low (~6%)', sine:'Very Low (~2%)'};
+  document.getElementById('loadRippleOut').textContent = rippleMap[filt];
+  const dvdtMap = {none:'High (unmitigated)', loadReactor:'High (unchanged)', dvdt:'Reduced (edges rate-limited)', sine:'Very Low (near-sinusoidal)'};
+  document.getElementById('loadDvdtOut').textContent = dvdtMap[filt];
+}
+
+/* ============================================================
+   LIVE MONITORING TAB
+   ============================================================ */
+let monitorRunning = false;
+let monitorRAF = null;
+let rampFreq = 0;
+
+function logEvent(level,text){
+  const log = document.getElementById('eventLog');
+  const time = new Date().toLocaleTimeString();
+  const div = document.createElement('div');
+  div.className = 'l-'+level;
+  div.textContent = `[${time}] ${text}`;
+  log.prepend(div);
+  while(log.children.length>60) log.removeChild(log.lastChild);
+}
+
+function renderGauges(freqActual){
+  const motor = getMotor();
+  const load = parseInt(document.getElementById('scopeLoad').value,10);
+  const targetFreq = parseInt(document.getElementById('scopeFreq').value,10);
+  const baseFreq = 60;
+  const outputV = freqActual<=baseFreq ? (motor.voltage*(freqActual/baseFreq)) : motor.voltage;
+  const syncRPM = 120*freqActual/motor.poles;
+  const slip = 0.03*(load/100);
+  const rpm = syncRPM*(1-slip);
+  const outputI = motor.fla ? (motor.fla*(load/100)) : 0;
+  const dcBus = 1.414*motor.voltage;
+  const lowSpeedPenalty = freqActual < baseFreq*0.25 ? 6 : 0;
+  const temp = 38 + load*0.28 + lowSpeedPenalty;
+
+  const cableFt = parseFloat(cableLengthEl.value)||0;
+  const cableIdx = parseInt(cableSizeEl.value,10);
+  // voltage drop scales with actual output frequency ratio since drop is computed at line voltage but
+  // conductor impedance drop is proportional to the current actually flowing, referenced against output voltage
+  const vd = computeVoltageDrop(outputI, motor.voltage, cableFt, cableIdx);
+  const terminalV = Math.max(0, outputV - vd.vdrop);
+  const vdPctOfOutput = outputV>0 ? (vd.vdrop/outputV)*100 : 0;
+
+  const grid = document.getElementById('gaugeGrid');
+  grid.innerHTML = `
+    <div class="gauge"><div class="val">${freqActual.toFixed(1)}</div><div class="unit">Hz</div><div class="lab">Output Frequency</div></div>
+    <div class="gauge"><div class="val">${rpm.toFixed(0)}</div><div class="unit">RPM</div><div class="lab">Estimated Motor Speed</div></div>
+    <div class="gauge"><div class="val">${outputV.toFixed(0)}</div><div class="unit">V</div><div class="lab">VFD Output Voltage (V/Hz)</div></div>
+    <div class="gauge"><div class="val">${outputI.toFixed(1)}</div><div class="unit">A</div><div class="lab">Output Current</div></div>
+    <div class="gauge ${vdPctOfOutput>5?'alert':''}"><div class="val">${vd.vdrop.toFixed(1)}</div><div class="unit">V (${vdPctOfOutput.toFixed(1)}%)</div><div class="lab">Cable Voltage Drop</div></div>
+    <div class="gauge ${vdPctOfOutput>5?'alert':''}"><div class="val">${terminalV.toFixed(0)}</div><div class="unit">V</div><div class="lab">Motor Terminal Voltage</div></div>
+    <div class="gauge"><div class="val">${dcBus.toFixed(0)}</div><div class="unit">VDC</div><div class="lab">DC Bus Voltage</div></div>
+    <div class="gauge ${temp>75?'alert':''}"><div class="val">${temp.toFixed(0)}</div><div class="unit">&deg;C</div><div class="lab">Est. Heatsink Temp</div></div>
+  `;
+  return {rpm, outputV, outputI, dcBus, temp, targetFreq, vdrop:vd.vdrop, terminalV};
+}
+
+document.getElementById('runBtn').addEventListener('click', ()=>{
+  if(monitorRunning) return;
+  if(faultActive){ logEvent('warning','Cannot run: system is TRIPPED. Clear the fault on the Fault Simulation tab first.'); return; }
+  monitorRunning = true;
+  logEvent('ok','Drive RUN command issued. Ramping to setpoint...');
+  const target = parseInt(document.getElementById('scopeFreq').value,10);
+  const start = performance.now();
+  const startFreq = rampFreq;
+  function frame(now){
+    const t = Math.min(1,(now-start)/2000);
+    rampFreq = startFreq + (target-startFreq)*t;
+    const jitter = monitorRunning ? (Math.sin(now/300)*0.15) : 0;
+    const g = renderGauges(rampFreq+jitter);
+    if(g.temp>78 && Math.floor(now/4000)!==Math.floor((now-16)/4000)){
+      logEvent('warning','Heatsink temperature trending high \u2014 check ambient cooling / airflow at low speed.');
+    }
+    if(monitorRunning) monitorRAF = requestAnimationFrame(frame);
+  }
+  monitorRAF = requestAnimationFrame(frame);
+});
+document.getElementById('stopBtn').addEventListener('click', ()=>{
+  monitorRunning = false;
+  if(monitorRAF) cancelAnimationFrame(monitorRAF);
+  logEvent('info','Drive STOP command issued. Coasting to zero speed.');
+  rampFreq = 0;
+  renderGauges(0);
+});
+
+/* ============================================================
+   TABS
+   ============================================================ */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ============================================================
+   REFERENCE TAB TABLES + V/Hz CURVE
+   ============================================================ */
+function renderRefTables(){
+  const flaEl = document.getElementById('flaRefTable');
+  let rows = '<tr><th>HP</th><th>230V</th><th>460/480V</th><th>575V</th></tr>';
+  THREE_PHASE_FLA[460].forEach((r,i)=>{
+    const hp=r[0];
+    const v230 = THREE_PHASE_FLA[230].find(x=>x[0]===hp);
+    const v575 = THREE_PHASE_FLA[575].find(x=>x[0]===hp);
+    rows += `<tr><td>${hp}</td><td>${v230?v230[1]:'-'}</td><td>${r[1]}</td><td>${v575?v575[1]:'-'}</td></tr>`;
+  });
+  flaEl.innerHTML = rows;
+
+  const distEl = document.getElementById('distRefTable');
+  let drows = '<tr><th>Voltage</th><th>No Filter Needed Up To</th><th>Load Reactor Up To</th><th>dV/dt Filter Up To</th><th>Beyond &rarr; Sine Filter</th></tr>';
+  [230,460,480,575].forEach(v=>{
+    const th = filterThresholds(v);
+    drows += `<tr><td>${v} V</td><td>${th.loadReactorAt} ft</td><td>${th.dvdtAt} ft</td><td>${th.sineAt} ft</td><td>&gt; ${th.sineAt} ft</td></tr>`;
+  });
+  distEl.innerHTML = drows;
+}
+
+function renderVHz(){
+  const svg = document.getElementById('vhzSvg');
+  const W=500,H=220,pad=40;
+  const baseFreq=60, maxFreq=120, maxV=100;
+  function pt(f,v){ return [pad+(f/maxFreq)*(W-2*pad), H-pad-(v/maxV)*(H-2*pad)]; }
+  let html = `<rect x="0" y="0" width="${W}" height="${H}" fill="#040a10"/>`;
+  html += `<line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="#2a4a5e" stroke-width="1.5"/>`;
+  html += `<line x1="${pad}" y1="${pad}" x2="${pad}" y2="${H-pad}" stroke="#2a4a5e" stroke-width="1.5"/>`;
+  const p0=pt(0,0), p1=pt(baseFreq,maxV), p2=pt(maxFreq,maxV);
+  html += `<path d="M${p0[0]},${p0[1]} L${p1[0]},${p1[1]} L${p2[0]},${p2[1]}" stroke="#3ee6e0" stroke-width="2.5" fill="none"/>`;
+  html += `<line x1="${p1[0]}" y1="${pad}" x2="${p1[0]}" y2="${H-pad}" stroke="#ffb84d" stroke-width="1" stroke-dasharray="4,3"/>`;
+  html += `<text x="${p1[0]}" y="${pad-8}" fill="#ffb84d" font-size="11" text-anchor="middle">Base Freq (${baseFreq}Hz)</text>`;
+  html += `<text x="${(p0[0]+p1[0])/2}" y="${H-pad+22}" fill="#7fa0ac" font-size="11" text-anchor="middle">Constant Torque Region</text>`;
+  html += `<text x="${(p1[0]+p2[0])/2}" y="${H-pad+22}" fill="#7fa0ac" font-size="11" text-anchor="middle">Constant Power (Field Weakening)</text>`;
+  html += `<text x="${pad-10}" y="${pad+4}" fill="#7fa0ac" font-size="10" text-anchor="end">V%</text>`;
+  html += `<text x="${W-pad}" y="${H-pad+16}" fill="#7fa0ac" font-size="10" text-anchor="end">Freq (Hz)</text>`;
+  svg.innerHTML = html;
+}
+
+/* ============================================================
+   PDF REPORT GENERATION
+   ============================================================ */
+function htmlToPlain(s){
+  return String(s)
+    .replace(/<[^>]+>/g,'')
+    .replace(/&mdash;/g,'\u2014')
+    .replace(/&ndash;/g,'\u2013')
+    .replace(/&rarr;/g,'\u2192')
+    .replace(/&harr;/g,'\u2194')
+    .replace(/&deg;/g,'\u00b0')
+    .replace(/&plusmn;/g,'\u00b1')
+    .replace(/&mu;/g,'\u00b5')
+    .replace(/&lt;/g,'<')
+    .replace(/&gt;/g,'>')
+    .replace(/&amp;/g,'&');
+}
+
+function generatePDFReport(){
+  if(!window.jspdf){ alert('PDF library did not load \u2014 check your internet connection and try again.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'a4'});
+  const motor = getMotor(), vfd = getVfd();
+  const cableFt = parseFloat(cableLengthEl.value)||0;
+  const cableIdx = parseInt(cableSizeEl.value,10);
+  const cable = CABLE_TABLE[cableIdx];
+  const vd = (vfd.current!=null) ? computeVoltageDrop(vfd.current, motor.voltage, cableFt, cableIdx) : null;
+  const rec = recommendFilter(cableFt, motor.voltage);
+  const alarms = computeAlarms(motor, vfd, cableFt, outputFilterEl.value, lineReactorEl.value, cableIdx);
+
+  const pageW = 595, marginX = 45;
+  let y = 55;
+
+  doc.setFont('courier','bold'); doc.setFontSize(16); doc.setTextColor(20,40,60);
+  doc.text('VFD POWER CIRCUIT \u2014 CONFIGURATION REPORT', marginX, y); y+=20;
+  doc.setFont('courier','normal'); doc.setFontSize(10); doc.setTextColor(90,100,110);
+  doc.text('Apna Electromechanic Service \u2014 Engineering Tools Suite', marginX, y); y+=14;
+  doc.text('Generated: '+new Date().toLocaleString(), marginX, y); y+=16;
+  doc.setDrawColor(180); doc.line(marginX,y,pageW-marginX,y); y+=22;
+
+  function section(title){
+    if(y>760){ doc.addPage(); y=55; }
+    doc.setFont('courier','bold'); doc.setFontSize(12); doc.setTextColor(20,110,120);
+    doc.text(title, marginX, y); y+=16;
+    doc.setFont('courier','normal'); doc.setFontSize(10); doc.setTextColor(25,25,25);
+  }
+  function line(label,val){
+    if(y>770){ doc.addPage(); y=55; }
+    doc.text(`${label}:`, marginX+8, y);
+    doc.text(String(val), marginX+230, y);
+    y+=14;
+  }
+
+  section('MOTOR NAMEPLATE');
+  line('Phase', motor.phase+'-Phase');
+  line('Supply Voltage', motor.voltage+' V');
+  line('Motor Rating', motor.hp+' HP');
+  line('Poles', motor.poles+'-Pole');
+  line('Full Load Amps (FLA)', (motor.fla ?? '--')+' A  (NEC 430.250/248 reference)');
+  y+=8;
+
+  section('VFD SELECTION');
+  line('VFD Voltage Class', vfd.voltage+' V');
+  line('VFD HP Rating', vfd.hp+' HP');
+  line('VFD Rated Output Current', (vfd.current ?? '--')+' A');
+  line('Sizing Ratio (VFD / Motor FLA)', motor.fla ? ((vfd.current/motor.fla*100).toFixed(0)+'%') : '--');
+  y+=8;
+
+  section('LINE-SIDE PROTECTION');
+  line('AC Line Reactor', lineReactorEl.value==='0' ? 'None' : lineReactorEl.value+'% Impedance');
+  y+=8;
+
+  section('CABLE & LOAD-SIDE PROTECTION');
+  line('Cable Length', cableFt+' ft');
+  line('Cable Size', cable.size+'  ('+cable.amp+' A ampacity)');
+  line('Estimated Voltage Drop', vd ? (vd.vdrop.toFixed(1)+' V  ('+vd.pct.toFixed(1)+'% of rated voltage)') : '--');
+  line('Output Filter Installed', FILTER_NAMES[outputFilterEl.value]);
+  line('Minimum Filter Required (by distance)', FILTER_NAMES[rec]);
+  y+=8;
+
+  section('SYSTEM ALARMS & SIZING CHECK');
+  alarms.forEach(a=>{
+    const prefix = '['+a.level.toUpperCase()+']  ';
+    const wrapped = doc.splitTextToSize(prefix+htmlToPlain(a.text), pageW-2*marginX-16);
+    wrapped.forEach(ln=>{
+      if(y>770){ doc.addPage(); y=55; }
+      doc.text(ln, marginX+8, y); y+=13;
+    });
+    y+=5;
+  });
+
+  y+=6;
+  if(y>770){ doc.addPage(); y=55; }
+  doc.setFont('courier','normal'); doc.setFontSize(8); doc.setTextColor(130,130,130);
+  doc.text('For training and commissioning reference use only. Verify all sizing, filter selection, and cable data against the', marginX, y); y+=11;
+  doc.text('specific manufacturer\u2019s application data before installation. (NEC 430.248/430.250, NEMA MG-1 Parts 30/31, IEC 61800-3)', marginX, y);
+
+  doc.save('VFD_Configuration_Report.pdf');
+}
+document.getElementById('pdfBtn').addEventListener('click', generatePDFReport);
+
+/* ============================================================
+   MASTER RENDER
+   ============================================================ */
+function renderAll(){
+  renderAlarms();
+  renderThreeLine();
+  renderSummary();
+  renderFaultDiagram();
+}
+
+renderAll();
+animateFlow();
+renderScope();
+renderGauges(0);
+renderRefTables();
+renderVHz();
+updateFaultStatus();
+animateFaultFlow();
+</script>
+</body>
+</html>
