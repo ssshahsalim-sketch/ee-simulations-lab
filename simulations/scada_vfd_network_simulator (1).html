@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SCADA VFD Fleet Network Simulator | Apna Electromechanic Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --navy-950:#050a14;
+  --navy-900:#081226;
+  --navy-800:#0c1a34;
+  --navy-700:#122448;
+  --navy-600:#1a3260;
+  --grid-line: rgba(34,211,238,0.055);
+  --cyan:#22d3ee;
+  --cyan-dim:#0e7490;
+  --cyan-glow: rgba(34,211,238,0.35);
+  --amber:#ffb020;
+  --amber-dim:#8a5c10;
+  --red:#ff4d4d;
+  --red-dim:#7a1f1f;
+  --green:#3ee08a;
+  --text-hi:#e7f4fb;
+  --text-mid:#8fa6bd;
+  --text-dim:#516278;
+  --mono:'IBM Plex Mono', ui-monospace, monospace;
+  --sans:'IBM Plex Sans', system-ui, sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(ellipse at 20% -10%, rgba(34,211,238,0.06), transparent 45%),
+    radial-gradient(ellipse at 90% 10%, rgba(255,176,32,0.04), transparent 40%),
+    var(--navy-950);
+  color:var(--text-hi);
+  font-family:var(--sans);
+  min-height:100vh;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    radial-gradient(ellipse at 20% -10%, rgba(34,211,238,0.06), transparent 45%),
+    radial-gradient(ellipse at 90% 10%, rgba(255,176,32,0.04), transparent 40%),
+    linear-gradient(var(--navy-950), var(--navy-950));
+  background-size: 42px 42px, 42px 42px, cover, cover, cover;
+}
+
+/* ===== Header ===== */
+.app-header{
+  padding:18px 22px 14px;
+  border-bottom:1px solid rgba(34,211,238,0.15);
+  background:linear-gradient(180deg, rgba(8,18,38,0.9), rgba(8,18,38,0.4));
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  position:sticky; top:0; z-index:50;
+  backdrop-filter: blur(6px);
+}
+.brand{display:flex; flex-direction:column; gap:2px;}
+.brand .eyebrow{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:2.5px; color:var(--amber);
+  text-transform:uppercase;
+}
+.brand h1{margin:0; font-size:19px; font-weight:600; letter-spacing:0.3px;}
+.brand h1 span{color:var(--cyan);}
+.brand .sub{font-family:var(--mono); font-size:11px; color:var(--text-mid);}
+
+.net-badge{
+  font-family:var(--mono); font-size:11px; color:var(--text-mid);
+  border:1px solid var(--navy-600); border-radius:6px; padding:7px 12px;
+  display:flex; align-items:center; gap:8px; background:rgba(10,20,40,0.5);
+}
+.net-badge b{color:var(--cyan); font-weight:600;}
+.dot{width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); display:inline-block;}
+
+/* ===== Toolbar ===== */
+.toolbar{
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+  padding:14px 22px; border-bottom:1px solid rgba(34,211,238,0.08);
+}
+button{
+  font-family:var(--mono); cursor:pointer; border-radius:6px; font-size:12px;
+  letter-spacing:0.5px; transition:all .15s ease; text-transform:uppercase;
+}
+.btn{
+  background:var(--navy-800); border:1px solid var(--navy-600); color:var(--text-hi);
+  padding:10px 16px; font-weight:600; display:flex; align-items:center; gap:7px;
+}
+.btn:hover{border-color:var(--cyan); box-shadow:0 0 12px rgba(34,211,238,0.2); color:var(--cyan);}
+.btn.primary{background:linear-gradient(180deg, rgba(34,211,238,0.18), rgba(34,211,238,0.06)); border-color:var(--cyan); color:var(--cyan);}
+.btn.primary:hover{box-shadow:0 0 16px var(--cyan-glow);}
+.btn.go{background:linear-gradient(180deg, rgba(62,224,138,0.18), rgba(62,224,138,0.05)); border-color:var(--green); color:var(--green);}
+.btn.go:hover{box-shadow:0 0 14px rgba(62,224,138,0.35);}
+.btn.stop{background:linear-gradient(180deg, rgba(255,77,77,0.18), rgba(255,77,77,0.05)); border-color:var(--red); color:#ff8a8a;}
+.btn.stop:hover{box-shadow:0 0 14px rgba(255,77,77,0.35);}
+.btn.estop{
+  background:repeating-linear-gradient(135deg, rgba(255,77,77,0.28) 0 10px, rgba(255,176,32,0.18) 10px 20px);
+  border-color:var(--red); color:#ffdede; font-weight:700; letter-spacing:1px;
+}
+.btn.estop:hover{box-shadow:0 0 22px rgba(255,77,77,0.55);}
+.btn:disabled{opacity:0.35; cursor:not-allowed; box-shadow:none;}
+.spacer{flex:1;}
+
+/* ===== Layout ===== */
+.workspace{padding:20px 22px 60px; max-width:1500px; margin:0 auto;}
+
+.panel{
+  background:linear-gradient(180deg, rgba(12,26,52,0.55), rgba(8,18,38,0.55));
+  border:1px solid rgba(34,211,238,0.12);
+  border-radius:10px;
+  margin-bottom:22px;
+  overflow:hidden;
+}
+.panel-head{
+  padding:12px 16px; border-bottom:1px solid rgba(34,211,238,0.1);
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+}
+.panel-head h2{margin:0; font-size:13px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-mid); font-weight:600; font-family:var(--mono);}
+.panel-head h2 b{color:var(--cyan);}
+.panel-body{padding:16px;}
+
+/* ===== Topology ===== */
+#topologySvg{width:100%; display:block; height:auto;}
+.topo-flex{display:flex; gap:0; align-items:stretch;}
+.topo-wrap{position:relative; flex:2; min-width:0;}
+.topo-legend{
+  display:flex; gap:16px; flex-wrap:wrap; padding:0 16px 14px; font-family:var(--mono); font-size:10.5px; color:var(--text-mid);
+}
+.topo-legend span{display:flex; align-items:center; gap:6px;}
+.leg-dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+.packet-dot{filter:drop-shadow(0 0 4px currentColor);}
+
+/* ===== Communication log panel ===== */
+.comm-log-panel{
+  flex:1; min-width:230px; border-left:1px solid rgba(34,211,238,0.1);
+  display:flex; flex-direction:column; background:rgba(0,0,0,0.15);
+}
+.comm-log-head{
+  padding:10px 14px; font-family:var(--mono); font-size:10.5px; letter-spacing:1px; text-transform:uppercase;
+  color:var(--text-mid); border-bottom:1px solid var(--navy-700); display:flex; justify-content:space-between; align-items:center;
+}
+.comm-log-head .live-tag{color:var(--green); display:flex; align-items:center; gap:5px;}
+.comm-log-head .live-tag .dot{width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); animation:pulse 1.4s infinite;}
+.comm-log-list{
+  flex:1; overflow-y:auto; max-height:300px; padding:8px 10px; display:flex; flex-direction:column; gap:5px;
+  font-family:var(--mono); font-size:10px; line-height:1.5;
+}
+.comm-log-list::-webkit-scrollbar{width:6px;}
+.comm-log-list::-webkit-scrollbar-thumb{background:var(--navy-600); border-radius:3px;}
+.log-entry{padding:4px 7px; border-radius:5px; border-left:2px solid var(--navy-600); background:rgba(255,255,255,0.02);}
+.log-entry .log-time{color:var(--text-dim); margin-right:6px;}
+.log-entry .log-dev{color:var(--text-hi); font-weight:600;}
+.log-entry.ok{border-left-color:var(--green); color:var(--text-mid);}
+.log-entry.timeout{border-left-color:var(--amber); color:#e0c58a;}
+.log-entry.offline{border-left-color:var(--red); color:#ff9a9a;}
+.log-entry.recovered{border-left-color:var(--cyan); color:#a6ecfb;}
+.log-empty{color:var(--text-dim); text-align:center; padding:20px 10px; font-size:10.5px;}
+
+.link-quality{font-family:var(--mono); font-size:10px; color:var(--text-dim); margin-left:auto;}
+.link-quality b{color:var(--text-mid);}
+
+.master-stats{display:flex; gap:14px; flex-wrap:wrap;}
+.master-stats .stat{font-family:var(--mono); font-size:10.5px; color:var(--text-mid);}
+.master-stats .stat b{color:var(--cyan);}
+.master-stats .stat b.err{color:var(--amber);}
+
+@keyframes masterGlow{
+  0%,100%{ box-shadow:0 0 0 rgba(34,211,238,0);}
+  50%{ box-shadow:0 0 16px rgba(34,211,238,0.35);}
+}
+
+/* ===== Device grid ===== */
+.device-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:16px;
+}
+.empty-state{
+  text-align:center; padding:50px 20px; color:var(--text-dim); font-family:var(--mono); font-size:13px;
+  border:1px dashed var(--navy-600); border-radius:10px;
+}
+
+.device-card{
+  background:linear-gradient(180deg, rgba(10,22,45,0.9), rgba(8,16,34,0.9));
+  border:1px solid var(--navy-600); border-radius:10px; overflow:hidden;
+  transition:border-color .2s ease, box-shadow .2s ease;
+  position:relative;
+}
+.device-card[data-status="online"]{border-color:rgba(34,211,238,0.3);}
+.device-card[data-status="offline"]{border-color:rgba(255,77,77,0.35); opacity:0.72;}
+.device-card[data-faulted="true"]{border-color:var(--amber); box-shadow:0 0 18px rgba(255,176,32,0.18);}
+
+.dc-head{
+  padding:12px 14px; display:flex; justify-content:space-between; align-items:flex-start;
+  background:rgba(255,255,255,0.02); border-bottom:1px solid var(--navy-700);
+}
+.dc-title{display:flex; flex-direction:column; gap:3px;}
+.dc-name{font-weight:600; font-size:14px;}
+.dc-role{font-family:var(--mono); font-size:10px; color:var(--amber); letter-spacing:1px; text-transform:uppercase;}
+.dc-actions{display:flex; gap:6px; align-items:center;}
+.icon-btn{
+  width:26px; height:26px; border-radius:5px; border:1px solid var(--navy-600); background:var(--navy-800);
+  color:var(--text-mid); display:flex; align-items:center; justify-content:center; font-size:13px;
+}
+.icon-btn:hover{color:var(--red); border-color:var(--red);}
+.icon-btn.reg-toggle:hover{color:var(--cyan); border-color:var(--cyan);}
+
+.dc-status-row{
+  display:flex; align-items:center; gap:8px; padding:9px 14px; font-family:var(--mono); font-size:11px;
+  color:var(--text-mid); border-bottom:1px solid var(--navy-700); background:rgba(0,0,0,0.15);
+}
+.status-led{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+.status-led.online{background:var(--green); box-shadow:0 0 7px var(--green); animation:pulse 2s infinite;}
+.status-led.offline{background:var(--red); box-shadow:0 0 7px var(--red);}
+.status-led.fault{background:var(--amber); box-shadow:0 0 7px var(--amber); animation:pulse 0.8s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.dc-ip{color:var(--cyan); font-weight:600;}
+
+.dc-body{padding:14px;}
+
+.motor-viz{
+  display:flex; align-items:center; justify-content:center; gap:18px; padding:10px 0 16px;
+}
+.motor-shaft{
+  width:64px; height:64px; border-radius:50%;
+  border:3px solid var(--navy-600);
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+  background:radial-gradient(circle at 35% 30%, rgba(34,211,238,0.12), transparent 60%);
+}
+.motor-shaft.spinning{border-color:var(--cyan);}
+.motor-shaft .blade{
+  position:absolute; width:3px; height:26px; background:var(--text-mid); top:6px; left:50%; margin-left:-1.5px;
+  transform-origin:50% 26px; border-radius:2px;
+}
+.motor-shaft.spinning .blade{background:var(--cyan);}
+.motor-shaft .hub{width:10px; height:10px; border-radius:50%; background:var(--navy-600); z-index:2;}
+.motor-shaft.spinning .hub{background:var(--cyan);}
+.motor-readout{font-family:var(--mono); font-size:11px; color:var(--text-mid); line-height:1.7;}
+.motor-readout b{color:var(--text-hi); font-size:13px;}
+.motor-readout .rpm{color:var(--cyan); font-weight:700; font-size:15px;}
+
+.ctrl-row{display:flex; gap:8px; margin-bottom:10px;}
+.ctrl-btn{
+  flex:1; padding:9px 6px; font-size:11px; font-weight:700; border-radius:6px;
+  border:1px solid var(--navy-600); background:var(--navy-800); color:var(--text-mid);
+}
+.ctrl-btn.start-on{background:linear-gradient(180deg, rgba(62,224,138,0.25), rgba(62,224,138,0.06)); border-color:var(--green); color:var(--green);}
+.ctrl-btn.stop-on{background:linear-gradient(180deg, rgba(255,77,77,0.25), rgba(255,77,77,0.06)); border-color:var(--red); color:#ff9a9a;}
+.ctrl-btn.dir-on{background:linear-gradient(180deg, rgba(255,176,32,0.22), rgba(255,176,32,0.05)); border-color:var(--amber); color:var(--amber);}
+.ctrl-btn:disabled{opacity:0.3; cursor:not-allowed;}
+
+.speed-block{margin-bottom:10px;}
+.speed-label{
+  display:flex; justify-content:space-between; font-family:var(--mono); font-size:10.5px; color:var(--text-mid);
+  margin-bottom:5px; text-transform:uppercase; letter-spacing:0.5px;
+}
+.speed-label b{color:var(--cyan); font-size:12px;}
+input[type=range]{
+  -webkit-appearance:none; width:100%; height:5px; border-radius:3px;
+  background:linear-gradient(90deg, var(--cyan) var(--fillpct,0%), var(--navy-700) var(--fillpct,0%));
+  outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--cyan);
+  box-shadow:0 0 8px var(--cyan-glow); cursor:pointer; border:2px solid #04202a;
+}
+input[type=range]::-moz-range-thumb{
+  width:14px; height:14px; border-radius:50%; background:var(--cyan); border:2px solid #04202a; cursor:pointer;
+}
+input[type=range]:disabled{opacity:0.35;}
+
+.metrics-grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;
+}
+.metric{
+  background:rgba(0,0,0,0.2); border:1px solid var(--navy-700); border-radius:6px; padding:7px 9px;
+}
+.metric .m-label{font-family:var(--mono); font-size:9.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px;}
+.metric .m-val{font-family:var(--mono); font-size:14px; font-weight:600; color:var(--text-hi); margin-top:2px;}
+.metric .m-val.warn{color:var(--amber);}
+.metric .m-val.crit{color:var(--red);}
+
+.fault-bar{
+  margin-top:10px; padding:8px 10px; border-radius:6px; font-family:var(--mono); font-size:10.5px;
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+}
+.fault-bar.ok{background:rgba(62,224,138,0.06); color:var(--text-mid); border:1px solid rgba(62,224,138,0.15);}
+.fault-bar.trip{background:rgba(255,176,32,0.1); color:var(--amber); border:1px solid rgba(255,176,32,0.3);}
+.fault-bar button{padding:4px 9px; font-size:10px;}
+
+.reg-table{
+  display:none; margin-top:12px; border-top:1px dashed var(--navy-600); padding-top:10px;
+  font-family:var(--mono); font-size:10.5px;
+}
+.reg-table.open{display:block;}
+.reg-table table{width:100%; border-collapse:collapse;}
+.reg-table th{text-align:left; color:var(--text-dim); font-weight:500; padding:3px 4px; text-transform:uppercase; font-size:9px; letter-spacing:0.5px;}
+.reg-table td{padding:3px 4px; color:var(--text-mid); border-top:1px solid rgba(255,255,255,0.04);}
+.reg-table td.reg-addr{color:var(--amber);}
+.reg-table td.reg-val{color:var(--cyan); font-weight:600;}
+
+/* ===== Modal ===== */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(2,6,14,0.75); backdrop-filter:blur(3px);
+  display:none; align-items:center; justify-content:center; z-index:100; padding:16px;
+}
+.modal-overlay.open{display:flex;}
+.modal{
+  background:var(--navy-900); border:1px solid var(--cyan-dim); border-radius:12px; width:100%; max-width:440px;
+  box-shadow:0 0 40px rgba(34,211,238,0.15);
+}
+.modal-head{padding:16px 18px; border-bottom:1px solid var(--navy-700); display:flex; justify-content:space-between; align-items:center;}
+.modal-head h3{margin:0; font-size:14px; letter-spacing:1px; text-transform:uppercase; font-family:var(--mono); color:var(--cyan);}
+.modal-close{background:none; border:none; color:var(--text-mid); font-size:18px; cursor:pointer;}
+.modal-body{padding:18px; display:flex; flex-direction:column; gap:13px; max-height:70vh; overflow-y:auto;}
+.field label{
+  display:block; font-family:var(--mono); font-size:10.5px; color:var(--text-mid); text-transform:uppercase;
+  letter-spacing:0.5px; margin-bottom:5px;
+}
+.field input, .field select{
+  width:100%; background:var(--navy-800); border:1px solid var(--navy-600); border-radius:6px; color:var(--text-hi);
+  padding:9px 10px; font-family:var(--mono); font-size:12.5px; outline:none;
+}
+.field input:focus, .field select:focus{border-color:var(--cyan);}
+.field-row{display:flex; gap:10px;}
+.field-row .field{flex:1;}
+.field-error{color:var(--red); font-size:10.5px; font-family:var(--mono); margin-top:4px; display:none;}
+.field-error.show{display:block;}
+.modal-foot{padding:14px 18px; border-top:1px solid var(--navy-700); display:flex; justify-content:flex-end; gap:10px;}
+.hint{font-family:var(--mono); font-size:10px; color:var(--text-dim); margin-top:3px;}
+
+/* toast */
+#toast{
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px); opacity:0;
+  background:var(--navy-800); border:1px solid var(--cyan); color:var(--text-hi); padding:11px 18px; border-radius:8px;
+  font-family:var(--mono); font-size:12px; z-index:200; pointer-events:none; transition:all .25s ease;
+  box-shadow:0 4px 20px rgba(0,0,0,0.4); max-width:90vw; text-align:center;
+}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+footer{
+  text-align:center; padding:26px; font-family:var(--mono); font-size:10.5px; color:var(--text-dim);
+  border-top:1px solid rgba(34,211,238,0.08);
+}
+
+@media (max-width:640px){
+  .device-grid{grid-template-columns:1fr;}
+  .app-header{padding:14px 14px 12px;}
+  .toolbar{padding:12px 14px;}
+  .workspace{padding:16px 12px 40px;}
+  .brand h1{font-size:16px;}
+}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="brand">
+    <div class="eyebrow">Apna Electromechanic Service — Engineering Tools Suite</div>
+    <h1>SCADA <span>VFD Fleet</span> Network Control Simulator</h1>
+    <div class="sub">Ethernet-based device network · Modbus TCP/IP addressing · single-screen fleet control</div>
+  </div>
+  <div class="net-badge"><span class="dot"></span> MASTER STATION <b id="masterIp">10.10.1.1</b>
+    <span class="master-stats">
+      <span class="stat">Polls: <b id="statPolls">0</b></span>
+      <span class="stat">Timeouts: <b class="err" id="statTimeouts">0</b></span>
+      <span class="stat">Reliability: <b id="statUptime">100.0%</b></span>
+    </span>
+  </div>
+</div>
+
+<div class="toolbar">
+  <button class="btn primary" id="btnAddDevice">+ Add Device</button>
+  <button class="btn" id="btnScan">⟳ Scan Network</button>
+  <button class="btn" id="btnReport">▤ Generate Report</button>
+  <div class="spacer"></div>
+  <button class="btn go" id="btnStartAll">▶ Start All</button>
+  <button class="btn stop" id="btnStopAll">■ Stop All</button>
+  <button class="btn estop" id="btnEstop">⨂ E-STOP</button>
+</div>
+
+<div class="workspace">
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Network Topology — <b id="topoCount">0</b> device(s) on subnet <b id="subnetDisp" style="color:var(--cyan)">192.168.1.0/24</b></h2>
+    </div>
+    <div class="topo-flex">
+      <div class="topo-wrap">
+        <svg id="topologySvg" viewBox="0 0 1000 260" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="topo-legend">
+          <span><i class="leg-dot" style="background:var(--green); box-shadow:0 0 6px var(--green);"></i>Online / Running</span>
+          <span><i class="leg-dot" style="background:var(--cyan); box-shadow:0 0 6px var(--cyan);"></i>Online / Stopped</span>
+          <span><i class="leg-dot" style="background:var(--red);"></i>Offline / No Comm</span>
+          <span><i class="leg-dot" style="background:var(--amber);"></i>Faulted</span>
+        </div>
+      </div>
+      <div class="comm-log-panel">
+        <div class="comm-log-head">Live Comm Log <span class="live-tag"><i class="dot"></i>polling</span></div>
+        <div class="comm-log-list" id="commLogList"><div class="log-empty">Waiting for poll cycles...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Device Control Panels</h2>
+    </div>
+    <div class="panel-body">
+      <div class="device-grid" id="deviceGrid"></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>Simulated environment for training &amp; demonstration purposes only — register maps are illustrative, not tied to a specific drive vendor. Not for use on live field networks.</footer>
+
+<!-- Add Device Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Add Network Device</h3>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Device / Tag Name</label>
+        <input type="text" id="fName" placeholder="e.g. VFD-04 Cooling Tower Fan">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Application Role</label>
+          <select id="fRole">
+            <option>Pump</option>
+            <option>Fan</option>
+            <option>Conveyor</option>
+            <option>Compressor</option>
+            <option>Mixer / Agitator</option>
+            <option>Generic Load</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Motor Poles</label>
+          <select id="fPoles">
+            <option value="2">2-pole (3000 rpm)</option>
+            <option value="4" selected>4-pole (1500 rpm)</option>
+            <option value="6">6-pole (1000 rpm)</option>
+            <option value="8">8-pole (750 rpm)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>IP Address</label>
+          <input type="text" id="fIp" placeholder="192.168.1.10">
+        </div>
+        <div class="field">
+          <label>Port</label>
+          <input type="text" id="fPort" value="502">
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-error" id="ipError">This IP address is invalid or already assigned on the subnet.</div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Modbus Unit / Slave ID</label>
+          <input type="text" id="fUnit" value="1">
+        </div>
+        <div class="field">
+          <label>Rated Current (A)</label>
+          <input type="text" id="fCurrent" value="8.5">
+        </div>
+      </div>
+      <div class="field">
+        <label>Max Frequency (Hz)</label>
+        <input type="text" id="fMaxHz" value="50">
+        <div class="hint">IEC standard line frequency reference — adjust for 60Hz systems if required.</div>
+      </div>
+      <div class="field">
+        <label>Network Link Reliability</label>
+        <select id="fLink">
+          <option value="0.99">Excellent — wired industrial Ethernet</option>
+          <option value="0.95" selected>Good — typical plant network</option>
+          <option value="0.85">Fair — long cable run / busy switch</option>
+          <option value="0.65">Poor — weak wireless / EMI-noisy panel</option>
+        </select>
+        <div class="hint">Drives packet loss on the poll cycle — 3 consecutive missed responses marks the device offline.</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="cancelAdd">Cancel</button>
+      <button class="btn primary" id="confirmAdd">Add to Network</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+
+// ---------- State ----------
+let devices = [];
+let idCounter = 1;
+let estopActive = false;
+const SUBNET_PREFIX = "192.168.1.";
+const REQ_MS = 480;   // request packet travel time (master -> device)
+const RESP_MS = 480;  // response packet travel time (device -> master)
+let commLog = [];
+let topoPositions = {}; // id -> {mx,my,dx,dy}
+let masterStats = { totalPolls:0, totalTimeouts:0 };
+
+// ---------- Utility ----------
+function toast(msg, ms){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), ms||2200);
+}
+
+function validIp(ip){
+  const re = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const m = ip.match(re);
+  if(!m) return false;
+  return m.slice(1,5).every(o => Number(o) >= 0 && Number(o) <= 255);
+}
+
+function nextSuggestedIp(){
+  for(let i=10;i<250;i++){
+    const cand = SUBNET_PREFIX + i;
+    if(!devices.some(d=>d.ip===cand)) return cand;
+  }
+  return SUBNET_PREFIX + "99";
+}
+
+function nextUnitId(){
+  let used = devices.map(d=>d.unitId);
+  for(let i=1;i<247;i++){ if(!used.includes(i)) return i; }
+  return 1;
+}
+
+// ---------- Modal ----------
+const overlay = document.getElementById('modalOverlay');
+function openModal(){
+  document.getElementById('fName').value='';
+  document.getElementById('fIp').value = nextSuggestedIp();
+  document.getElementById('fUnit').value = nextUnitId();
+  document.getElementById('fPort').value = '502';
+  document.getElementById('fCurrent').value = '8.5';
+  document.getElementById('fMaxHz').value = '50';
+  document.getElementById('ipError').classList.remove('show');
+  overlay.classList.add('open');
+  setTimeout(()=>document.getElementById('fName').focus(), 60);
+}
+function closeModal(){ overlay.classList.remove('open'); }
+document.getElementById('btnAddDevice').onclick = openModal;
+document.getElementById('modalClose').onclick = closeModal;
+document.getElementById('cancelAdd').onclick = closeModal;
+overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+
+document.getElementById('confirmAdd').onclick = function(){
+  const name = document.getElementById('fName').value.trim() || ('VFD-' + String(idCounter).padStart(2,'0'));
+  const role = document.getElementById('fRole').value;
+  const poles = Number(document.getElementById('fPoles').value);
+  const ip = document.getElementById('fIp').value.trim();
+  const port = Number(document.getElementById('fPort').value) || 502;
+  const unitId = Number(document.getElementById('fUnit').value) || nextUnitId();
+  const ratedCurrent = Number(document.getElementById('fCurrent').value) || 8.5;
+  const maxHz = Number(document.getElementById('fMaxHz').value) || 50;
+  const linkQuality = Number(document.getElementById('fLink').value) || 0.95;
+
+  const dup = devices.some(d=>d.ip===ip);
+  if(!validIp(ip) || dup){
+    document.getElementById('ipError').classList.add('show');
+    return;
+  }
+
+  const device = {
+    id: idCounter++,
+    name, role, poles, ip, port, unitId, ratedCurrent, maxHz,
+    online: true,
+    running: false,
+    direction: 'FWD',
+    setpointHz: Math.round(maxHz*0.6),
+    outputHz: 0,
+    current: 0,
+    rpm: 0,
+    faulted: false,
+    regOpen:false,
+    controlWord: 0,
+    statusWord: 0,
+    linkQuality, consecutiveFail:0, consecutiveOk:0,
+    pollIntervalMs: 900 + Math.random()*900,
+    animPhase:'idle', animStart:0
+  };
+  devices.push(device);
+  schedulePoll(device);
+  closeModal();
+  renderAll();
+  toast('Device added: ' + name + ' @ ' + ip);
+};
+
+// ---------- Device actions ----------
+function deleteDevice(id){
+  const d = devices.find(x=>x.id===id);
+  devices = devices.filter(d=>d.id!==id);
+  renderAll();
+  toast((d?d.name:'Device') + ' removed from network');
+}
+
+function toggleStart(id){
+  const d = devices.find(x=>x.id===id);
+  if(!d || !d.online || d.faulted || estopActive) return;
+  d.running = !d.running;
+  renderDeviceCard(d);
+}
+
+function toggleDirection(id){
+  const d = devices.find(x=>x.id===id);
+  if(!d || !d.online || d.faulted) return;
+  d.direction = d.direction === 'FWD' ? 'REV' : 'FWD';
+  renderDeviceCard(d);
+}
+
+function setSpeed(id, val){
+  const d = devices.find(x=>x.id===id);
+  if(!d) return;
+  d.setpointHz = Number(val);
+  const pct = (d.setpointHz / d.maxHz) * 100;
+  const slider = document.getElementById('speed-'+id);
+  if(slider) slider.style.setProperty('--fillpct', pct+'%');
+  const label = document.getElementById('speedval-'+id);
+  if(label) label.textContent = d.setpointHz.toFixed(0) + ' Hz';
+}
+
+function tripFault(id){
+  const d = devices.find(x=>x.id===id);
+  if(!d) return;
+  d.faulted = true;
+  d.running = false;
+  renderDeviceCard(d);
+  renderTopology();
+  toast(d.name + ' TRIPPED — overcurrent fault simulated', 2600);
+}
+
+function resetFault(id){
+  const d = devices.find(x=>x.id===id);
+  if(!d) return;
+  d.faulted = false;
+  renderDeviceCard(d);
+  renderTopology();
+  toast(d.name + ' fault reset');
+}
+
+function toggleRegView(id){
+  const d = devices.find(x=>x.id===id);
+  d.regOpen = !d.regOpen;
+  renderDeviceCard(d);
+}
+
+// ---------- Global controls ----------
+document.getElementById('btnStartAll').onclick = function(){
+  if(estopActive){ toast('Clear E-STOP before starting devices'); return; }
+  devices.forEach(d=>{ if(d.online && !d.faulted) d.running = true; });
+  renderDeviceGrid();
+  toast('Start command sent to all online devices');
+};
+document.getElementById('btnStopAll').onclick = function(){
+  devices.forEach(d=>{ d.running = false; });
+  renderDeviceGrid();
+  toast('Stop command sent to all devices');
+};
+document.getElementById('btnEstop').onclick = function(){
+  estopActive = !estopActive;
+  const btn = document.getElementById('btnEstop');
+  if(estopActive){
+    devices.forEach(d=>{ d.running = false; });
+    btn.textContent = '⨂ RESET E-STOP';
+    toast('EMERGENCY STOP ACTIVE — all outputs disabled', 3000);
+  } else {
+    btn.textContent = '⨂ E-STOP';
+    toast('E-STOP cleared — normal operation restored');
+  }
+  renderDeviceGrid();
+};
+
+document.getElementById('btnScan').onclick = function(){
+  if(devices.length===0){ toast('No devices commissioned yet'); return; }
+  const btn = document.getElementById('btnScan');
+  btn.disabled = true;
+  btn.textContent = '⟳ Scanning...';
+  toast('Manual sweep — pinging ' + devices.length + ' host(s) on 192.168.1.0/24 ...', 1600);
+  devices.forEach((d,i)=>{
+    setTimeout(()=>{ runPollCycle(d); }, i*180);
+  });
+  const totalTime = devices.length*180 + REQ_MS + RESP_MS + 200;
+  setTimeout(()=>{
+    btn.disabled = false;
+    btn.textContent = '⟳ Scan Network';
+    const onlineCount = devices.filter(d=>d.online).length;
+    toast('Scan complete — ' + onlineCount + '/' + devices.length + ' hosts responding');
+  }, totalTime);
+};
+
+// ---------- Rendering ----------
+function statusOf(d){
+  if(!d.online) return 'offline';
+  if(d.faulted) return 'fault';
+  return 'online';
+}
+
+function motorSyncRpm(hz, poles){ return Math.round((120*hz/poles) * 0.97); }
+
+function deviceCardHtml(d){
+  const status = statusOf(d);
+  const ledClass = status;
+  const canControl = d.online && !d.faulted && !estopActive;
+  const runLabel = d.running ? 'RUNNING' : (status==='offline' ? 'NO COMM' : (status==='fault'?'FAULTED':'STOPPED'));
+
+  const regRows = [
+    ['40001','Control Word', d.controlWord.toString(2).padStart(8,'0')],
+    ['40002','Speed Reference (0.01Hz)', Math.round(d.setpointHz*100)],
+    ['40003','Status Word', d.statusWord.toString(2).padStart(8,'0')],
+    ['40004','Output Frequency (0.01Hz)', Math.round(d.outputHz*100)],
+    ['40005','Output Current (0.1A)', Math.round(d.current*10)],
+    ['40006','Motor Speed (rpm)', d.rpm],
+  ];
+
+  return `
+  <div class="device-card" data-status="${status}" data-faulted="${d.faulted}" id="card-${d.id}">
+    <div class="dc-head">
+      <div class="dc-title">
+        <div class="dc-name">${escapeHtml(d.name)}</div>
+        <div class="dc-role">${d.role} · ${d.poles}-pole · Unit ID ${d.unitId}</div>
+      </div>
+      <div class="dc-actions">
+        <button class="icon-btn reg-toggle" title="Modbus registers" onclick="__vfd.toggleRegView(${d.id})">⌗</button>
+        <button class="icon-btn" title="Remove device" onclick="__vfd.deleteDevice(${d.id})">🗑</button>
+      </div>
+    </div>
+    <div class="dc-status-row">
+      <span class="status-led ${ledClass}"></span>
+      <span class="dc-ip">${d.ip}</span><span>:${d.port}</span>
+      <span class="link-quality">Link <b>${Math.round(d.linkQuality*100)}%</b></span>
+      <span>${runLabel}</span>
+    </div>
+    <div class="dc-body">
+      <div class="motor-viz">
+        <div class="motor-shaft ${d.running && status==='online' ? 'spinning':''}" id="shaft-${d.id}">
+          <div class="blade" style="transform:rotate(0deg)"></div>
+          <div class="blade" style="transform:rotate(90deg)"></div>
+          <div class="hub"></div>
+        </div>
+        <div class="motor-readout">
+          <div class="rpm" id="rpm-${d.id}">${d.rpm} rpm</div>
+          <div>Dir: <b>${d.direction}</b></div>
+          <div>Out: <b id="outhz-${d.id}">${d.outputHz.toFixed(1)}</b> Hz</div>
+        </div>
+      </div>
+
+      <div class="ctrl-row">
+        <button class="ctrl-btn ${d.running?'start-on':''}" ${canControl?'':'disabled'} onclick="__vfd.toggleStart(${d.id})">${d.running?'⏸ RUNNING':'▶ START'}</button>
+        <button class="ctrl-btn ${!d.running?'stop-on':''}" ${canControl?'':'disabled'} onclick="__vfd.toggleStart(${d.id})">■ STOP</button>
+        <button class="ctrl-btn ${d.direction==='REV'?'dir-on':''}" ${canControl && !d.running?'':'disabled'} onclick="__vfd.toggleDirection(${d.id})">⇄ ${d.direction}</button>
+      </div>
+
+      <div class="speed-block">
+        <div class="speed-label"><span>Speed Reference</span><b id="speedval-${d.id}">${d.setpointHz.toFixed(0)} Hz</b></div>
+        <input type="range" id="speed-${d.id}" min="0" max="${d.maxHz}" step="1" value="${d.setpointHz}"
+          style="--fillpct:${(d.setpointHz/d.maxHz*100)}%"
+          ${canControl?'':'disabled'}
+          oninput="__vfd.setSpeed(${d.id}, this.value)">
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric"><div class="m-label">Output Freq</div><div class="m-val" id="mfreq-${d.id}">${d.outputHz.toFixed(1)} Hz</div></div>
+        <div class="metric"><div class="m-label">Motor Current</div><div class="m-val" id="mcurr-${d.id}">${d.current.toFixed(1)} A</div></div>
+        <div class="metric"><div class="m-label">DC Bus</div><div class="m-val" id="mbus-${d.id}">${(540 + d.outputHz*0.6).toFixed(0)} V</div></div>
+        <div class="metric"><div class="m-label">Rated Current</div><div class="m-val">${d.ratedCurrent.toFixed(1)} A</div></div>
+      </div>
+
+      <div class="fault-bar ${d.faulted?'trip':'ok'}">
+        <span>${d.faulted? '⚠ Overcurrent trip (F0002)' : 'No active faults'}</span>
+        ${d.faulted
+          ? `<button class="btn" onclick="__vfd.resetFault(${d.id})">Reset</button>`
+          : `<button class="btn" ${!d.online?'disabled':''} onclick="__vfd.tripFault(${d.id})">Simulate Trip</button>`}
+      </div>
+
+      <div class="reg-table ${d.regOpen?'open':''}" id="regtable-${d.id}">
+        <table>
+          <thead><tr><th>Addr</th><th>Register</th><th>Value</th></tr></thead>
+          <tbody>
+            ${regRows.map(r=>`<tr><td class="reg-addr">${r[0]}</td><td>${r[1]}</td><td class="reg-val">${r[2]}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderDeviceGrid(){
+  const grid = document.getElementById('deviceGrid');
+  if(devices.length===0){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">No devices on the network yet.<br>Click <b style="color:var(--cyan)">+ Add Device</b> to commission a VFD.</div>`;
+    return;
+  }
+  grid.innerHTML = devices.map(deviceCardHtml).join('');
+}
+
+function renderDeviceCard(d){
+  const el = document.getElementById('card-'+d.id);
+  if(!el) return;
+  el.outerHTML = deviceCardHtml(d);
+}
+
+function renderTopology(){
+  const svg = document.getElementById('topologySvg');
+  document.getElementById('topoCount').textContent = devices.length;
+  const cx = 500, cy = 60, r = 26;
+  const n = devices.length;
+  let nodesHtml = '';
+  let linesHtml = '';
+  let packetsHtml = '';
+  const positions = [];
+  const rowY = 210, spacing = Math.min(150, 900/Math.max(n,1));
+  const startX = 500 - ((n-1)*spacing)/2;
+
+  topoPositions = {};
+
+  devices.forEach((d,i)=>{
+    const x = n===1 ? 500 : startX + i*spacing;
+    const y = rowY;
+    positions.push({x,y,d});
+    topoPositions[d.id] = { mx:cx, my:cy+r, dx:x, dy:y-24 };
+  });
+
+  positions.forEach(p=>{
+    const status = statusOf(p.d);
+    let lineColor = 'var(--red)', dash='4,4';
+    if(status==='online'){
+      lineColor = p.d.running ? 'var(--green)' : 'var(--cyan)';
+      dash = 'none';
+    } else if(status==='fault'){
+      lineColor = 'var(--amber)'; dash='2,3';
+    }
+    linesHtml += `<line x1="${cx}" y1="${cy+r}" x2="${p.x}" y2="${p.y-24}" stroke="${lineColor}" stroke-width="2" stroke-dasharray="${dash}" opacity="0.8"/>`;
+
+    let nodeColor = status==='online' ? (p.d.running?'var(--green)':'var(--cyan)') : (status==='fault'?'var(--amber)':'var(--red)');
+    nodesHtml += `
+      <g>
+        <circle cx="${p.x}" cy="${p.y}" r="22" fill="var(--navy-800)" stroke="${nodeColor}" stroke-width="2"/>
+        <text x="${p.x}" y="${p.y+4}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="${nodeColor}" font-weight="700">VFD</text>
+        <text x="${p.x}" y="${p.y+40}" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="var(--text-mid)">${p.d.ip}</text>
+        <text x="${p.x}" y="${p.y+52}" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="var(--text-dim)">${escapeHtml(p.d.name).slice(0,16)}</text>
+      </g>`;
+
+    packetsHtml += `
+        <circle class="packet-dot" id="packet-${p.d.id}" cx="${cx}" cy="${cy+r}" r="5" fill="var(--cyan)" opacity="0"/>
+        <text id="failmark-${p.d.id}" x="${p.x}" y="${p.y-30}" text-anchor="middle" font-family="IBM Plex Mono" font-size="13" font-weight="700" fill="var(--red)" opacity="0">✕</text>`;
+  });
+
+  svg.innerHTML = `
+    <g>
+      <rect x="${cx-55}" y="${cy-30}" width="110" height="60" rx="8" fill="var(--navy-800)" stroke="var(--cyan)" stroke-width="2" style="animation:masterGlow 2.2s infinite;"/>
+      <text x="${cx}" y="${cy-6}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10.5" fill="var(--cyan)" font-weight="700">MASTER</text>
+      <text x="${cx}" y="${cy+9}" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="var(--text-mid)">SCADA / PC</text>
+      <text x="${cx}" y="${cy+22}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8.5" fill="var(--text-dim)">10.10.1.1</text>
+    </g>
+    ${linesHtml}
+    ${nodesHtml}
+    ${packetsHtml}
+  `;
+}
+
+function renderAll(){
+  renderDeviceGrid();
+  renderTopology();
+  renderMasterStats();
+}
+
+// ---------- Communication polling engine ----------
+// Each device independently "polls" the master on its own interval, exactly like a
+// Modbus TCP master scanning a slave. Whether a poll succeeds is governed by that
+// device's configured Link Reliability (set when the device is added), not a flat
+// coin-flip. 3 consecutive missed responses = timeout -> device marked OFFLINE.
+// 2 consecutive good responses after that = link RECOVERED -> back ONLINE.
+function effectiveQuality(d){
+  let q = d.linkQuality;
+  if(d.faulted) q *= 0.45; // a tripped drive is far more likely to also miss polls
+  return q;
+}
+
+function runPollCycle(d){
+  if(!devices.includes(d)) return;
+  masterStats.totalPolls++;
+  d.animPhase = 'req';
+  d.animStart = performance.now();
+  const success = Math.random() < effectiveQuality(d);
+  setTimeout(()=>{
+    if(!devices.includes(d)) return;
+    if(success){
+      d.animPhase = 'resp'; d.animStart = performance.now();
+      d.consecutiveOk++; d.consecutiveFail = 0;
+      let recovered = false;
+      if(!d.online && d.consecutiveOk>=2){ d.online = true; recovered = true; }
+      if(recovered){
+        addLog(d,'recovered','Link restored — host responding again');
+        renderDeviceCard(d); renderTopology();
+      }
+      setTimeout(()=>{ if(devices.includes(d)) d.animPhase='idle'; }, RESP_MS);
+    } else {
+      masterStats.totalTimeouts++;
+      d.animPhase = 'timeout'; d.animStart = performance.now();
+      d.consecutiveFail++; d.consecutiveOk = 0;
+      let wentOffline = false;
+      if(d.online && d.consecutiveFail>=3){ d.online = false; d.running = false; wentOffline = true; }
+      if(wentOffline){
+        addLog(d,'offline','No response after 3 polls — marked OFFLINE');
+        renderDeviceCard(d); renderTopology();
+      } else {
+        addLog(d,'timeout','Poll timeout ('+d.consecutiveFail+'/3)');
+      }
+      setTimeout(()=>{ if(devices.includes(d)) d.animPhase='idle'; }, 300);
+    }
+    renderMasterStats();
+  }, REQ_MS);
+}
+
+function schedulePoll(d){
+  setTimeout(()=>{
+    if(!devices.includes(d)) return;
+    runPollCycle(d);
+    schedulePoll(d);
+  }, d.pollIntervalMs);
+}
+
+function addLog(d, type, detail){
+  commLog.push({ time:new Date(), name:d.name, ip:d.ip, type, detail });
+  if(commLog.length>60) commLog.shift();
+  renderCommLog();
+}
+
+function renderCommLog(){
+  const list = document.getElementById('commLogList');
+  if(!list) return;
+  if(commLog.length===0){
+    list.innerHTML = '<div class="log-empty">Waiting for poll cycles...</div>';
+    return;
+  }
+  const icons = { ok:'✓', timeout:'⚠', offline:'✕', recovered:'⟳' };
+  list.innerHTML = commLog.slice(-40).reverse().map(l=>{
+    const t = l.time.toLocaleTimeString('en-IN',{hour12:false});
+    return `<div class="log-entry ${l.type}"><span class="log-time">${t}</span><span class="log-dev">${escapeHtml(l.name)}</span> ${icons[l.type]||''} ${escapeHtml(l.detail)}</div>`;
+  }).join('');
+}
+
+function renderMasterStats(){
+  const pollsEl = document.getElementById('statPolls');
+  const toEl = document.getElementById('statTimeouts');
+  const upEl = document.getElementById('statUptime');
+  if(!pollsEl) return;
+  pollsEl.textContent = masterStats.totalPolls;
+  toEl.textContent = masterStats.totalTimeouts;
+  const rel = masterStats.totalPolls ? (((masterStats.totalPolls-masterStats.totalTimeouts)/masterStats.totalPolls)*100).toFixed(1) : '100.0';
+  upEl.textContent = rel + '%';
+}
+
+// ---------- Packet animation (continuous, driven by requestAnimationFrame) ----------
+function animateNetwork(){
+  const now = performance.now();
+  devices.forEach(d=>{
+    const pos = topoPositions[d.id];
+    const dot = document.getElementById('packet-'+d.id);
+    const fail = document.getElementById('failmark-'+d.id);
+    if(!pos || !dot) return;
+    if(d.animPhase==='req'){
+      const t = Math.min(1,(now-d.animStart)/REQ_MS);
+      dot.setAttribute('cx', pos.mx + (pos.dx-pos.mx)*t);
+      dot.setAttribute('cy', pos.my + (pos.dy-pos.my)*t);
+      dot.setAttribute('fill','#22d3ee');
+      dot.setAttribute('opacity','1');
+      if(fail) fail.setAttribute('opacity','0');
+    } else if(d.animPhase==='resp'){
+      const t = Math.min(1,(now-d.animStart)/RESP_MS);
+      dot.setAttribute('cx', pos.dx + (pos.mx-pos.dx)*t);
+      dot.setAttribute('cy', pos.dy + (pos.my-pos.dy)*t);
+      dot.setAttribute('fill','#3ee08a');
+      dot.setAttribute('opacity','1');
+    } else if(d.animPhase==='timeout'){
+      dot.setAttribute('opacity','0');
+      if(fail) fail.setAttribute('opacity','1');
+    } else {
+      dot.setAttribute('opacity','0');
+      if(fail) fail.setAttribute('opacity','0');
+    }
+  });
+  requestAnimationFrame(animateNetwork);
+}
+requestAnimationFrame(animateNetwork);
+
+// ---------- Simulation loop ----------
+setInterval(()=>{
+  let changed = false;
+  devices.forEach(d=>{
+    if(!d.online) return;
+    const target = (d.running && !d.faulted && !estopActive) ? d.setpointHz : 0;
+    const rampRate = 2.2; // Hz per tick
+    if(Math.abs(d.outputHz - target) > 0.05){
+      d.outputHz += Math.sign(target - d.outputHz) * Math.min(rampRate, Math.abs(target-d.outputHz));
+      changed = true;
+    } else if(d.outputHz !== target){
+      d.outputHz = target;
+    }
+    d.rpm = motorSyncRpm(d.outputHz, d.poles);
+    const loadFactor = d.outputHz / d.maxHz;
+    const baseCurrent = d.ratedCurrent * loadFactor;
+    const noise = (Math.random()-0.5) * d.ratedCurrent * 0.06;
+    d.current = Math.max(0, baseCurrent + noise);
+    d.statusWord = (d.running?1:0) | (d.faulted?2:0) | (d.online?4:0);
+    d.controlWord = (d.running?1:0) | (d.direction==='REV'?2:0);
+
+    // live DOM patch (avoid full re-render for perf/flicker)
+    const rpmEl = document.getElementById('rpm-'+d.id);
+    const outhzEl = document.getElementById('outhz-'+d.id);
+    const mfreqEl = document.getElementById('mfreq-'+d.id);
+    const mcurrEl = document.getElementById('mcurr-'+d.id);
+    const mbusEl = document.getElementById('mbus-'+d.id);
+    const shaftEl = document.getElementById('shaft-'+d.id);
+    if(rpmEl) rpmEl.textContent = d.rpm + ' rpm';
+    if(outhzEl) outhzEl.textContent = d.outputHz.toFixed(1);
+    if(mfreqEl) mfreqEl.textContent = d.outputHz.toFixed(1) + ' Hz';
+    if(mcurrEl){
+      mcurrEl.textContent = d.current.toFixed(1) + ' A';
+      mcurrEl.className = 'm-val' + (d.current > d.ratedCurrent ? ' crit' : (d.current > d.ratedCurrent*0.85 ? ' warn':''));
+    }
+    if(mbusEl) mbusEl.textContent = (540 + d.outputHz*0.6).toFixed(0) + ' V';
+    if(shaftEl){
+      const spinning = d.running && d.outputHz > 0.5;
+      shaftEl.classList.toggle('spinning', spinning);
+      if(spinning){
+        const speed = Math.max(0.4, 3 - (d.outputHz/d.maxHz)*2.4);
+        shaftEl.style.animation = `spin ${speed}s linear infinite`;
+      } else {
+        shaftEl.style.animation = 'none';
+      }
+    }
+    const regTable = document.getElementById('regtable-'+d.id);
+    if(regTable && d.regOpen){
+      const cells = regTable.querySelectorAll('.reg-val');
+      if(cells.length===6){
+        cells[0].textContent = d.controlWord.toString(2).padStart(8,'0');
+        cells[1].textContent = Math.round(d.setpointHz*100);
+        cells[2].textContent = d.statusWord.toString(2).padStart(8,'0');
+        cells[3].textContent = Math.round(d.outputHz*100);
+        cells[4].textContent = Math.round(d.current*10);
+        cells[5].textContent = d.rpm;
+      }
+    }
+  });
+}, 400);
+
+// spin keyframes injected once
+const styleTag = document.createElement('style');
+styleTag.textContent = `@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}`;
+document.head.appendChild(styleTag);
+
+// ---------- Seed with example devices ----------
+function seed(){
+  const seeds = [
+    {name:'VFD-01 Raw Water Pump', role:'Pump', poles:4, ip:'192.168.1.10', ratedCurrent:12.5, maxHz:50, linkQuality:0.97},
+    {name:'VFD-02 Cooling Tower Fan', role:'Fan', poles:6, ip:'192.168.1.11', ratedCurrent:6.2, maxHz:50, linkQuality:0.95},
+    {name:'VFD-03 Conveyor Drive', role:'Conveyor', poles:4, ip:'192.168.1.12', ratedCurrent:9.8, maxHz:50, linkQuality:0.85},
+  ];
+  seeds.forEach(s=>{
+    const d = {
+      id: idCounter++,
+      name:s.name, role:s.role, poles:s.poles, ip:s.ip, port:502, unitId:nextUnitId(),
+      ratedCurrent:s.ratedCurrent, maxHz:s.maxHz,
+      online:true, running:false, direction:'FWD',
+      setpointHz: Math.round(s.maxHz*0.6), outputHz:0, current:0, rpm:0,
+      faulted:false, regOpen:false, controlWord:0, statusWord:0,
+      linkQuality:s.linkQuality, consecutiveFail:0, consecutiveOk:0,
+      pollIntervalMs: 900 + Math.random()*900,
+      animPhase:'idle', animStart:0
+    };
+    devices.push(d);
+    schedulePoll(d);
+  });
+}
+
+// ---------- PDF report generation ----------
+function generateReport(){
+  if(typeof window.jspdf === 'undefined'){
+    toast('PDF library still loading — please try again in a moment');
+    return;
+  }
+  if(devices.length===0){
+    toast('No devices on the network to report on');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 40;
+  let y = 0;
+
+  function newPage(){
+    doc.addPage();
+    y = 46;
+  }
+  function checkBreak(need){
+    if(y + need > pageH - 40){ newPage(); return true; }
+    return false;
+  }
+
+  // ----- Header -----
+  y = 46;
+  doc.setFont('courier','bold'); doc.setFontSize(8.5); doc.setTextColor(160,110,20);
+  doc.text('APNA ELECTROMECHANIC SERVICE — ENGINEERING TOOLS SUITE', marginX, y); y += 20;
+  doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(15,25,45);
+  doc.text('VFD Fleet Network Status Report', marginX, y); y += 18;
+  doc.setDrawColor(210); doc.setLineWidth(1); doc.line(marginX, y, pageW-marginX, y); y += 18;
+
+  doc.setFont('courier','normal'); doc.setFontSize(9); doc.setTextColor(90,100,115);
+  doc.text('Generated: ' + new Date().toString(), marginX, y); y += 13;
+  doc.text('Master station: 10.10.1.1     Subnet: 192.168.1.0/24     Devices: ' + devices.length, marginX, y); y += 24;
+
+  // ----- Fleet summary -----
+  const online = devices.filter(d=>d.online).length;
+  const offline = devices.length - online;
+  const faulted = devices.filter(d=>d.faulted).length;
+  const running = devices.filter(d=>d.running).length;
+  const rel = masterStats.totalPolls ? (((masterStats.totalPolls-masterStats.totalTimeouts)/masterStats.totalPolls)*100).toFixed(1) : '100.0';
+  const avgCurrent = (devices.reduce((s,d)=>s+d.current,0)/devices.length).toFixed(1);
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(15,25,45);
+  doc.text('FLEET SUMMARY', marginX, y); y += 6;
+  doc.setDrawColor(200); doc.line(marginX, y, pageW-marginX, y); y += 15;
+  doc.setFont('courier','normal'); doc.setFontSize(9.5); doc.setTextColor(55,65,80);
+  [
+    'Devices online / responding : ' + online + '   |   Offline / no comm : ' + offline,
+    'Currently running           : ' + running + '   |   Faulted            : ' + faulted,
+    'Fleet average motor current : ' + avgCurrent + ' A',
+    'Session poll count          : ' + masterStats.totalPolls + '   |   Timeouts           : ' + masterStats.totalTimeouts,
+    'Session comm reliability    : ' + rel + ' %'
+  ].forEach(line=>{ doc.text(line, marginX, y); y += 14; });
+  y += 12;
+
+  // ----- Device table -----
+  const cols = [
+    { label:'Device / Tag', x:marginX, w:120 },
+    { label:'IP:Port', x:marginX+120, w:82 },
+    { label:'Status', x:marginX+202, w:52 },
+    { label:'Run', x:marginX+254, w:28 },
+    { label:'Dir', x:marginX+282, w:26 },
+    { label:'Freq(Hz)', x:marginX+308, w:42 },
+    { label:'Curr(A)', x:marginX+350, w:40 },
+    { label:'RPM', x:marginX+390, w:38 },
+    { label:'Link%', x:marginX+428, w:36 },
+    { label:'Fault', x:marginX+464, w:40 }
+  ];
+
+  function drawTableHeader(){
+    doc.setFillColor(18,36,72);
+    doc.rect(marginX, y-11, pageW - marginX*2, 16, 'F');
+    doc.setFont('courier','bold'); doc.setFontSize(8); doc.setTextColor(230,240,250);
+    cols.forEach(c=> doc.text(c.label, c.x+3, y-1));
+    y += 12;
+  }
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(15,25,45);
+  doc.text('DEVICE STATUS', marginX, y); y += 10;
+  y += 6;
+  drawTableHeader();
+
+  doc.setFont('courier','normal'); doc.setFontSize(8);
+  devices.forEach((d,i)=>{
+    const broke = checkBreak(16);
+    if(broke) drawTableHeader();
+    const status = statusOf(d);
+    const rowVals = [
+      d.name.slice(0,20),
+      d.ip+':'+d.port,
+      status.toUpperCase(),
+      d.running?'YES':'NO',
+      d.direction,
+      d.outputHz.toFixed(1),
+      d.current.toFixed(1),
+      String(d.rpm),
+      Math.round(d.linkQuality*100)+'%',
+      d.faulted?'TRIP':'-'
+    ];
+    if(i%2===0){ doc.setFillColor(245,247,250); doc.rect(marginX, y-9, pageW-marginX*2, 14, 'F'); }
+    doc.setTextColor(60,70,85);
+    if(status==='offline') doc.setTextColor(190,60,60);
+    if(status==='fault') doc.setTextColor(180,120,10);
+    cols.forEach((c,ci)=> doc.text(String(rowVals[ci]), c.x+3, y));
+    y += 14;
+  });
+  y += 16;
+
+  // ----- Communication log -----
+  checkBreak(40);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(15,25,45);
+  doc.text('RECENT COMMUNICATION EVENTS', marginX, y); y += 6;
+  doc.setDrawColor(200); doc.line(marginX, y, pageW-marginX, y); y += 15;
+  doc.setFont('courier','normal'); doc.setFontSize(8.5);
+
+  const recentLog = commLog.slice(-25).reverse();
+  if(recentLog.length===0){
+    doc.setTextColor(120,130,145);
+    doc.text('No timeout, offline, or recovery events logged this session.', marginX, y); y += 14;
+  } else {
+    recentLog.forEach(l=>{
+      checkBreak(13);
+      const t = l.time.toLocaleTimeString('en-IN',{hour12:false});
+      if(l.type==='offline') doc.setTextColor(190,60,60);
+      else if(l.type==='timeout') doc.setTextColor(170,120,10);
+      else if(l.type==='recovered') doc.setTextColor(20,140,160);
+      else doc.setTextColor(70,80,95);
+      doc.text(t + '  ' + l.name.slice(0,24).padEnd(24,' ') + '  ' + l.detail, marginX, y);
+      y += 12;
+    });
+  }
+  y += 16;
+
+  // ----- Footer disclaimer on every page -----
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let p=1; p<=pageCount; p++){
+    doc.setPage(p);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(150,155,165);
+    doc.text('Simulated environment for training & demonstration — register maps and network data are illustrative, not live field values.', marginX, pageH-24);
+    doc.text('Page ' + p + ' / ' + pageCount, pageW-marginX-50, pageH-24);
+  }
+
+  const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  doc.save('VFD_Fleet_Report_' + stamp + '.pdf');
+  toast('Report generated and downloaded');
+}
+
+document.getElementById('btnReport').onclick = generateReport;
+
+// expose functions used by inline handlers
+window.__vfd = { deleteDevice, toggleStart, toggleDirection, setSpeed, tripFault, resetFault, toggleRegView };
+
+seed();
+renderAll();
+
+})();
+</script>
+</body>
+</html>
