@@ -1,0 +1,2070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>VFD I/O + Logic Designer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#070B12;--surf:#0E1420;--panel:#131C2E;--border:#1C2A40;--b2:#243550;
+  --accent:#00D4FF;--gold:#F5A623;--green:#10B981;--red:#EF4444;--purple:#A78BFA;
+  --amber:#F59E0B;--blue:#3B82F6;
+  --di:#10B981;--do:#F5A623;--ai:#3B82F6;--ao:#A78BFA;
+  --text:#E8EFF8;--muted:#4A6080;
+  --mono:'Share Tech Mono',monospace;--sans:'Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* TOP BAR */
+.topbar{background:var(--surf);border-bottom:1px solid var(--border);padding:0 12px;height:48px;display:flex;align-items:center;gap:6px;flex-shrink:0;z-index:50;overflow-x:auto;}
+.topbar::-webkit-scrollbar{height:0;}
+.brand{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.brand-icon{width:30px;height:30px;background:linear-gradient(135deg,#0077B6,var(--accent));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.brand-name{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:1.5px;}
+.sp{width:1px;height:24px;background:var(--border);margin:0 2px;flex-shrink:0;}
+.tb{display:flex;align-items:center;gap:5px;background:transparent;border:1px solid var(--b2);color:var(--muted);border-radius:6px;padding:5px 9px;font-size:10px;cursor:pointer;font-family:var(--mono);letter-spacing:.4px;transition:all .2s;white-space:nowrap;flex-shrink:0;}
+.tb:hover{border-color:var(--accent);color:var(--accent);}
+.tb.act{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent);}
+.tb.prim{background:linear-gradient(135deg,#005580,var(--accent));color:#000;border:none;font-weight:700;}
+.tb.dan{border-color:var(--red);color:var(--red);}
+.tb.suc{border-color:var(--green);color:var(--green);}
+.tb.logic{border-color:var(--purple);color:var(--purple);}
+.tb.logic.act{background:rgba(167,139,250,.12);}
+.pname{background:transparent;border:1px solid var(--b2);border-radius:6px;padding:4px 8px;color:var(--text);font-size:11px;font-family:var(--mono);outline:none;width:155px;}
+.pname:focus{border-color:var(--accent);}
+
+/* WORKSPACE */
+.workspace{display:flex;flex:1;overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{width:205px;background:var(--surf);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--b2);}
+.ss{padding:9px 10px;}
+.stitle{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:7px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.tmpl{background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 8px;margin-bottom:5px;cursor:grab;display:flex;align-items:center;gap:7px;transition:all .2s;}
+.tmpl:hover{border-color:var(--gold);transform:translateX(2px);}
+.tname{font-size:10px;font-weight:600;color:var(--text);}
+.tsub{font-size:8px;color:var(--muted);font-family:var(--mono);}
+.gate{background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 9px;margin-bottom:5px;cursor:grab;display:flex;align-items:center;gap:8px;transition:all .2s;}
+.gate:hover{border-color:var(--purple);transform:translateX(2px);}
+.gsym{width:34px;height:22px;border:1.5px solid currentColor;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:700;flex-shrink:0;}
+.toolbtn{display:flex;align-items:center;gap:7px;width:100%;background:transparent;border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--muted);font-size:10px;cursor:pointer;transition:all .2s;margin-bottom:4px;}
+.toolbtn:hover{border-color:var(--accent);color:var(--text);}
+.legrow{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--muted);margin-bottom:3px;}
+.legdot{width:10px;height:10px;border-radius:2px;}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.tabcontent{display:none;flex:1;overflow:hidden;}
+.tabcontent.active{display:flex;}
+
+/* IO CANVAS */
+.cwrap{flex:1;position:relative;overflow:hidden;background:var(--bg);background-image:radial-gradient(rgba(0,212,255,.05) 1px,transparent 1px);background-size:24px 24px;}
+#mc{display:block;cursor:default;}
+
+/* WIRING OVERLAY */
+.wire-ov{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column;z-index:40;}
+.wire-ov.show{display:flex;}
+.wire-hdr{background:var(--surf);border-bottom:1px solid var(--border);padding:9px 14px;display:flex;align-items:center;gap:10px;}
+#wc{display:block;flex:1;}
+
+/* LOGIC */
+.lwrap{flex:1;display:flex;overflow:hidden;}
+.lcwrap{flex:1;position:relative;overflow:hidden;background:var(--bg);background-image:linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px);background-size:30px 30px;}
+#lc{display:block;cursor:default;}
+
+/* RIGHT PANELS */
+.rp{width:280px;background:var(--surf);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.rp::-webkit-scrollbar{width:3px;}
+.rp::-webkit-scrollbar-thumb{background:var(--b2);}
+.rphdr{background:var(--panel);border-bottom:1px solid var(--border);padding:9px 12px;font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:6px;}
+.rpdot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 5px var(--accent);}
+.rpbody{padding:10px;flex:1;}
+.rpempty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:160px;color:var(--muted);font-family:var(--mono);font-size:9px;text-align:center;gap:6px;}
+
+/* FIELDS */
+.field{margin-bottom:8px;}
+.field label{display:block;font-size:8px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;font-family:var(--mono);}
+.field input,.field select{width:100%;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:6px;padding:6px 8px;color:var(--text);font-size:11px;outline:none;transition:border .2s;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.iosec{font-family:var(--mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;margin:8px 0 5px;padding-bottom:3px;border-bottom:1px solid var(--border);}
+.iorow{display:flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:5px 6px;margin-bottom:4px;}
+.ionum{width:24px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;font-family:var(--mono);flex-shrink:0;}
+.iotag{width:60px;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:4px;padding:2px 4px;color:var(--gold);font-size:8px;font-family:var(--mono);outline:none;}
+.iotag:focus{border-color:var(--gold);}
+.iofn{flex:1;background:transparent;border:none;color:var(--text);font-size:10px;outline:none;}
+.iodel{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:1px 3px;border-radius:3px;}
+.iodel:hover{color:var(--red);}
+.addio{width:100%;background:transparent;border:1px dashed var(--b2);border-radius:6px;padding:5px;color:var(--muted);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;margin-top:2px;transition:all .2s;}
+.addio:hover{border-color:inherit;color:inherit;}
+
+/* NODE INSPECTOR */
+.lpsec{padding:10px 12px;border-bottom:1px solid var(--border);}
+.lptitle{font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
+.lpempty{padding:20px;font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center;}
+.prow{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:11px;}
+.plabel{color:var(--muted);font-family:var(--mono);font-size:8px;}
+.msel{background:rgba(0,0,0,.4);border:1px solid var(--b2);border-radius:5px;padding:3px 6px;color:var(--text);font-size:10px;outline:none;font-family:var(--mono);}
+.minp{background:rgba(0,0,0,.4);border:1px solid var(--b2);border-radius:5px;padding:3px 6px;color:var(--text);font-size:10px;outline:none;font-family:var(--mono);width:75px;}
+.minp:focus,.msel:focus{border-color:var(--accent);}
+.togbtn{background:transparent;border:1px solid var(--b2);border-radius:5px;padding:3px 8px;color:var(--muted);font-size:9px;cursor:pointer;font-family:var(--mono);transition:all .2s;}
+.togbtn.on{background:rgba(16,185,129,.15);border-color:var(--green);color:var(--green);}
+.togbtn.off{background:rgba(239,68,68,.1);border-color:var(--red);color:var(--red);}
+.sbadge{display:inline-flex;align-items:center;gap:3px;border-radius:5px;padding:2px 7px;font-size:9px;font-weight:700;font-family:var(--mono);}
+.sbadge.on{background:rgba(16,185,129,.2);color:var(--green);border:1px solid var(--green);}
+.sbadge.off{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);}
+
+/* SIM BAR */
+.simbar{background:var(--panel);border-top:1px solid var(--border);padding:6px 12px;display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:9px;flex-shrink:0;}
+.simdot{width:9px;height:9px;border-radius:50%;background:var(--muted);transition:all .3s;}
+.simdot.on{background:var(--green);box-shadow:0 0 7px var(--green);}
+
+/* STATUS */
+.status{background:var(--surf);border-top:1px solid var(--border);padding:3px 12px;font-family:var(--mono);font-size:9px;color:var(--muted);display:flex;gap:12px;align-items:center;flex-shrink:0;}
+
+/* MODAL */
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:300;backdrop-filter:blur(4px);}
+.mbg.show{display:flex;}
+.modal{background:var(--surf);border:1px solid var(--b2);border-radius:12px;padding:20px;width:400px;max-width:95vw;max-height:88vh;overflow-y:auto;}
+.mtitle{font-family:var(--mono);font-size:12px;color:var(--accent);margin-bottom:14px;letter-spacing:1px;}
+.mbtns{display:flex;gap:8px;margin-top:14px;}
+.mbtn{flex:1;padding:8px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--mono);border:none;transition:all .2s;}
+.mbtn.ok{background:var(--accent);color:#000;}
+.mbtn.cancel{background:var(--panel);color:var(--muted);border:1px solid var(--b2);}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">⚡</div>
+    <div class="brand-name">VFD I/O + LOGIC</div>
+  </div>
+  <div class="sp"></div>
+  <button class="tb act" id="tabIOBtn" onclick="switchTab('io')">📐 I/O CANVAS</button>
+  <button class="tb logic" id="tabLBtn" onclick="switchTab('logic')">🔀 LOGIC EDITOR</button>
+  <button class="tb" id="tabAIBtn" onclick="switchTab('ai')" style="border-color:#A78BFA;color:#A78BFA">🤖 AI CHECK</button>
+  <button class="tb" id="tabSimBtn" onclick="switchTab('sim')" style="border-color:#10B981;color:#10B981">🧪 CIRCUIT SIM</button>
+  <div class="sp"></div>
+  <button class="tb act" id="toolSelBtn" onclick="setTool('select')">🖱 SELECT</button>
+  <button class="tb" id="toolWireBtn" onclick="setTool('wire')">〰 WIRE</button>
+  <button class="tb dan" onclick="deleteSelected()">🗑 DEL</button>
+  <div class="sp"></div>
+  <button class="tb" onclick="showWiring()">📋 WIRING</button>
+  <button class="tb" onclick="undo()" title="Undo (Ctrl+Z)">↶ UNDO</button>
+  <button class="tb" onclick="redo()" title="Redo (Ctrl+Y)">↷ REDO</button>
+  <button class="tb suc" onclick="saveProject()" title="Saves to THIS BROWSER's local storage only (device-specific, cleared if you clear browsing data). Use Export for a real downloadable backup.">💾 SAVE</button>
+  <button class="tb" onclick="exportJSON()" title="Downloads a .json file you can reopen on any device — the real backup.">📤 EXPORT</button>
+  <button class="tb" onclick="document.getElementById('impFile').click()">📥 IMPORT</button>
+  <input type="file" id="impFile" accept=".json" style="display:none" onchange="importProject(event)"/>
+  <button class="tb prim" onclick="exportPDF()">📄 PDF</button>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0;">
+    <span style="font-size:8px;color:var(--muted);font-family:var(--mono)">PROJECT:</span>
+    <input class="pname" id="pname" value="VFD_Logic_001"/>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <!-- IO sidebar -->
+  <div id="sbIO">
+    <div class="ss">
+      <div class="stitle">VFD Templates</div>
+      <div class="tmpl" draggable="true" ondragstart="startDrag(event,'vfd_std')" ondblclick="addDevice('vfd_std')"><span style="font-size:18px">🔄</span><div><div class="tname">Standard VFD</div><div class="tsub">DI×6 DO×3 AI×2 AO×2</div></div></div>
+      <div class="tmpl" draggable="true" ondragstart="startDrag(event,'vfd_basic')" ondblclick="addDevice('vfd_basic')"><span style="font-size:18px">⚡</span><div><div class="tname">Basic VFD</div><div class="tsub">DI×4 DO×2 AI×1 AO×1</div></div></div>
+      <div class="tmpl" draggable="true" ondragstart="startDrag(event,'vfd_adv')" ondblclick="addDevice('vfd_adv')"><span style="font-size:18px">🌀</span><div><div class="tname">Advanced VFD</div><div class="tsub">DI×8 DO×4 AI×4 AO×2</div></div></div>
+      <div class="tmpl" draggable="true" ondragstart="startDrag(event,'pf753')" ondblclick="addDevice('pf753')"><span style="font-size:18px">🟦</span><div><div class="tname">PowerFlex 753</div><div class="tsub">AB · DI×6 DO×3</div></div></div>
+      <div class="tmpl" draggable="true" ondragstart="startDrag(event,'acs880')" ondblclick="addDevice('acs880')"><span style="font-size:18px">🔵</span><div><div class="tname">ABB ACS880</div><div class="tsub">ABB · DI×6 DO×3</div></div></div>
+      <div class="tmpl" draggable="true" ondragstart="startDrag(event,'g120')" ondblclick="addDevice('g120')"><span style="font-size:18px">🟩</span><div><div class="tname">Siemens G120</div><div class="tsub">Siemens · DI×6 DO×3</div></div></div>
+    </div>
+    <div class="ss">
+      <div class="stitle">Canvas</div>
+      <button class="toolbtn" onclick="clearAll()"><span>🗑</span>Clear All</button>
+      <button class="toolbtn" onclick="fitView()"><span>🔲</span>Fit View</button>
+      <button class="toolbtn" onclick="zoomIn()"><span>+</span>Zoom In</button>
+      <button class="toolbtn" onclick="zoomOut()"><span>−</span>Zoom Out</button>
+    </div>
+    <div class="ss">
+      <div class="stitle">Legend</div>
+      <div class="legrow"><div class="legdot" style="background:var(--di)"></div>DI — Digital Input</div>
+      <div class="legrow"><div class="legdot" style="background:var(--do)"></div>DO — Digital Output</div>
+      <div class="legrow"><div class="legdot" style="background:var(--ai)"></div>AI — Analog Input</div>
+      <div class="legrow"><div class="legdot" style="background:var(--ao)"></div>AO — Analog Output</div>
+    </div>
+  </div>
+  <!-- Logic sidebar -->
+  <div id="sbLogic" style="display:none">
+    <div class="ss">
+      <div class="stitle">Logic Gates</div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'AND')" ondblclick="addNode('AND')"><div class="gsym" style="color:#10B981">AND</div><div><div class="tname">AND Gate</div><div class="tsub">All inputs HIGH → OUT HIGH</div></div></div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'OR')" ondblclick="addNode('OR')"><div class="gsym" style="color:#3B82F6">OR</div><div><div class="tname">OR Gate</div><div class="tsub">Any input HIGH → OUT HIGH</div></div></div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'NAND')" ondblclick="addNode('NAND')"><div class="gsym" style="color:#F59E0B">NAND</div><div><div class="tname">NAND Gate</div><div class="tsub">NOT AND — inverted</div></div></div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'NOR')" ondblclick="addNode('NOR')"><div class="gsym" style="color:#F59E0B">NOR</div><div><div class="tname">NOR Gate</div><div class="tsub">NOT OR — inverted</div></div></div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'XOR')" ondblclick="addNode('XOR')"><div class="gsym" style="color:#A78BFA">XOR</div><div><div class="tname">XOR Gate</div><div class="tsub">Exactly one input HIGH</div></div></div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'NOT')" ondblclick="addNode('NOT')"><div class="gsym" style="color:#EF4444">NOT</div><div><div class="tname">NOT / Inverter</div><div class="tsub">Inverts single input</div></div></div>
+    </div>
+    <div class="ss">
+      <div class="stitle">Pushbuttons / Contacts</div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'PB_NO')" ondblclick="addNode('PB_NO')"><div class="gsym" style="color:#10B981;font-size:11px">⊣ ⊢</div><div><div class="tname">NO Pushbutton</div><div class="tsub">Normally open — closes when pressed</div></div></div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'PB_NC')" ondblclick="addNode('PB_NC')"><div class="gsym" style="color:#EF4444;font-size:11px">⊣/⊢</div><div><div class="tname">NC Pushbutton</div><div class="tsub">Normally closed — opens when pressed</div></div></div>
+    </div>
+    <div class="ss">
+      <div class="stitle">Timers / Latches</div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'TON')" ondblclick="addNode('TON')"><div class="gsym" style="color:#00D4FF;font-size:8px">TON</div><div><div class="tname">Timer ON Delay</div><div class="tsub">Output ON after delay</div></div></div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'TOF')" ondblclick="addNode('TOF')"><div class="gsym" style="color:#00D4FF;font-size:8px">TOF</div><div><div class="tname">Timer OFF Delay</div><div class="tsub">Output OFF after delay</div></div></div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'SR')" ondblclick="addNode('SR')"><div class="gsym" style="color:#F5A623;font-size:8px">SR</div><div><div class="tname">SR Latch</div><div class="tsub">Set / Reset flip-flop</div></div></div>
+    </div>
+    <div class="ss">
+      <div class="stitle">I/O Nodes</div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'DI_NODE')" ondblclick="addNode('DI_NODE')"><div class="gsym" style="color:#10B981;font-size:8px">DI</div><div><div class="tname">Digital Input Node</div><div class="tsub">Link to VFD DI terminal</div></div></div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'DO_NODE')" ondblclick="addNode('DO_NODE')"><div class="gsym" style="color:#F5A623;font-size:8px">DO</div><div><div class="tname">Digital Output Node</div><div class="tsub">Link to VFD DO terminal</div></div></div>
+      <div class="gate" draggable="true" ondragstart="startGDrag(event,'CONST')" ondblclick="addNode('CONST')"><div class="gsym" style="color:#4A6080;font-size:8px">0/1</div><div><div class="tname">Constant Value</div><div class="tsub">Fixed HIGH or LOW signal</div></div></div>
+    </div>
+    <div class="ss">
+      <div class="stitle">Simulate</div>
+      <button class="toolbtn" id="simBtn" onclick="toggleSim()" style="border-color:var(--green);color:var(--green)">▶ Run Simulation</button>
+      <button class="toolbtn" onclick="resetSim()">↺ Reset All States</button>
+      <div style="font-size:9px;color:var(--muted);margin-top:6px;line-height:1.6;font-family:var(--mono)">Click DI nodes to toggle HIGH/LOW during simulation and watch output propagation.</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN AREA -->
+<div class="main">
+  <!-- IO TAB -->
+  <div class="tabcontent active" id="tabIO">
+    <div class="cwrap" id="cwrap" ondragover="event.preventDefault()" ondrop="onDrop(event)">
+      <canvas id="mc"></canvas>
+      <div class="wire-ov" id="wireOv">
+        <div class="wire-hdr">
+          <span style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:2px">📋 WIRING DIAGRAM</span>
+          <button class="tb suc" style="margin-left:8px" onclick="doWiringPDF()">📄 PDF</button>
+          <button class="tb dan" style="margin-left:auto" onclick="document.getElementById('wireOv').classList.remove('show')">✕ CLOSE</button>
+        </div>
+        <canvas id="wc"></canvas>
+      </div>
+    </div>
+    <div class="rp">
+      <div class="rphdr"><div class="rpdot"></div>I/O ASSIGNMENT</div>
+      <div class="rpbody" id="rpBody"><div class="rpempty"><div style="font-size:26px;opacity:.3">🖱</div><div>Click a VFD device to edit I/O assignments</div></div></div>
+    </div>
+  </div>
+
+  <!-- LOGIC TAB -->
+  <div class="tabcontent" id="tabLogic">
+    <div class="lwrap">
+      <div class="lcwrap" id="lcwrap" ondragover="event.preventDefault()" ondrop="onGDrop(event)">
+        <canvas id="lc"></canvas>
+      </div>
+      <div class="rp">
+        <div class="rphdr"><div class="rpdot" style="background:var(--purple);box-shadow:0 0 5px var(--purple)"></div>NODE INSPECTOR</div>
+        <div id="nodeInsp"><div class="lpempty">Click a logic node to inspect and configure it.</div></div>
+        <div style="padding:10px 12px;border-top:1px solid var(--border)">
+          <div class="lptitle" style="margin-bottom:6px">LIVE I/O STATES</div>
+          <div id="simStateEl"><div style="font-family:var(--mono);font-size:9px;color:var(--muted)">Add DI/DO nodes and run simulation.</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="simbar">
+      <span style="color:var(--muted)">SIM:</span>
+      <div class="simdot" id="simDot"></div>
+      <span id="simStat" style="color:var(--muted)">Stopped</span>
+      <div class="sp" style="height:14px"></div>
+      <div id="simBar" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+    </div>
+  </div>
+
+  <!-- AI CHECK TAB -->
+  <div class="tabcontent" id="tabAI" style="padding:18px;overflow-y:auto;">
+    <div style="max-width:680px;width:100%">
+      <div class="stitle" style="margin-bottom:8px;color:#A78BFA">🤖 AI CIRCUIT CHECK</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:12px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;">
+        Sends a text summary of your current devices, DI/DO/AI/AO assignments, device-to-device wires, logic nodes, and logic wires to the AI provider you pick below, and asks it to review for wiring conflicts, missing safety logic (e.g. no Stop path), NO/NC misuse, and unwired outputs. It reasons from general relay/PLC/VFD control conventions — it does not have your VFD's actual manufacturer manual, so it won't assert brand-specific facts it wasn't given. Nothing is sent until you click Analyze or Send.
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        <button class="tb act" id="provClaudeBtn" onclick="setAIProvider('claude')">Claude</button>
+        <button class="tb" id="provGeminiBtn" onclick="setAIProvider('gemini')">Gemini</button>
+        <button class="tb" id="provOpenAIBtn" onclick="setAIProvider('openai')">ChatGPT (OpenAI)</button>
+        <button class="tb" id="provORBtn" onclick="setAIProvider('openrouter')">OpenRouter (free)</button>
+      </div>
+      <div id="aiKeyBox" style="margin-bottom:10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;"></div>
+      <button class="tb prim" onclick="analyzeCircuitAI()" style="margin-bottom:12px">🔍 Analyze Full Circuit</button>
+      <div id="aiChatLog" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;margin-bottom:10px;"></div>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="aiChatInput" placeholder="Ask a follow-up question…" style="flex:1;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;outline:none;" onkeydown="if(event.key==='Enter')sendAIChat()"/>
+        <button class="tb prim" onclick="sendAIChat()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CIRCUIT SIMULATOR TAB (external wiring: pushbuttons, contacts, relays, VFD terminals) -->
+  <div class="tabcontent" id="tabSim" style="flex-direction:row;">
+    <div id="simPalette" style="width:150px;background:var(--surf);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;">
+      <div class="ss">
+        <div class="stitle">Push Buttons</div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'NO_PB')" ondblclick="sSp('NO_PB')"><div class="gsym" style="color:#10B981">⊣ ⊢</div><div><div class="tname">NO Pushbutton</div><div class="tsub">Momentary, normally open</div></div></div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'NC_PB')" ondblclick="sSp('NC_PB')"><div class="gsym" style="color:#EF4444">⊣/⊢</div><div><div class="tname">NC Pushbutton</div><div class="tsub">Momentary, normally closed</div></div></div>
+      </div>
+      <div class="ss">
+        <div class="stitle">Selector Switches</div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'SS2')" ondblclick="sSp('SS2')"><div class="gsym" style="color:#3B82F6">◀●▶</div><div><div class="tname">2-Position Selector</div><div class="tsub">Maintained, Hand/Off style</div></div></div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'SS3')" ondblclick="sSp('SS3')"><div class="gsym" style="color:#3B82F6">◀●▶</div><div><div class="tname">3-Position Selector</div><div class="tsub">Hand-Off-Auto style</div></div></div>
+      </div>
+      <div class="ss">
+        <div class="stitle">Contacts</div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'NO_C')" ondblclick="sSp('NO_C')"><div class="gsym" style="color:#10B981">⊣ ⊢</div><div><div class="tname">NO Aux Contact</div><div class="tsub">Tag it to match a relay/timer</div></div></div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'NC_C')" ondblclick="sSp('NC_C')"><div class="gsym" style="color:#EF4444">⊣/⊢</div><div><div class="tname">NC Aux Contact</div><div class="tsub">Tag it to match a relay/timer</div></div></div>
+      </div>
+      <div class="ss">
+        <div class="stitle">Coils / Outputs</div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'RELAY')" ondblclick="sSp('RELAY')"><div class="gsym" style="color:#F59E0B">(R)</div><div><div class="tname">Control Relay (CR)</div><div class="tsub">Drives contacts with same tag</div></div></div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'KM')" ondblclick="sSp('KM')"><div class="gsym" style="color:#F59E0B">(M)</div><div><div class="tname">Contactor (KM)</div><div class="tsub">Drives contacts with same tag</div></div></div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'LAMP')" ondblclick="sSp('LAMP')"><div class="gsym" style="color:#FBBF24">◉</div><div><div class="tname">Pilot Lamp</div><div class="tsub">Status indicator</div></div></div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'SOL')" ondblclick="sSp('SOL')"><div class="gsym" style="color:#A78BFA">◈</div><div><div class="tname">Solenoid</div><div class="tsub">Output load</div></div></div>
+      </div>
+      <div class="ss">
+        <div class="stitle">Timers</div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'TON')" ondblclick="sSp('TON')"><div class="gsym" style="color:#00D4FF">TON</div><div><div class="tname">On-Delay Timer</div><div class="tsub">Closes N sec after powered</div></div></div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'TOF')" ondblclick="sSp('TOF')"><div class="gsym" style="color:#00D4FF">TOF</div><div><div class="tname">Off-Delay Timer</div><div class="tsub">Opens N sec after de-energized</div></div></div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'TOFR')" ondblclick="sSp('TOFR')"><div class="gsym" style="color:#00D4FF">TMR</div><div><div class="tname">Retentive Timer</div><div class="tsub">Accumulates run time</div></div></div>
+      </div>
+      <div class="ss">
+        <div class="stitle">Analog I/O</div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'POT')" ondblclick="sSp('POT')"><div class="gsym" style="color:#3B82F6">⊙</div><div><div class="tname">Potentiometer</div><div class="tsub">4-20mA or 0-10V source → wire to VFD AI</div></div></div>
+        <div class="gate" draggable="true" ondragstart="sDs(event,'AMETER')" ondblclick="sSp('AMETER')"><div class="gsym" style="color:#00D4FF">◫</div><div><div class="tname">Analog Meter</div><div class="tsub">Reads a POT or VFD AO value</div></div></div>
+      </div>
+      <div class="ss">
+        <div class="stitle">VFD (from I/O Canvas)</div>
+        <div id="simVfdList"></div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+      <div style="padding:8px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0;">
+        <button class="toolbtn" id="simStageBtn" onclick="toggleSim()" style="border-color:var(--green);color:var(--green);width:auto;">▶ Run Simulation</button>
+        <button class="toolbtn" style="width:auto;" onclick="resetSim()">↺ Reset All States</button>
+        <div style="width:1px;height:20px;background:var(--border)"></div>
+        <button class="toolbtn" id="simSelBtn" style="width:auto" onclick="sSetMode('select')">✥ Select</button>
+        <button class="toolbtn" id="simWireBtn" style="width:auto" onclick="sSetMode('wire')">🔌 Wire</button>
+        <button class="toolbtn" id="simDelBtn" style="width:auto" onclick="sSetMode('delete')">🗑 Delete</button>
+        <button class="toolbtn" style="width:auto" onclick="fitSimView()">🔲 Fit View</button>
+        <span id="simHint" style="font-size:9px;color:var(--muted);font-family:var(--mono);margin-left:auto">Click a part in the palette, then click the canvas to place it. W=wire, D=delete, Esc=select.</span>
+      </div>
+      <div id="simwrap" style="flex:1;position:relative;overflow:hidden;background:var(--bg);min-height:0;">
+        <canvas id="simc"></canvas>
+      </div>
+    </div>
+
+    <div class="rp" style="width:240px">
+      <div class="rphdr"><div class="rpdot" style="background:#10B981;box-shadow:0 0 5px #10B981"></div>PROPERTIES / FUNCTION CHECK</div>
+      <div id="simStageStatus" style="padding:10px 12px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+</div><!-- end workspace -->
+
+<!-- STATUS -->
+<div class="status">
+  <span id="statMsg">Ready</span>
+  <span>Devices: <b id="devCnt">0</b></span>
+  <span>Logic Nodes: <b id="nodeCnt">0</b></span>
+  <span>Tool: <b id="toolName">SELECT</b></span>
+  <span style="margin-left:auto;font-size:8px;opacity:.4">Apna Electromechanic Service — VFD I/O + Logic Designer</span>
+</div>
+
+<!-- MODAL -->
+<div class="mbg" id="mbg">
+  <div class="modal">
+    <div class="mtitle" id="mtitle"></div>
+    <div id="mbody"></div>
+    <div class="mbtns">
+      <button class="mbtn cancel" onclick="closeModal()">Cancel</button>
+      <button class="mbtn ok" id="mok">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// TEMPLATES
+// =====================================================
+const TMPLS={
+  vfd_std:{label:'Standard VFD',brand:'Generic',model:'STD-VFD',
+    di:[{tag:'DI01',fn:'Forward Run'},{tag:'DI02',fn:'Reverse Run'},{tag:'DI03',fn:'Fault Reset'},{tag:'DI04',fn:'Emergency Stop'},{tag:'DI05',fn:'Speed Preset 1'},{tag:'DI06',fn:'Speed Preset 2'}],
+    do:[{tag:'DO01',fn:'Running'},{tag:'DO02',fn:'Fault'},{tag:'DO03',fn:'At Speed'}],
+    ai:[{tag:'AI01',fn:'Speed Reference (0-10V)'},{tag:'AI02',fn:'Torque Limit (4-20mA)'}],
+    ao:[{tag:'AO01',fn:'Output Frequency'},{tag:'AO02',fn:'Output Current'}]},
+  vfd_basic:{label:'Basic VFD',brand:'Generic',model:'BASIC-VFD',
+    di:[{tag:'DI01',fn:'Run/Stop'},{tag:'DI02',fn:'Fault Reset'},{tag:'DI03',fn:'Fwd/Rev'},{tag:'DI04',fn:'Speed Preset'}],
+    do:[{tag:'DO01',fn:'Running'},{tag:'DO02',fn:'Fault'}],
+    ai:[{tag:'AI01',fn:'Speed Ref (0-10V)'}],
+    ao:[{tag:'AO01',fn:'Output Frequency'}]},
+  vfd_adv:{label:'Advanced VFD',brand:'Generic',model:'ADV-VFD',
+    di:[{tag:'DI01',fn:'Forward Run'},{tag:'DI02',fn:'Reverse Run'},{tag:'DI03',fn:'Fault Reset'},{tag:'DI04',fn:'E-Stop'},{tag:'DI05',fn:'Speed Preset 1'},{tag:'DI06',fn:'Speed Preset 2'},{tag:'DI07',fn:'Jog Forward'},{tag:'DI08',fn:'Jog Reverse'}],
+    do:[{tag:'DO01',fn:'Running'},{tag:'DO02',fn:'Fault'},{tag:'DO03',fn:'At Speed'},{tag:'DO04',fn:'Ready'}],
+    ai:[{tag:'AI01',fn:'Speed Ref (0-10V)'},{tag:'AI02',fn:'Torque Ref (4-20mA)'},{tag:'AI03',fn:'PID Feedback'},{tag:'AI04',fn:'Aux Analog'}],
+    ao:[{tag:'AO01',fn:'Output Freq'},{tag:'AO02',fn:'Output Current'}]},
+  pf753:{label:'PowerFlex 753',brand:'Allen-Bradley',model:'20F1AND4P2',
+    di:[{tag:'DI01',fn:'Start/Run'},{tag:'DI02',fn:'Direction'},{tag:'DI03',fn:'Speed Sel 1'},{tag:'DI04',fn:'Speed Sel 2'},{tag:'DI05',fn:'Fault Reset'},{tag:'DI06',fn:'External Fault'}],
+    do:[{tag:'DO01',fn:'Running'},{tag:'DO02',fn:'Faulted'},{tag:'DO03',fn:'At Speed'}],
+    ai:[{tag:'AI01',fn:'Speed Ref (4-20mA)'},{tag:'AI02',fn:'Process Feedback'}],
+    ao:[{tag:'AO01',fn:'Output Frequency'},{tag:'AO02',fn:'Output Current'}]},
+  acs880:{label:'ABB ACS880',brand:'ABB',model:'ACS880-01',
+    di:[{tag:'DI1',fn:'Start'},{tag:'DI2',fn:'Stop'},{tag:'DI3',fn:'Direction'},{tag:'DI4',fn:'Fault Reset'},{tag:'DI5',fn:'Speed Sel 1'},{tag:'DI6',fn:'Speed Sel 2'}],
+    do:[{tag:'RO1',fn:'Running'},{tag:'RO2',fn:'Fault'},{tag:'RO3',fn:'At Speed'}],
+    ai:[{tag:'AI1',fn:'Speed Ref (0-10V)'},{tag:'AI2',fn:'Feedback (4-20mA)'}],
+    ao:[{tag:'AO1',fn:'Freq Out (0-10V)'},{tag:'AO2',fn:'Current (4-20mA)'}]},
+  g120:{label:'Siemens G120',brand:'Siemens',model:'6SL3210-1KE21',
+    di:[{tag:'DI0',fn:'ON/OFF1'},{tag:'DI1',fn:'Reverse'},{tag:'DI2',fn:'Fault Ack'},{tag:'DI3',fn:'Jog'},{tag:'DI4',fn:'Fixed Freq 1'},{tag:'DI5',fn:'Fixed Freq 2'}],
+    do:[{tag:'DO0',fn:'Running'},{tag:'DO1',fn:'Fault'},{tag:'DO2',fn:'At Setpoint'}],
+    ai:[{tag:'AI0',fn:'Setpoint (0-10V)'},{tag:'AI1',fn:'Feedback (4-20mA)'}],
+    ao:[{tag:'AO0',fn:'Actual Speed'},{tag:'AO1',fn:'Actual Current'}]},
+};
+
+// =====================================================
+// STATE
+// =====================================================
+let devs=[],iwires=[],selDevId=null,tool='select';
+let sc=1,px=0,py=0,isPan=false,panSX=0,panSY=0;
+let isDown=false,dOffX=0,dOffY=0;
+let wStart=null,dragKey=null;
+let devCtr=1;
+let nodes=[],lwires=[],selNId=null,selLwId=null;
+let lsc=1,lpx=0,lpy=0,lDown=false,lPan=false,lDX=0,lDY=0,lNOX=0,lNOY=0;
+let lwStart=null,gDragType=null;
+let simOn=false,simTick=null;
+let simSc=1,simPx=40,simPy=20,simDown=false,simPan=false,simDX=0,simDY=0;
+let nCtr=1;
+let curTab='io';
+
+// =====================================================
+// CANVAS
+// =====================================================
+const cv=document.getElementById('mc'),ctx=cv.getContext('2d');
+const lv=document.getElementById('lc'),lx2=lv.getContext('2d');
+
+function resize(){
+  const cw=document.getElementById('cwrap');
+  cv.width=cw.clientWidth;cv.height=cw.clientHeight;
+  const lw=document.getElementById('lcwrap');
+  lv.width=lw.clientWidth;lv.height=lw.clientHeight;
+  const sw=document.getElementById('simwrap');
+  if(sw){const simcEl=document.getElementById('simc');if(simcEl){simcEl.width=sw.clientWidth;simcEl.height=sw.clientHeight;}}
+  draw();drawLogic();
+  if(typeof sDraw==='function')sDraw();
+}
+window.addEventListener('resize',resize);
+setTimeout(resize,60);
+
+// =====================================================
+// TAB SWITCH
+// =====================================================
+function switchTab(t){
+  curTab=t;
+  document.getElementById('tabIO').classList.toggle('active',t==='io');
+  document.getElementById('tabLogic').classList.toggle('active',t==='logic');
+  document.getElementById('tabAI').classList.toggle('active',t==='ai');
+  document.getElementById('tabSim').classList.toggle('active',t==='sim');
+  document.getElementById('tabIOBtn').classList.toggle('act',t==='io');
+  document.getElementById('tabLBtn').classList.toggle('act',t==='logic');
+  document.getElementById('tabAIBtn').classList.toggle('act',t==='ai');
+  document.getElementById('tabSimBtn').classList.toggle('act',t==='sim');
+  document.getElementById('sbIO').style.display=t==='io'?'':'none';
+  document.getElementById('sbLogic').style.display=t==='logic'?'':'none';
+  if(t==='ai')return;
+  setTimeout(()=>{resize();if(t==='logic'){drawLogic();renderSimState();}else if(t==='sim'){renderSimVfdList();sSimulate();}else{draw();}},40);
+}
+
+// =====================================================
+// TOOL
+// =====================================================
+function setTool(t){
+  tool=t;
+  document.getElementById('toolSelBtn').classList.toggle('act',t==='select');
+  document.getElementById('toolWireBtn').classList.toggle('act',t==='wire');
+  document.getElementById('toolName').textContent=t.toUpperCase();
+  cv.style.cursor=t==='wire'?'crosshair':'default';
+  wStart=null;draw();
+}
+setTool('select');
+
+// =====================================================
+// DEVICE GEOMETRY
+// =====================================================
+const DW=205,PIN=11,GAP=20,HDR=32,FOOT=20;
+function dH(d){return HDR+Math.max(d.di.length+d.do.length,d.ai.length+d.ao.length)*GAP+FOOT;}
+function lPins(d){let p=[];d.di.forEach((io,i)=>p.push({t:'DI',i,tag:io.tag,fn:io.fn,s:'L',r:i}));d.do.forEach((io,i)=>p.push({t:'DO',i,tag:io.tag,fn:io.fn,s:'L',r:d.di.length+i}));return p;}
+function rPins(d){let p=[];d.ai.forEach((io,i)=>p.push({t:'AI',i,tag:io.tag,fn:io.fn,s:'R',r:i}));d.ao.forEach((io,i)=>p.push({t:'AO',i,tag:io.tag,fn:io.fn,s:'R',r:d.ai.length+i}));return p;}
+function pPos(d,p){return{x:p.s==='L'?d.x:d.x+DW,y:d.y+HDR+p.r*GAP+GAP/2};}
+function pCol(t){return t==='DI'?'#10B981':t==='DO'?'#F5A623':t==='AI'?'#3B82F6':'#A78BFA';}
+function toW(ex,ey,c,ox,oy,s){const r=c.getBoundingClientRect();return{x:(ex-r.left-ox)/s,y:(ey-r.top-oy)/s};}
+function hitPin(d,mx,my){for(const p of[...lPins(d),...rPins(d)]){const pos=pPos(d,p);if(Math.hypot(pos.x-mx,pos.y-my)<10)return{dev:d,pin:p,pos};}return null;}
+function hitDev(mx,my){for(let i=devs.length-1;i>=0;i--){const d=devs[i];if(mx>=d.x&&mx<=d.x+DW&&my>=d.y&&my<=d.y+dH(d))return d;}return null;}
+
+// =====================================================
+// IO CANVAS DRAW
+// =====================================================
+function rr(c,x,y,w,h,r,m){
+  if(typeof r==='number')r={tl:r,tr:r,bl:r,br:r};
+  c.beginPath();c.moveTo(x+r.tl,y);c.lineTo(x+w-r.tr,y);c.arcTo(x+w,y,x+w,y+r.tr,r.tr);
+  c.lineTo(x+w,y+h-r.br);c.arcTo(x+w,y+h,x+w-r.br,y+h,r.br);
+  c.lineTo(x+r.bl,y+h);c.arcTo(x,y+h,x,y+h-r.bl,r.bl);
+  c.lineTo(x,y+r.tl);c.arcTo(x,y,x+r.tl,y,r.tl);c.closePath();
+  if(m==='F'||m==='FS')c.fill();if(m==='S'||m==='FS')c.stroke();
+}
+
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.save();ctx.translate(px,py);ctx.scale(sc,sc);
+  // Draw IO wires
+  iwires.forEach(w=>{
+    const c=pCol(w.ft);ctx.strokeStyle=c;ctx.lineWidth=1.5;ctx.globalAlpha=0.75;
+    ctx.beginPath();ctx.moveTo(w.x1,w.y1);
+    const mx=(w.x1+w.x2)/2;ctx.lineTo(mx,w.y1);ctx.lineTo(mx,w.y2);ctx.lineTo(w.x2,w.y2);
+    ctx.stroke();ctx.globalAlpha=1;
+    ctx.fillStyle=c;ctx.font='8px "Share Tech Mono"';ctx.textAlign='center';
+    ctx.fillText((w.label||'').substring(0,26),(w.x1+w.x2)/2,(w.y1+w.y2)/2-2);ctx.textAlign='left';
+  });
+  // Draw devices
+  devs.forEach(d=>{
+    const h=dH(d),sel=d.id===selDevId;
+    if(sel){ctx.shadowColor='rgba(0,212,255,.4)';ctx.shadowBlur=16;}
+    ctx.fillStyle='#111827';ctx.strokeStyle=sel?'#00D4FF':'#1C2A40';ctx.lineWidth=sel?2:1;
+    rr(ctx,d.x,d.y,DW,h,8,'FS');ctx.shadowBlur=0;
+    const g=ctx.createLinearGradient(d.x,d.y,d.x+DW,d.y);g.addColorStop(0,'#0D2137');g.addColorStop(1,'#0A1B30');
+    ctx.fillStyle=g;rr(ctx,d.x,d.y,DW,HDR,{tl:8,tr:8,bl:0,br:0},'F');
+    ctx.fillStyle='#00D4FF';ctx.font='bold 10px "Share Tech Mono"';ctx.fillText(d.label.substring(0,22),d.x+6,d.y+13);
+    ctx.fillStyle='#4A6080';ctx.font='7.5px "Share Tech Mono"';ctx.fillText(d.brand+' · '+d.model,d.x+6,d.y+24);
+    ctx.strokeStyle='#00D4FF';ctx.lineWidth=1;ctx.strokeRect(d.x+DW-28,d.y+7,20,16);
+    ctx.strokeStyle='#F5A623';ctx.beginPath();ctx.moveTo(d.x+DW-26,d.y+16);ctx.bezierCurveTo(d.x+DW-23,d.y+11,d.x+DW-19,d.y+21,d.x+DW-12,d.y+16);ctx.stroke();
+    lPins(d).forEach(p=>{
+      const pos=pPos(d,p),c=pCol(p.t);
+      ctx.strokeStyle=c;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pos.x,pos.y);ctx.lineTo(pos.x-PIN,pos.y);ctx.stroke();
+      ctx.fillStyle=c;ctx.beginPath();ctx.arc(pos.x-PIN,pos.y,3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#3A5070';ctx.font='7px "Share Tech Mono"';ctx.textAlign='right';ctx.fillText(p.tag,pos.x-14,pos.y-3);
+      ctx.fillStyle='#8090A8';ctx.font='8px Inter,sans-serif';ctx.textAlign='left';ctx.fillText(p.fn.substring(0,20),pos.x+3,pos.y+3.5);
+    });
+    rPins(d).forEach(p=>{
+      const pos=pPos(d,p),c=pCol(p.t);
+      ctx.strokeStyle=c;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pos.x,pos.y);ctx.lineTo(pos.x+PIN,pos.y);ctx.stroke();
+      ctx.fillStyle=c;ctx.beginPath();ctx.arc(pos.x+PIN,pos.y,3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#3A5070';ctx.font='7px "Share Tech Mono"';ctx.textAlign='left';ctx.fillText(p.tag,pos.x+14,pos.y-3);
+      ctx.fillStyle='#8090A8';ctx.font='8px Inter,sans-serif';ctx.textAlign='right';ctx.fillText(p.fn.substring(0,20),pos.x-3,pos.y+3.5);
+    });
+    ctx.textAlign='left';
+    ctx.fillStyle='#0A1B30';ctx.fillRect(d.x,d.y+h-FOOT,DW,FOOT);
+    ctx.fillStyle='#2A3F5F';ctx.font='7px "Share Tech Mono"';
+    ctx.fillText('DI:'+d.di.length+'  DO:'+d.do.length+'  AI:'+d.ai.length+'  AO:'+d.ao.length,d.x+5,d.y+h-7);
+    if(sel){ctx.strokeStyle='rgba(0,212,255,.2)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.strokeRect(d.x-5,d.y-5,DW+10,h+10);ctx.setLineDash([]);}
+  });
+  if(wStart){ctx.strokeStyle=pCol(wStart.pin.t);ctx.lineWidth=1.5;ctx.setLineDash([5,5]);ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(wStart.pos.x,wStart.pos.y);ctx.lineTo(wStart.mx||wStart.pos.x,wStart.my||wStart.pos.y);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;}
+  ctx.restore();
+}
+
+// =====================================================
+// IO CANVAS EVENTS
+// =====================================================
+cv.addEventListener('mousedown',e=>{
+  const{x,y}=toW(e.clientX,e.clientY,cv,px,py,sc);isDown=true;
+  if(tool==='wire'){
+    for(const d of devs){const h=hitPin(d,x,y);if(h){
+      if(!wStart){wStart={...h,mx:x,my:y};setS('Wire started — click destination pin');}
+      else{if(h.dev.id!==wStart.dev.id){iwires.push({id:'w'+Date.now(),fD:wStart.dev.id,fP:wStart.pin.t+wStart.pin.i,ft:wStart.pin.t,tD:h.dev.id,tP:h.pin.t+h.pin.i,x1:wStart.pos.x,y1:wStart.pos.y,x2:h.pos.x,y2:h.pos.y,label:wStart.pin.fn+' → '+h.pin.fn});}wStart=null;}draw();return;}}
+    wStart=null;draw();return;
+  }
+  const d=hitDev(x,y);
+  if(d){selDevId=d.id;dOffX=x-d.x;dOffY=y-d.y;renderRP(d);}
+  else{selDevId=null;renderRP(null);isPan=true;panSX=e.clientX;panSY=e.clientY;}
+  draw();
+});
+cv.addEventListener('mousemove',e=>{
+  const{x,y}=toW(e.clientX,e.clientY,cv,px,py,sc);
+  if(isDown){
+    if(selDevId&&!isPan){const d=devs.find(d=>d.id===selDevId);if(d){d.x=x-dOffX;d.y=y-dOffY;updWires();draw();}}
+    else if(isPan){px+=e.clientX-panSX;py+=e.clientY-panSY;panSX=e.clientX;panSY=e.clientY;draw();}
+  }
+  if(wStart){wStart.mx=x;wStart.my=y;draw();}
+});
+cv.addEventListener('mouseup',()=>{isDown=false;isPan=false;updWires();draw();});
+cv.addEventListener('dblclick',e=>{const{x,y}=toW(e.clientX,e.clientY,cv,px,py,sc);const d=hitDev(x,y);if(d)renDev(d);});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();const r=cv.getBoundingClientRect();const{x,y}=toW(e.clientX,e.clientY,cv,px,py,sc);
+  const d=e.deltaY>0?.88:1.14;sc=Math.max(.25,Math.min(3,sc*d));px=(e.clientX-r.left)-x*sc;py=(e.clientY-r.top)-y*sc;draw();
+},{passive:false});
+
+function updWires(){
+  iwires.forEach(w=>{
+    const fd=devs.find(d=>d.id===w.fD),td=devs.find(d=>d.id===w.tD);if(!fd||!td)return;
+    const ft=w.fP.replace(/\d+/g,''),fi=parseInt(w.fP.replace(/\D/g,''));
+    const tt=w.tP.replace(/\d+/g,''),ti=parseInt(w.tP.replace(/\D/g,''));
+    const fp=[...lPins(fd),...rPins(fd)].find(p=>p.t===ft&&p.i===fi);
+    const tp=[...lPins(td),...rPins(td)].find(p=>p.t===tt&&p.i===ti);
+    if(fp){const pos=pPos(fd,fp);w.x1=pos.x;w.y1=pos.y;}
+    if(tp){const pos=pPos(td,tp);w.x2=pos.x;w.y2=pos.y;}
+  });
+}
+
+// =====================================================
+// ADD DEVICE
+// =====================================================
+function addDevice(key,ax,ay){
+  const t=TMPLS[key];if(!t)return;
+  const id='d'+devCtr++;
+  const cx=((cv.width/2)-px)/sc,cy=((cv.height/2)-py)/sc;
+  devs.push({id,key,label:t.label,brand:t.brand,model:t.model,
+    x:ax!==undefined?ax:cx-DW/2+(devs.length%3)*20,
+    y:ay!==undefined?ay:60+Math.floor(devs.length/3)*25,
+    di:t.di.map(io=>({...io})),do:t.do.map(io=>({...io})),
+    ai:t.ai.map(io=>({...io})),ao:t.ao.map(io=>({...io}))});
+  selDevId=id;renderRP(devs.find(d=>d.id===id));updCnt();draw();setS('Added: '+t.label);autoSave();
+}
+function startDrag(e,k){dragKey=k;e.dataTransfer.setData('text/plain',k);}
+function onDrop(e){
+  e.preventDefault();const k=e.dataTransfer.getData('text/plain')||dragKey;if(!k)return;
+  const r=cv.getBoundingClientRect();addDevice(k,(e.clientX-r.left-px)/sc-DW/2,(e.clientY-r.top-py)/sc-20);
+}
+
+// =====================================================
+// RIGHT PANEL — IO EDITOR
+// =====================================================
+function renderRP(d){
+  const b=document.getElementById('rpBody');
+  if(!d){b.innerHTML='<div class="rpempty"><div style="font-size:26px;opacity:.3">🖱</div><div>Click a VFD device to edit I/O assignments</div></div>';return;}
+  b.innerHTML=`
+    <div class="field"><label>Device Label</label><input value="${es(d.label)}" oninput="updD('${d.id}','label',this.value)"/></div>
+    <div class="field"><label>Brand</label><input value="${es(d.brand)}" oninput="updD('${d.id}','brand',this.value)"/></div>
+    <div class="field"><label>Model</label><input value="${es(d.model)}" oninput="updD('${d.id}','model',this.value)"/></div>
+    ${ioSec(d,'di','DI','#10B981','Digital Inputs')}
+    ${ioSec(d,'do','DO','#F5A623','Digital Outputs')}
+    ${ioSec(d,'ai','AI','#3B82F6','Analog Inputs')}
+    ${ioSec(d,'ao','AO','#A78BFA','Analog Outputs')}
+    <button class="tb dan" style="width:100%;margin-top:8px;justify-content:center" onclick="remDev('${d.id}')">🗑 Remove Device</button>`;
+}
+function ioSec(d,key,type,col,title){
+  return`<div class="iosec" style="color:${col}">${type} — ${title} (${d[key].length})</div>
+    ${d[key].map((io,i)=>`<div class="iorow">
+      <div class="ionum" style="background:${col}22;color:${col}">${type}${String(i+1).padStart(2,'0')}</div>
+      <input class="iotag" value="${es(io.tag)}" placeholder="TAG" oninput="updIO('${d.id}','${key}',${i},'tag',this.value)" title="Terminal Tag"/>
+      <input class="iofn" value="${es(io.fn)}" placeholder="Function name…" oninput="updIO('${d.id}','${key}',${i},'fn',this.value)"/>
+      <button class="iodel" onclick="remIO('${d.id}','${key}',${i})">✕</button>
+    </div>`).join('')}
+    <button class="addio" style="border-color:${col}44;color:${col}" onclick="addIO('${d.id}','${key}','${type}')">＋ Add ${type}</button>`;
+}
+function updD(id,f,v){const d=devs.find(d=>d.id===id);if(d){d[f]=v;draw();autoSave();}}
+function updIO(id,k,i,f,v){const d=devs.find(d=>d.id===id);if(d){d[k][i][f]=v;updWires();draw();autoSave();}}
+function addIO(id,k,type){const d=devs.find(d=>d.id===id);if(!d)return;const n=d[k].length+1;d[k].push({tag:type+String(n).padStart(2,'0'),fn:'New '+type+' Function'});renderRP(d);draw();autoSave();}
+function remIO(id,k,i){const d=devs.find(d=>d.id===id);if(!d)return;d[k].splice(i,1);renderRP(d);draw();autoSave();}
+function remDev(id){devs=devs.filter(d=>d.id!==id);iwires=iwires.filter(w=>w.fD!==id&&w.tD!==id);selDevId=null;renderRP(null);updCnt();draw();autoSave();}
+function deleteSelected(){if(curTab==='io'&&selDevId)remDev(selDevId);else if(curTab==='logic'&&selNId)remNode(selNId);}
+function renDev(d){openModal('Rename Device',`<div class="field"><label>Label</label><input id="rin" value="${es(d.label)}" style="width:100%"/></div>`,()=>{d.label=document.getElementById('rin').value;draw();closeModal();autoSave();});}
+
+// =====================================================
+// LOGIC NODES
+// =====================================================
+const GDEFS={
+  AND:{w:78,h:52,inp:2,out:1,col:'#10B981'},OR:{w:78,h:52,inp:2,out:1,col:'#3B82F6'},
+  NAND:{w:78,h:52,inp:2,out:1,col:'#F59E0B'},NOR:{w:78,h:52,inp:2,out:1,col:'#F59E0B'},
+  XOR:{w:78,h:52,inp:2,out:1,col:'#A78BFA'},NOT:{w:68,h:40,inp:1,out:1,col:'#EF4444'},
+  TON:{w:88,h:62,inp:1,out:1,col:'#00D4FF',timer:true,delay:2000},
+  TOF:{w:88,h:62,inp:1,out:1,col:'#00D4FF',timer:true,delay:2000},
+  SR:{w:78,h:60,inp:2,out:1,col:'#F5A623'},
+  DI_NODE:{w:88,h:42,inp:0,out:1,col:'#10B981'},
+  DO_NODE:{w:88,h:42,inp:1,out:0,col:'#F5A623'},
+  CONST:{w:58,h:38,inp:0,out:1,col:'#4A6080'},
+  PB_NO:{w:70,h:50,inp:0,out:1,col:'#10B981'},
+  PB_NC:{w:70,h:50,inp:0,out:1,col:'#EF4444'},
+};
+
+function addNode(type,ax,ay){
+  const def=GDEFS[type];if(!def)return;
+  const id='n'+nCtr++;
+  const cx=((lv.width/2)-lpx)/lsc,cy=((lv.height/2)-lpy)/lsc;
+  let ioRef=null;
+  if((type==='DI_NODE'||type==='DO_NODE')&&devs.length){
+    const k=type==='DI_NODE'?'di':'do';
+    const d=devs[0];if(d[k].length){ioRef={devId:d.id,devLabel:d.label,tag:d[k][0].tag,fn:d[k][0].fn,key:k,idx:0};}
+  }
+  nodes.push({id,type,label:type,name:ioRef?ioRef.fn:type,
+    x:ax!==undefined?ax:cx-def.w/2+(nodes.length%5)*15,
+    y:ay!==undefined?ay:cy-def.h/2+Math.floor(nodes.length/5)*15,
+    w:def.w,h:def.h,col:def.col,
+    inp:def.inp,out:def.out,
+    inSt:new Array(def.inp).fill(false),outSt:type==='PB_NC',
+    delay:def.delay||2000,
+    tActive:false,tStart:null,
+    inverted:false,constVal:false,ioRef,
+  });
+  selNId=id;renderNI();updCnt();drawLogic();autoSave();setS('Added node: '+type);
+}
+function startGDrag(e,t){gDragType=t;e.dataTransfer.setData('text/plain',t);}
+function onGDrop(e){
+  e.preventDefault();const t=e.dataTransfer.getData('text/plain')||gDragType;if(!t)return;
+  const r=lv.getBoundingClientRect();const def=GDEFS[t];if(!def)return;
+  addNode(t,(e.clientX-r.left-lpx)/lsc-def.w/2,(e.clientY-r.top-lpy)/lsc-def.h/2);
+}
+function remNode(id){nodes=nodes.filter(n=>n.id!==id);lwires=lwires.filter(w=>w.fId!==id&&w.tId!==id);selNId=null;renderNI();updCnt();drawLogic();autoSave();}
+
+// Node geometry
+function nInPos(n,i){if(n.inp===0)return null;const s=n.h/(n.inp+1);return{x:n.x,y:n.y+s*(i+1)};}
+function nOutPos(n){return{x:n.x+n.w,y:n.y+n.h/2};}
+function hitNode(mx,my){for(let i=nodes.length-1;i>=0;i--){const n=nodes[i];if(mx>=n.x&&mx<=n.x+n.w&&my>=n.y&&my<=n.y+n.h)return n;}return null;}
+function hitLWire(px,py){
+  for(let i=lwires.length-1;i>=0;i--){
+    const w=lwires[i];
+    const fn=nodes.find(n=>n.id===w.fId),tn=nodes.find(n=>n.id===w.tId);
+    if(!fn||!tn) continue;
+    const fp=nOutPos(fn),tp=nInPos(tn,w.tIdx);if(!fp||!tp)continue;
+    const mx=(fp.x+tp.x)/2;
+    for(const[x1,y1,x2,y2]of[[fp.x,fp.y,mx,fp.y],[mx,fp.y,mx,tp.y],[mx,tp.y,tp.x,tp.y]]){
+      const len=Math.hypot(x2-x1,y2-y1);if(len<1)continue;
+      const dd=Math.abs((y2-y1)*px-(x2-x1)*py+x2*y1-y2*x1)/len;
+      if(dd<7&&px>=Math.min(x1,x2)-6&&px<=Math.max(x1,x2)+6&&py>=Math.min(y1,y2)-6&&py<=Math.max(y1,y2)+6) return w;
+    }
+  }
+  return null;
+}
+function hitNPin(mx,my){
+  for(const n of nodes){
+    for(let i=0;i<n.inp;i++){const p=nInPos(n,i);if(p&&Math.hypot(p.x-mx,p.y-my)<10)return{node:n,side:'in',idx:i,pos:p};}
+    if(n.out>0){const p=nOutPos(n);if(Math.hypot(p.x-mx,p.y-my)<10)return{node:n,side:'out',idx:0,pos:p};}
+  }
+  return null;
+}
+
+// =====================================================
+// LOGIC CANVAS DRAW
+// =====================================================
+function drawLogic(){
+  lx2.clearRect(0,0,lv.width,lv.height);
+  lx2.save();lx2.translate(lpx,lpy);lx2.scale(lsc,lsc);
+  // logic wires
+  lwires.forEach(w=>{
+    const fn=nodes.find(n=>n.id===w.fId),tn=nodes.find(n=>n.id===w.tId);if(!fn||!tn)return;
+    const fp=nOutPos(fn),tp=nInPos(tn,w.tIdx);if(!fp||!tp)return;
+    const act=fn.outSt;
+    const sel=w.id===selLwId;
+    lx2.strokeStyle=sel?'#00D4FF':(act?fn.col:'#1C2A40');lx2.lineWidth=sel?3.5:(act?2.5:1.5);
+    if(sel)lx2.setLineDash([5,3]);
+    lx2.shadowColor=act?fn.col:'transparent';lx2.shadowBlur=act?8:0;
+    lx2.beginPath();lx2.moveTo(fp.x,fp.y);
+    const mx=(fp.x+tp.x)/2;lx2.lineTo(mx,fp.y);lx2.lineTo(mx,tp.y);lx2.lineTo(tp.x,tp.y);
+    lx2.stroke();lx2.shadowBlur=0;
+    if(sel)lx2.setLineDash([]);
+    if(act&&simOn){const t=(Date.now()%900)/900,bx=fp.x+(mx-fp.x)*t;lx2.fillStyle=fn.col;lx2.beginPath();lx2.arc(bx,fp.y,3,0,Math.PI*2);lx2.fill();}
+  });
+  // nodes
+  nodes.forEach(n=>{
+    const sel=n.id===selNId,act=n.outSt;
+    if(act){lx2.shadowColor=n.col;lx2.shadowBlur=14;}
+    lx2.fillStyle=act?n.col+'22':'#111827';lx2.strokeStyle=sel?'#00D4FF':act?n.col:'#1C2A40';lx2.lineWidth=sel?2:act?1.5:1;
+    rr(lx2,n.x,n.y,n.w,n.h,6,'FS');lx2.shadowBlur=0;
+    // header
+    lx2.fillStyle=n.col+'33';lx2.fillRect(n.x,n.y,n.w,13);
+    lx2.fillStyle=n.col;lx2.font='bold 7px "Share Tech Mono"';lx2.textAlign='center';lx2.fillText(n.type,n.x+n.w/2,n.y+9);
+    // name
+    if(n.type==='PB_NO'||n.type==='PB_NC'){
+      const midY=n.y+n.h/2-3, x1=n.x+n.w*0.30, x2=n.x+n.w*0.70;
+      const lineCol=act?n.col:'#5A7090';
+      lx2.strokeStyle=lineCol;lx2.lineWidth=1.2;
+      lx2.beginPath();lx2.moveTo(n.x+8,midY);lx2.lineTo(x1,midY);lx2.stroke();
+      lx2.beginPath();lx2.moveTo(x2,midY);lx2.lineTo(n.x+n.w-8,midY);lx2.stroke();
+      lx2.lineWidth=2.4;
+      lx2.beginPath();lx2.moveTo(x1,midY-9);lx2.lineTo(x1,midY+9);lx2.stroke();
+      lx2.beginPath();lx2.moveTo(x2,midY-9);lx2.lineTo(x2,midY+9);lx2.stroke();
+      if(n.type==='PB_NC'){lx2.beginPath();lx2.moveTo(x1-3,midY+10);lx2.lineTo(x2+3,midY-10);lx2.stroke();}
+      lx2.fillStyle='#8090A8';lx2.font='7.5px Inter,sans-serif';lx2.textAlign='center';
+      lx2.fillText((n.name||n.label).substring(0,12),n.x+n.w/2,n.y+n.h-5);
+    } else {
+      lx2.fillStyle='#C0CDE0';lx2.font='9px Inter,sans-serif';lx2.textAlign='center';
+      lx2.fillText((n.name||n.label).substring(0,13),n.x+n.w/2,n.y+n.h/2+4);
+    }
+    // timer
+    if((n.type==='TON'||n.type==='TOF')&&n.h>50){lx2.fillStyle='#4A6080';lx2.font='7.5px "Share Tech Mono"';lx2.fillText((n.delay/1000).toFixed(1)+'s',n.x+n.w/2,n.y+n.h-7);}
+    // SR labels
+    if(n.type==='SR'){lx2.fillStyle='#4A6080';lx2.font='7px "Share Tech Mono"';lx2.textAlign='left';lx2.fillText('S',n.x+3,n.y+n.h/3+4);lx2.fillText('R',n.x+3,n.y*2/3+n.h/2+4);}
+    // CONST
+    if(n.type==='CONST'){lx2.fillStyle=n.constVal?'#10B981':'#EF4444';lx2.font='bold 13px "Share Tech Mono"';lx2.textAlign='center';lx2.fillText(n.constVal?'1':'0',n.x+n.w/2,n.y+n.h-8);}
+    // inverted bubble
+    if(n.inverted){lx2.strokeStyle='#EF4444';lx2.lineWidth=1;lx2.beginPath();lx2.arc(n.x+n.w+6,n.y+n.h/2,4,0,Math.PI*2);lx2.stroke();}
+    // input pins
+    for(let i=0;i<n.inp;i++){
+      const p=nInPos(n,i),inA=n.inSt[i];
+      lx2.fillStyle=inA?n.col:'#1C2A40';lx2.strokeStyle=inA?n.col:'#243550';lx2.lineWidth=1;
+      lx2.beginPath();lx2.arc(p.x,p.y,4,0,Math.PI*2);lx2.fill();lx2.stroke();
+      lx2.strokeStyle=inA?n.col:'#243550';lx2.beginPath();lx2.moveTo(p.x,p.y);lx2.lineTo(p.x-8,p.y);lx2.stroke();
+    }
+    // output pin
+    if(n.out>0){
+      const p=nOutPos(n);
+      lx2.fillStyle=act?n.col:'#1C2A40';lx2.strokeStyle=act?n.col:'#243550';lx2.lineWidth=1;
+      lx2.beginPath();lx2.arc(p.x,p.y,4,0,Math.PI*2);lx2.fill();lx2.stroke();
+      lx2.strokeStyle=act?n.col:'#243550';lx2.beginPath();lx2.moveTo(p.x,p.y);lx2.lineTo(p.x+8,p.y);lx2.stroke();
+    }
+    // sim state badge
+    if(simOn&&n.type!=='CONST'){
+      const sc2=act?'#10B981':'#EF4444';
+      lx2.fillStyle=sc2+'33';lx2.strokeStyle=sc2;lx2.lineWidth=.7;
+      lx2.beginPath();lx2.arc(n.x+n.w-5,n.y+5,5,0,Math.PI*2);lx2.fill();lx2.stroke();
+      lx2.fillStyle=sc2;lx2.font='bold 6.5px "Share Tech Mono"';lx2.textAlign='center';lx2.fillText(act?'1':'0',n.x+n.w-5,n.y+7.5);
+    }
+    lx2.textAlign='left';
+    if(sel){lx2.strokeStyle='rgba(0,212,255,.2)';lx2.setLineDash([3,3]);lx2.lineWidth=1;lx2.strokeRect(n.x-5,n.y-5,n.w+10,n.h+10);lx2.setLineDash([]);}
+  });
+  // in-progress wire
+  if(lwStart){lx2.strokeStyle=lwStart.node.col;lx2.lineWidth=1.5;lx2.setLineDash([5,5]);lx2.globalAlpha=.5;lx2.beginPath();lx2.moveTo(lwStart.pos.x,lwStart.pos.y);lx2.lineTo(lwStart.mx||lwStart.pos.x,lwStart.my||lwStart.pos.y);lx2.stroke();lx2.setLineDash([]);lx2.globalAlpha=1;}
+  lx2.restore();
+}
+
+// =====================================================
+// LOGIC CANVAS EVENTS
+// =====================================================
+lv.addEventListener('mousedown',e=>{
+  const{x,y}=toW(e.clientX,e.clientY,lv,lpx,lpy,lsc);lDown=true;lDX=e.clientX;lDY=e.clientY;
+  // pin hit check
+  const ph=hitNPin(x,y);
+  if(ph){
+    if(!lwStart){lwStart={...ph,mx:x,my:y};}
+    else{
+      const from=lwStart.side==='out'?lwStart:ph,to=lwStart.side==='in'?lwStart:ph;
+      if(from.node.id!==to.node.id&&from.side==='out'&&to.side==='in'){
+        lwires=lwires.filter(w=>!(w.tId===to.node.id&&w.tIdx===to.idx));
+        lwires.push({id:'lw'+Date.now(),fId:from.node.id,tId:to.node.id,tIdx:to.idx});
+        setS('Logic wire connected');autoSave();
+      }
+      lwStart=null;
+    }
+    drawLogic();return;
+  }
+  // sim toggle DI click
+  if(simOn){
+    const n=hitNode(x,y);
+    if(n&&(n.type==='DI_NODE'||n.type==='PB_NO'||n.type==='PB_NC')){n.outSt=!n.outSt;propagate();drawLogic();renderSimState();return;}
+    if(n&&n.type==='CONST'){n.constVal=!n.constVal;n.outSt=n.constVal;propagate();drawLogic();renderSimState();return;}
+  }
+  const n=hitNode(x,y);
+  if(n){selNId=n.id;selLwId=null;lNOX=x-n.x;lNOY=y-n.y;renderNI();lPan=false;}
+  else{
+    const w=hitLWire(x,y);
+    if(w){selLwId=w.id;selNId=null;renderNI();lPan=false;}
+    else{selNId=null;selLwId=null;renderNI();lPan=true;}
+  }
+  drawLogic();
+});
+lv.addEventListener('mousemove',e=>{
+  const{x,y}=toW(e.clientX,e.clientY,lv,lpx,lpy,lsc);
+  if(lDown){
+    if(selNId&&!lPan){const n=nodes.find(n=>n.id===selNId);if(n){n.x=x-lNOX;n.y=y-lNOY;drawLogic();}}
+    else if(lPan){lpx+=e.clientX-lDX;lpy+=e.clientY-lDY;lDX=e.clientX;lDY=e.clientY;drawLogic();}
+  }
+  if(lwStart){lwStart.mx=x;lwStart.my=y;drawLogic();}
+});
+lv.addEventListener('mouseup',()=>{lDown=false;lPan=false;autoSave();});
+lv.addEventListener('dblclick',e=>{const{x,y}=toW(e.clientX,e.clientY,lv,lpx,lpy,lsc);const n=hitNode(x,y);if(n){selNId=n.id;renderNI();}});
+lv.addEventListener('wheel',e=>{
+  e.preventDefault();const r=lv.getBoundingClientRect();const{x,y}=toW(e.clientX,e.clientY,lv,lpx,lpy,lsc);
+  const d=e.deltaY>0?.88:1.14;lsc=Math.max(.2,Math.min(4,lsc*d));lpx=(e.clientX-r.left)-x*lsc;lpy=(e.clientY-r.top)-y*lsc;drawLogic();
+},{passive:false});
+
+// =====================================================
+// NODE INSPECTOR
+// =====================================================
+function renderNI(){
+  const el=document.getElementById('nodeInsp');
+  if(!selNId){el.innerHTML='<div class="lpempty">Click a logic node to inspect and configure it.</div>';return;}
+  const n=nodes.find(n=>n.id===selNId);if(!n){el.innerHTML='';return;}
+  let ioOpts='<option value="">— Select terminal —</option>';
+  if(n.type==='DI_NODE'||n.type==='DO_NODE'){
+    const k=n.type==='DI_NODE'?'di':'do';
+    devs.forEach(d=>d[k].forEach((io,i)=>{
+      const v=d.id+'_'+i,s=(n.ioRef&&n.ioRef.devId===d.id&&n.ioRef.idx===i)?'selected':'';
+      ioOpts+=`<option value="${v}" ${s}>${es(d.label)} · ${es(io.tag)} — ${es(io.fn)}</option>`;
+    }));
+  }
+  el.innerHTML=`
+  <div class="lpsec">
+    <div class="lptitle">${n.type} NODE</div>
+    <div style="margin-bottom:6px"><span class="plabel">Name / Label</span></div>
+    <input class="minp" style="width:100%;margin-bottom:8px" value="${es(n.name||'')}" oninput="updN('${n.id}','name',this.value)"/>
+    ${(n.type==='DI_NODE'||n.type==='DO_NODE')?`
+    <div style="margin-bottom:4px"><span class="plabel">Assigned Terminal</span></div>
+    <select class="msel" style="width:100%;margin-bottom:8px" onchange="assignIO('${n.id}',this.value)">${ioOpts}</select>`:``}
+    ${(n.type==='TON'||n.type==='TOF')?`<div class="prow"><span class="plabel">Delay (ms)</span><input class="minp" type="number" value="${n.delay}" min="100" step="100" oninput="updN('${n.id}','delay',+this.value)"/></div>`:``}
+    ${n.type==='CONST'?`<div class="prow"><span class="plabel">Constant Value</span><button class="togbtn ${n.constVal?'on':'off'}" onclick="togConst('${n.id}')">${n.constVal?'HIGH (1)':'LOW (0)'}</button></div>`:``}
+    ${(n.type==='PB_NO'||n.type==='PB_NC')?`<div class="prow"><span class="plabel">Button State</span><button class="togbtn ${n.outSt?'on':'off'}" onclick="togPB('${n.id}')">${n.outSt?'PRESSED (contact made)':'RELEASED'}</button></div><div style="font-size:9px;color:var(--muted);font-family:var(--mono);margin-bottom:6px">${n.type==='PB_NO'?'Normally open — resets to LOW when you hit Reset All States.':'Normally closed — resets to HIGH (passing) when you hit Reset All States.'}</div>`:``}
+    ${(n.type!=='DI_NODE'&&n.type!=='DO_NODE'&&n.type!=='CONST'&&n.type!=='NOT'&&n.type!=='SR'&&n.type!=='PB_NO'&&n.type!=='PB_NC')?`<div class="prow"><span class="plabel">Input Count</span><select class="msel" onchange="updN('${n.id}','inp',+this.value)">${[1,2,3,4].map(v=>`<option ${n.inp===v?'selected':''}>${v}</option>`).join('')}</select></div>`:``}
+    <div class="prow"><span class="plabel">Invert Output</span><button class="togbtn ${n.inverted?'on':'off'}" onclick="togInv('${n.id}')">${n.inverted?'YES — Inverted':'NO — Normal'}</button></div>
+    <div class="prow" style="margin-top:6px"><span class="plabel">Output State</span><span class="sbadge ${n.outSt?'on':'off'}">${n.outSt?'▲ HIGH':'▼ LOW'}</span></div>
+  </div>
+  <div class="lpsec"><div style="display:flex;gap:6px">
+    <button class="tb dan" style="flex:1;justify-content:center" onclick="remNode('${n.id}')">🗑 Delete</button>
+    <button class="tb" style="flex:1;justify-content:center" onclick="dupNode('${n.id}')">⧉ Duplicate</button>
+  </div></div>`;
+}
+function updN(id,f,v){const n=nodes.find(n=>n.id===id);if(!n)return;if(f==='inp'){n.inp=v;n.inSt=new Array(v).fill(false);lwires=lwires.filter(w=>!(w.tId===id&&w.tIdx>=v));}else n[f]=v;drawLogic();renderNI();autoSave();}
+function togInv(id){const n=nodes.find(n=>n.id===id);if(!n)return;n.inverted=!n.inverted;propagate();drawLogic();renderNI();autoSave();}
+function togConst(id){const n=nodes.find(n=>n.id===id);if(!n)return;n.constVal=!n.constVal;n.outSt=n.constVal;propagate();drawLogic();renderNI();renderSimState();autoSave();}
+function togPB(id){const n=nodes.find(n=>n.id===id);if(!n)return;n.outSt=!n.outSt;propagate();drawLogic();renderNI();renderSimState();autoSave();}
+function assignIO(nid,v){
+  const n=nodes.find(n=>n.id===nid);if(!n||!v)return;
+  const[dId,iStr]=v.split('_'),idx=parseInt(iStr);
+  const d=devs.find(d=>d.id===dId);if(!d)return;
+  const k=n.type==='DI_NODE'?'di':'do';const io=d[k][idx];if(!io)return;
+  n.ioRef={devId:dId,devLabel:d.label,tag:io.tag,fn:io.fn,key:k,idx};n.name=io.fn;
+  drawLogic();renderNI();autoSave();
+}
+function dupNode(id){const n=nodes.find(n=>n.id===id);if(!n)return;const c=JSON.parse(JSON.stringify(n));c.id='n'+nCtr++;c.x+=28;c.y+=28;c.outSt=false;c.inSt=new Array(c.inp).fill(false);nodes.push(c);selNId=c.id;renderNI();drawLogic();autoSave();}
+
+// =====================================================
+// LOGIC SIMULATION
+// =====================================================
+function evalNode(n){
+  const ins=n.inSt;let out=false;
+  switch(n.type){
+    case 'AND': out=ins.length>0&&ins.every(Boolean);break;
+    case 'OR': out=ins.some(Boolean);break;
+    case 'NAND': out=!(ins.length>0&&ins.every(Boolean));break;
+    case 'NOR': out=!ins.some(Boolean);break;
+    case 'XOR': out=ins.filter(Boolean).length===1;break;
+    case 'NOT': out=!ins[0];break;
+    case 'SR': if(ins[0])n.outSt=true;if(ins[1])n.outSt=false;return n.outSt;
+    case 'CONST': return n.constVal;
+    case 'DI_NODE': return n.outSt;
+    case 'PB_NO': return n.outSt;
+    case 'PB_NC': return n.outSt;
+    case 'DO_NODE': return ins[0]||false;
+    case 'TON':
+      if(ins[0]){if(!n.tActive){n.tActive=true;n.tStart=Date.now();}out=(Date.now()-n.tStart)>=n.delay;}
+      else{n.tActive=false;n.tStart=null;out=false;}break;
+    case 'TOF':
+      if(ins[0]){n.tActive=false;n.tStart=null;out=true;}
+      else{if(!n.tActive){n.tActive=true;n.tStart=Date.now();}out=(Date.now()-n.tStart)<n.delay;}break;
+    default: out=false;
+  }
+  if(n.inverted&&!['NOT','NAND','NOR'].includes(n.type))out=!out;
+  return out;
+}
+function propagate(){
+  const vis=new Set();
+  function visit(n){
+    if(vis.has(n.id))return;
+    for(let i=0;i<n.inp;i++){
+      const w=lwires.find(w=>w.tId===n.id&&w.tIdx===i);
+      if(w){const src=nodes.find(nd=>nd.id===w.fId);if(src&&!vis.has(src.id))visit(src);n.inSt[i]=src?src.outSt:false;}
+      else n.inSt[i]=false;
+    }
+    n.outSt=evalNode(n);vis.add(n.id);
+  }
+  nodes.forEach(n=>visit(n));
+}
+function toggleSim(){
+  simOn=!simOn;
+  const btns=[document.getElementById('simBtn'),document.getElementById('simStageBtn')].filter(Boolean);
+  const dot=document.getElementById('simDot'),stat=document.getElementById('simStat');
+  btns.forEach(btn=>{
+    if(simOn){btn.textContent='⏹ Stop Simulation';btn.style.borderColor='var(--red)';btn.style.color='var(--red)';}
+    else{btn.textContent='▶ Run Simulation';btn.style.borderColor='var(--green)';btn.style.color='var(--green)';}
+  });
+  if(simOn){dot.classList.add('on');stat.textContent='Running';stat.style.color='var(--green)';simTick=setInterval(()=>{propagate();drawLogic();renderSimState();sSimulate();},100);setS('Simulation running — click pushbuttons/selectors to test');}
+  else{clearInterval(simTick);simTick=null;dot.classList.remove('on');stat.textContent='Stopped';stat.style.color='var(--muted)';setS('Simulation stopped');}
+  drawLogic();renderSimState();sSimulate();
+}
+function resetSim(){
+  nodes.forEach(n=>{n.outSt = n.type==='PB_NC'; if(n.type==='CONST')n.outSt=n.constVal; n.inSt=n.inSt.map(()=>false);n.tActive=false;n.tStart=null;});
+  sComps.forEach(c=>{
+    if(c.type==='VFD') return;
+    const d=sDEFS[c.type];
+    c.closed=d.defClosed||false;c.energized=false;c.pressed=false;c.ssPos=0;
+    c.tVal=0;c.tDone=false;c.tRun=false;c.tStart=0;c.tAccum=0;
+  });
+  propagate();drawLogic();renderSimState();sSimulate();
+}
+function renderSimState(){
+  const el=document.getElementById('simStateEl'),bar=document.getElementById('simBar');
+  const dI=nodes.filter(n=>n.type==='DI_NODE'||n.type==='PB_NO'||n.type==='PB_NC'),dO=nodes.filter(n=>n.type==='DO_NODE');
+  if(!dI.length&&!dO.length){el.innerHTML='<div style="font-family:var(--mono);font-size:9px;color:var(--muted)">Add DI/DO nodes to see live states.</div>';bar.innerHTML='';return;}
+  el.innerHTML=[...dI,...dO].map(n=>`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px"><span style="font-size:9px;color:var(--muted);font-family:var(--mono)">${n.type}</span><span style="font-size:9px;color:var(--text)">${(n.name||'').substring(0,16)}</span><span class="sbadge ${n.outSt?'on':'off'}">${n.outSt?'HIGH':'LOW'}</span></div>`).join('');
+  bar.innerHTML=[...dI,...dO].map(n=>`<div style="display:flex;align-items:center;gap:5px"><div class="simdot ${n.outSt?'on':''}" style="background:${n.outSt?n.col:'#1C2A40'};box-shadow:${n.outSt?'0 0 6px '+n.col:'none'}"></div><span style="font-size:8px;color:var(--text)">${(n.name||n.type).substring(0,12)}</span></div>`).join('');
+}
+
+// =====================================================
+// WIRING DIAGRAM
+// =====================================================
+function showWiring(){
+  const ov=document.getElementById('wireOv');ov.classList.add('show');
+  const wc2=document.getElementById('wc');
+  wc2.width=ov.clientWidth;wc2.height=ov.clientHeight-50;
+  drawWD(wc2.getContext('2d'),wc2.width,wc2.height);
+}
+function drawWD(c,W,H){
+  c.fillStyle='#070B12';c.fillRect(0,0,W,H);
+  c.strokeStyle='rgba(0,212,255,.04)';c.lineWidth=1;
+  for(let x=0;x<W;x+=28){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();}
+  for(let y=0;y<H;y+=28){c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();}
+  if(!devs.length){c.fillStyle='#4A6080';c.font='13px "Share Tech Mono"';c.textAlign='center';c.fillText('No devices. Add VFD templates first.',W/2,H/2);return;}
+  const cw=Math.max(250,(W-16)/devs.length);
+  const ioT=[{k:'di',r:16,g:185,b:129,l:'DI',f:'Digital Input'},{k:'do',r:245,g:166,b:35,l:'DO',f:'Digital Output'},{k:'ai',r:59,g:130,b:246,l:'AI',f:'Analog Input'},{k:'ao',r:167,g:139,b:250,l:'AO',f:'Analog Output'}];
+  const sY=62,rH=21;
+  devs.forEach((d,di)=>{
+    const cx=8+di*cw,cwd=cw-6;
+    c.fillStyle='#0D2137';c.strokeStyle='#00D4FF';c.lineWidth=1.2;
+    rr(c,cx,12,cwd,34,4,'FS');
+    c.fillStyle='#00D4FF';c.font='bold 9.5px "Share Tech Mono"';c.textAlign='left';c.fillText(d.label.substring(0,22),cx+4,26);
+    c.fillStyle='#4A6080';c.font='7px "Share Tech Mono"';c.fillText(d.brand+' '+d.model,cx+4,38);
+    let ry=sY;
+    ioT.forEach(({k,r,g,b,l,f})=>{
+      if(!d[k].length)return;
+      c.fillStyle=`rgba(${r},${g},${b},.14)`;c.fillRect(cx,ry,cwd,14);
+      c.fillStyle=`rgb(${r},${g},${b})`;c.font='bold 7.5px "Share Tech Mono"';c.textAlign='left';c.fillText('── '+l+'  '+f,cx+3,ry+9);ry+=14;
+      d[k].forEach((io,i)=>{
+        if(ry>H-8)return;
+        c.fillStyle=i%2===0?'#0E1420':'#111827';c.fillRect(cx,ry,cwd,rH-1);
+        c.fillStyle=`rgb(${r},${g},${b})`;c.font='bold 7px "Share Tech Mono"';c.fillText(io.tag,cx+3,ry+8);
+        const tw=c.measureText(io.tag).width+6;
+        c.fillStyle='#C0CDE0';c.font='9px Inter,sans-serif';c.fillText(io.fn.substring(0,26),cx+tw+3,ry+9);
+        c.fillStyle=`rgb(${r},${g},${b})`;c.beginPath();c.arc(cx+cwd-7,ry+rH/2-1,3,0,Math.PI*2);c.fill();
+        c.strokeStyle=`rgb(${r},${g},${b})`;c.lineWidth=1;c.beginPath();c.moveTo(cx,ry+rH/2-1);c.lineTo(cx-7,ry+rH/2-1);c.stroke();
+        c.strokeRect(cx-11,ry+rH/2-4,6,5);
+        ry+=rH;
+      });
+    });
+    c.strokeStyle='#1C2A40';c.lineWidth=.5;c.strokeRect(cx,sY-2,cwd,ry-sY+4);
+  });
+  // cross wires
+  iwires.forEach((w,wi)=>{
+    const fd=devs.find(d=>d.id===w.fD),td=devs.find(d=>d.id===w.tD);if(!fd||!td)return;
+    const fi=devs.indexOf(fd),ti=devs.indexOf(td);
+    const fx=8+fi*cw+cw-6,tx=8+ti*cw;const wy=sY+28+wi*7;
+    const col=pCol(w.ft);c.strokeStyle=col;c.lineWidth=1.1;c.setLineDash([5,3]);
+    c.beginPath();c.moveTo(fx,wy);c.lineTo(tx,wy);c.stroke();c.setLineDash([]);
+    c.fillStyle=col;c.font='7px "Share Tech Mono"';c.textAlign='center';c.fillText(w.label.substring(0,28),(fx+tx)/2,wy-2);
+  });
+}
+
+// =====================================================
+// PDF EXPORT
+// =====================================================
+function doWiringPDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210,M=10;
+  doc.setFillColor(7,11,18);doc.rect(0,0,W,H,'F');
+  doc.setFillColor(13,20,39);doc.rect(0,0,W,17,'F');
+  doc.setDrawColor(0,212,255);doc.setLineWidth(.3);doc.line(0,17,W,17);
+  doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(0,212,255);
+  doc.text('VFD I/O WIRING DIAGRAM',M,11);
+  doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.setTextColor(74,96,128);
+  doc.text('Project: '+document.getElementById('pname').value+'   Date: '+new Date().toLocaleDateString('en-IN')+'   Apna Electromechanic Service',M,16);
+  let y=22;
+  const cw=(W-M*2)/Math.max(devs.length,1);
+  const ioT=[{k:'di',r:16,g:185,b:129,l:'DI',f:'Digital Input'},{k:'do',r:245,g:166,b:35,l:'DO',f:'Digital Output'},{k:'ai',r:59,g:130,b:246,l:'AI',f:'Analog Input'},{k:'ao',r:167,g:139,b:250,l:'AO',f:'Analog Output'}];
+  devs.forEach((d,di)=>{
+    const cx=M+di*cw,cwd=cw-3;
+    doc.setFillColor(13,33,55);doc.setDrawColor(0,212,255);doc.setLineWidth(.4);doc.roundedRect(cx,y,cwd,10,1,1,'FD');
+    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(0,212,255);doc.text(d.label.substring(0,22),cx+2,y+6);
+    doc.setFontSize(5.5);doc.setFont('helvetica','normal');doc.setTextColor(100,130,160);doc.text(d.brand+' '+d.model,cx+2,y+9.5);
+    let ry=y+12;
+    ioT.forEach(({k,r,g,b,l,f})=>{
+      if(!d[k].length)return;
+      doc.setFillColor(r,g,b,28);doc.rect(cx,ry,cwd,4,'F');
+      doc.setFontSize(5);doc.setFont('helvetica','bold');doc.setTextColor(r,g,b);doc.text(l+' — '+f,cx+1.5,ry+2.8);ry+=4;
+      d[k].forEach((io,i)=>{
+        if(ry>H-8)return;
+        doc.setFillColor(i%2===0?14:17,i%2===0?20:24,i%2===0?39:43);doc.rect(cx,ry,cwd,4.2,'F');
+        doc.setFontSize(5.5);doc.setFont('helvetica','bold');doc.setTextColor(r,g,b);doc.text(io.tag,cx+1,ry+3);
+        doc.setFont('helvetica','normal');doc.setTextColor(192,205,224);doc.text(io.fn.substring(0,28),cx+13,ry+3);
+        doc.setFillColor(r,g,b);doc.circle(cx+cwd-3,ry+2,1.5,'F');
+        ry+=4.2;
+      });
+    });
+    doc.setDrawColor(28,42,64);doc.setLineWidth(.2);doc.rect(cx,y,cwd,ry-y);
+  });
+  // Logic summary section
+  if(nodes.length){
+    const ly=H-40;
+    doc.setFillColor(13,20,39);doc.rect(M,ly,W-M*2,38,'F');
+    doc.setDrawColor(167,139,250);doc.setLineWidth(.3);doc.rect(M,ly,W-M*2,38);
+    doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(167,139,250);doc.text('LOGIC DIAGRAM SUMMARY',M+2,ly+5.5);
+    doc.setLineWidth(.2);doc.setDrawColor(28,42,64);doc.line(M,ly+7.5,W-M,ly+7.5);
+    let lxp=M+2,lyp=ly+13;
+    nodes.forEach(n=>{
+      const col=n.col==='#10B981'?[16,185,129]:n.col==='#F5A623'?[245,166,35]:n.col==='#3B82F6'?[59,130,246]:n.col==='#EF4444'?[239,68,68]:n.col==='#A78BFA'?[167,139,250]:[0,212,255];
+      doc.setFillColor(...col);doc.roundedRect(lxp,lyp-3,2.5,2.5,.5,.5,'F');
+      doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(192,205,224);
+      const txt=n.type+(n.name?' ('+n.name.substring(0,14)+')':'')+(n.inverted?' [INV]':'')+(n.type==='TON'||n.type==='TOF'?' ['+n.delay+'ms]':'');
+      doc.text(txt,lxp+4,lyp);lyp+=5.5;if(lyp>H-4){lxp+=(W-M*2)/3;lyp=ly+13;}
+    });
+  }
+  // Wire connections
+  if(iwires.length){
+    const wy2=nodes.length?H-75:H-40;
+    if(wy2>80){
+      doc.setFillColor(10,18,32);doc.rect(M,wy2,W-M*2,32,'F');
+      doc.setDrawColor(0,212,255);doc.setLineWidth(.25);doc.rect(M,wy2,W-M*2,32);
+      doc.setFontSize(6.5);doc.setFont('helvetica','bold');doc.setTextColor(0,212,255);doc.text('WIRE CONNECTIONS',M+2,wy2+5);
+      doc.setLineWidth(.15);doc.setDrawColor(28,42,64);doc.line(M,wy2+7,W-M,wy2+7);
+      let wx2=M+2,wyy=wy2+12;
+      iwires.forEach(w=>{
+        const fd=devs.find(d=>d.id===w.fD),td=devs.find(d=>d.id===w.tD);if(!fd||!td)return;
+        const col=pCol(w.ft);const[r,g,b]=col==='#10B981'?[16,185,129]:col==='#F5A623'?[245,166,35]:col==='#3B82F6'?[59,130,246]:[167,139,250];
+        doc.setFillColor(r,g,b);doc.circle(wx2+1.5,wyy-1.2,1.5,'F');
+        doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(192,205,224);
+        doc.text(w.fP+' ('+fd.label+') → '+w.tP+' ('+td.label+'): '+(w.label||'').substring(0,28),wx2+5,wyy);
+        wyy+=5.5;if(wyy>wy2+30){wx2+=(W-M*2)/2;wyy=wy2+12;}
+      });
+    }
+  }
+  // Legend
+  doc.setFillColor(10,27,48);doc.rect(W-42,20,32,19,'F');
+  [[16,185,129,'DI — Digital Input'],[245,166,35,'DO — Digital Output'],[59,130,246,'AI — Analog Input'],[167,139,250,'AO — Analog Output']].forEach(([r,g,b,l],i)=>{doc.setFillColor(r,g,b);doc.rect(W-41,23+i*3.5,2.5,2,'F');doc.setFontSize(5);doc.setTextColor(192,205,224);doc.text(l,W-37,25+i*3.5);});
+  doc.save('Wiring_'+document.getElementById('pname').value+'.pdf');
+}
+function exportPDF(){showWiring();setTimeout(doWiringPDF,350);}
+
+// =====================================================
+// CIRCUIT SIMULATOR — external wiring (pushbuttons, relays,
+// selectors, contacts, timers) wired directly to real VFD
+// DI/DO terminals. The VFD's own DO state is computed by
+// whatever internal logic you built in the Logic Editor tab.
+// =====================================================
+const simc=document.getElementById('simc');
+const sctx=simc.getContext('2d');
+const VFD_W=190;
+const sON='#16a34a',sOFF='#4A6080',sAMB='#d97706';
+
+const sDEFS={
+  NO_PB:{w:60,h:60,termY:30,cat:'pb',desc:'NO Pushbutton',defClosed:false},
+  NC_PB:{w:60,h:60,termY:30,cat:'pb',desc:'NC Pushbutton',defClosed:true},
+  SS2:{w:70,h:60,termY:22,cat:'ss2',desc:'2-Pos Selector',defClosed:false},
+  SS3:{w:70,h:60,termY:20,cat:'ss3',desc:'3-Pos Selector',defClosed:false},
+  NO_C:{w:56,h:50,termY:25,cat:'contact',desc:'NO Aux Contact',defClosed:false},
+  NC_C:{w:56,h:50,termY:25,cat:'contact',desc:'NC Aux Contact',defClosed:true},
+  RELAY:{w:70,h:50,termY:25,cat:'coil',desc:'Control Relay'},
+  KM:{w:70,h:50,termY:25,cat:'coil',desc:'Contactor'},
+  LAMP:{w:56,h:56,termY:28,cat:'output',desc:'Pilot Lamp'},
+  SOL:{w:60,h:50,termY:25,cat:'output',desc:'Solenoid'},
+  TON:{w:76,h:56,termY:28,cat:'timer',desc:'On-Delay Timer',preset:3000},
+  TOF:{w:76,h:56,termY:28,cat:'timer',desc:'Off-Delay Timer',preset:3000},
+  TOFR:{w:76,h:56,termY:28,cat:'timer',desc:'Retentive Timer',preset:3000},
+  POT:{w:70,h:56,termY:28,cat:'analog_src',desc:'Potentiometer'},
+  AMETER:{w:66,h:50,termY:25,cat:'analog_meter',desc:'Analog Meter'},
+};
+
+let sComps=[],sWires=[],sNid=1;
+let sMode='select',sPlaceT=null,sWireA=null,sSelId=null;
+let sDragC=null,sDragOff={x:0,y:0};
+let sPanning=false,sPanStartX=0,sPanStartY=0;
+let sMouse={x:0,y:0};
+
+function devOf(c){return devs.find(d=>d.id===c.devId);}
+function vfdPinDefs(dev){
+  if(!dev) return [];
+  const arr=[];
+  dev.di.forEach((io,i)=>arr.push({key:'di'+i,t:'DI',i,tag:io.tag,fn:io.fn}));
+  dev.do.forEach((io,i)=>arr.push({key:'do'+i,t:'DO',i,tag:io.tag,fn:io.fn}));
+  dev.ai.forEach((io,i)=>arr.push({key:'ai'+i,t:'AI',i,tag:io.tag,fn:io.fn}));
+  dev.ao.forEach((io,i)=>arr.push({key:'ao'+i,t:'AO',i,tag:io.tag,fn:io.fn}));
+  return arr;
+}
+function vfdPinSplit(dev){
+  if(!dev) return {left:[],right:[]};
+  const left=[],right=[];
+  dev.di.forEach((io,i)=>left.push({key:'di'+i,t:'DI',i,tag:io.tag,fn:io.fn}));
+  dev.do.forEach((io,i)=>left.push({key:'do'+i,t:'DO',i,tag:io.tag,fn:io.fn}));
+  dev.ai.forEach((io,i)=>right.push({key:'ai'+i,t:'AI',i,tag:io.tag,fn:io.fn}));
+  dev.ao.forEach((io,i)=>right.push({key:'ao'+i,t:'AO',i,tag:io.tag,fn:io.fn}));
+  return {left,right};
+}
+function vfdBoxH(dev){const{left,right}=vfdPinSplit(dev);return 40+Math.max(left.length,right.length,1)*22+16;}
+function potValue(c){
+  const pct=Math.max(0,Math.min(100,c.pct||0));
+  if(c.mode==='0-10V') return +(pct/100*10).toFixed(2);
+  return +(4+pct/100*16).toFixed(2);
+}
+
+function sMk(type,x,y,extra){
+  if(type==='VFD') return {id:'sc'+(sNid++),type,x,y,devId:extra.devId,aoVals:{}};
+  const d=sDEFS[type];
+  const base={id:'sc'+(sNid++),type,x,y,tag:'',label:d.desc.split(' ')[0]+(sNid-1),
+    closed:d.defClosed||false,energized:false,pressed:false,ssPos:0,
+    preset:d.preset||3000,tVal:0,tDone:false,tRun:false,tStart:0,tAccum:0};
+  if(type==='POT'){base.mode='4-20mA';base.pct=50;}
+  if(type==='AMETER'){base.reading=undefined;}
+  return base;
+}
+function sDimOf(c){
+  if(c.type==='VFD'){const dv=devOf(c);return{w:VFD_W,h:vfdBoxH(dv)};}
+  const d=sDEFS[c.type];return{w:d.w,h:d.h};
+}
+function sTerms(c){
+  if(c.type==='VFD'){
+    const dv=devOf(c);if(!dv)return{};
+    const out={};
+    const{left,right}=vfdPinSplit(dv);
+    left.forEach((p,idx)=>{out[p.key]={x:-14,y:40+idx*22+11};});
+    right.forEach((p,idx)=>{out[p.key]={x:VFD_W+14,y:40+idx*22+11};});
+    return out;
+  }
+  if(c.type==='POT'||c.type==='AMETER'){
+    const d=sDEFS[c.type];return{SIG:{x:0,y:d.termY}};
+  }
+  const d=sDEFS[c.type];return{L:{x:0,y:d.termY},R:{x:d.w,y:d.termY}};
+}
+function sTwp(c,p){const t=sTerms(c)[p];return t?{x:c.x+t.x,y:c.y+t.y}:{x:c.x,y:c.y};}
+function sSnap(v){return Math.round(v/20)*20;}
+function sRawPt(e){return toW(e.clientX,e.clientY,simc,simPx,simPy,simSc);}
+function sSnPt(e){const p=sRawPt(e);return{x:sSnap(p.x),y:sSnap(p.y)};}
+
+function sNearTerm(px,py){
+  for(const c of sComps){
+    for(const[p,t]of Object.entries(sTerms(c))){
+      if(Math.hypot(px-c.x-t.x,py-c.y-t.y)<14) return{c,p};
+    }
+  }
+  return null;
+}
+function sNearComp(px,py){
+  for(let i=sComps.length-1;i>=0;i--){
+    const c=sComps[i],dim=sDimOf(c);
+    if(px>=c.x&&px<=c.x+dim.w&&py>=c.y&&py<=c.y+dim.h) return c;
+  }
+  return null;
+}
+function sNearWire(px,py){
+  for(let i=sWires.length-1;i>=0;i--){
+    const w=sWires[i];
+    const fc=sComps.find(c=>c.id===w.fId),tc=sComps.find(c=>c.id===w.tId);
+    if(!fc||!tc) continue;
+    const fp=sTwp(fc,w.fp),tp=sTwp(tc,w.tp),mx=(fp.x+tp.x)/2;
+    for(const[x1,y1,x2,y2]of[[fp.x,fp.y,mx,fp.y],[mx,fp.y,mx,tp.y],[mx,tp.y,tp.x,tp.y]]){
+      const len=Math.hypot(x2-x1,y2-y1);if(len<1)continue;
+      const dd=Math.abs((y2-y1)*px-(x2-x1)*py+x2*y1-y2*x1)/len;
+      if(dd<7&&px>=Math.min(x1,x2)-6&&px<=Math.max(x1,x2)+6&&py>=Math.min(y1,y2)-6&&py<=Math.max(y1,y2)+6) return w;
+    }
+  }
+  return null;
+}
+function sSsArrow(c,px,py){
+  const d=sDEFS[c.type];
+  const kx=c.x+d.w/2,ky=c.y+(d.cat==='ss3'?20:22);
+  if(Math.abs(py-ky)>12) return null;
+  if(px>=c.x&&px<=kx-14) return 'L';
+  if(px>kx+14&&px<=c.x+d.w) return 'R';
+  return null;
+}
+
+function sConducts(c){
+  if(c.type==='VFD') return false;
+  const d=sDEFS[c.type];
+  if(d.cat==='pb'||d.cat==='contact') return c.closed;
+  if(d.cat==='ss2') return c.ssPos===0;
+  if(d.cat==='timer') return c.tDone;
+  return false;
+}
+
+function sRunTimer(c,powered){
+  const d=sDEFS[c.type];
+  const now=performance.now();
+  if(d.cat!=='timer') return;
+  if(c.type==='TON'){
+    if(powered&&!c.tRun){c.tRun=true;c.tStart=now-c.tVal;}
+    if(!powered){c.tRun=false;c.tVal=0;c.tDone=false;}
+    if(c.tRun){c.tVal=now-c.tStart;if(c.tVal>=c.preset){c.tVal=c.preset;c.tDone=true;}}
+  } else if(c.type==='TOF'){
+    if(powered){c.tDone=true;c.tRun=false;c.tVal=0;}
+    else{
+      if(c.tDone&&!c.tRun){c.tRun=true;c.tStart=now;}
+      if(c.tRun){c.tVal=now-c.tStart;if(c.tVal>=c.preset){c.tVal=c.preset;c.tDone=false;c.tRun=false;}}
+    }
+  } else if(c.type==='TOFR'){
+    if(powered){
+      if(!c.tRun){c.tRun=true;c.tStart=now-c.tAccum;}
+      c.tVal=now-c.tStart;c.tAccum=c.tVal;
+      if(c.tVal>=c.preset){c.tVal=c.preset;c.tDone=true;}
+    } else {c.tRun=false;}
+  }
+}
+
+function sSimulateOnce(depth){
+  depth=depth||0;
+  const pwr=new Set();
+  sComps.forEach(c=>{
+    if(c.type==='VFD'||c.type==='POT'||c.type==='AMETER') return;
+    const d=sDEFS[c.type];
+    if(d.cat==='coil'||d.cat==='output'||d.cat==='timer') return; // loads never self-power from an unwired terminal
+    const wL=sWires.some(w=>(w.tId===c.id&&w.tp==='L')||(w.fId===c.id&&w.fp==='L'));
+    if(!wL) pwr.add(c.id+':L');
+  });
+  sComps.filter(c=>c.type==='VFD').forEach(c=>{
+    const dv=devOf(c);if(!dv)return;
+    vfdPinDefs(dv).filter(p=>p.t==='DO').forEach(p=>{
+      const ln=nodes.find(n=>n.type==='DO_NODE'&&n.ioRef&&n.ioRef.devId===c.devId&&n.ioRef.idx===p.i);
+      if(ln&&ln.outSt) pwr.add(c.id+':'+p.key);
+    });
+  });
+  let chg=true,it=0;
+  while(chg&&it++<60){
+    chg=false;
+    for(const c of sComps){
+      if(c.type==='VFD') continue;
+      if(sConducts(c)){
+        if(pwr.has(c.id+':L')&&!pwr.has(c.id+':R')){pwr.add(c.id+':R');chg=true;}
+        if(pwr.has(c.id+':R')&&!pwr.has(c.id+':L')){pwr.add(c.id+':L');chg=true;}
+      }
+    }
+    for(const w of sWires){
+      const a=w.fId+':'+w.fp,b=w.tId+':'+w.tp;
+      if(pwr.has(a)&&!pwr.has(b)){pwr.add(b);chg=true;}
+      if(pwr.has(b)&&!pwr.has(a)){pwr.add(a);chg=true;}
+    }
+  }
+  sWires.forEach(w=>w.on=pwr.has(w.fId+':'+w.fp)||pwr.has(w.tId+':'+w.tp));
+  for(const c of sComps){
+    if(c.type==='VFD') continue;
+    const d=sDEFS[c.type];
+    const p=pwr.has(c.id+':L')||pwr.has(c.id+':R');
+    if(d.cat==='coil'||d.cat==='output') c.energized=p;
+    if(d.cat==='timer') sRunTimer(c,p);
+  }
+  for(const c of sComps){
+    if(c.type!=='NO_C'&&c.type!=='NC_C') continue;
+    if(!c.tag) continue;
+    const coil=sComps.find(x=>(x.type==='RELAY'||x.type==='KM')&&x.tag===c.tag);
+    if(coil){c.closed=c.type==='NO_C'?coil.energized:!coil.energized;continue;}
+    const tmr=sComps.find(x=>['TON','TOF','TOFR'].includes(x.type)&&x.tag===c.tag);
+    if(tmr) c.closed=c.type==='NO_C'?tmr.tDone:!tmr.tDone;
+  }
+  let internalChanged=false;
+  sComps.filter(c=>c.type==='VFD').forEach(c=>{
+    const dv=devOf(c);if(!dv)return;
+    vfdPinDefs(dv).filter(p=>p.t==='DI').forEach(p=>{
+      const on=pwr.has(c.id+':'+p.key);
+      const ln=nodes.find(n=>n.type==='DI_NODE'&&n.ioRef&&n.ioRef.devId===c.devId&&n.ioRef.idx===p.i);
+      if(ln&&ln.outSt!==on){ln.outSt=on;internalChanged=true;}
+    });
+  });
+  if(internalChanged&&depth<3){propagate();sSimulateOnce(depth+1);return;}
+  sPropagateAnalog();
+  sDraw();
+  renderSimStageStatus();
+}
+function sSimulate(){sSimulateOnce(0);}
+function sPropagateAnalog(){
+  const aVal={};
+  sComps.filter(c=>c.type==='POT').forEach(c=>{ aVal[c.id+':SIG']=potValue(c); });
+  sComps.filter(c=>c.type==='VFD').forEach(c=>{
+    const dv=devOf(c);if(!dv)return;
+    dv.ao.forEach((io,i)=>{
+      const v=(c.aoVals&&c.aoVals[i]!==undefined)?c.aoVals[i]:0;
+      aVal[c.id+':ao'+i]=v;
+    });
+  });
+  let chg=true,it=0;
+  while(chg&&it++<20){
+    chg=false;
+    for(const w of sWires){
+      const a=w.fId+':'+w.fp,b=w.tId+':'+w.tp;
+      if(aVal[a]!==undefined&&aVal[b]===undefined){aVal[b]=aVal[a];chg=true;}
+      if(aVal[b]!==undefined&&aVal[a]===undefined){aVal[a]=aVal[b];chg=true;}
+    }
+  }
+  sComps.filter(c=>c.type==='AMETER').forEach(c=>{ c.reading=aVal[c.id+':SIG']; });
+  sComps.filter(c=>c.type==='VFD').forEach(c=>{
+    const dv=devOf(c);if(!dv)return;
+    c.aiLive={};
+    dv.ai.forEach((io,i)=>{ c.aiLive[i]=aVal[c.id+':ai'+i]; });
+  });
+}
+function sSetAo(id,idx,val){
+  const c=sComps.find(x=>x.id===id);if(!c)return;
+  c.aoVals=c.aoVals||{};c.aoVals[idx]=val;
+  sSimulate();autoSave();
+}
+
+function sSetMode(m){
+  sMode=m;
+  ['simSelBtn','simWireBtn','simDelBtn'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const active=(id==='simSelBtn'&&m==='select')||(id==='simWireBtn'&&m==='wire')||(id==='simDelBtn'&&m==='delete');
+    el.style.borderColor=active?'#00D4FF':'';el.style.color=active?'#00D4FF':'';
+  });
+  simc.style.cursor=m==='place'?'crosshair':m==='wire'?'cell':m==='delete'?'not-allowed':'default';
+  if(m!=='wire') sWireA=null;
+  if(m!=='place') sPlaceT=null;
+  const hintEl=document.getElementById('simHint');
+  if(hintEl){
+    if(m==='wire') hintEl.textContent='Click a terminal dot to start wiring, click another to finish.';
+    else if(m==='delete') hintEl.textContent='Click a component or wire to delete it.';
+    else hintEl.textContent='Click a part in the palette, then click the canvas to place it. W=wire, D=delete, Esc=select.';
+  }
+  sDraw();
+}
+function sToggleMode(m){sSetMode(sMode===m?'select':m);}
+function sSp(t){sPlaceT=t;sSetMode('place');const h=document.getElementById('simHint');if(h)h.textContent='Click the canvas to place '+sTypeLabel(t)+'.';}
+function sDs(e,t){e.dataTransfer.setData('text',t);}
+function sTypeLabel(t){if(t.startsWith('VFD:')){const dv=devs.find(d=>d.id===t.slice(4));return dv?dv.label:'VFD';}return sDEFS[t]?sDEFS[t].desc:t;}
+function sPp(id,k,v){const c=sComps.find(c=>c.id===id);if(c){c[k]=v;sSimulate();autoSave();}}
+function sDelSel(){sComps=sComps.filter(c=>c.id!==sSelId);sWires=sWires.filter(w=>w.fId!==sSelId&&w.tId!==sSelId);sSelId=null;renderSimStageStatus();sSimulate();autoSave();}
+
+function fitSimView(){simSc=1;simPx=40;simPy=20;sDraw();}
+
+function renderSimVfdList(){
+  const el=document.getElementById('simVfdList');if(!el)return;
+  if(!devs.length){el.innerHTML='<div style="padding:6px 11px;font-size:10px;color:var(--muted)">Add a VFD on the I/O Canvas tab first.</div>';return;}
+  el.innerHTML=devs.map(d=>`
+    <div class="gate" draggable="true" ondragstart="sDs(event,'VFD:${d.id}')" ondblclick="sSp('VFD:${d.id}')">
+      <div class="gsym" style="color:#00D4FF">▤</div>
+      <div><div class="tname">${es(d.label)}</div><div class="tsub">${es(d.brand)} ${es(d.model)}</div></div>
+    </div>`).join('');
+}
+
+// ---- mouse / keyboard interaction ----
+simc.addEventListener('mousedown',e=>{
+  const raw=sRawPt(e);
+  if(sMode==='select'){
+    const hc=sNearComp(raw.x,raw.y);
+    if(hc){sDragC=hc;sDragOff={x:raw.x-hc.x,y:raw.y-hc.y};return;}
+  }
+  sPanning=true;sPanStartX=e.clientX;sPanStartY=e.clientY;
+});
+simc.addEventListener('mousemove',e=>{
+  const w=toW(e.clientX,e.clientY,simc,simPx,simPy,simSc);
+  sMouse={x:sSnap(w.x),y:sSnap(w.y)};
+  if(sDragC){sDragC.x=sSnap(w.x-sDragOff.x);sDragC.y=sSnap(w.y-sDragOff.y);sDraw();return;}
+  if(sPanning){simPx+=e.clientX-sPanStartX;simPy+=e.clientY-sPanStartY;sPanStartX=e.clientX;sPanStartY=e.clientY;sDraw();return;}
+  if(sMode==='wire'&&sWireA) sDraw();
+  if(sMode==='place') sDraw();
+});
+simc.addEventListener('mouseup',()=>{if(sDragC){sDragC=null;sSimulate();autoSave();}sPanning=false;});
+simc.addEventListener('mouseleave',()=>{sDragC=null;sPanning=false;});
+simc.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=simc.getBoundingClientRect();
+  const w=toW(e.clientX,e.clientY,simc,simPx,simPy,simSc);
+  const f=e.deltaY>0?.88:1.14;simSc=Math.max(.2,Math.min(4,simSc*f));
+  simPx=(e.clientX-r.left)-w.x*simSc;simPy=(e.clientY-r.top)-w.y*simSc;sDraw();
+},{passive:false});
+simc.addEventListener('click',e=>{
+  if(sPanning||sDragC) return;
+  const raw=sRawPt(e),sp=sSnPt(e);
+  if(sMode==='place'&&sPlaceT){
+    if(sPlaceT.startsWith('VFD:')){
+      const devId=sPlaceT.slice(4);
+      if(devs.some(d=>d.id===devId)){const nc=sMk('VFD',sp.x,sp.y,{devId});sComps.push(nc);sSelId=nc.id;}
+    } else {
+      const d=sDEFS[sPlaceT];
+      const nc=sMk(sPlaceT,sp.x-d.w/2,sp.y-d.h/2);
+      sComps.push(nc);sSelId=nc.id;
+    }
+    sSetMode('select');renderSimStageStatus();sSimulate();autoSave();return;
+  }
+  if(sMode==='wire'){
+    const ht=sNearTerm(raw.x,raw.y);
+    if(ht){
+      if(!sWireA){sWireA=ht;const h=document.getElementById('simHint');if(h)h.textContent='Click the destination terminal.';}
+      else{
+        if(sWireA.c.id!==ht.c.id){
+          const ex=sWires.some(w=>(w.fId===sWireA.c.id&&w.fp===sWireA.p&&w.tId===ht.c.id&&w.tp===ht.p)||(w.fId===ht.c.id&&w.fp===ht.p&&w.tId===sWireA.c.id&&w.tp===sWireA.p));
+          if(!ex){sWires.push({id:'sw'+(sNid++),fId:sWireA.c.id,fp:sWireA.p,tId:ht.c.id,tp:ht.p,on:false});autoSave();}
+        }
+        sWireA=null;const h=document.getElementById('simHint');if(h)h.textContent='Click a terminal to start the next wire.';
+      }
+    } else sWireA=null;
+    sSimulate();return;
+  }
+  if(sMode==='delete'){
+    const hc=sNearComp(raw.x,raw.y);
+    if(hc){sComps=sComps.filter(c=>c.id!==hc.id);sWires=sWires.filter(w=>w.fId!==hc.id&&w.tId!==hc.id);if(sSelId===hc.id)sSelId=null;renderSimStageStatus();sSimulate();autoSave();return;}
+    const hw=sNearWire(raw.x,raw.y);
+    if(hw){sWires=sWires.filter(w=>w!==hw);sSimulate();autoSave();}
+    return;
+  }
+  const hc=sNearComp(raw.x,raw.y);
+  if(hc){
+    if(hc.type!=='VFD'){
+      const d=sDEFS[hc.type];
+      if(d.cat==='ss2'||d.cat==='ss3'){
+        const arr=sSsArrow(hc,raw.x,raw.y);
+        if(arr){
+          const maxPos=d.cat==='ss3'?2:1;
+          if(arr==='L') hc.ssPos=Math.max(0,hc.ssPos-1);
+          if(arr==='R') hc.ssPos=Math.min(maxPos,hc.ssPos+1);
+          sSimulate();
+        }
+      }
+      if(d.cat==='pb'){
+        hc.closed=!d.defClosed;hc.pressed=true;sSimulate();
+        setTimeout(()=>{hc.closed=d.defClosed;hc.pressed=false;sSimulate();},280);
+      }
+    }
+    sSelId=hc.id;renderSimStageStatus();sDraw();
+  } else {sSelId=null;renderSimStageStatus();sDraw();}
+});
+simc.addEventListener('dragover',e=>e.preventDefault());
+simc.addEventListener('drop',e=>{
+  e.preventDefault();
+  const t=e.dataTransfer.getData('text');if(!t)return;
+  const w=toW(e.clientX,e.clientY,simc,simPx,simPy,simSc);
+  const sp={x:sSnap(w.x),y:sSnap(w.y)};
+  if(t.startsWith('VFD:')){
+    const devId=t.slice(4);
+    if(devs.some(d=>d.id===devId)){const nc=sMk('VFD',sp.x,sp.y,{devId});sComps.push(nc);sSelId=nc.id;}
+  } else if(sDEFS[t]){
+    const d=sDEFS[t];const nc=sMk(t,sp.x-d.w/2,sp.y-d.h/2);sComps.push(nc);sSelId=nc.id;
+  }
+  sSetMode('select');renderSimStageStatus();sSimulate();
+});
+document.addEventListener('keydown',e=>{
+  if(curTab!=='sim') return;
+  const tag=(e.target.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select') return;
+  if(e.key==='Escape'){sSetMode('select');}
+  if(e.key==='w'||e.key==='W') sToggleMode('wire');
+  if(e.key==='d'||e.key==='D') sToggleMode('delete');
+  if((e.key==='Delete'||e.key==='Backspace')&&sSelId) sDelSel();
+});
+
+// ---- rendering ----
+function sL(col,w){sctx.strokeStyle=col;sctx.lineWidth=w||2;sctx.lineCap='round';sctx.lineJoin='round';}
+function sLn(x1,y1,x2,y2){sctx.beginPath();sctx.moveTo(x1,y1);sctx.lineTo(x2,y2);sctx.stroke();}
+function sCl(x,y,r,fc,sc,sw){sctx.beginPath();sctx.arc(x,y,r,0,Math.PI*2);if(fc&&fc!=='none'){sctx.fillStyle=fc;sctx.fill();}sctx.strokeStyle=sc;sctx.lineWidth=sw||1.8;sctx.stroke();}
+function sDt(x,y,c,r){sctx.fillStyle=c;sctx.beginPath();sctx.arc(x,y,r||3,0,Math.PI*2);sctx.fill();}
+function sTx(s,x,y,sz,c,al,wgt){sctx.font=(wgt||'normal')+' '+sz+'px system-ui,sans-serif';sctx.fillStyle=c;sctx.textAlign=al||'center';sctx.fillText(s,x,y);}
+
+function sDraw(){
+  if(!sctx) return;
+  sctx.clearRect(0,0,simc.width,simc.height);
+  sctx.save();
+  sctx.translate(simPx,simPy);sctx.scale(simSc,simSc);
+  sctx.save();sctx.strokeStyle='rgba(255,255,255,0.04)';sctx.lineWidth=0.5;
+  for(let x=-100;x<1800;x+=20) sLn(x,-100,x,1400);
+  for(let y=-100;y<1400;y+=20) sLn(-100,y,1800,y);
+  sctx.restore();
+  sWires.forEach(w=>sDrawWire(w));
+  if(sMode==='wire'&&sWireA){
+    const fp=sTwp(sWireA.c,sWireA.p),mx=(fp.x+sMouse.x)/2;
+    sctx.save();sctx.strokeStyle='#00D4FF';sctx.lineWidth=1.5/simSc;sctx.setLineDash([5,4]);sctx.lineCap='round';
+    sctx.beginPath();sctx.moveTo(fp.x,fp.y);sctx.lineTo(mx,fp.y);sctx.lineTo(mx,sMouse.y);sctx.lineTo(sMouse.x,sMouse.y);sctx.stroke();
+    sctx.restore();
+  }
+  if(sMode==='place'&&sPlaceT&&!sPlaceT.startsWith('VFD:')&&sDEFS[sPlaceT]){
+    const d=sDEFS[sPlaceT];
+    sctx.save();sctx.globalAlpha=.32;sctx.strokeStyle='#00D4FF';sctx.lineWidth=1.5;sctx.setLineDash([4,3]);
+    sctx.strokeRect(sMouse.x-d.w/2,sMouse.y-d.h/2,d.w,d.h);sctx.restore();
+  }
+  sComps.forEach(c=>sDrawComp(c));
+  sctx.restore();
+}
+function sDrawWire(w){
+  const fc=sComps.find(c=>c.id===w.fId),tc=sComps.find(c=>c.id===w.tId);
+  if(!fc||!tc) return;
+  const fp=sTwp(fc,w.fp),tp=sTwp(tc,w.tp),mx=(fp.x+tp.x)/2;
+  sL(w.on?sON:sOFF,w.on?2.5:1.8);
+  sctx.beginPath();sctx.moveTo(fp.x,fp.y);sctx.lineTo(mx,fp.y);sctx.lineTo(mx,tp.y);sctx.lineTo(tp.x,tp.y);sctx.stroke();
+}
+function sDrawTerms(c){
+  for(const t of Object.values(sTerms(c))){
+    sctx.beginPath();sctx.arc(c.x+t.x,c.y+t.y,sMode==='wire'?5:3.5,0,Math.PI*2);
+    sctx.fillStyle=sMode==='wire'?'#00D4FF':(sSelId===c.id?'#00D4FF':'#5A7090');
+    sctx.fill();
+    if(sMode==='wire'){sctx.strokeStyle='#fff';sctx.lineWidth=1;sctx.stroke();}
+  }
+}
+function sDrawComp(c){
+  if(c.type==='VFD'){sDrawVFDComp(c);return;}
+  const d=sDEFS[c.type],x=c.x,y=c.y,w=d.w,h=d.h,cx=x+w/2,ty=y+d.termY;
+  const sel=sSelId===c.id;
+  sctx.save();
+  if(sel){sctx.strokeStyle='#00D4FF';sctx.lineWidth=2;sctx.setLineDash([4,3]);sctx.strokeRect(x-5,y-5,w+10,h+10);sctx.setLineDash([]);}
+  if(c.tag) sTx(c.tag,cx,y-6,10,'#00D4FF','center','bold');
+  if(d.cat==='pb') sDrawPB(c,x,y,w,h,cx,ty);
+  else if(d.cat==='ss2') sDrawSS2(c,x,y,w,h,cx,ty);
+  else if(d.cat==='ss3') sDrawSS3(c,x,y,w,h,cx,ty);
+  else if(d.cat==='contact') sDrawContact(c,x,y,w,h,cx,ty);
+  else if(d.cat==='coil') sDrawCoil(c,x,y,w,h,cx,ty);
+  else if(d.cat==='output') sDrawOutput(c,x,y,w,h,cx,ty);
+  else if(d.cat==='timer') sDrawTimerComp(c,x,y,w,h,cx,ty);
+  else if(d.cat==='analog_src') sDrawPOT(c,x,y,w,h,cx,ty);
+  else if(d.cat==='analog_meter') sDrawAMETER(c,x,y,w,h,cx,ty);
+  sTx(c.label,cx,y+h+13,9,'#8ea0af');
+  sDrawTerms(c);
+  sctx.restore();
+}
+function sDrawPB(c,x,y,w,h,cx,ty){
+  sL('#8090A8',1.5);sLn(x,ty,x+14,ty);sLn(x+w-14,ty,x+w,ty);
+  const gap=c.closed?4:14;
+  sL(c.closed?sON:'#C0CDE0',2.4);
+  sLn(x+14,ty-gap,x+w-14,ty-(c.type==='NC_PB'?gap:14));
+  if(c.type==='NC_PB'&&!c.closed){}
+  sL('#8090A8',2);sLn(x+14,ty-9,x+14,ty+9);sLn(x+w-14,ty-9,x+w-14,ty+9);
+  sCl(cx,y+10,7,c.pressed?'#EF4444':'#2A3A50','#8090A8',1.5);
+  sTx(c.type==='NO_PB'?'NO':'NC',cx,y+13,7,'#fff','center','bold');
+}
+function sDrawSS2(c,x,y,w,h,cx,ty){
+  sL('#8090A8',1.5);sLn(x,ty,x+w,ty);
+  const kx=cx,ky=ty;
+  sCl(kx,ky,16,'#1a2332','#5A7090',1.5);
+  const ang=c.ssPos===0?-25:25;
+  const rad=ang*Math.PI/180;
+  sL('#00D4FF',2.5);sLn(kx,ky,kx+Math.cos(rad-Math.PI/2)*13,ky+Math.sin(rad-Math.PI/2)*13);
+  sDt(kx,ky,'#00D4FF',2.5);
+  sTx('◀',kx-22,ky+4,10,c.ssPos===0?'#00D4FF':'#4A6080','center','bold');
+  sTx('▶',kx+22,ky+4,10,c.ssPos===1?'#00D4FF':'#4A6080','center','bold');
+}
+function sDrawSS3(c,x,y,w,h,cx,ty){
+  sL('#8090A8',1.5);sLn(x,ty,x+w,ty);
+  const kx=cx,ky=ty;
+  sCl(kx,ky,16,'#1a2332','#5A7090',1.5);
+  const angs=[-35,0,35],rad=angs[c.ssPos]*Math.PI/180;
+  sL('#00D4FF',2.5);sLn(kx,ky,kx+Math.sin(rad)*13,ky-Math.cos(rad)*13);
+  sDt(kx,ky,'#00D4FF',2.5);
+  sTx('◀',kx-24,ky+4,10,c.ssPos===0?'#00D4FF':'#4A6080','center','bold');
+  sTx('▶',kx+24,ky+4,10,c.ssPos===2?'#00D4FF':'#4A6080','center','bold');
+}
+function sDrawContact(c,x,y,w,h,cx,ty){
+  sL('#8090A8',1.5);sLn(x,ty,x+16,ty);sLn(x+w-16,ty,x+w,ty);
+  const col=c.closed?sON:'#8090A8';
+  sL(col,2.4);sLn(x+16,ty-8,x+16,ty+8);sLn(x+w-16,ty-8,x+w-16,ty+8);
+  if(c.type==='NC_C'){sL(col,2);sLn(x+13,ty+9,x+w-13,ty-9);}
+  sTx(c.type==='NO_C'?'NO':'NC',cx,ty+20,7,'#8090A8','center');
+}
+function sDrawCoil(c,x,y,w,h,cx,ty){
+  sL('#8090A8',1.5);sLn(x,ty,x+10,ty);sLn(x+w-10,ty,x+w,ty);
+  sCl(cx,ty,16,c.energized?'#3a2f14':'#1a2332',c.energized?sAMB:'#5A7090',2);
+  sTx(c.type==='KM'?'M':'CR',cx,ty+4,10,c.energized?sAMB:'#8090A8','center','bold');
+}
+function sDrawOutput(c,x,y,w,h,cx,ty){
+  sL('#8090A8',1.5);sLn(x,ty,x+8,ty);sLn(x+w-8,ty,x+w,ty);
+  if(c.type==='LAMP'){
+    sCl(cx,ty,14,c.energized?'#FBBF24':'#241f10',c.energized?'#FBBF24':'#5A7090',2);
+    if(c.energized){sctx.save();sctx.shadowColor='#FBBF24';sctx.shadowBlur=14;sCl(cx,ty,14,'#FBBF24','#FBBF24',1);sctx.restore();}
+  } else {
+    sCl(cx,ty,13,c.energized?'#2c2450':'#1a1a2e',c.energized?'#A78BFA':'#5A7090',2);
+    sTx('S',cx,ty+4,9,c.energized?'#A78BFA':'#8090A8','center','bold');
+  }
+}
+function sDrawTimerComp(c,x,y,w,h,cx,ty){
+  sL('#8090A8',1.5);sLn(x,ty,x+12,ty);sLn(x+w-12,ty,x+w,ty);
+  sctx.strokeStyle=c.tDone?sON:c.tRun?sAMB:'#5A7090';sctx.lineWidth=1.8;
+  sctx.strokeRect(x+12,ty-14,w-24,28);
+  sTx(c.type,cx,ty-2,9,c.tDone?sON:c.tRun?sAMB:'#8090A8','center','bold');
+  sTx((c.tVal/1000).toFixed(1)+'/'+(c.preset/1000).toFixed(1)+'s',cx,ty+10,7.5,'#8090A8','center');
+}
+function sDrawPOT(c,x,y,w,h,cx,ty){
+  sL('#8090A8',1.5);sLn(x,ty,x+16,ty);
+  const kx=x+w/2+6,ky=ty;
+  sCl(kx,ky,15,'#1a2332','#3B82F6',1.8);
+  const ang=(-135+(Math.max(0,Math.min(100,c.pct||0))/100)*270)*Math.PI/180;
+  sL('#3B82F6',2.5);sLn(kx,ky,kx+Math.cos(ang)*11,ky+Math.sin(ang)*11);
+  sDt(kx,ky,'#3B82F6',2);
+  const val=potValue(c);
+  sTx(val+(c.mode==='0-10V'?'V':'mA'),cx,y+h-3,8,'#3B82F6','center','bold');
+}
+function sDrawAMETER(c,x,y,w,h,cx,ty){
+  sL('#8090A8',1.5);sLn(x,ty,x+14,ty);
+  sctx.strokeStyle='#5A7090';sctx.lineWidth=1.6;sctx.strokeRect(x+14,y+8,w-24,h-16);
+  const val=c.reading;
+  sTx(val!==undefined?val.toFixed(2):'--',cx+7,ty+4,10,val!==undefined?'#00D4FF':'#5A7090','center','bold');
+}
+function sDrawVFDComp(c){
+  const dv=devOf(c);if(!dv){sctx.save();sctx.fillStyle='#3a2521';sctx.strokeStyle='#e6604d';rr(sctx,c.x,c.y,VFD_W,60,8,'FS');sTx('device removed',c.x+VFD_W/2,c.y+34,10,'#e6604d');sctx.restore();return;}
+  const w=VFD_W,h=vfdBoxH(dv),x=c.x,y=c.y,sel=sSelId===c.id;
+  sctx.save();
+  if(sel){sctx.strokeStyle='#00D4FF';sctx.lineWidth=2;sctx.setLineDash([4,3]);sctx.strokeRect(x-5,y-5,w+10,h+10);sctx.setLineDash([]);}
+  sctx.fillStyle='#111827';sctx.strokeStyle='#1C2A40';sctx.lineWidth=1;rr(sctx,x,y,w,h,8,'FS');
+  const g=sctx.createLinearGradient(x,y,x+w,y);g.addColorStop(0,'#0D2137');g.addColorStop(1,'#0A1B30');
+  sctx.fillStyle=g;rr(sctx,x,y,w,32,{tl:8,tr:8,bl:0,br:0},'F');
+  sctx.fillStyle='#00D4FF';sctx.font='bold 10px "Share Tech Mono"';sctx.textAlign='left';sctx.fillText(dv.label.substring(0,20),x+6,y+13);
+  sctx.fillStyle='#4A6080';sctx.font='7px "Share Tech Mono"';sctx.fillText(dv.brand+' · '+dv.model,x+6,y+24);
+  const{left,right}=vfdPinSplit(dv);
+  left.forEach((p,idx)=>{
+    const absY=y+40+idx*22+11,dotX=x-14;
+    const baseCol=p.t==='DI'?'#10B981':'#F59E0B';
+    const linkedNode=nodes.find(n=>n.type===(p.t==='DI'?'DI_NODE':'DO_NODE')&&n.ioRef&&n.ioRef.devId===c.devId&&n.ioRef.idx===p.i);
+    const live=(simOn&&linkedNode)?linkedNode.outSt:null;
+    let pinColor=baseCol;
+    if(live===false) pinColor='#2A3A50';
+    sctx.strokeStyle=pinColor;sctx.lineWidth=1;
+    sctx.beginPath();sctx.moveTo(x,absY);sctx.lineTo(dotX,absY);sctx.stroke();
+    if(live===true){sctx.shadowColor=pinColor;sctx.shadowBlur=8;}
+    sctx.fillStyle=sMode==='wire'?'#00D4FF':pinColor;
+    sctx.beginPath();sctx.arc(dotX,absY,sMode==='wire'?5:3.5,0,Math.PI*2);sctx.fill();sctx.shadowBlur=0;
+    sctx.fillStyle='#3A5070';sctx.font='7px "Share Tech Mono"';sctx.textAlign='right';sctx.fillText(p.tag,dotX-4,absY-3);
+    sctx.fillStyle='#8090A8';sctx.font='7.5px Inter,sans-serif';sctx.textAlign='left';sctx.fillText(p.fn.substring(0,18),x+4,absY+3);
+    if(live!==null){sctx.fillStyle=live?'#10B981':'#EF4444';sctx.beginPath();sctx.arc(x+w-10,absY,3,0,Math.PI*2);sctx.fill();}
+  });
+  right.forEach((p,idx)=>{
+    const absY=y+40+idx*22+11,dotX=x+w+14;
+    const baseCol=p.t==='AI'?'#3B82F6':'#A78BFA';
+    let val=p.t==='AI'?(c.aiLive&&c.aiLive[p.i]):(c.aoVals&&c.aoVals[p.i]);
+    const hasVal=simOn&&val!==undefined;
+    sctx.strokeStyle=hasVal?baseCol:'#2A3A50';sctx.lineWidth=1;
+    sctx.beginPath();sctx.moveTo(x+w,absY);sctx.lineTo(dotX,absY);sctx.stroke();
+    if(hasVal){sctx.shadowColor=baseCol;sctx.shadowBlur=6;}
+    sctx.fillStyle=sMode==='wire'?'#00D4FF':(hasVal?baseCol:'#2A3A50');
+    sctx.beginPath();sctx.arc(dotX,absY,sMode==='wire'?5:3.5,0,Math.PI*2);sctx.fill();sctx.shadowBlur=0;
+    sctx.fillStyle='#3A5070';sctx.font='7px "Share Tech Mono"';sctx.textAlign='left';sctx.fillText(p.tag,dotX+4,absY-3);
+    sctx.fillStyle='#8090A8';sctx.font='7.5px Inter,sans-serif';sctx.textAlign='right';sctx.fillText(p.fn.substring(0,16),x+w-4,absY+3);
+    if(hasVal){sctx.fillStyle=baseCol;sctx.font='bold 7px "Share Tech Mono"';sctx.textAlign='left';sctx.fillText(val.toFixed(1),dotX+4,absY+9);}
+  });
+  sctx.fillStyle='#0A1B30';sctx.fillRect(x,y+h-16,w,16);
+  sctx.fillStyle='#2A3F5F';sctx.font='7px "Share Tech Mono"';sctx.textAlign='left';sctx.fillText('DI:'+dv.di.length+' DO:'+dv.do.length+' AI:'+dv.ai.length+' AO:'+dv.ao.length,x+5,y+h-5);
+  sctx.restore();
+  sDrawTerms(c);
+}
+
+// ---- properties + function-check panel ----
+function renderSimStageStatus(){
+  const el=document.getElementById('simStageStatus');if(!el)return;
+  const c=sComps.find(x=>x.id===sSelId);
+  let propsHtml='';
+  if(c&&c.type==='VFD'){
+    const dv=devOf(c);
+    let aoHtml='';
+    if(dv&&dv.ao.length){
+      aoHtml='<div style="font-size:9px;color:var(--muted);font-family:var(--mono);margin:10px 0 4px">SIMULATE AO VALUES (demo)</div><div style="font-size:9px;color:var(--muted);margin-bottom:6px">No physics model computes these — set a value to see it flow to an Analog Meter.</div>';
+      dv.ao.forEach((io,i)=>{
+        const v=(c.aoVals&&c.aoVals[i]!==undefined)?c.aoVals[i]:0;
+        aoHtml+=`<label style="font-size:9px;color:var(--muted);display:block;margin-bottom:2px">${es(io.tag)} — ${es(io.fn)}</label>
+          <input type="number" step="0.1" value="${v}" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:6px;padding:5px 7px;color:var(--text);font-size:11px;margin-bottom:6px" onchange="sSetAo('${c.id}',${i},parseFloat(this.value)||0)">`;
+      });
+    }
+    propsHtml=`<div style="font-size:9px;color:var(--muted);font-family:var(--mono);margin-bottom:6px">SELECTED: VFD</div>
+      <div style="font-size:11px;margin-bottom:4px">${es(dv?dv.label:'(removed)')}</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">${es(dv?dv.brand+' '+dv.model:'')}</div>
+      ${aoHtml}
+      <button class="toolbtn" style="width:100%;border-color:#EF4444;color:#EF4444" onclick="sDelSel()">Remove from canvas</button>`;
+  } else if(c){
+    const d=sDEFS[c.type];
+    let stHtml='';
+    if(d.cat==='ss2') stHtml=`<div style="font-size:11px;margin-bottom:6px">${c.ssPos===0?'◀ LEFT position':'RIGHT ▶ position'}</div>`;
+    else if(d.cat==='ss3') stHtml=`<div style="font-size:11px;margin-bottom:6px">${['◀ LEFT','▲ MIDDLE','RIGHT ▶'][c.ssPos]} position</div>`;
+    else if(d.cat==='pb'||d.cat==='contact') stHtml=`<div style="font-size:11px;margin-bottom:6px;color:${c.closed?'#10B981':'var(--muted)'}">${c.closed?'● CLOSED (conducting)':'○ OPEN'}</div>`;
+    else if(d.cat==='coil'||d.cat==='output') stHtml=`<div style="font-size:11px;margin-bottom:6px;color:${c.energized?'#F59E0B':'var(--muted)'}">${c.energized?'● ENERGIZED':'○ de-energized'}</div>`;
+    else if(d.cat==='timer') stHtml=`<div style="font-size:11px;margin-bottom:6px">${c.tRun?'⏱ running '+(c.tVal/1000).toFixed(1)+'s':c.tDone?'✓ done/holding':'○ idle'}</div>`;
+    else if(d.cat==='analog_src') stHtml=`<div style="font-size:11px;margin-bottom:6px;color:#3B82F6">${potValue(c)}${c.mode==='0-10V'?'V':'mA'} output</div>
+      <div style="display:flex;gap:4px;margin-bottom:6px">
+        <button class="toolbtn" style="width:auto;flex:1;${c.mode==='4-20mA'?'border-color:#00D4FF;color:#00D4FF':''}" onclick="sPp('${c.id}','mode','4-20mA')">4-20mA</button>
+        <button class="toolbtn" style="width:auto;flex:1;${c.mode==='0-10V'?'border-color:#00D4FF;color:#00D4FF':''}" onclick="sPp('${c.id}','mode','0-10V')">0-10V</button>
+      </div>
+      <label style="font-size:9px;color:var(--muted);display:block;margin-bottom:3px">Position: ${c.pct||0}%</label>
+      <input type="range" min="0" max="100" value="${c.pct||0}" style="width:100%;margin-bottom:8px" onchange="sPp('${c.id}','pct',parseFloat(this.value))">`;
+    else if(d.cat==='analog_meter') stHtml=`<div style="font-size:11px;margin-bottom:6px;color:${c.reading!==undefined?'#00D4FF':'var(--muted)'}">Reading: ${c.reading!==undefined?c.reading.toFixed(2):'-- (not wired / sim stopped)'}</div>`;
+    propsHtml=`<div style="font-size:9px;color:var(--muted);font-family:var(--mono);margin-bottom:6px">SELECTED: ${es(d.desc)}</div>
+      ${stHtml}
+      <label style="font-size:9px;color:var(--muted);display:block;margin-bottom:3px">Tag / address</label>
+      <input type="text" value="${es(c.tag||'')}" placeholder="e.g. CR1, T1" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:6px;padding:6px 7px;color:var(--text);font-size:11px;margin-bottom:6px" onchange="sPp('${c.id}','tag',this.value)">
+      ${d.cat==='contact'?'<div style="font-size:9px;color:var(--muted);margin:-3px 0 8px">Give it the same tag as a relay/contactor/timer to link them.</div>':''}
+      <label style="font-size:9px;color:var(--muted);display:block;margin-bottom:3px">Label</label>
+      <input type="text" value="${es(c.label||'')}" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:6px;padding:6px 7px;color:var(--text);font-size:11px;margin-bottom:6px" onchange="sPp('${c.id}','label',this.value)">
+      ${d.cat==='timer'?`<label style="font-size:9px;color:var(--muted);display:block;margin-bottom:3px">Preset (seconds)</label><input type="number" min="0.1" step="0.1" value="${(c.preset/1000).toFixed(1)}" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:6px;padding:6px 7px;color:var(--text);font-size:11px;margin-bottom:6px" onchange="sPp('${c.id}','preset',(parseFloat(this.value)||3)*1000)">`:''}
+      <button class="toolbtn" style="width:100%;border-color:#EF4444;color:#EF4444" onclick="sDelSel()">Delete component</button>`;
+  } else {
+    propsHtml='<div style="font-size:10px;color:var(--muted);line-height:1.6;margin-bottom:10px">Click a component to see/edit its properties.<br><br>Drag parts from the left palette onto the canvas, or click a part then click the canvas to place it.</div>';
+  }
+  const linked=nodes.filter(n=>n.ioRef);
+  let fcHtml='<div style="font-size:9px;color:var(--muted);font-family:var(--mono);margin:12px 0 6px;border-top:1px solid var(--border);padding-top:10px">LIVE DI/DO STATUS</div>';
+  if(!linked.length){
+    fcHtml+='<div style="font-size:10px;color:var(--muted);line-height:1.6">No logic nodes are linked to a VFD terminal yet — link a DI/DO Node to a terminal in the Logic Editor first.</div>';
+  } else {
+    linked.forEach(n=>{
+      const ok=n.outSt;
+      fcHtml+=`<div style="background:var(--panel,#161f27);border:1px solid ${ok?'#10B981':'var(--border)'};border-radius:6px;padding:6px 8px;margin-bottom:5px;">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:9.5px">${es(n.ioRef.devLabel)} · <b>${es(n.ioRef.tag)}</b></span>
+          <span style="font-size:9px;font-weight:700;color:${ok?'#10B981':'#EF4444'}">${ok?'HIGH':'LOW'}</span>
+        </div>
+      </div>`;
+    });
+  }
+  el.innerHTML=propsHtml+fcHtml;
+}
+
+
+// =====================================================
+// AI CIRCUIT CHECK — Claude / Gemini / ChatGPT / OpenRouter
+// =====================================================
+let aiProvider='claude';
+let aiHistory=[]; // [{role:'user'|'assistant', text}]
+const AI_PROV_BTNS={claude:'provClaudeBtn',gemini:'provGeminiBtn',openai:'provOpenAIBtn',openrouter:'provORBtn'};
+const AI_SYS_BASE=`You are reviewing an industrial VFD (variable frequency drive) I/O wiring and relay/PLC-style logic diagram built in a training tool. You will be given, below, a live structured text summary of the CURRENT circuit: VFD devices and their DI/DO/AI/AO terminal assignments, any direct device-to-device wires, logic nodes (AND/OR/NAND/NOR/XOR/NOT gates, TON/TOF timers, SR latches, NO & NC pushbuttons, DI & DO nodes, constants), and logic wires connecting them, PLUS the external relay/pushbutton/contactor wiring built in the Circuit Sim tab if any. This summary is always current as of this message — treat it as ground truth about what the user has actually built, never say you lack access to it. Review it for: (1) wiring or logic conflicts — e.g. a Stop function built with a Normally-Open pushbutton when Stop functions are conventionally wired Normally-Closed (fail-safe: broken wire = stop), conflicting or missing Start/Stop interlocking, a DO node with nothing driving it, a DI terminal referenced by more than one logic node in a contradictory way; (2) missing safety-relevant elements, such as no Stop path reaching a Running output, or no Fault Reset; (3) sensible use of AND/OR/timers for the stated functions (e.g. an "At Speed" output that isn't gated by "Running" at all). Reference the specific terminal tag, device name, or node/component name for every issue you raise. If something looks correct, say so plainly rather than inventing problems — don't pad the answer with unnecessary caveats. You do not have access to the actual VFD manufacturer's manual for whatever brand/model appears here, so reason from general relay/PLC/VFD control conventions rather than asserting brand-specific facts you were not given.`;
+function buildAISys(){
+  return AI_SYS_BASE+`\n\n===== LIVE CIRCUIT SUMMARY (current as of this message) =====\n`+buildCircuitSummary();
+}
+
+function setAIProvider(p){
+  aiProvider=p;
+  Object.entries(AI_PROV_BTNS).forEach(([k,id])=>document.getElementById(id).classList.toggle('act',k===p));
+  renderAIKeyBox();
+}
+function renderAIKeyBox(){
+  const box=document.getElementById('aiKeyBox');
+  if(aiProvider==='claude'){
+    box.innerHTML='<div style="font-size:10px;color:var(--muted)">Uses Claude directly — no key needed while this file is open live in a claude.ai chat. Won\'t work from a downloaded copy without your own backend.</div>';
+  } else if(aiProvider==='gemini'){
+    box.innerHTML=`<label style="font-size:9px;color:var(--muted);display:block;margin-bottom:4px;font-family:var(--mono)">GEMINI API KEY — aistudio.google.com/apikey (free, rate-limited)</label>
+      <input type="password" id="geminiKeyInp" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:6px;padding:7px 8px;color:var(--text);font-size:11px;outline:none" value="${es(localStorage.getItem('gemini_api_key')||'')}" onchange="localStorage.setItem('gemini_api_key',this.value.trim())"/>`;
+  } else if(aiProvider==='openai'){
+    box.innerHTML=`<label style="font-size:9px;color:var(--muted);display:block;margin-bottom:4px;font-family:var(--mono)">OPENAI API KEY — platform.openai.com/api-keys (needs billing enabled)</label>
+      <input type="password" id="openaiKeyInp" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:6px;padding:7px 8px;color:var(--text);font-size:11px;outline:none" value="${es(localStorage.getItem('openai_api_key')||'')}" onchange="localStorage.setItem('openai_api_key',this.value.trim())"/>`;
+  } else if(aiProvider==='openrouter'){
+    box.innerHTML=`<label style="font-size:9px;color:var(--muted);display:block;margin-bottom:4px;font-family:var(--mono)">OPENROUTER API KEY — openrouter.ai/keys (free, no card needed)</label>
+      <input type="password" id="orKeyInp" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:6px;padding:7px 8px;color:var(--text);font-size:11px;outline:none;margin-bottom:8px" value="${es(localStorage.getItem('openrouter_api_key')||'')}" onchange="localStorage.setItem('openrouter_api_key',this.value.trim())"/>
+      <label style="font-size:9px;color:var(--muted);display:block;margin-bottom:4px;font-family:var(--mono)">MODEL (default auto-picks a free tool-capable model)</label>
+      <input type="text" id="orModelInp" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:6px;padding:7px 8px;color:var(--text);font-size:11px;outline:none" value="${es(localStorage.getItem('openrouter_model')||'openrouter/free')}" onchange="localStorage.setItem('openrouter_model',this.value.trim())"/>`;
+  }
+}
+
+function buildCircuitSummary(){
+  const d=getData();
+  const devSummary=(d.devs||[]).map(dv=>`- ${dv.label} [${dv.brand} ${dv.model}]\n    DI: ${dv.di.map(x=>x.tag+'='+x.fn).join(', ')||'(none)'}\n    DO: ${dv.do.map(x=>x.tag+'='+x.fn).join(', ')||'(none)'}\n    AI: ${dv.ai.map(x=>x.tag+'='+x.fn).join(', ')||'(none)'}\n    AO: ${dv.ao.map(x=>x.tag+'='+x.fn).join(', ')||'(none)'}`).join('\n');
+  const wireSummary=(d.iwires||[]).map(w=>`${w.fP} -> ${w.tP} (${w.label||''})`).join('\n') || '(none)';
+  const nodeSummary=(d.nodes||[]).map(n=>{
+    let extra='';
+    if(n.type==='TON'||n.type==='TOF') extra=` [delay=${n.delay}ms]`;
+    if(n.inverted) extra+=' [inverted]';
+    if(n.ioRef) extra+=` [linked to ${n.ioRef.devLabel} ${n.ioRef.tag}]`;
+    if(n.type==='CONST') extra+=` [value=${n.constVal?1:0}]`;
+    return `- ${n.id}: ${n.type}${n.name?' "'+n.name+'"':''}${extra}`;
+  }).join('\n') || '(none)';
+  const lwireSummary=(d.lwires||[]).map(w=>{
+    const fn=(d.nodes||[]).find(x=>x.id===w.fId), tn=(d.nodes||[]).find(x=>x.id===w.tId);
+    return `${fn?fn.type+(fn.name?'('+fn.name+')':''):w.fId} -> input#${w.tIdx} of ${tn?tn.type+(tn.name?'('+tn.name+')':''):w.tId}`;
+  }).join('\n') || '(none)';
+  const scompSummary=(d.scomps||[]).map(c=>{
+    if(c.type==='VFD'){const dv=devs.find(x=>x.id===c.devId);return `- ${c.id}: VFD block (${dv?dv.label:'device removed'})`;}
+    return `- ${c.id}: ${c.type}${c.tag?' tag="'+c.tag+'"':''}${c.label?' "'+c.label+'"':''}`;
+  }).join('\n') || '(none)';
+  const swireSummary=(d.swires||[]).map(w=>{
+    const fc=(d.scomps||[]).find(x=>x.id===w.fId), tc=(d.scomps||[]).find(x=>x.id===w.tId);
+    const fLbl=fc?(fc.type==='VFD'?'VFD.'+w.fp:fc.type+'('+(fc.tag||fc.label||fc.id)+').'+w.fp):w.fId;
+    const tLbl=tc?(tc.type==='VFD'?'VFD.'+w.tp:tc.type+'('+(tc.tag||tc.label||tc.id)+').'+w.tp):w.tId;
+    return `${fLbl} -- ${tLbl}`;
+  }).join('\n') || '(none)';
+  return `PROJECT: ${d.name}\n\nDEVICES & TERMINALS:\n${devSummary||'(none)'}\n\nDEVICE-TO-DEVICE WIRES:\n${wireSummary}\n\nLOGIC NODES (internal VFD program, Logic Editor tab):\n${nodeSummary}\n\nLOGIC WIRES:\n${lwireSummary}\n\nEXTERNAL CIRCUIT COMPONENTS (Circuit Sim tab -- pushbuttons/selectors/relays/contacts/timers/VFD blocks):\n${scompSummary}\n\nEXTERNAL CIRCUIT WIRES:\n${swireSummary}`;
+}
+
+function aiChatAppend(text,cls){
+  const log=document.getElementById('aiChatLog');
+  const d=document.createElement('div');
+  if(cls==='user') d.style.cssText='align-self:flex-end;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:11px;max-width:88%;white-space:pre-wrap;';
+  else if(cls==='assistant') d.style.cssText='background:rgba(0,212,255,.06);border:1px solid var(--b2);border-radius:8px;padding:9px 11px;font-size:11.5px;line-height:1.6;max-width:96%;white-space:pre-wrap;';
+  else d.style.cssText='color:var(--muted);font-size:9px;font-family:var(--mono);';
+  d.textContent=text;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;
+  return d;
+}
+
+async function analyzeCircuitAI(){
+  aiChatAppend('🔍 Analyze this circuit for wiring conflicts, missing safety logic, and NO/NC correctness.','user');
+  await runAI('Please review the current circuit as instructed in your system prompt.');
+}
+async function sendAIChat(){
+  const inp=document.getElementById('aiChatInput');
+  const q=inp.value.trim();if(!q)return;inp.value='';
+  aiChatAppend(q,'user');
+  await runAI(q);
+}
+async function runAI(userText){
+  const wait=aiChatAppend('thinking…','system');
+  try{
+    let reply;
+    if(aiProvider==='claude') reply=await callClaude(userText);
+    else if(aiProvider==='gemini') reply=await callGemini(userText);
+    else if(aiProvider==='openai') reply=await callOpenAICompatible('https://api.openai.com/v1/chat/completions',(localStorage.getItem('openai_api_key')||'').trim(),'gpt-4o-mini',userText);
+    else if(aiProvider==='openrouter') reply=await callOpenAICompatible('https://openrouter.ai/api/v1/chat/completions',(localStorage.getItem('openrouter_api_key')||'').trim(),(localStorage.getItem('openrouter_model')||'openrouter/free').trim()||'openrouter/free',userText);
+    wait.remove();
+    aiChatAppend(reply,'assistant');
+    aiHistory.push({role:'user',text:userText},{role:'assistant',text:reply});
+  }catch(err){
+    wait.remove();
+    const hint=aiProvider==='claude'?'This works while the file is open live in a claude.ai chat.':'Check your API key above.';
+    aiChatAppend('Could not get a response: '+err.message+'  '+hint,'system');
+  }
+}
+async function callClaude(userText){
+  const msgs=[...aiHistory.map(h=>({role:h.role,content:h.text})),{role:'user',content:userText}];
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:900,system:buildAISys(),messages:msgs})});
+  if(!resp.ok) throw new Error('HTTP '+resp.status);
+  const data=await resp.json();
+  return (data.content||[]).map(c=>c.text||'').join('').trim()||'(no response)';
+}
+async function callGemini(userText){
+  const key=(localStorage.getItem('gemini_api_key')||'').trim();
+  if(!key) throw new Error('No Gemini API key entered above.');
+  const contents=[...aiHistory.map(h=>({role:h.role==='assistant'?'model':'user',parts:[{text:h.text}]})),{role:'user',parts:[{text:userText}]}];
+  const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system_instruction:{parts:[{text:buildAISys()}]},contents})});
+  const data=await resp.json();
+  if(!resp.ok){
+    const msg=(data.error&&data.error.message)||('HTTP '+resp.status);
+    if(resp.status===429||/quota|rate limit/i.test(msg)) throw new Error('Gemini free-tier rate limit hit — wait a minute and try again ('+msg+').');
+    throw new Error(msg);
+  }
+  const cand=data.candidates&&data.candidates[0];
+  const parts=(cand&&cand.content&&cand.content.parts)||[];
+  return parts.map(p=>p.text||'').join('').trim()||'(no response)';
+}
+async function callOpenAICompatible(baseUrl,key,model,userText){
+  if(!key) throw new Error('No API key entered above.');
+  const messages=[{role:'system',content:buildAISys()},...aiHistory.map(h=>({role:h.role,content:h.text})),{role:'user',content:userText}];
+  const resp=await fetch(baseUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model,messages})});
+  const data=await resp.json();
+  if(!resp.ok){
+    const err=(data&&data.error)||{};
+    const msg=err.message||('HTTP '+resp.status);
+    const isQuota=err.code==='insufficient_quota'||/insufficient_quota|exceeded your current quota|check your plan and billing/i.test(msg);
+    if(isQuota) throw new Error('This key has no usable quota ($0 balance / no billing) — not a traffic rate limit.');
+    throw new Error(msg);
+  }
+  const msg=data.choices&&data.choices[0]&&data.choices[0].message;
+  return (msg&&msg.content)||'(no response)';
+}
+setAIProvider('claude');
+
+// =====================================================
+// SAVE / LOAD / EXPORT
+// =====================================================
+function getData(){return{name:document.getElementById('pname').value,devs,iwires,nodes:nodes.map(n=>({...n,tStart:null})),lwires,scomps:sComps,swires:sWires,v:5,date:new Date().toISOString()};}
+function autoSave(){try{localStorage.setItem('vfd_v4',JSON.stringify(getData()));}catch(e){} pushHistory();}
+
+// =====================================================
+// UNDO / REDO
+// =====================================================
+let historyStack=[],historyIdx=-1,restoringHistory=false;
+function pushHistory(){
+  if(restoringHistory) return;
+  const snap=JSON.stringify(getData());
+  if(historyStack[historyIdx]===snap) return;
+  historyStack=historyStack.slice(0,historyIdx+1);
+  historyStack.push(snap);
+  historyIdx++;
+  if(historyStack.length>60){historyStack.shift();historyIdx--;}
+}
+function restoreData(d){
+  document.getElementById('pname').value=d.name||'VFD_Logic_001';
+  devs=d.devs||[];iwires=d.iwires||[];
+  nodes=(d.nodes||[]).map(n=>({...n,inSt:new Array(n.inp).fill(false),outSt:n.type==='PB_NC',tActive:false,tStart:null}));
+  lwires=d.lwires||[];
+  sComps=(d.scomps||[]).map(c=>({...c,tRun:false,tVal:0,tDone:false}));
+  sWires=d.swires||[];
+  sNid=Math.max(1,...sComps.map(c=>parseInt((c.id||'sc0').replace(/\D/g,''))||0),...sWires.map(w=>parseInt((w.id||'sw0').replace(/\D/g,''))||0))+1;
+  devCtr=Math.max(1,...devs.map(x=>parseInt((x.id||'d0').replace('d',''))||0))+1;
+  nCtr=Math.max(1,...nodes.map(n=>parseInt((n.id||'n0').replace('n',''))||0))+1;
+  selDevId=null;selNId=null;selLwId=null;sSelId=null;
+  renderRP(null);renderNI();updCnt();draw();drawLogic();
+  if(typeof sDraw==='function'){renderSimVfdList();sSimulate();}
+  try{localStorage.setItem('vfd_v4',JSON.stringify(d));}catch(e){}
+}
+function undo(){
+  if(historyIdx<=0){setS('Nothing to undo');return;}
+  historyIdx--;
+  restoringHistory=true;
+  try{restoreData(JSON.parse(historyStack[historyIdx]));}finally{restoringHistory=false;}
+  setS('Undo');
+}
+function redo(){
+  if(historyIdx>=historyStack.length-1){setS('Nothing to redo');return;}
+  historyIdx++;
+  restoringHistory=true;
+  try{restoreData(JSON.parse(historyStack[historyIdx]));}finally{restoringHistory=false;}
+  setS('Redo');
+}
+function saveProject(){autoSave();setS('Saved to this browser only (localStorage) — use 📤 EXPORT to download a real .json backup file you can reopen anywhere');document.getElementById('statMsg').style.color='var(--green)';setTimeout(()=>document.getElementById('statMsg').style.color='',3000);}
+function exportJSON(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(getData(),null,2)],{type:'application/json'}));a.download=document.getElementById('pname').value+'.json';a.click();setS('Exported JSON ✓');}
+function importProject(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      restoreData(d);
+      pushHistory();
+      setS('Imported: '+f.name);
+    }catch(er){alert('Invalid project file.');}
+  };r.readAsText(f);e.target.value='';
+}
+function loadSaved(){
+  try{const raw=localStorage.getItem('vfd_v4');if(!raw)return;
+    const d=JSON.parse(raw);
+    restoreData(d);
+    setS('Project restored ✓');
+  }catch(e){}
+}
+
+// =====================================================
+// UTILS
+// =====================================================
+function updCnt(){document.getElementById('devCnt').textContent=devs.length;document.getElementById('nodeCnt').textContent=nodes.length;}
+function setS(m){document.getElementById('statMsg').textContent=m;}
+function clearAll(){if(!confirm('Clear all devices and logic?'))return;devs=[];iwires=[];nodes=[];lwires=[];sComps=[];sWires=[];sSelId=null;selDevId=null;selNId=null;renderRP(null);renderNI();updCnt();draw();drawLogic();if(typeof sDraw==='function'){renderSimVfdList();sSimulate();}autoSave();}
+function fitView(){
+  if(!devs.length){sc=1;px=40;py=40;draw();return;}
+  const xs=devs.map(d=>d.x),ys=devs.map(d=>d.y);
+  const mnX=Math.min(...xs)-20,mnY=Math.min(...ys)-20;
+  const mxX=Math.max(...devs.map(d=>d.x+DW))+20,mxY=Math.max(...devs.map(d=>d.y+dH(d)))+20;
+  sc=Math.min(cv.width/(mxX-mnX),cv.height/(mxY-mnY),1.5);px=-mnX*sc+40;py=-mnY*sc+40;draw();
+}
+function zoomIn(){sc=Math.min(3,sc*1.2);draw();}
+function zoomOut(){sc=Math.max(.25,sc*.82);draw();}
+function es(s){return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// MODAL
+function openModal(t,body,okFn){document.getElementById('mtitle').textContent=t;document.getElementById('mbody').innerHTML=body;document.getElementById('mok').onclick=okFn;document.getElementById('mbg').classList.add('show');setTimeout(()=>{const i=document.querySelector('#mbody input');if(i){i.focus();i.select();}},50);}
+function closeModal(){document.getElementById('mbg').classList.remove('show');}
+document.getElementById('mbg').addEventListener('click',e=>{if(e.target===document.getElementById('mbg'))closeModal();});
+
+// KEYBOARD
+document.addEventListener('keydown',e=>{
+  const ae=document.activeElement.tagName;
+  const typing=ae==='INPUT'||ae==='TEXTAREA'||ae==='SELECT';
+  if((e.ctrlKey||e.metaKey)&&(e.key==='z'||e.key==='Z')){e.preventDefault();if(e.shiftKey)redo();else undo();return;}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='y'||e.key==='Y')){e.preventDefault();redo();return;}
+  if((e.key==='Delete'||e.key==='Backspace')&&!typing){
+    if(curTab==='io'&&selDevId)remDev(selDevId);
+    else if(curTab==='logic'&&selNId)remNode(selNId);
+    else if(curTab==='logic'&&selLwId){lwires=lwires.filter(w=>w.id!==selLwId);selLwId=null;drawLogic();autoSave();setS('Logic wire deleted');}
+  }
+  if(e.key==='Escape'){wStart=null;lwStart=null;selLwId=null;draw();drawLogic();}
+  if(e.key==='s'&&(e.ctrlKey||e.metaKey)){e.preventDefault();saveProject();}
+  if(!typing){
+    if(e.key==='1')switchTab('io');
+    if(e.key==='2')switchTab('logic');
+  }
+});
+
+// =====================================================
+// INIT — LOAD OR DEMO
+// =====================================================
+loadSaved();
+pushHistory();
+if(devs.length===0){
+  addDevice('pf753',50,65);
+  addDevice('acs880',320,65);
+  selDevId=null;renderRP(null);draw();
+}
+if(nodes.length===0){
+  addNode('DI_NODE',55,80);addNode('DI_NODE',55,155);
+  addNode('AND',210,110);addNode('NOT',340,110);addNode('DO_NODE',460,110);
+  addNode('TON',210,220);addNode('DO_NODE',380,220);
+  lwires.push({id:'lw1',fId:nodes[0].id,tId:nodes[2].id,tIdx:0});
+  lwires.push({id:'lw2',fId:nodes[1].id,tId:nodes[2].id,tIdx:1});
+  lwires.push({id:'lw3',fId:nodes[2].id,tId:nodes[3].id,tIdx:0});
+  lwires.push({id:'lw4',fId:nodes[3].id,tId:nodes[4].id,tIdx:0});
+  lwires.push({id:'lw5',fId:nodes[2].id,tId:nodes[5].id,tIdx:0});
+  lwires.push({id:'lw6',fId:nodes[5].id,tId:nodes[6].id,tIdx:0});
+  if(devs.length>0){
+    nodes[0].name='Forward Run';nodes[1].name='Fault Reset';
+    nodes[4].name='Running (DO)';nodes[5].delay=3000;nodes[5].name='3s ON Timer';nodes[6].name='At Speed (DO)';
+  }
+  selNId=null;renderNI();drawLogic();autoSave();
+}
+setS('Ready — Press 1 for I/O Canvas | 2 for Logic Editor | Click DI nodes in sim to toggle');
+</script>
+</body>
+</html>
