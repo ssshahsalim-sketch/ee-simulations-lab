@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PLC + SCADA Substation Simulator</title>
+<style>
+  :root{
+    --bg:#0b1420;
+    --panel:#101d2b;
+    --panel2:#0d1a26;
+    --line:#22384d;
+    --text:#cfe3f0;
+    --dim:#7691a6;
+    --amber:#ffb020;
+    --green:#31d67a;
+    --red:#ff4d4f;
+    --blue:#3fa9ff;
+    --mono: 'Consolas','SFMono-Regular','Menlo',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;}
+  #app{display:flex;flex-direction:column;height:100vh;}
+  header{
+    display:flex;align-items:center;gap:16px;
+    padding:8px 14px;background:linear-gradient(180deg,#132437,#0d1926);
+    border-bottom:1px solid var(--line);flex-shrink:0;
+  }
+  header h1{font-size:15px;letter-spacing:.06em;margin:0;font-weight:700;color:#eaf6ff;}
+  header .tag{font-size:10px;color:var(--dim);letter-spacing:.15em;text-transform:uppercase;}
+  .spacer{flex:1;}
+  .btn{
+    background:#16283a;border:1px solid var(--line);color:var(--text);
+    padding:6px 12px;border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:12px;
+    transition:background .15s;
+  }
+  .btn:hover{background:#1d3348;}
+  .btn.primary{background:#164a2e;border-color:#1f6b41;color:#c8ffdf;}
+  .btn.primary:hover{background:#1c5c39;}
+  .btn.danger{background:#4a1616;border-color:#6b1f1f;color:#ffc8c8;}
+  .btn.danger:hover{background:#5c1c1c;}
+  .btn:disabled{opacity:.35;cursor:not-allowed;}
+  .scan-led{width:9px;height:9px;border-radius:50%;background:#2a3d4d;display:inline-block;margin-right:6px;}
+  .scan-led.on{background:var(--green);box-shadow:0 0 6px var(--green);}
+  #clock{color:var(--dim);font-size:12px;}
+
+  #main{flex:1;display:flex;min-height:0;}
+  #left{width:420px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel2);min-height:0;}
+  #right{flex:1;display:flex;flex-direction:column;min-height:0;}
+
+  .tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .tab{padding:9px 14px;cursor:pointer;color:var(--dim);font-size:12px;letter-spacing:.05em;text-transform:uppercase;border-bottom:2px solid transparent;}
+  .tab.active{color:#eaf6ff;border-bottom-color:var(--blue);}
+  .tabpanel{display:none;flex:1;min-height:0;flex-direction:column;overflow:hidden;}
+  .tabpanel.active{display:flex;}
+
+  .scroll{overflow-y:auto;flex:1;min-height:0;}
+
+  section.block{border-bottom:1px solid var(--line);padding:10px 12px;}
+  section.block h3{margin:0 0 8px 0;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;}
+
+  table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  th{text-align:left;color:var(--dim);font-weight:600;padding:3px 6px;border-bottom:1px solid var(--line);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;}
+  td{padding:3px 6px;border-bottom:1px solid #142334;}
+  tr:hover td{background:#122132;}
+  .val-true{color:var(--green);font-weight:700;}
+  .val-false{color:var(--red);font-weight:700;}
+  .modebadge{font-size:9.5px;padding:1px 5px;border-radius:2px;cursor:pointer;letter-spacing:.05em;}
+  .modebadge.auto{background:#22314a;color:var(--blue);border:1px solid #2c4a70;}
+  .modebadge.manual{background:#2a2213;color:var(--amber);border:1px solid #4a3a13;}
+
+  /* Ladder editor */
+  #rungList{padding:10px 12px;}
+  .rung{
+    background:#0e1c29;border:1px solid var(--line);border-radius:3px;margin-bottom:8px;
+    padding:8px;position:relative;
+  }
+  .rung .rungHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .rung .rungHead span{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;}
+  .rungRow{display:flex;align-items:center;gap:6px;font-size:12px;flex-wrap:wrap;}
+  .contactChip{
+    background:#152436;border:1px solid var(--line);border-radius:2px;padding:3px 7px;
+    display:flex;align-items:center;gap:5px;
+  }
+  .contactChip .sym{color:var(--blue);font-weight:700;}
+  .contactChip .rm{color:var(--red);cursor:pointer;font-weight:700;margin-left:2px;}
+  .arrowto{color:var(--dim);}
+  .coilChip{
+    background:#132a1c;border:1px solid #1f4a30;border-radius:2px;padding:3px 8px;color:var(--green);font-weight:700;
+  }
+  .rmRung{position:absolute;top:6px;right:8px;color:var(--red);cursor:pointer;font-size:14px;line-height:1;}
+  .addRow{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+  select,input[type=text],input[type=number]{
+    background:#0c1720;border:1px solid var(--line);color:var(--text);padding:4px 6px;border-radius:2px;
+    font-family:var(--mono);font-size:11.5px;
+  }
+  .miniBtn{background:#16283a;border:1px solid var(--line);color:var(--text);padding:4px 8px;border-radius:2px;cursor:pointer;font-size:11px;}
+  .miniBtn:hover{background:#1d3348;}
+  .hint{color:var(--dim);font-size:11px;line-height:1.5;padding:8px 12px;}
+
+  /* SCADA */
+  #scadaWrap{flex:1;position:relative;background:radial-gradient(circle at 50% 0%, #0f2035 0%, #081119 70%);min-height:0;overflow:auto;}
+  #scadaSvg{display:block;margin:0 auto;}
+  .dev-label{fill:#cfe3f0;font-size:11px;font-family:var(--mono);}
+  .dev-sub{fill:#7691a6;font-size:9.5px;font-family:var(--mono);}
+  .bus-label{fill:#8fb8d8;font-size:11px;font-family:var(--mono);letter-spacing:.05em;}
+  .flow-live{stroke:#ffb020;}
+  .flow-dead{stroke:#233a4c;}
+  .devicegrp{cursor:pointer;}
+  .devicegrp:hover .devbox{stroke:#fff;stroke-width:2;}
+  .badge-auto{fill:#3fa9ff;}
+  .badge-manual{fill:#ffb020;}
+
+  #bottomPanel{height:190px;flex-shrink:0;border-top:1px solid var(--line);display:flex;background:var(--panel);}
+  #eventLog{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--line);min-width:0;}
+  #eventLog h3, #faultPanel h3{margin:0;padding:7px 12px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--line);}
+  #logScroll{flex:1;overflow-y:auto;padding:4px 10px;font-size:11.5px;}
+  .logrow{padding:2px 0;border-bottom:1px solid #142334;color:var(--dim);}
+  .logrow .t{color:#4d6b82;margin-right:8px;}
+  .logrow.trip{color:var(--red);}
+  .logrow.close{color:var(--green);}
+  .logrow.alarm{color:var(--amber);}
+  #faultPanel{width:300px;flex-shrink:0;display:flex;flex-direction:column;}
+  #faultBody{padding:10px 12px;overflow-y:auto;flex:1;}
+  .faultRow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;}
+  .faultRow .miniBtn{font-size:10.5px;}
+
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:#1d3348;border-radius:5px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  .tooltip{
+    position:absolute;background:#0c1720;border:1px solid var(--line);padding:8px 10px;border-radius:4px;
+    font-size:11.5px;pointer-events:none;z-index:50;line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,.5);
+    max-width:220px;
+  }
+  .tooltip b{color:#eaf6ff;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>⌁ SUBSTATION AUTOMATION TRAINER</h1>
+    <span class="tag">PLC Ladder Logic ⟷ SCADA HMI</span>
+    <div class="spacer"></div>
+    <span id="clock">--:--:--</span>
+    <span><span id="scanLed" class="scan-led"></span><span id="scanLabel">SCAN STOPPED</span></span>
+    <button class="btn primary" id="btnScan">Start PLC Scan</button>
+    <button class="btn" id="btnReset">Reset Simulation</button>
+  </header>
+
+  <div id="main">
+    <div id="left">
+      <div class="tabs">
+        <div class="tab active" data-tab="tags">Tags</div>
+        <div class="tab" data-tab="ladder">Ladder Program</div>
+        <div class="tab" data-tab="help">Guide</div>
+      </div>
+
+      <div class="tabpanel active" id="tab-tags">
+        <div class="scroll">
+          <section class="block">
+            <h3>Digital I/O — Switchgear Coils</h3>
+            <table id="tblDevices"><thead><tr><th>Tag</th><th>State</th><th>Mode</th></tr></thead><tbody></tbody></table>
+          </section>
+          <section class="block">
+            <h3>Internal / Protection Bits</h3>
+            <table id="tblInternal"><thead><tr><th>Tag</th><th>Value</th></tr></thead><tbody></tbody></table>
+          </section>
+          <section class="block">
+            <h3>Analog Measurements</h3>
+            <table id="tblAnalog"><thead><tr><th>Tag</th><th>Value</th></tr></thead><tbody></tbody></table>
+          </section>
+        </div>
+      </div>
+
+      <div class="tabpanel" id="tab-ladder">
+        <div class="hint">Rungs scan top→bottom, every cycle. COIL follows the rung live. SET/RESET latch a bit until reset/set elsewhere — use SET/RESET on breaker tags for real trip/close commands. A device tag only responds to PLC coils while its mode is <b style="color:#3fa9ff">AUTO</b> (toggle mode in the Tags tab or on the diagram).</div>
+        <div class="scroll">
+          <div id="rungList"></div>
+          <div style="padding:0 12px 12px;">
+            <button class="btn" id="btnAddRung">+ Add Rung</button>
+            <button class="btn" id="btnExample">Load Example Protection Program</button>
+            <button class="btn" id="btnClearProg">Clear Program</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabpanel" id="tab-help">
+        <div class="scroll hint" style="padding:12px 14px;">
+<b style="color:#eaf6ff">How this works</b><br><br>
+This is a simplified 33kV/11kV substation: Incomer → Isolator/Breaker/Isolator → Bus‑1 → Transformer bay → Bus‑2 → 3 outgoing feeders.<br><br>
+<b style="color:#eaf6ff">SCADA (right side)</b><br>
+Click any breaker (rectangle) or isolator (diagonal blade) to open/close it, if that device is in MANUAL mode. Isolators are hard‑interlocked: you cannot open/close an isolator while its adjacent breaker is CLOSED (standard substation safety practice) — this mirrors real switching sequences.<br><br>
+<b style="color:#eaf6ff">PLC (left side)</b><br>
+Build ladder rungs from contacts (NO/NC) of any tag, driving a COIL / SET / RESET on an output tag. Put a device in AUTO mode and its position will be fully driven by your program — e.g. trip a feeder breaker automatically on an overcurrent bit. Press "Start PLC Scan" to run the program continuously (500 ms scan).<br><br>
+<b style="color:#eaf6ff">Simulation engine</b><br>
+Every scan, power flow is recalculated: a bus is "live" only if every switching device between it and the source is CLOSED. Live buses/feeders get realistic V / I / P / F readings with small jitter; de‑energized points read 0. Use the Fault panel (bottom right) to spike a feeder's current and test your protection logic.
+        </div>
+      </div>
+    </div>
+
+    <div id="right">
+      <div id="scadaWrap">
+        <svg id="scadaSvg" viewBox="0 0 1000 700" width="1000" height="700"></svg>
+      </div>
+      <div id="bottomPanel">
+        <div id="eventLog">
+          <h3>Event / Alarm Log</h3>
+          <div id="logScroll"></div>
+        </div>
+        <div id="faultPanel">
+          <h3>Feeder Load &amp; Fault Test</h3>
+          <div id="faultBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="tooltip" class="tooltip" style="display:none;"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================= DATA MODEL ============================= */
+
+// Switching devices: state=true -> CLOSED, false -> OPEN
+const devices = {
+  ISO_INC1:  {type:'ISO', label:'ISO-1', x:500, y:78,  bay:'incomer', state:true,  mode:'MANUAL'},
+  CB_INC:    {type:'CB',  label:'CB-INC',x:500, y:126, bay:'incomer', state:true,  mode:'MANUAL'},
+  ISO_INC2:  {type:'ISO', label:'ISO-2', x:500, y:174, bay:'incomer', state:true,  mode:'MANUAL'},
+
+  ISO_TX1_HV:{type:'ISO', label:'ISO-3', x:500, y:258, bay:'tx1',     state:true,  mode:'MANUAL'},
+  CB_TX1_HV: {type:'CB',  label:'CB-TXH',x:500, y:306, bay:'tx1',     state:true,  mode:'MANUAL'},
+  CB_TX1_LV: {type:'CB',  label:'CB-TXL',x:500, y:432, bay:'tx1',     state:true,  mode:'MANUAL'},
+  ISO_TX1_LV:{type:'ISO', label:'ISO-4', x:500, y:480, bay:'tx1',     state:true,  mode:'MANUAL'},
+
+  ISO_FDR1:  {type:'ISO', label:'ISO-5', x:260, y:562, bay:'fdr1',    state:true,  mode:'MANUAL'},
+  CB_FDR1:   {type:'CB',  label:'CB-F1', x:260, y:610, bay:'fdr1',    state:true,  mode:'AUTO'},
+
+  ISO_FDR2:  {type:'ISO', label:'ISO-6', x:500, y:562, bay:'fdr2',    state:true,  mode:'MANUAL'},
+  CB_FDR2:   {type:'CB',  label:'CB-F2', x:500, y:610, bay:'fdr2',    state:true,  mode:'AUTO'},
+
+  ISO_FDR3:  {type:'ISO', label:'ISO-7', x:740, y:562, bay:'fdr3',    state:true,  mode:'AUTO'},
+  CB_FDR3:   {type:'CB',  label:'CB-F3', x:740, y:610, bay:'fdr3',    state:true,  mode:'AUTO'},
+};
+
+const isolatorInterlock = {
+  ISO_INC1:'CB_INC', ISO_INC2:'CB_INC',
+  ISO_TX1_HV:'CB_TX1_HV', ISO_TX1_LV:'CB_TX1_LV',
+  ISO_FDR1:'CB_FDR1', ISO_FDR2:'CB_FDR2', ISO_FDR3:'CB_FDR3'
+};
+
+// power network segments: 'to' node energized if 'from' energized AND all devices closed
+const segments = [
+  {from:'SOURCE', through:['ISO_INC1','CB_INC','ISO_INC2'], to:'BUS1'},
+  {from:'BUS1',   through:['ISO_TX1_HV','CB_TX1_HV'],       to:'TX1_PRI'},
+  {from:'TX1_PRI',through:[],                                to:'TX1_SEC', transformer:true, ratio:11/33},
+  {from:'TX1_SEC',through:['CB_TX1_LV','ISO_TX1_LV'],        to:'BUS2'},
+  {from:'BUS2',   through:['ISO_FDR1','CB_FDR1'],            to:'LOAD1'},
+  {from:'BUS2',   through:['ISO_FDR2','CB_FDR2'],            to:'LOAD2'},
+  {from:'BUS2',   through:['ISO_FDR3','CB_FDR3'],            to:'LOAD3'},
+];
+
+const feederBase = { LOAD1: 85, LOAD2: 62, LOAD3: 47 }; // amps nominal
+const feederOf = { CB_FDR1:'LOAD1', CB_FDR2:'LOAD2', CB_FDR3:'LOAD3' };
+const feederFault = { LOAD1:false, LOAD2:false, LOAD3:false };
+const OC_THRESHOLD = 150; // amps
+
+// internal / protection tags (booleans), user-writable via ladder outputs (except OC_ALARM_* which sim engine drives)
+const internalTags = {
+  OC_ALARM_FDR1:false, OC_ALARM_FDR2:false, OC_ALARM_FDR3:false,
+  PERM_CLOSE_INC:false, TRIP_LOCKOUT:false,
+};
+const protectionDriven = new Set(['OC_ALARM_FDR1','OC_ALARM_FDR2','OC_ALARM_FDR3']);
+
+// analog tags (numbers), simulation-driven, read only in ladder
+const analog = {
+  V_BUS1:0, F_BUS1:0,
+  V_BUS2:0, F_BUS2:0,
+  I_FDR1:0, I_FDR2:0, I_FDR3:0,
+  P_FDR1:0, P_FDR2:0, P_FDR3:0,
+  I_INC:0, P_TOTAL:0,
+};
+
+function allTags(){ // combined bit-readable map for ladder evaluation (devices + internal)
+  const map = {};
+  for (const k in devices) map[k] = devices[k].state;
+  for (const k in internalTags) map[k] = internalTags[k];
+  return map;
+}
+
+/* ============================= LADDER PROGRAM ============================= */
+
+let rungs = []; // {id, conditions:[{tag,type:'NO'|'NC'}], op:'COIL'|'SET'|'RESET', outTag}
+let rungSeq = 1;
+
+function exampleProgram(){
+  rungs = [
+    {id:rungSeq++, conditions:[{tag:'OC_ALARM_FDR1',type:'NO'}], op:'RESET', outTag:'CB_FDR1'},
+    {id:rungSeq++, conditions:[{tag:'OC_ALARM_FDR2',type:'NO'}], op:'RESET', outTag:'CB_FDR2'},
+    {id:rungSeq++, conditions:[{tag:'OC_ALARM_FDR3',type:'NO'}], op:'RESET', outTag:'CB_FDR3'},
+    {id:rungSeq++, conditions:[{tag:'OC_ALARM_FDR1',type:'NC'},{tag:'OC_ALARM_FDR2',type:'NC'},{tag:'OC_ALARM_FDR3',type:'NC'}], op:'COIL', outTag:'PERM_CLOSE_INC'},
+  ];
+  renderRungs();
+  log('PLC program: example protection logic loaded', 'alarm');
+}
+
+function evalCondition(c, tagMap){
+  const v = !!tagMap[c.tag];
+  return c.type === 'NO' ? v : !v;
+}
+
+function scanLadder(){
+  const tagMap = allTags();
+  for (const r of rungs){
+    if (!r.conditions.length || !r.outTag) continue;
+    const result = r.conditions.every(c => evalCondition(c, tagMap));
+    applyOutput(r.outTag, r.op, result, tagMap);
+  }
+}
+
+function applyOutput(tag, op, result, tagMap){
+  const isDevice = !!devices[tag];
+  if (isDevice && devices[tag].mode !== 'AUTO') return; // PLC cannot drive a manual device
+  if (op === 'COIL'){
+    setTagValue(tag, result);
+  } else if (op === 'SET'){
+    if (result) setTagValue(tag, true);
+  } else if (op === 'RESET'){
+    if (result) setTagValue(tag, false);
+  }
+  tagMap[tag] = isDevice ? devices[tag].state : internalTags[tag];
+}
+
+function setTagValue(tag, val){
+  if (devices[tag]){
+    if (devices[tag].state !== val){
+      devices[tag].state = val;
+      log(`${tag} ${val?'CLOSED':'OPEN'} (PLC/AUTO)`, val?'close':'trip');
+    }
+  } else if (tag in internalTags){
+    internalTags[tag] = val;
+  }
+}
+
+/* ============================= SIMULATION ENGINE ============================= */
+
+let simTime = 0;
+
+function segClosed(seg){ return seg.through.every(t => devices[t].state); }
+
+function runSimulationTick(){
+  simTime += 0.5;
+  // energization
+  const energized = {SOURCE:true};
+  for (const seg of segments){
+    if (seg.transformer){
+      energized[seg.to] = !!energized[seg.from];
+      continue;
+    }
+    energized[seg.to] = !!energized[seg.from] && segClosed(seg);
+  }
+
+  const jitter = (base, pct) => base * (1 + (Math.random()*2-1)*pct);
+
+  // Bus voltages / frequency
+  analog.V_BUS1 = energized.BUS1 ? jitter(33000, 0.006) : 0;
+  analog.F_BUS1 = energized.BUS1 ? jitter(50, 0.001) : 0;
+  analog.V_BUS2 = energized.BUS2 ? jitter(11000, 0.008) : 0;
+  analog.F_BUS2 = energized.BUS2 ? jitter(50, 0.001) : 0;
+
+  // feeder currents / power
+  let totalSecKVA = 0;
+  const pf = 0.9;
+  for (const [cb, load] of Object.entries(feederOf)){
+    const live = !!energized[load];
+    const iTag = 'I_'+load.replace('LOAD','FDR');
+    const pTag = 'P_'+load.replace('LOAD','FDR');
+    let amps = 0;
+    if (live){
+      amps = jitter(feederBase[load], 0.04);
+      if (feederFault[load]) amps = jitter(feederBase[load]*4.2, 0.05);
+    }
+    analog[iTag] = amps;
+    const kw = live ? (Math.sqrt(3)*analog.V_BUS2*amps*pf)/1e6*1000 : 0; // kW
+    analog[pTag] = kw;
+    totalSecKVA += (live ? (Math.sqrt(3)*analog.V_BUS2*amps)/1000 : 0);
+
+    // protection relay function (hard-wired, not user ladder): sets alarm bit
+    const alarmTag = 'OC_ALARM_' + load.replace('LOAD','FDR');
+    internalTags[alarmTag] = live && amps > OC_THRESHOLD;
+  }
+
+  // incomer current reflects secondary load (reflected to primary via turns ratio), only if incomer path closed
+  const ratio = 11/33;
+  analog.I_INC = energized.BUS1 ? (totalSecKVA>0 ? (totalSecKVA*ratio)/(Math.sqrt(3)*analog.V_BUS1/1000) : jitter(2,0.3)) : 0;
+  analog.P_TOTAL = analog.P_FDR1 + analog.P_FDR2 + analog.P_FDR3;
+}
+
+/* ============================= UI: SCADA DIAGRAM ============================= */
+
+const svg = document.getElementById('scadaSvg');
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent){
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+function buildStaticConnectors(){
+  // fixed wiring, drawn under devices, updated for live/dead color each render
+  return [
+    ['SOURCE', 500,30, 500,60,  'ISO_INC1'],
+    ['ISO_INC1',500,96, 500,108,'CB_INC'],
+    ['CB_INC', 500,144,500,156, 'ISO_INC2'],
+    ['ISO_INC2',500,192,500,204,'BUS1'],
+    ['BUS1',500,204, 500,240, 'ISO_TX1_HV'],
+    ['ISO_TX1_HV',500,276,500,288,'CB_TX1_HV'],
+    ['CB_TX1_HV',500,324,500,352,'TX1'],
+    ['TX1',500,408,500,414,'CB_TX1_LV'],
+    ['CB_TX1_LV',500,450,500,462,'ISO_TX1_LV'],
+    ['ISO_TX1_LV',500,498,500,510,'BUS2'],
+    ['BUS2',260,510,260,544,'ISO_FDR1'],
+    ['ISO_FDR1',260,580,260,592,'CB_FDR1'],
+    ['BUS2',500,510,500,544,'ISO_FDR2'],
+    ['ISO_FDR2',500,580,500,592,'CB_FDR2'],
+    ['BUS2',740,510,740,544,'ISO_FDR3'],
+    ['ISO_FDR3',740,580,740,592,'CB_FDR3'],
+    ['CB_FDR1',260,628,260,655,'LOAD1'],
+    ['CB_FDR2',500,628,500,655,'LOAD2'],
+    ['CB_FDR3',740,628,740,655,'LOAD3'],
+  ];
+}
+
+function isPathLive(fromTag, toTag){
+  // crude: consider a connector segment "live" if both endpoints resolve energized in last computed set
+  return lastEnergized[normNode(fromTag)] && (toTag==='__END__'? true : true);
+}
+function normNode(n){ return n; }
+
+let lastEnergized = {SOURCE:true};
+
+function computeEnergizedForRender(){
+  const energized = {SOURCE:true};
+  for (const seg of segments){
+    if (seg.transformer){ energized[seg.to] = !!energized[seg.from]; continue; }
+    energized[seg.to] = !!energized[seg.from] && segClosed(seg);
+  }
+  return energized;
+}
+
+function nodeEnergizedFor(tag){
+  // if tag is a device id, energized means the node BEFORE it (from) is live; used to color the incoming wire
+  if (devices[tag]) {
+    for (const seg of segments){
+      if (seg.through.includes(tag)) return lastEnergized[seg.from];
+    }
+  }
+  if (lastEnergized[tag] !== undefined) return lastEnergized[tag];
+  return false;
+}
+
+function drawScada(){
+  svg.innerHTML = '';
+  lastEnergized = computeEnergizedForRender();
+
+  // Title labels for bays
+  el('text',{x:500,y:20,class:'bus-label','text-anchor':'middle',fill:'#8fb8d8',style:'font-size:12px;letter-spacing:.1em;'},svg).textContent = '33 kV INCOMER';
+  el('text',{x:500,y:224,class:'bus-label','text-anchor':'middle',fill:'#8fb8d8'},svg).textContent = 'BUS-1  33 kV';
+  el('text',{x:500,y:530,class:'bus-label','text-anchor':'middle',fill:'#8fb8d8'},svg).textContent = 'BUS-2  11 kV';
+  el('text',{x:660,y:385,class:'dev-sub'},svg).textContent = 'TX-1 33/11kV 5MVA';
+
+  // bus bars
+  drawBus(200,800,204);
+  drawBus(200,800,510);
+
+  // connectors
+  const conns = buildStaticConnectors();
+  for (const [fromTag,x1,y1,x2,y2,toTag] of conns){
+    const live = nodeEnergizedFor(toTag) || nodeEnergizedFor(fromTag);
+    // more accurate: color reflects energization state of source-side node of this wire
+    const liveColor = wireLive(fromTag,toTag);
+    el('line',{x1,y1,x2,y2,stroke: liveColor?'#ffb020':'#233a4c','stroke-width':3},svg);
+  }
+
+  // devices
+  for (const tag in devices) drawDevice(tag, devices[tag]);
+
+  // transformer symbol
+  drawTransformer('TX1', 500, 380);
+
+  // source arrow
+  el('line',{x1:500,y1:5,x2:500,y2:30,stroke:'#ffb020','stroke-width':3},svg);
+  el('polygon',{points:'493,30 507,30 500,42',fill:'#ffb020'},svg);
+
+  // load symbols
+  drawLoad(260,655,'LOAD1');
+  drawLoad(500,655,'LOAD2');
+  drawLoad(740,655,'LOAD3');
+
+  // readouts panel on buses
+  drawReadout(120,190,'BUS-1', analog.V_BUS1/1000,'kV', analog.F_BUS1,'Hz', analog.I_INC,'A');
+  drawReadout(870,190,'INCOMER', analog.I_INC,'A', null,null, (Math.sqrt(3)*analog.V_BUS1*analog.I_INC/1e6),'MVA');
+  drawReadout(120,500,'BUS-2', analog.V_BUS2/1000,'kV', analog.F_BUS2,'Hz', null,null);
+  drawReadout(870,500,'TOTAL LOAD', analog.P_TOTAL,'kW', null,null,null,null);
+}
+
+function wireLive(fromTag, toTag){
+  // find energized state of the node this wire segment starts from
+  const map = lastEnergized;
+  const nodeNames = ['SOURCE','BUS1','BUS2','TX1_PRI','TX1_SEC','LOAD1','LOAD2','LOAD3'];
+  if (nodeNames.includes(fromTag)) return !!map[fromTag];
+  if (devices[fromTag]){
+    // wire leaving a device is live if device closed AND its 'from' node is live
+    for (const seg of segments){
+      if (seg.through.includes(fromTag)){
+        const idx = seg.through.indexOf(fromTag);
+        const upstreamOk = seg.through.slice(0, idx+1).every(d => devices[d].state);
+        return !!map[seg.from] && upstreamOk;
+      }
+    }
+  }
+  return false;
+}
+
+function drawBus(x1,x2,y){
+  el('line',{x1,y1:y,x2,y2:y,stroke:'#9fd1ff','stroke-width':6,'stroke-linecap':'round'},svg);
+}
+
+function drawDevice(tag, d){
+  const g = el('g',{class:'devicegrp',transform:`translate(${d.x},${d.y})`,'data-tag':tag},svg);
+  g.addEventListener('click', ()=>onDeviceClick(tag));
+  g.addEventListener('mousemove', (e)=>showTooltip(e, tag));
+  g.addEventListener('mouseleave', hideTooltip);
+
+  if (d.type === 'CB'){
+    const color = d.state ? '#31d67a' : '#ff4d4f';
+    el('rect',{x:-16,y:-16,width:32,height:32,rx:4,class:'devbox',fill:'#0d1a26',stroke:color,'stroke-width':3},g);
+    if (d.state){
+      el('line',{x1:-8,y1:8,x2:8,y2:-8,stroke:color,'stroke-width':4},g);
+    } else {
+      el('line',{x1:-8,y1:-8,x2:8,y2:-8,stroke:color,'stroke-width':4},g);
+      el('line',{x1:8,y1:-8,x2:8,y2:8,stroke:color,'stroke-width':4},g);
+    }
+  } else { // ISO
+    const color = d.state ? '#31d67a' : '#ff4d4f';
+    el('circle',{cx:-14,cy:0,r:4,fill:'none',stroke:color,'stroke-width':2.5},g);
+    el('circle',{cx:14,cy:0,r:4,fill:'none',stroke:color,'stroke-width':2.5},g);
+    if (d.state){
+      el('line',{x1:-11,y1:0,x2:11,y2:0,stroke:color,'stroke-width':3},g);
+    } else {
+      el('line',{x1:-11,y1:0,x2:2,y2:-11,stroke:color,'stroke-width':3},g);
+    }
+  }
+  el('text',{x:22,y:4,class:'dev-label'},g).textContent = d.label;
+  el('text',{x:22,y:16,class:'dev-sub'},g).textContent = d.state?'CLOSED':'OPEN';
+  const badge = el('circle',{cx:-24,cy:-14,r:5,class: d.mode==='AUTO'?'badge-auto':'badge-manual'},g);
+  el('title',{},badge).textContent = d.mode;
+}
+
+function drawTransformer(tag,x,y){
+  const g = el('g',{transform:`translate(${x},${y})`},svg);
+  el('circle',{cx:0,cy:-14,r:22,fill:'#0d1a26',stroke:'#6a8db3','stroke-width':2.5},g);
+  el('circle',{cx:0,cy:14,r:22,fill:'#0d1a26',stroke:'#6a8db3','stroke-width':2.5},g);
+  el('text',{x:34,y:2,class:'dev-label'},g).textContent = 'TX-1';
+}
+
+function drawLoad(x,y,loadTag){
+  const g = el('g',{transform:`translate(${x},${y})`},svg);
+  const live = lastEnergized[loadTag];
+  el('polygon',{points:'-12,-16 12,-16 0,14',fill:'#0d1a26',stroke: live?'#31d67a':'#3a4f61','stroke-width':2.5},g);
+  el('text',{x:0,y:34,'text-anchor':'middle',class:'dev-sub'},g).textContent = loadTag;
+  const iTag = 'I_'+loadTag.replace('LOAD','FDR');
+  const pTag = 'P_'+loadTag.replace('LOAD','FDR');
+  el('text',{x:0,y:48,'text-anchor':'middle',class:'dev-sub',fill:live?'#eaf6ff':'#3a4f61'},g).textContent =
+    live ? `${analog[iTag].toFixed(0)} A · ${analog[pTag].toFixed(0)} kW` : 'DE-ENERGIZED';
+}
+
+function drawReadout(x,y,title,v1,u1,v2,u2,v3,u3){
+  const g = el('g',{transform:`translate(${x},${y})`},svg);
+  el('rect',{x:-58,y:-30,width:116,height: (v3!==null?66:48),rx:4,fill:'#0c1720',stroke:'#22384d'},g);
+  el('text',{x:0,y:-16,'text-anchor':'middle',class:'dev-sub',style:'letter-spacing:.08em;'},g).textContent = title;
+  let row=0;
+  const addRow = (v,u)=>{
+    if (v===null) return;
+    el('text',{x:0,y:0+row*15,'text-anchor':'middle',class:'dev-label',fill:'#eaf6ff'},g).textContent = `${(+v).toFixed(2)} ${u}`;
+    row++;
+  };
+  addRow(v1,u1); addRow(v2,u2); addRow(v3,u3);
+}
+
+/* tooltip */
+const tooltip = document.getElementById('tooltip');
+function showTooltip(e, tag){
+  const d = devices[tag];
+  tooltip.style.display='block';
+  tooltip.style.left = (e.pageX+14)+'px';
+  tooltip.style.top = (e.pageY+10)+'px';
+  tooltip.innerHTML = `<b>${tag}</b> — ${d.type==='CB'?'Circuit Breaker':'Isolator'}<br>
+    State: ${d.state?'<span style="color:#31d67a">CLOSED</span>':'<span style="color:#ff4d4f">OPEN</span>'}<br>
+    Mode: ${d.mode}<br><i style="color:#7691a6">Click to ${d.mode==='MANUAL'?'operate':'view (AUTO — PLC controlled)'}</i>`;
+}
+function hideTooltip(){ tooltip.style.display='none'; }
+
+function onDeviceClick(tag){
+  const d = devices[tag];
+  if (d.mode !== 'MANUAL'){
+    log(`${tag} is in AUTO mode — set to MANUAL to operate from SCADA`, 'alarm');
+    return;
+  }
+  if (d.type === 'ISO'){
+    const cbTag = isolatorInterlock[tag];
+    if (cbTag && devices[cbTag].state){
+      log(`INTERLOCK: cannot operate ${tag} while ${cbTag} is CLOSED`, 'alarm');
+      return;
+    }
+  }
+  d.state = !d.state;
+  log(`${tag} ${d.state?'CLOSED':'OPEN'} (SCADA manual)`, d.state?'close':'trip');
+}
+
+/* ============================= EVENT LOG ============================= */
+
+const logScroll = document.getElementById('logScroll');
+function log(msg, cls){
+  const row = document.createElement('div');
+  row.className = 'logrow ' + (cls||'');
+  const t = new Date();
+  const ts = t.toLocaleTimeString();
+  row.innerHTML = `<span class="t">${ts}</span>${msg}`;
+  logScroll.prepend(row);
+  while (logScroll.children.length > 200) logScroll.removeChild(logScroll.lastChild);
+}
+
+/* ============================= TAGS TAB RENDER ============================= */
+
+function renderTagsTab(){
+  const devBody = document.querySelector('#tblDevices tbody');
+  devBody.innerHTML = '';
+  for (const tag in devices){
+    const d = devices[tag];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${tag}</td><td class="${d.state?'val-true':'val-false'}">${d.state?'CLOSED':'OPEN'}</td>
+      <td><span class="modebadge ${d.mode==='AUTO'?'auto':'manual'}" data-tag="${tag}">${d.mode}</span></td>`;
+    devBody.appendChild(tr);
+  }
+  devBody.querySelectorAll('.modebadge').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const t = b.dataset.tag;
+      devices[t].mode = devices[t].mode === 'AUTO' ? 'MANUAL' : 'AUTO';
+      log(`${t} mode set to ${devices[t].mode}`, '');
+      renderTagsTab();
+    });
+  });
+
+  const intBody = document.querySelector('#tblInternal tbody');
+  intBody.innerHTML = '';
+  for (const tag in internalTags){
+    const v = internalTags[tag];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${tag}</td><td class="${v?'val-true':'val-false'}">${v?'TRUE':'FALSE'}</td>`;
+    intBody.appendChild(tr);
+  }
+
+  const anBody = document.querySelector('#tblAnalog tbody');
+  anBody.innerHTML = '';
+  for (const tag in analog){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${tag}</td><td>${analog[tag].toFixed(2)}</td>`;
+    anBody.appendChild(tr);
+  }
+}
+
+/* ============================= LADDER TAB RENDER ============================= */
+
+const allTagNames = () => [...Object.keys(devices), ...Object.keys(internalTags)];
+
+function renderRungs(){
+  const list = document.getElementById('rungList');
+  list.innerHTML = '';
+  rungs.forEach((r, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'rung';
+    let condsHtml = r.conditions.map((c,ci)=>`
+      <span class="contactChip"><span class="sym">${c.type==='NO'?'—| |—':'—|/|—'}</span>${c.tag}
+      <span class="rm" data-rung="${idx}" data-cond="${ci}">✕</span></span>`).join('<span class="arrowto">AND</span>');
+    div.innerHTML = `
+      <div class="rmRung" data-rung="${idx}">✕</div>
+      <div class="rungHead"><span>Rung ${idx+1}</span></div>
+      <div class="rungRow">
+        ${condsHtml || '<span class="hint" style="padding:0;">no conditions</span>'}
+        <span class="arrowto">⟶</span>
+        <span class="coilChip">${r.op==='COIL'?'( )':r.op==='SET'?'(S)':'(R)'} ${r.outTag||'?'}</span>
+      </div>
+      <div class="addRow">
+        <select class="condTagSel" data-rung="${idx}">${tagOptions()}</select>
+        <select class="condTypeSel" data-rung="${idx}"><option value="NO">NO —| |—</option><option value="NC">NC —|/|—</option></select>
+        <button class="miniBtn addCond" data-rung="${idx}">+ contact</button>
+        <select class="opSel" data-rung="${idx}">
+          <option value="COIL" ${r.op==='COIL'?'selected':''}>COIL ( )</option>
+          <option value="SET" ${r.op==='SET'?'selected':''}>SET (S)</option>
+          <option value="RESET" ${r.op==='RESET'?'selected':''}>RESET (R)</option>
+        </select>
+        <select class="outSel" data-rung="${idx}">${tagOptions(r.outTag)}</select>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+
+  list.querySelectorAll('.rm').forEach(x=>x.addEventListener('click', e=>{
+    const ri = +e.target.dataset.rung, ci = +e.target.dataset.cond;
+    rungs[ri].conditions.splice(ci,1); renderRungs();
+  }));
+  list.querySelectorAll('.rmRung').forEach(x=>x.addEventListener('click', e=>{
+    rungs.splice(+e.currentTarget.dataset.rung,1); renderRungs();
+  }));
+  list.querySelectorAll('.addCond').forEach(x=>x.addEventListener('click', e=>{
+    const ri = +e.target.dataset.rung;
+    const sel = list.querySelector(`.condTagSel[data-rung="${ri}"]`);
+    const typ = list.querySelector(`.condTypeSel[data-rung="${ri}"]`);
+    rungs[ri].conditions.push({tag:sel.value, type:typ.value});
+    renderRungs();
+  }));
+  list.querySelectorAll('.opSel').forEach(x=>x.addEventListener('change', e=>{
+    rungs[+e.target.dataset.rung].op = e.target.value;
+  }));
+  list.querySelectorAll('.outSel').forEach(x=>x.addEventListener('change', e=>{
+    rungs[+e.target.dataset.rung].outTag = e.target.value;
+  }));
+}
+
+function tagOptions(selected){
+  return allTagNames().map(t=>`<option value="${t}" ${t===selected?'selected':''}>${t}</option>`).join('');
+}
+
+document.getElementById('btnAddRung').addEventListener('click', ()=>{
+  rungs.push({id:rungSeq++, conditions:[], op:'COIL', outTag: allTagNames()[0]});
+  renderRungs();
+});
+document.getElementById('btnExample').addEventListener('click', exampleProgram);
+document.getElementById('btnClearProg').addEventListener('click', ()=>{ rungs=[]; renderRungs(); });
+
+/* ============================= FAULT PANEL ============================= */
+
+function renderFaultPanel(){
+  const body = document.getElementById('faultBody');
+  body.innerHTML = '';
+  for (const load of ['LOAD1','LOAD2','LOAD3']){
+    const row = document.createElement('div');
+    row.className = 'faultRow';
+    row.innerHTML = `<span>${load} (base ${feederBase[load]} A)</span>
+      <button class="miniBtn" data-load="${load}">${feederFault[load]?'Clear Fault':'Inject Fault'}</button>`;
+    body.appendChild(row);
+  }
+  body.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const l = b.dataset.load;
+      feederFault[l] = !feederFault[l];
+      log(`${feederFault[l]?'FAULT INJECTED':'Fault cleared'} on ${l} (overcurrent test)`, feederFault[l]?'alarm':'');
+      renderFaultPanel();
+    });
+  });
+  const note = document.createElement('div');
+  note.className = 'hint';
+  note.style.padding = '6px 0 0';
+  note.textContent = `Overcurrent threshold: ${OC_THRESHOLD} A. Feeder breakers CB_FDR1-3 start in AUTO mode running the example protection program — load it from the Ladder Program tab, or write your own.`;
+  body.appendChild(note);
+}
+
+/* ============================= TABS ============================= */
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+  });
+});
+
+/* ============================= SCAN LOOP ============================= */
+
+let scanning = false;
+let scanTimer = null;
+const btnScan = document.getElementById('btnScan');
+const scanLed = document.getElementById('scanLed');
+const scanLabel = document.getElementById('scanLabel');
+
+function scanCycle(){
+  runSimulationTick();
+  if (scanning) scanLadder();
+  drawScada();
+  renderTagsTab();
+  scanLed.classList.toggle('on');
+}
+
+btnScan.addEventListener('click', ()=>{
+  scanning = !scanning;
+  scanLabel.textContent = scanning ? 'PLC SCAN RUNNING (500ms)' : 'SCAN STOPPED';
+  btnScan.textContent = scanning ? 'Stop PLC Scan' : 'Start PLC Scan';
+  btnScan.classList.toggle('primary', !scanning);
+  btnScan.classList.toggle('danger', scanning);
+});
+
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  for (const t in devices){ devices[t].state = true; devices[t].mode = 'MANUAL'; }
+  devices.CB_FDR1.mode='AUTO'; devices.CB_FDR2.mode='AUTO'; devices.CB_FDR3.mode='AUTO';
+  for (const l in feederFault) feederFault[l]=false;
+  for (const t in internalTags) internalTags[t]=false;
+  log('Simulation reset — all switchgear CLOSED', '');
+});
+
+/* clock */
+setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+
+/* main tick @ 500ms regardless of scan state (simulation always live, PLC optional) */
+setInterval(scanCycle, 500);
+
+/* ============================= INIT ============================= */
+
+renderRungs();
+renderFaultPanel();
+scanCycle();
+log('System initialised. All switchgear CLOSED. Feeder breakers in AUTO — load the example program and press Start PLC Scan.', '');
+
+})();
+</script>
+</body>
+</html>
