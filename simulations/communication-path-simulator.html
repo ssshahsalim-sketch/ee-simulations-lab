@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Apna Electromechanic Service | How Communication Actually Travels</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121a30; --panel2:#0e1526; --border:#22304f;
+    --accent:#00d4ff; --accent2:#7c5cff; --good:#20d67b; --warn:#ffb020; --bad:#ff4d5e;
+    --text:#e7edf7; --sub:#8ea0c2; --font:'IBM Plex Mono','Consolas',monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;color:var(--text);font-family:var(--font);
+    background-color:var(--bg);
+    background-image:
+      linear-gradient(rgba(0,212,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,.05) 1px, transparent 1px);
+    background-size:26px 26px;
+  }
+  header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:rgba(18,26,48,.85);backdrop-filter:blur(6px);position:sticky;top:0;z-index:1000;}
+  .brand b{font-size:16px;letter-spacing:.3px;}
+  .brand span{font-size:11px;color:var(--sub);}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;padding:14px 18px 0;max-width:1300px;margin:0 auto;}
+  .tab{padding:9px 16px;border-radius:9px 9px 0 0;border:1px solid var(--border);border-bottom:none;background:var(--panel2);color:var(--sub);font-size:13px;font-weight:600;cursor:pointer;}
+  .tab.active{background:var(--panel);color:var(--accent);border-color:var(--accent);}
+  .wrap{max-width:1300px;margin:0 auto;padding:0 18px 24px;}
+  .main{background:var(--panel);border:1px solid var(--border);border-radius:0 12px 12px 12px;padding:16px;display:grid;grid-template-columns:1.5fr 1fr;gap:16px;}
+  @media (max-width:920px){.main{grid-template-columns:1fr;}}
+  svg{width:100%;height:auto;background:var(--panel2);border:1px solid var(--border);border-radius:10px;}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;}
+  button{cursor:pointer;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#04101f;font-family:var(--font);}
+  button.secondary{background:transparent;border:1px solid var(--border);color:var(--text);}
+  select{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:9px;font-family:var(--font);font-size:12px;}
+  .panel{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px;}
+  .panel h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);}
+  .row{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px dashed rgba(255,255,255,.06);}
+  .row span:first-child{color:var(--sub);}
+  .row span:last-child{font-weight:700;text-align:right;}
+  #steps{max-height:220px;overflow-y:auto;}
+  .step{font-size:12.5px;padding:8px 10px;border-left:3px solid var(--border);margin-bottom:6px;border-radius:4px;background:rgba(255,255,255,.02);opacity:.4;transition:.2s;}
+  .step.active{opacity:1;border-left-color:var(--accent);background:rgba(0,212,255,.08);}
+  .step.done{opacity:.7;border-left-color:var(--good);}
+  .example{font-size:12.5px;line-height:1.6;color:var(--sub);background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.25);padding:10px 12px;border-radius:9px;}
+  .clock{font-size:22px;font-weight:800;color:var(--accent);text-align:center;padding:8px 0;}
+  .clock small{display:block;font-size:10px;color:var(--sub);font-weight:400;}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;}
+  th,td{border:1px solid var(--border);padding:8px;text-align:left;}
+  th{background:var(--panel2);color:var(--accent);}
+  td{color:var(--sub);}
+  footer{text-align:center;font-size:11px;color:var(--sub);padding:16px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <b>Apna Electromechanic Service</b><br>
+    <span>Engineering Tools Suite — How Communication Actually Travels (Interactive)</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-scenario="cellular">📡 Mobile Tower (Cellular)</div>
+  <div class="tab" data-scenario="satellite">🛰️ Satellite Communication</div>
+  <div class="tab" data-scenario="wifi">📶 WiFi / VoIP (Internet Call)</div>
+</div>
+
+<div class="wrap">
+  <div class="main">
+    <div>
+      <svg id="diagram" viewBox="0 0 700 320"></svg>
+      <div class="controls">
+        <button id="playBtn">▶ Play Transmission</button>
+        <button class="secondary" id="resetBtn">⟲ Reset</button>
+        <select id="speedSel">
+          <option value="2">Slow-mo (0.5x)</option>
+          <option value="1" selected>Normal</option>
+          <option value="0.4">Fast (2.5x)</option>
+        </select>
+        <select id="satModeSel" style="display:none;">
+          <option value="GEO" selected>GEO Satellite (35,786 km)</option>
+          <option value="LEO">LEO Satellite (~550 km)</option>
+        </select>
+      </div>
+      <div class="clock" id="clockDisplay">0 ms <small>simulated one-way delay accumulated (animation slowed down for visibility)</small></div>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Step-by-step</h3>
+        <div id="steps"></div>
+      </div>
+      <div class="panel">
+        <h3>Key Specs</h3>
+        <div id="specs"></div>
+      </div>
+      <div class="panel">
+        <h3>Simple Example</h3>
+        <div class="example" id="example"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:16px;">
+    <h3>Quick Comparison</h3>
+    <table>
+      <tr><th>Technology</th><th>Path</th><th>Typical One-Way Latency</th><th>Medium / Frequency</th><th>Best Use Case</th></tr>
+      <tr><td>Cellular (4G/5G)</td><td>Phone → Tower → Core Network → Tower → Phone</td><td>~5–50 ms (radio+core)</td><td>700 MHz – 3.5 GHz radio waves</td><td>Everyday calls/data with tower coverage</td></tr>
+      <tr><td>Satellite (GEO)</td><td>Phone → Satellite (35,786 km) → Gateway → Network</td><td>~120 ms per hop (~500+ ms round trip)</td><td>L/Ku/Ka-band microwave</td><td>Remote areas, ships, no towers nearby</td></tr>
+      <tr><td>Satellite (LEO)</td><td>Terminal → Satellite (~550 km) → Gateway → Internet</td><td>~2–10 ms per hop (~20–40 ms round trip)</td><td>Ku/Ka-band microwave</td><td>Broadband internet in remote/rural areas</td></tr>
+      <tr><td>WiFi + VoIP</td><td>Phone → Router → ISP → Internet → App Server → Router → Phone</td><td>~15–75 ms (varies with internet path)</td><td>2.4 / 5 / 6 GHz WiFi + fiber/broadband</td><td>Calls over apps like WhatsApp/Skype using internet, not mobile network</td></tr>
+    </table>
+  </div>
+</div>
+
+<footer>Apna Electromechanic Service — Engineering Tools Suite &nbsp;|&nbsp; Offline single-file HTML tool &nbsp;|&nbsp; Educational simulation — timings are simplified/illustrative, not lab-measured</footer>
+
+<script>
+const svgNS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById('diagram');
+const stepsEl = document.getElementById('steps');
+const specsEl = document.getElementById('specs');
+const exampleEl = document.getElementById('example');
+const clockEl = document.getElementById('clockDisplay');
+const satModeSel = document.getElementById('satModeSel');
+
+function clearSvg(){ while(svg.firstChild) svg.removeChild(svg.firstChild); }
+function el(tag, attrs){ const e = document.createElementNS(svgNS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+
+function drawPhone(x,y,label,facing){
+  const g = el('g',{});
+  g.appendChild(el('rect',{x:x-10,y:y-20,width:20,height:40,rx:5,fill:'#1b2440',stroke:'#00d4ff','stroke-width':1.5}));
+  g.appendChild(el('rect',{x:x-6,y:y-15,width:12,height:24,rx:2,fill:'#0b1020'}));
+  const t = el('text',{x:x, y:y+34, 'text-anchor':'middle', fill:'#8ea0c2', 'font-size':'11'});
+  t.textContent = label; g.appendChild(t);
+  svg.appendChild(g);
+}
+function drawTower(x,y,label){
+  const g = el('g',{});
+  g.appendChild(el('line',{x1:x,y1:y+30,x2:x-18,y2:y+55,stroke:'#ffb020','stroke-width':2}));
+  g.appendChild(el('line',{x1:x,y1:y+30,x2:x+18,y2:y+55,stroke:'#ffb020','stroke-width':2}));
+  g.appendChild(el('line',{x1:x,y1:y+2,x2:x,y2:y+30,stroke:'#ffb020','stroke-width':3}));
+  g.appendChild(el('circle',{cx:x,cy:y-4,r:3,fill:'#ffb020'}));
+  [8,14,20].forEach(r=>g.appendChild(el('path',{d:`M ${x-r} ${y+2-r*0.3} A ${r} ${r} 0 0 1 ${x+r} ${y+2-r*0.3}`, stroke:'#ffb020', fill:'none','stroke-width':1, opacity:0.6})));
+  const t = el('text',{x:x, y:y+70, 'text-anchor':'middle', fill:'#8ea0c2', 'font-size':'11'});
+  t.textContent = label; g.appendChild(t);
+  svg.appendChild(g);
+}
+function drawSat(x,y,label){
+  const g = el('g',{});
+  g.appendChild(el('rect',{x:x-10,y:y-8,width:20,height:16,rx:2,fill:'#7c5cff'}));
+  g.appendChild(el('rect',{x:x-26,y:y-3,width:14,height:6,fill:'#4a3a99'}));
+  g.appendChild(el('rect',{x:x+12,y:y-3,width:14,height:6,fill:'#4a3a99'}));
+  const t = el('text',{x:x, y:y+28, 'text-anchor':'middle', fill:'#8ea0c2', 'font-size':'11'});
+  t.textContent = label; g.appendChild(t);
+  svg.appendChild(g);
+}
+function drawDish(x,y,label){
+  const g = el('g',{});
+  g.appendChild(el('path',{d:`M ${x-16} ${y+10} Q ${x} ${y-16} ${x+16} ${y+10} Z`, fill:'#20d67b', opacity:0.85}));
+  g.appendChild(el('line',{x1:x,y1:y+10,x2:x,y2:y+28,stroke:'#20d67b','stroke-width':2}));
+  const t = el('text',{x:x, y:y+42, 'text-anchor':'middle', fill:'#8ea0c2', 'font-size':'11'});
+  t.textContent = label; g.appendChild(t);
+  svg.appendChild(g);
+}
+function drawCloud(x,y,label){
+  const g = el('g',{});
+  [[0,0,20],[-16,4,15],[16,4,15],[-8,-6,14],[8,-6,14]].forEach(([dx,dy,r])=>
+    g.appendChild(el('circle',{cx:x+dx,cy:y+dy,r:r,fill:'#121a30',stroke:'#00d4ff','stroke-width':1.2})));
+  const t = el('text',{x:x, y:y+34, 'text-anchor':'middle', fill:'#8ea0c2', 'font-size':'11'});
+  t.textContent = label; g.appendChild(t);
+  svg.appendChild(g);
+}
+function drawRouter(x,y,label){
+  const g = el('g',{});
+  g.appendChild(el('rect',{x:x-14,y:y-6,width:28,height:12,rx:3,fill:'#20d67b'}));
+  g.appendChild(el('line',{x1:x-6,y1:y-6,x2:x-10,y2:y-16,stroke:'#20d67b','stroke-width':2}));
+  g.appendChild(el('line',{x1:x+6,y1:y-6,x2:x+10,y2:y-16,stroke:'#20d67b','stroke-width':2}));
+  const t = el('text',{x:x, y:y+26, 'text-anchor':'middle', fill:'#8ea0c2', 'font-size':'11'});
+  t.textContent = label; g.appendChild(t);
+  svg.appendChild(g);
+}
+function drawPath(points, dashed){
+  const d = points.map((p,i)=> (i===0?'M':'L') + p.x + ' ' + p.y).join(' ');
+  svg.appendChild(el('path',{d, stroke:'#22304f','stroke-width':2, fill:'none', 'stroke-dasharray': dashed?'6 5':'none'}));
+}
+
+// ---------------- Scenarios ----------------
+const scenarios = {
+cellular: {
+  nodes: [
+    {type:'phone', x:60, y:150, label:'Phone A'},
+    {type:'tower', x:230, y:110, label:'Tower 1'},
+    {type:'cloud', x:400, y:70, label:'Core Network'},
+    {type:'tower', x:570, y:110, label:'Tower 2'},
+    {type:'phone', x:640, y:150, label:'Phone B'}
+  ],
+  path: [0,1,2,3,4],
+  steps: [
+    'Phone A searches and attaches to the nearest cell tower (registration on the control channel).',
+    'Uplink: Phone A transmits the call/data as radio waves to Tower 1 (700 MHz – 3.5 GHz band).',
+    'Tower 1 forwards the signal over backhaul (fiber or microwave link) to the Core Network.',
+    'Core Network looks up Phone B\'s current location and routes the call through backhaul to Tower 2.',
+    'Downlink: Tower 2 transmits the radio signal to Phone B, which rings/receives the data.'
+  ],
+  specs: [
+    ['Medium','Radio waves (RF)'],
+    ['Typical Frequency','700 MHz – 3.5 GHz (band depends on 2G/3G/4G/5G)'],
+    ['Typical Range per Tower','1 – 15 km (denser in cities)'],
+    ['One-way Latency','~5–50 ms (mostly core routing, radio hop is fast)'],
+    ['Needs Line of Sight?','No — works around buildings within range']
+  ],
+  example: 'You call a friend 5 km away in the same city. Your phone doesn\'t talk to theirs directly — it goes up to the nearest tower, across the operator\'s core network, down to the tower nearest your friend, then to their phone.',
+  totalMs: 30
+},
+satellite_GEO: {
+  nodes: [
+    {type:'phone', x:60, y:220, label:'Sat Phone A'},
+    {type:'sat', x:360, y:40, label:'GEO Satellite (35,786 km)'},
+    {type:'dish', x:620, y:220, label:'Ground Gateway'},
+    {type:'cloud', x:620, y:150, label:'Internet/PSTN'}
+  ],
+  path: [0,1,2,3],
+  steps: [
+    'Satellite phone transmits directly upward — no tower needed, useful where there is no cellular coverage.',
+    'Signal travels ~35,786 km up to a Geostationary (GEO) satellite (~119 ms one-way, limited by speed of light).',
+    'The satellite relays ("bent pipe") the signal back down ~35,786 km to a ground gateway station.',
+    'Gateway connects into the terrestrial network/internet to reach the destination — and the same ~240 ms round trip happens again on the way back.'
+  ],
+  specs: [
+    ['Medium','Microwave (L-band / Ku-band / Ka-band)'],
+    ['Orbit Altitude','35,786 km (fixed above the equator)'],
+    ['One-way Latency','~119 ms per hop (~500–600 ms full round trip)'],
+    ['Coverage per Satellite','Roughly 1/3 of Earth\'s surface'],
+    ['Needs Line of Sight?','Yes — clear view of the sky required']
+  ],
+  example: 'You\'re on a ship in the middle of the ocean, hundreds of km from any tower. Your satellite phone talks straight up to a satellite 35,786 km away instead — that huge distance is why there\'s a noticeable delay, like old walkie-talkie calls.',
+  totalMs: 500
+},
+satellite_LEO: {
+  nodes: [
+    {type:'phone', x:60, y:220, label:'Terminal A'},
+    {type:'sat', x:360, y:110, label:'LEO Satellite (~550 km)'},
+    {type:'dish', x:620, y:220, label:'Ground Gateway'},
+    {type:'cloud', x:620, y:150, label:'Internet'}
+  ],
+  path: [0,1,2,3],
+  steps: [
+    'A small dish/terminal transmits upward to the nearest Low Earth Orbit (LEO) satellite.',
+    'Signal travels only ~550 km up (~1.8 ms one-way) — much closer than GEO, so the delay is tiny.',
+    'The satellite (or a chain of satellites via laser links) relays the signal down to the nearest ground gateway.',
+    'Gateway connects into the internet backbone, reaching the destination with near-terrestrial latency.'
+  ],
+  specs: [
+    ['Medium','Microwave (Ku-band / Ka-band)'],
+    ['Orbit Altitude','~550 km (constantly moving, needs a satellite constellation)'],
+    ['One-way Latency','~2–10 ms per hop (~20–40 ms round trip)'],
+    ['Coverage per Satellite','Small footprint — thousands of satellites needed for global coverage'],
+    ['Needs Line of Sight?','Yes — clear sky view, satellite changes every few minutes']
+  ],
+  example: 'This is how modern satellite internet (like Starlink-style constellations) gives near broadband speeds in rural areas — the satellites are so much closer than GEO that the delay barely feels different from home WiFi.',
+  totalMs: 25
+},
+wifi: {
+  nodes: [
+    {type:'phone', x:50, y:190, label:'Phone A'},
+    {type:'router', x:170, y:130, label:'Home WiFi Router'},
+    {type:'cloud', x:350, y:70, label:'ISP / Internet'},
+    {type:'cloud', x:530, y:130, label:'VoIP App Server'},
+    {type:'router', x:650, y:190, label:'Router B'},
+    {type:'phone', x:680, y:250, label:'Phone B'}
+  ],
+  path: [0,1,2,3,4,5],
+  steps: [
+    'Phone A connects to a nearby WiFi access point (2.4 GHz or 5 GHz, typically within ~30–50 m).',
+    'Router sends the call data over the home/office internet connection (fiber, cable, or DSL) to the ISP.',
+    'Data travels across the internet backbone to the VoIP app\'s server (e.g. WhatsApp, Skype, Teams).',
+    'The server routes the call toward Phone B\'s network.',
+    'Phone B\'s router receives it and forwards it over WiFi to Phone B — no mobile tower involved at all.'
+  ],
+  specs: [
+    ['Medium','WiFi radio (2.4/5/6 GHz) + wired internet backbone'],
+    ['Typical WiFi Range','~30–50 m indoors'],
+    ['One-way Latency','~15–75 ms (depends entirely on internet path, not distance)'],
+    ['Uses Mobile Network?','No — entirely via internet/data, bypasses cellular voice channel'],
+    ['Needs Line of Sight?','No']
+  ],
+  example: 'You call a friend on WhatsApp while connected to home WiFi. Instead of using the mobile operator\'s voice network, your voice is converted into internet data packets and sent over the same connection as your web browsing.',
+  totalMs: 45
+}
+};
+
+let current = 'cellular';
+let animId = null;
+let animating = false;
+let segIndex = 0;
+let segProgress = 0;
+let dot = null;
+let elapsedMs = 0;
+
+function nodeIcon(n){
+  if(n.type==='phone') drawPhone(n.x,n.y,n.label);
+  else if(n.type==='tower') drawTower(n.x,n.y,n.label);
+  else if(n.type==='sat') drawSat(n.x,n.y,n.label);
+  else if(n.type==='dish') drawDish(n.x,n.y,n.label);
+  else if(n.type==='cloud') drawCloud(n.x,n.y,n.label);
+  else if(n.type==='router') drawRouter(n.x,n.y,n.label);
+}
+
+function loadScenario(key){
+  stopAnim();
+  const s = scenarios[key];
+  clearSvg();
+  const pts = s.path.map(i=>s.nodes[i]);
+  drawPath(pts, false);
+  s.nodes.forEach(nodeIcon);
+  dot = el('circle',{cx:pts[0].x, cy:pts[0].y, r:6, fill:'#00d4ff'});
+  svg.appendChild(dot);
+
+  stepsEl.innerHTML = '';
+  s.steps.forEach((txt,i)=>{
+    const d = document.createElement('div');
+    d.className = 'step';
+    d.id = 'step-'+i;
+    d.textContent = (i+1) + '. ' + txt;
+    stepsEl.appendChild(d);
+  });
+
+  specsEl.innerHTML = '';
+  s.specs.forEach(([k,v])=>{
+    const r = document.createElement('div');
+    r.className = 'row';
+    r.innerHTML = `<span>${k}</span><span>${v}</span>`;
+    specsEl.appendChild(r);
+  });
+
+  exampleEl.textContent = s.example;
+  elapsedMs = 0;
+  updateClock(0, s.totalMs);
+  segIndex = 0; segProgress = 0;
+}
+
+function updateClock(fraction, totalMs){
+  const ms = Math.round(fraction * totalMs);
+  clockEl.innerHTML = ms + ' ms <small>simulated one-way delay accumulated (animation slowed down for visibility)</small>';
+}
+
+function currentScenarioKey(){
+  if(current === 'satellite') return 'satellite_' + satModeSel.value;
+  return current;
+}
+
+function stopAnim(){
+  animating = false;
+  if(animId) cancelAnimationFrame(animId);
+  document.querySelectorAll('.step').forEach(s=>{s.classList.remove('active');s.classList.remove('done');});
+}
+
+function playAnim(){
+  const key = currentScenarioKey();
+  const s = scenarios[key];
+  const pts = s.path.map(i=>s.nodes[i]);
+  const segments = pts.length - 1;
+  const speedMult = parseFloat(document.getElementById('speedSel').value);
+  const segDurationMs = 900 * speedMult; // real animation ms per segment
+
+  animating = true;
+  segIndex = 0; segProgress = 0;
+  let lastTime = null;
+
+  function frame(t){
+    if(!animating) return;
+    if(lastTime === null) lastTime = t;
+    const dt = t - lastTime;
+    lastTime = t;
+    segProgress += dt / segDurationMs;
+
+    document.querySelectorAll('.step').forEach((el,i)=>{
+      el.classList.toggle('active', i===segIndex);
+      el.classList.toggle('done', i<segIndex);
+    });
+
+    if(segProgress >= 1){
+      segProgress = 0;
+      segIndex++;
+      if(segIndex >= segments){
+        const last = pts[pts.length-1];
+        dot.setAttribute('cx', last.x); dot.setAttribute('cy', last.y);
+        document.querySelectorAll('.step').forEach(el=>{el.classList.remove('active'); el.classList.add('done');});
+        updateClock(1, s.totalMs);
+        animating = false;
+        return;
+      }
+    }
+    const a = pts[segIndex], b = pts[segIndex+1] || pts[segIndex];
+    const x = a.x + (b.x - a.x) * segProgress;
+    const y = a.y + (b.y - a.y) * segProgress;
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+
+    const overallFraction = (segIndex + segProgress) / segments;
+    updateClock(overallFraction, s.totalMs);
+
+    animId = requestAnimationFrame(frame);
+  }
+  animId = requestAnimationFrame(frame);
+}
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    current = tab.dataset.scenario;
+    satModeSel.style.display = (current === 'satellite') ? 'inline-block' : 'none';
+    loadScenario(currentScenarioKey());
+  };
+});
+satModeSel.onchange = ()=> loadScenario(currentScenarioKey());
+document.getElementById('playBtn').onclick = ()=>{ stopAnim(); loadScenario(currentScenarioKey()); playAnim(); };
+document.getElementById('resetBtn').onclick = ()=> loadScenario(currentScenarioKey());
+
+loadScenario('cellular');
+</script>
+</body>
+</html>
