@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PLC + SCADA Bottle Filling Line Simulator</title>
+<style>
+  :root{
+    --bg:#0b1420; --panel:#101d2b; --panel2:#0d1a26; --line:#22384d;
+    --text:#cfe3f0; --dim:#7691a6; --amber:#ffb020; --green:#31d67a; --red:#ff4d4f; --blue:#3fa9ff;
+    --mono:'Consolas','SFMono-Regular','Menlo',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;}
+  #app{display:flex;flex-direction:column;height:100vh;}
+  header{display:flex;align-items:center;gap:14px;padding:8px 14px;background:linear-gradient(180deg,#132437,#0d1926);border-bottom:1px solid var(--line);flex-shrink:0;}
+  header h1{font-size:15px;letter-spacing:.05em;margin:0;font-weight:700;color:#eaf6ff;}
+  header .tag{font-size:10px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;}
+  .spacer{flex:1;}
+  .btn{background:#16283a;border:1px solid var(--line);color:var(--text);padding:6px 12px;border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:12px;transition:background .15s;}
+  .btn:hover{background:#1d3348;}
+  .btn.primary{background:#164a2e;border-color:#1f6b41;color:#c8ffdf;}
+  .btn.primary:hover{background:#1c5c39;}
+  .btn.danger{background:#4a1616;border-color:#6b1f1f;color:#ffc8c8;}
+  .btn.danger:hover{background:#5c1c1c;}
+  .scan-led{width:9px;height:9px;border-radius:50%;background:#2a3d4d;display:inline-block;margin-right:6px;}
+  .scan-led.on{background:var(--green);box-shadow:0 0 6px var(--green);}
+  #clock{color:var(--dim);font-size:12px;}
+
+  #main{flex:1;display:flex;min-height:0;}
+  #left{width:430px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel2);min-height:0;}
+  #right{flex:1;display:flex;flex-direction:column;min-height:0;}
+
+  .tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .tab{padding:9px 14px;cursor:pointer;color:var(--dim);font-size:12px;letter-spacing:.05em;text-transform:uppercase;border-bottom:2px solid transparent;}
+  .tab.active{color:#eaf6ff;border-bottom-color:var(--blue);}
+  .tabpanel{display:none;flex:1;min-height:0;flex-direction:column;overflow:hidden;}
+  .tabpanel.active{display:flex;}
+  .scroll{overflow-y:auto;flex:1;min-height:0;}
+
+  section.block{border-bottom:1px solid var(--line);padding:10px 12px;}
+  section.block h3{margin:0 0 8px 0;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;}
+
+  table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  th{text-align:left;color:var(--dim);font-weight:600;padding:3px 6px;border-bottom:1px solid var(--line);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;}
+  td{padding:3px 6px;border-bottom:1px solid #142334;}
+  tr:hover td{background:#122132;}
+  .val-true{color:var(--green);font-weight:700;}
+  .val-false{color:var(--red);font-weight:700;}
+
+  #rungList{padding:10px 12px;}
+  .rung{background:#0e1c29;border:1px solid var(--line);border-radius:3px;margin-bottom:8px;padding:8px;position:relative;}
+  .rung .rungHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .rung .rungHead span{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;}
+  .rungRow{display:flex;align-items:center;gap:6px;font-size:12px;flex-wrap:wrap;}
+  .contactChip{background:#152436;border:1px solid var(--line);border-radius:2px;padding:3px 7px;display:flex;align-items:center;gap:5px;}
+  .contactChip .sym{color:var(--blue);font-weight:700;}
+  .contactChip .rm{color:var(--red);cursor:pointer;font-weight:700;margin-left:2px;}
+  .arrowto{color:var(--dim);}
+  .coilChip{background:#132a1c;border:1px solid #1f4a30;border-radius:2px;padding:3px 8px;color:var(--green);font-weight:700;}
+  .coilChip.instr{background:#241a30;border-color:#4a2f6b;color:#c9a3ff;}
+  .rmRung{position:absolute;top:6px;right:8px;color:var(--red);cursor:pointer;font-size:14px;line-height:1;}
+  .addRow{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center;}
+  select,input[type=number]{background:#0c1720;border:1px solid var(--line);color:var(--text);padding:4px 6px;border-radius:2px;font-family:var(--mono);font-size:11.5px;}
+  input[type=number]{width:54px;}
+  .miniBtn{background:#16283a;border:1px solid var(--line);color:var(--text);padding:4px 8px;border-radius:2px;cursor:pointer;font-size:11px;}
+  .miniBtn:hover{background:#1d3348;}
+  .hint{color:var(--dim);font-size:11px;line-height:1.55;padding:8px 12px;}
+  .hint b{color:#eaf6ff;}
+
+  #scadaWrap{flex:1;position:relative;background:radial-gradient(circle at 50% 0%, #0f2035 0%, #081119 70%);min-height:0;overflow:auto;}
+  #opPanel{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);background:#0d1a26;flex-shrink:0;}
+  #opPanel .stat{color:var(--dim);font-size:11.5px;}
+  #opPanel .stat b{color:#eaf6ff;}
+  .estop{
+    width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #ff6b6b, #b30f0f);
+    border:3px solid #5c0d0d;cursor:pointer;box-shadow:0 0 0 3px #1c1c1c inset;
+  }
+  .estop.active{box-shadow:0 0 14px 4px #ff2020;}
+  #scadaSvg{display:block;margin:0 auto;}
+
+  #bottomPanel{height:190px;flex-shrink:0;border-top:1px solid var(--line);display:flex;background:var(--panel);}
+  #eventLog{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--line);min-width:0;}
+  #eventLog h3,#faultPanel h3{margin:0;padding:7px 12px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--line);}
+  #logScroll{flex:1;overflow-y:auto;padding:4px 10px;font-size:11.5px;}
+  .logrow{padding:2px 0;border-bottom:1px solid #142334;color:var(--dim);}
+  .logrow .t{color:#4d6b82;margin-right:8px;}
+  .logrow.alarm{color:var(--amber);}
+  .logrow.bad{color:var(--red);}
+  #faultPanel{width:300px;flex-shrink:0;display:flex;flex-direction:column;}
+  #faultBody{padding:10px 12px;overflow-y:auto;flex:1;}
+  .faultRow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;gap:8px;}
+  .faultRow .miniBtn{font-size:10.5px;white-space:nowrap;}
+
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:#1d3348;border-radius:5px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  .dev-label{fill:#cfe3f0;font-size:11px;font-family:var(--mono);}
+  .dev-sub{fill:#7691a6;font-size:9.5px;font-family:var(--mono);}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>⌁ BOTTLE FILLING &amp; PACKAGING LINE</h1>
+    <span class="tag">PLC Ladder Logic ⟷ SCADA HMI</span>
+    <div class="spacer"></div>
+    <span id="clock">--:--:--</span>
+    <span><span id="scanLed" class="scan-led"></span><span id="scanLabel">PLC SCAN STOPPED</span></span>
+    <button class="btn primary" id="btnScan">Start PLC Scan</button>
+    <button class="btn" id="btnReset">Reset Simulation</button>
+  </header>
+
+  <div id="main">
+    <div id="left">
+      <div class="tabs">
+        <div class="tab active" data-tab="tags">Tags</div>
+        <div class="tab" data-tab="ladder">Ladder Program</div>
+        <div class="tab" data-tab="help">Guide / Research Notes</div>
+      </div>
+
+      <div class="tabpanel active" id="tab-tags">
+        <div class="scroll">
+          <section class="block">
+            <h3>Sensors &amp; Field Inputs (read-only)</h3>
+            <table id="tblSensors"><thead><tr><th>Tag</th><th>Value</th></tr></thead><tbody></tbody></table>
+          </section>
+          <section class="block">
+            <h3>Coils / Outputs (PLC-driven)</h3>
+            <table id="tblCoils"><thead><tr><th>Tag</th><th>Value</th></tr></thead><tbody></tbody></table>
+          </section>
+          <section class="block">
+            <h3>Timer / Counter Live Values</h3>
+            <table id="tblTC"><thead><tr><th>Tag</th><th>Value</th></tr></thead><tbody></tbody></table>
+          </section>
+          <section class="block">
+            <h3>Process Statistics</h3>
+            <table id="tblStats"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody></tbody></table>
+          </section>
+        </div>
+      </div>
+
+      <div class="tabpanel" id="tab-ladder">
+        <div class="hint">Rungs scan top→bottom every 500 ms. <b>COIL</b> follows the rung live (multiple COIL rungs to the same tag act in parallel — OR logic, exactly like real ladder). <b>SET/RESET</b> latch a bit until reset/set elsewhere. <b>TON</b> (timer‑on‑delay) sets its output true once the condition has been true continuously for the preset seconds. <b>CTU</b> (count‑up) increments on each rising edge of the condition and sets its output true at the preset count; give it a Reset Tag to zero it (the example counter resets itself one scan after reaching preset — a common auto‑cycling pattern).</div>
+        <div class="scroll">
+          <div id="rungList"></div>
+          <div style="padding:0 12px 12px;">
+            <button class="btn" id="btnAddRung">+ Add Rung</button>
+            <button class="btn" id="btnExample">Load Example Bottling Program</button>
+            <button class="btn" id="btnClearProg">Clear Program</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabpanel" id="tab-help">
+        <div class="scroll hint" style="padding:12px 14px;">
+<b style="color:#eaf6ff">The process</b><br><br>
+Bottles are released from an infeed hopper onto a single conveyor, then travel through Filling → Capping → Vision Inspection → Reject → Packaging. It's modelled as an <b>accumulation conveyor</b>: one motor drives the whole belt, so the belt only moves while every station is idle — exactly like a small indexed filling line.<br><br>
+<b style="color:#eaf6ff">Your job</b><br>
+Write (or load) the ladder program in the Ladder tab. Sensors (photoeyes, level sensor, cap-ok sensor, fault bits) are read‑only inputs written by the simulated process. Coils (nozzle, valve, capper, pusher, conveyor motor…) are outputs only your program can drive. Everything downstream of the Start pushbutton depends on your logic — including whether the line actually stops on a fault.<br><br>
+<b style="color:#eaf6ff">Important: E‑Stop is hard‑wired</b><br>
+Pressing E‑STOP cuts the conveyor motor immediately regardless of what your program says — just like a real safety relay/category‑0 stop circuit, which by standard practice (ISO 13850 / ISO 13849‑1) is wired independently of the main PLC. Every other fault (jam, empty hopper, cap‑out, fill timeout) only stops the line if <i>your</i> CONV_RUN rung actually checks the ANY_FAULT bit — omit it, and the belt will run right through a fault. That's intentional: it's the same mistake that causes real incidents when interlocks are left out of a program.<br><br>
+<b style="color:#eaf6ff">A few real-world reference points</b><br>
+• Small craft filling lines run roughly 20–60 bottles/min; high-speed commercial rotary fillers exceed 1,000–2,000 bpm.<br>
+• Real sensors here map to actual hardware: through‑beam/capacitive photoelectric sensors for bottle presence, capacitive or radar/ultrasonic level sensors for fill height, and machine‑vision cameras for cap/fill inspection.<br>
+• TON and CTU are real IEC 61131‑3 ladder instructions (Allen‑Bradley calls them TON/CTU with .ACC/.CV and .DN members, which is exactly what the Tags tab shows here).<br>
+• Multi-step sequences like this are formally structured in industry under the ISA‑88 batch model (procedure → unit → operation → phase).<br>
+• The stack‑light and alarm colour conventions (green=run, amber=idle, red=fault) follow common ISA‑101 HMI / ISA‑18.2 alarm-management practice.<br>
+• Line KPIs are usually tracked as OEE = Availability × Performance × Quality — the packed/rejected counters here are effectively feeding the "Quality" term.<br>
+• Real machines also add a per‑station Hand/Off/Auto selector for maintenance jogging; it's left out here to keep the program logic front and center.
+        </div>
+      </div>
+    </div>
+
+    <div id="right">
+      <div id="opPanel">
+        <button class="btn primary" id="btnStartPB">▶ START</button>
+        <button class="btn danger" id="btnStopPB">■ STOP</button>
+        <div class="estop" id="btnEstop" title="Emergency Stop"></div>
+        <span class="stat">E‑STOP: <b id="estopStat">OFF</b></span>
+        <div class="spacer"></div>
+        <span class="stat">Packed: <b id="statPacked">0</b></span>
+        <span class="stat">Rejected: <b id="statRejected">0</b></span>
+        <span class="stat">Rate: <b id="statRate">0</b> bpm</span>
+      </div>
+      <div id="scadaWrap">
+        <svg id="scadaSvg" viewBox="0 0 1150 620" width="1150" height="620"></svg>
+      </div>
+      <div id="bottomPanel">
+        <div id="eventLog">
+          <h3>Event / Alarm Log</h3>
+          <div id="logScroll"></div>
+        </div>
+        <div id="faultPanel">
+          <h3>Fault &amp; Supply Test Panel</h3>
+          <div id="faultBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================= TAGS ============================= */
+
+const SENSOR_TAGS = ['PE_INFEED','PE_FILL','PE_CAP','PE_INSPECT','PE_REJECT_NEEDED','PE_PACK',
+  'LS_FULL','CAP_OK','FAULT_JAM','FAULT_LOW_BOTTLES','FAULT_CAP_EMPTY','E_STOP','START_PB','STOP_PB'];
+
+const COIL_TAGS = ['CONV_RUN','NOZZLE_DOWN','FILL_VALVE','CAPPER_PRESS','REJECT_PUSH','PACK_GATE',
+  'STACK_GREEN','STACK_RED','STACK_AMBER','LINE_RUN_LATCH','FILL_BUSY','CAP_BUSY','ANY_FAULT',
+  'CARTON_FULL','FAULT_FILL_TIMEOUT','CAP_TIMER_DN'];
+
+const tags = {};
+[...SENSOR_TAGS, ...COIL_TAGS].forEach(t => tags[t] = false);
+
+const PULSE_TAGS = ['START_PB','STOP_PB'];
+
+const stats = { bottleSupply:40, capSupply:40, packedTotal:0, rejectedTotal:0, rate:0 };
+
+/* ============================= PROCESS GEOMETRY ============================= */
+
+const SPAWN_X = 40, FILL_X = 250, CAP_X = 440, INSPECT_X = 600, REJECT_X = 760, PACK_X = 950, REMOVE_X = 1030;
+const TOL = 50, CONVEYOR_SPEED = 90, FILL_RATE = 28, SPAWN_MIN_GAP = 150;
+const BELT_Y = 430;
+
+let bottles = []; // {pos, fill, capped, defect, inspected}
+let lastCapperPress = false;
+
+function bottleAt(x){ return bottles.find(b => Math.abs(b.pos - x) <= TOL) || null; }
+
+/* ============================= LADDER PROGRAM ============================= */
+
+let rungs = [];
+let rungSeq = 1;
+
+function exampleProgram(){
+  rungs = [
+    mkRung(['START_PB:NO','ANY_FAULT:NC'], 'SET', 'LINE_RUN_LATCH'),
+    mkRung(['STOP_PB:NO'], 'RESET', 'LINE_RUN_LATCH'),
+    mkRung(['ANY_FAULT:NO'], 'RESET', 'LINE_RUN_LATCH'),
+    mkRung(['FAULT_JAM:NO'], 'COIL', 'ANY_FAULT'),
+    mkRung(['FAULT_LOW_BOTTLES:NO'], 'COIL', 'ANY_FAULT'),
+    mkRung(['FAULT_CAP_EMPTY:NO'], 'COIL', 'ANY_FAULT'),
+    mkRung(['E_STOP:NO'], 'COIL', 'ANY_FAULT'),
+    mkRung(['FAULT_FILL_TIMEOUT:NO'], 'COIL', 'ANY_FAULT'),
+    mkRung(['PE_FILL:NO','FILL_BUSY:NC'], 'SET', 'FILL_BUSY'),
+    mkRung(['LS_FULL:NO'], 'RESET', 'FILL_BUSY'),
+    mkRung(['FAULT_FILL_TIMEOUT:NO'], 'RESET', 'FILL_BUSY'),
+    mkRung(['FILL_BUSY:NO'], 'COIL', 'NOZZLE_DOWN'),
+    mkRung(['FILL_BUSY:NO','LS_FULL:NC'], 'COIL', 'FILL_VALVE'),
+    mkRung(['FILL_BUSY:NO','LS_FULL:NC'], 'TON', 'FAULT_FILL_TIMEOUT', 6),
+    mkRung(['PE_CAP:NO','CAP_BUSY:NC'], 'SET', 'CAP_BUSY'),
+    mkRung(['CAP_BUSY:NO','CAP_TIMER_DN:NC'], 'COIL', 'CAPPER_PRESS'),
+    mkRung(['CAP_BUSY:NO'], 'TON', 'CAP_TIMER_DN', 2),
+    mkRung(['CAP_TIMER_DN:NO'], 'RESET', 'CAP_BUSY'),
+    mkRung(['PE_REJECT_NEEDED:NO'], 'COIL', 'REJECT_PUSH'),
+    mkRung(['PE_PACK:NO'], 'CTU', 'CARTON_FULL', 6, 'CARTON_FULL'),
+    mkRung(['CARTON_FULL:NO'], 'COIL', 'PACK_GATE'),
+    mkRung(['LINE_RUN_LATCH:NO','FILL_BUSY:NC','CAP_BUSY:NC','ANY_FAULT:NC'], 'COIL', 'CONV_RUN'),
+    mkRung(['LINE_RUN_LATCH:NO','ANY_FAULT:NC'], 'COIL', 'STACK_GREEN'),
+    mkRung(['ANY_FAULT:NO'], 'COIL', 'STACK_RED'),
+    mkRung(['LINE_RUN_LATCH:NC'], 'COIL', 'STACK_AMBER'),
+  ];
+  renderRungs();
+  log('Example bottling control program loaded.', 'alarm');
+}
+
+function mkRung(condStrs, op, outTag, preset, resetTag){
+  const conditions = condStrs.map(s=>{ const [tag,type]=s.split(':'); return {tag,type}; });
+  return {id:rungSeq++, conditions, op, outTag, preset:preset||0, resetTag:resetTag||'', _acc:0, _cv:0, _prevCond:false};
+}
+
+function scanLadder(){
+  const coilTargets = new Set();
+  rungs.forEach(r=>{ if (r.op==='COIL') coilTargets.add(r.outTag); });
+  const coilAcc = {};
+  coilTargets.forEach(t=> coilAcc[t] = false);
+
+  rungs.forEach(r=>{
+    if (!r.outTag || !r.conditions.length) return;
+    const result = r.conditions.every(c => c.type==='NO' ? !!tags[c.tag] : !tags[c.tag]);
+    if (r.op === 'COIL'){
+      coilAcc[r.outTag] = coilAcc[r.outTag] || result;
+    } else if (r.op === 'SET'){
+      if (result) setBit(r.outTag, true);
+    } else if (r.op === 'RESET'){
+      if (result) setBit(r.outTag, false);
+    } else if (r.op === 'TON'){
+      r._acc = result ? Math.min((r._acc||0) + 0.5, r.preset) : 0;
+      setBit(r.outTag, r._acc >= r.preset);
+      stats[r.outTag+'_ACC'] = r._acc;
+    } else if (r.op === 'CTU'){
+      const prev = r._prevCond || false;
+      if (result && !prev) r._cv = (r._cv||0) + 1;
+      if (r.resetTag && tags[r.resetTag]) r._cv = 0;
+      r._prevCond = result;
+      setBit(r.outTag, (r._cv||0) >= r.preset);
+      stats[r.outTag+'_CV'] = r._cv || 0;
+    }
+  });
+
+  coilTargets.forEach(t => setBit(t, coilAcc[t]));
+}
+
+function setBit(tag, val){
+  if (tags[tag] !== val && ['CONV_RUN','LINE_RUN_LATCH','ANY_FAULT'].includes(tag)){
+    log(`${tag} → ${val}`, (tag==='ANY_FAULT' && val) ? 'alarm' : '');
+  }
+  tags[tag] = val;
+}
+
+/* ============================= PROCESS SIMULATION ============================= */
+
+let rateWindow = []; // timestamps of packed events for bpm calc
+
+function simTick(){
+  const dt = 0.5;
+  const beltRunning = tags.CONV_RUN && !tags.E_STOP;
+
+  if (beltRunning) bottles.forEach(b => b.pos += CONVEYOR_SPEED*dt);
+
+  // spawn new bottle
+  if (beltRunning && stats.bottleSupply > 0){
+    const frontMost = bottles[0];
+    if (!frontMost || frontMost.pos > SPAWN_X + SPAWN_MIN_GAP){
+      bottles.unshift({pos:SPAWN_X, fill:0, capped:false, defect:false, inspected:false});
+      stats.bottleSupply--;
+    }
+  }
+
+  const bAtFill = bottleAt(FILL_X);
+  const bAtCap = bottleAt(CAP_X);
+  const bAtInspect = bottleAt(INSPECT_X);
+  const bAtReject = bottleAt(REJECT_X);
+  const bAtPack = bottleAt(PACK_X);
+
+  tags.PE_INFEED = !!bottleAt(SPAWN_X);
+  tags.PE_FILL = !!bAtFill;
+  tags.PE_CAP = !!bAtCap;
+  tags.PE_INSPECT = !!bAtInspect;
+  tags.PE_REJECT_NEEDED = !!(bAtReject && bAtReject.defect);
+  tags.PE_PACK = !!bAtPack;
+
+  if (bAtFill && tags.FILL_VALVE && tags.NOZZLE_DOWN){
+    bAtFill.fill = Math.min(100, bAtFill.fill + FILL_RATE*dt);
+  }
+  tags.LS_FULL = bAtFill ? bAtFill.fill >= 100 : false;
+
+  if (bAtCap && lastCapperPress && !tags.CAPPER_PRESS){
+    if (stats.capSupply > 0){ bAtCap.capped = true; stats.capSupply--; }
+    else { bAtCap.capped = false; }
+  }
+  tags.CAP_OK = bAtCap ? bAtCap.capped : true;
+  lastCapperPress = tags.CAPPER_PRESS;
+
+  if (bAtInspect && !bAtInspect.inspected){
+    bAtInspect.inspected = true;
+    bAtInspect.defect = !(bAtInspect.capped && bAtInspect.fill >= 99);
+  }
+
+  if (bAtReject && tags.REJECT_PUSH){
+    bottles = bottles.filter(b => b !== bAtReject);
+    stats.rejectedTotal++;
+    log(`Bottle rejected at inspection gate (defect=${bAtReject.defect})`, 'bad');
+  }
+
+  bottles = bottles.filter(b=>{
+    if (b.pos > REMOVE_X){
+      stats.packedTotal++;
+      rateWindow.push(Date.now());
+      return false;
+    }
+    return true;
+  });
+
+  tags.FAULT_LOW_BOTTLES = stats.bottleSupply <= 0;
+  tags.FAULT_CAP_EMPTY = stats.capSupply <= 0;
+
+  const now = Date.now();
+  rateWindow = rateWindow.filter(t => now - t < 60000);
+  stats.rate = rateWindow.length;
+}
+
+/* ============================= SCADA RENDER ============================= */
+
+const svg = document.getElementById('scadaSvg');
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent){
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+let dashOffset = 0;
+
+function drawLine(){
+  svg.innerHTML = '';
+  const beltRunning = tags.CONV_RUN && !tags.E_STOP;
+  if (beltRunning) dashOffset = (dashOffset + 14) % 28;
+
+  // belt
+  el('rect',{x:10,y:BELT_Y,width:1100,height:16,rx:4,fill:'#1c2f3f',stroke:'#2c4258'},svg);
+  const dash = el('line',{x1:10,y1:BELT_Y+8,x2:1110,y2:BELT_Y+8,stroke:'#0f1e2a','stroke-width':14,
+    'stroke-dasharray':'14 14','stroke-dashoffset':dashOffset},svg);
+
+  // hoppers
+  drawHopper(SPAWN_X, 60, stats.bottleSupply, 'BOTTLES');
+  drawHopper(CAP_X, 60, stats.capSupply, 'CAPS');
+
+  // station labels
+  labelAbove(FILL_X, 'FILL'); labelAbove(CAP_X, 'CAP'); labelAbove(INSPECT_X, 'INSPECT');
+  labelAbove(REJECT_X, 'REJECT'); labelAbove(PACK_X, 'PACK');
+
+  // nozzle (fill station)
+  drawActuatorArm(FILL_X, 120, tags.NOZZLE_DOWN, 60, '#6a8db3', 'NOZZLE');
+  drawIndicatorDot(FILL_X+22, 150, tags.FILL_VALVE, 'VALVE');
+
+  // capper
+  drawActuatorArm(CAP_X, 130, tags.CAPPER_PRESS, 50, '#b38f6a', 'CAPPER');
+
+  // inspection eye
+  drawEye(INSPECT_X, 170, tags.PE_INSPECT);
+
+  // reject pusher + bin
+  drawPusher(REJECT_X, tags.REJECT_PUSH);
+  drawBin(REJECT_X+70, BELT_Y+40, stats.rejectedTotal);
+
+  // pack gate + carton
+  drawGate(PACK_X, tags.PACK_GATE);
+  drawCarton(PACK_X+70, 300, stats['CARTON_FULL_CV']||0, tags.CARTON_FULL);
+
+  // stack light
+  drawStackLight(1080, 60);
+
+  // bottles
+  bottles.forEach(b => drawBottle(b));
+
+  // start/stop rail labels
+  el('text',{x:20,y:BELT_Y-14,class:'dev-sub'},svg).textContent = 'INFEED';
+}
+
+function labelAbove(x, txt){
+  el('text',{x, y:34, 'text-anchor':'middle', class:'dev-sub', style:'letter-spacing:.1em;'}, svg).textContent = txt;
+}
+
+function drawHopper(x, y, count, label){
+  const g = el('g',{transform:`translate(${x},${y})`}, svg);
+  el('polygon',{points:'-26,-30 26,-30 10,20 -10,20', fill:'#152436', stroke:'#2c4258','stroke-width':2}, g);
+  el('text',{x:0,y:-40,'text-anchor':'middle',class:'dev-sub'}, g).textContent = label;
+  el('text',{x:0,y:8,'text-anchor':'middle',class:'dev-label',fill: count>0?'#eaf6ff':'#ff4d4f'}, g).textContent = count;
+}
+
+function drawActuatorArm(x, y, active, travel, color, label){
+  const g = el('g',{}, svg);
+  el('line',{x1:x,y1:y-40,x2:x,y2:y, stroke:'#33475a','stroke-width':4}, g);
+  const arm = el('rect',{x:x-16,y:y,width:32,height:16,rx:3, fill:'#0d1a26', stroke:color,'stroke-width':2.5}, g);
+  arm.style.transform = `translateY(${active ? travel : 0}px)`;
+  arm.style.transition = 'transform .35s ease';
+  arm.style.transformOrigin = `${x}px ${y}px`;
+  el('text',{x:x,y:y-46,'text-anchor':'middle',class:'dev-sub'}, g).textContent = label + (active?' •':'');
+}
+
+function drawIndicatorDot(x,y,on,label){
+  el('circle',{cx:x,cy:y,r:5, fill: on ? '#31d67a':'#3a4f61'}, svg);
+  el('text',{x:x+9,y:y+4,class:'dev-sub'}, svg).textContent = label;
+}
+
+function drawEye(x,y,active){
+  const g = el('g',{transform:`translate(${x},${y})`}, svg);
+  el('ellipse',{cx:0,cy:0,rx:14,ry:8, fill:'#0d1a26', stroke: active?'#3fa9ff':'#33475a','stroke-width':2.5}, g);
+  el('circle',{cx:0,cy:0,r: active?4:3, fill: active?'#3fa9ff':'#33475a'}, g);
+}
+
+function drawPusher(x, active){
+  const g = el('g',{}, svg);
+  const arm = el('rect',{x:x-60,y:BELT_Y-6,width:36,height:8, fill:'#0d1a26', stroke:'#b36a6a','stroke-width':2.5}, g);
+  arm.style.transform = `translateX(${active? 46:0}px)`;
+  arm.style.transition = 'transform .25s ease';
+}
+
+function drawBin(x,y,count){
+  const g = el('g',{transform:`translate(${x},${y})`}, svg);
+  el('polygon',{points:'-20,-6 20,-6 15,26 -15,26', fill:'#1a1010', stroke:'#4a2020','stroke-width':2}, g);
+  el('text',{x:0,y:44,'text-anchor':'middle',class:'dev-sub'}, g).textContent = 'REJECTS: '+count;
+}
+
+function drawGate(x, flash){
+  el('rect',{x:x-3,y:BELT_Y-30,width:6,height:30, fill: flash?'#ffb020':'#33475a'}, svg);
+}
+
+function drawCarton(x,y,cv,full){
+  const g = el('g',{transform:`translate(${x},${y})`}, svg);
+  el('rect',{x:-45,y:-40,width:90,height:80,rx:4, fill:'#152030', stroke: full?'#31d67a':'#2c4258','stroke-width':2.5}, g);
+  el('text',{x:0,y:-50,'text-anchor':'middle',class:'dev-sub'}, g).textContent = full ? 'CARTON SEALED ✓' : 'CARTON';
+  for (let i=0;i<6;i++){
+    const rx = -30 + (i%3)*30, ry = -18 + Math.floor(i/3)*36;
+    const filled = i < cv;
+    el('rect',{x:rx-8,y:ry-12,width:16,height:24,rx:2, fill: filled? '#3fa9ff':'#0d1a26', stroke:'#2c4258'}, g);
+  }
+}
+
+function drawStackLight(x,y){
+  const g = el('g',{transform:`translate(${x},${y})`}, svg);
+  el('rect',{x:-10,y:-4,width:20,height:78,rx:3, fill:'#152436', stroke:'#2c4258'}, g);
+  el('circle',{cx:0,cy:10, r:8, fill: tags.STACK_RED ? '#ff4d4f':'#3a1414'}, g);
+  el('circle',{cx:0,cy:34, r:8, fill: tags.STACK_AMBER ? '#ffb020':'#3a2c14'}, g);
+  el('circle',{cx:0,cy:58, r:8, fill: tags.STACK_GREEN ? '#31d67a':'#143a24'}, g);
+}
+
+function drawBottle(b){
+  const x = b.pos, bodyH = 46, bodyW = 26, baseY = BELT_Y;
+  const g = el('g',{transform:`translate(${x},${baseY})`}, svg);
+  const liqH = (b.fill/100) * (bodyH-4);
+  el('rect',{x:-bodyW/2+2, y:-2-liqH, width:bodyW-4, height:liqH, fill:'#57c2ff', opacity:.85}, g);
+  el('rect',{x:-bodyW/2, y:-bodyH, width:bodyW, height:bodyH, rx:3, fill:'none',
+    stroke: b.inspected && b.defect ? '#ff4d4f' : '#8fb8d8', 'stroke-width':2}, g);
+  el('rect',{x:-6, y:-bodyH-12, width:12, height:12, fill:'none', stroke:'#8fb8d8','stroke-width':2}, g);
+  if (b.capped) el('rect',{x:-7,y:-bodyH-14,width:14,height:5, fill:'#33475a'}, g);
+  if (b.inspected && b.defect) el('text',{x:0,y:-bodyH-18,'text-anchor':'middle',fill:'#ff4d4f',
+    style:'font-size:12px;font-weight:700;'}, g).textContent = '✕';
+}
+
+/* ============================= EVENT LOG ============================= */
+
+const logScroll = document.getElementById('logScroll');
+function log(msg, cls){
+  const row = document.createElement('div');
+  row.className = 'logrow ' + (cls||'');
+  row.innerHTML = `<span class="t">${new Date().toLocaleTimeString()}</span>${msg}`;
+  logScroll.prepend(row);
+  while (logScroll.children.length > 200) logScroll.removeChild(logScroll.lastChild);
+}
+
+/* ============================= TAGS TAB RENDER ============================= */
+
+function renderTagsTab(){
+  fillTable('#tblSensors', SENSOR_TAGS.map(t=>[t, tags[t]]));
+  fillTable('#tblCoils', COIL_TAGS.map(t=>[t, tags[t]]));
+
+  const tcRows = [];
+  rungs.forEach(r=>{
+    if (r.op==='TON') tcRows.push([`${r.outTag}.ACC`, r._acc.toFixed(1)+' / '+r.preset+'s']);
+    if (r.op==='CTU') tcRows.push([`${r.outTag}.CV`, (r._cv||0)+' / '+r.preset]);
+  });
+  const tcBody = document.querySelector('#tblTC tbody'); tcBody.innerHTML = '';
+  tcRows.forEach(([k,v])=>{
+    const tr = document.createElement('tr'); tr.innerHTML = `<td>${k}</td><td>${v}</td>`; tcBody.appendChild(tr);
+  });
+
+  const statBody = document.querySelector('#tblStats tbody'); statBody.innerHTML = '';
+  [['Bottle Supply', stats.bottleSupply],['Cap Supply', stats.capSupply],
+   ['Packed Total', stats.packedTotal],['Rejected Total', stats.rejectedTotal],
+   ['Line Rate (bpm)', stats.rate],['Bottles on Belt', bottles.length]].forEach(([k,v])=>{
+    const tr = document.createElement('tr'); tr.innerHTML = `<td>${k}</td><td>${v}</td>`; statBody.appendChild(tr);
+  });
+
+  document.getElementById('statPacked').textContent = stats.packedTotal;
+  document.getElementById('statRejected').textContent = stats.rejectedTotal;
+  document.getElementById('statRate').textContent = stats.rate;
+  document.getElementById('estopStat').textContent = tags.E_STOP ? 'ACTIVE' : 'OFF';
+  document.getElementById('btnEstop').classList.toggle('active', tags.E_STOP);
+}
+
+function fillTable(sel, rows){
+  const body = document.querySelector(sel+' tbody'); body.innerHTML='';
+  rows.forEach(([tag,val])=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${tag}</td><td class="${val?'val-true':'val-false'}">${val?'TRUE':'FALSE'}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+/* ============================= LADDER TAB RENDER ============================= */
+
+function renderRungs(){
+  const list = document.getElementById('rungList');
+  list.innerHTML = '';
+  rungs.forEach((r, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'rung';
+    const condsHtml = r.conditions.map((c,ci)=>`
+      <span class="contactChip"><span class="sym">${c.type==='NO'?'—| |—':'—|/|—'}</span>${c.tag}
+      <span class="rm" data-rung="${idx}" data-cond="${ci}">✕</span></span>`).join('<span class="arrowto">AND</span>');
+    let coilLabel;
+    if (r.op==='COIL') coilLabel = `<span class="coilChip">( ) ${r.outTag}</span>`;
+    else if (r.op==='SET') coilLabel = `<span class="coilChip">(S) ${r.outTag}</span>`;
+    else if (r.op==='RESET') coilLabel = `<span class="coilChip">(R) ${r.outTag}</span>`;
+    else if (r.op==='TON') coilLabel = `<span class="coilChip instr">TON ${r.outTag} [${r.preset}s]</span>`;
+    else coilLabel = `<span class="coilChip instr">CTU ${r.outTag} [${r.preset}] rst:${r.resetTag||'-'}</span>`;
+
+    div.innerHTML = `
+      <div class="rmRung" data-rung="${idx}">✕</div>
+      <div class="rungHead"><span>Rung ${idx+1}</span></div>
+      <div class="rungRow">
+        ${condsHtml || '<span class="hint" style="padding:0;">no conditions</span>'}
+        <span class="arrowto">⟶</span>${coilLabel}
+      </div>
+      <div class="addRow">
+        <select class="condTagSel" data-rung="${idx}">${tagOptions(true)}</select>
+        <select class="condTypeSel" data-rung="${idx}"><option value="NO">NO —| |—</option><option value="NC">NC —|/|—</option></select>
+        <button class="miniBtn addCond" data-rung="${idx}">+ contact</button>
+        <select class="opSel" data-rung="${idx}">
+          <option value="COIL" ${r.op==='COIL'?'selected':''}>COIL ( )</option>
+          <option value="SET" ${r.op==='SET'?'selected':''}>SET (S)</option>
+          <option value="RESET" ${r.op==='RESET'?'selected':''}>RESET (R)</option>
+          <option value="TON" ${r.op==='TON'?'selected':''}>TON timer</option>
+          <option value="CTU" ${r.op==='CTU'?'selected':''}>CTU counter</option>
+        </select>
+        <select class="outSel" data-rung="${idx}">${tagOptions(false, r.outTag)}</select>
+        ${(r.op==='TON'||r.op==='CTU') ? `<input type="number" class="presetInp" data-rung="${idx}" value="${r.preset}" min="1" title="preset">` : ''}
+        ${(r.op==='CTU') ? `<select class="resetSel" data-rung="${idx}">${tagOptions(false, r.resetTag, true)}</select>` : ''}
+      </div>
+    `;
+    list.appendChild(div);
+  });
+
+  list.querySelectorAll('.rm').forEach(x=>x.addEventListener('click', e=>{
+    const ri=+e.target.dataset.rung, ci=+e.target.dataset.cond;
+    rungs[ri].conditions.splice(ci,1); renderRungs();
+  }));
+  list.querySelectorAll('.rmRung').forEach(x=>x.addEventListener('click', e=>{
+    rungs.splice(+e.currentTarget.dataset.rung,1); renderRungs();
+  }));
+  list.querySelectorAll('.addCond').forEach(x=>x.addEventListener('click', e=>{
+    const ri=+e.target.dataset.rung;
+    const sel=list.querySelector(`.condTagSel[data-rung="${ri}"]`);
+    const typ=list.querySelector(`.condTypeSel[data-rung="${ri}"]`);
+    rungs[ri].conditions.push({tag:sel.value, type:typ.value});
+    renderRungs();
+  }));
+  list.querySelectorAll('.opSel').forEach(x=>x.addEventListener('change', e=>{
+    rungs[+e.target.dataset.rung].op = e.target.value; renderRungs();
+  }));
+  list.querySelectorAll('.outSel').forEach(x=>x.addEventListener('change', e=>{
+    rungs[+e.target.dataset.rung].outTag = e.target.value;
+  }));
+  list.querySelectorAll('.presetInp').forEach(x=>x.addEventListener('change', e=>{
+    rungs[+e.target.dataset.rung].preset = Math.max(1, +e.target.value||1);
+  }));
+  list.querySelectorAll('.resetSel').forEach(x=>x.addEventListener('change', e=>{
+    rungs[+e.target.dataset.rung].resetTag = e.target.value;
+  }));
+}
+
+function tagOptions(includeAll, selected, includeNone){
+  const names = includeAll ? [...SENSOR_TAGS, ...COIL_TAGS] : [...COIL_TAGS];
+  let opts = names.map(t=>`<option value="${t}" ${t===selected?'selected':''}>${t}</option>`).join('');
+  if (includeNone) opts = `<option value="">(none)</option>` + opts;
+  return opts;
+}
+
+document.getElementById('btnAddRung').addEventListener('click', ()=>{
+  rungs.push({id:rungSeq++, conditions:[], op:'COIL', outTag:COIL_TAGS[0], preset:1, resetTag:'', _acc:0, _cv:0, _prevCond:false});
+  renderRungs();
+});
+document.getElementById('btnExample').addEventListener('click', exampleProgram);
+document.getElementById('btnClearProg').addEventListener('click', ()=>{ rungs=[]; renderRungs(); });
+
+/* ============================= TABS ============================= */
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+  });
+});
+
+/* ============================= OPERATOR PANEL ============================= */
+
+document.getElementById('btnStartPB').addEventListener('click', ()=>{ tags.START_PB = true; log('START pushbutton pressed'); });
+document.getElementById('btnStopPB').addEventListener('click', ()=>{ tags.STOP_PB = true; log('STOP pushbutton pressed'); });
+document.getElementById('btnEstop').addEventListener('click', ()=>{
+  tags.E_STOP = !tags.E_STOP;
+  log(tags.E_STOP ? 'EMERGENCY STOP ACTIVATED — conveyor hard-cut' : 'E-Stop released', tags.E_STOP?'bad':'');
+});
+
+/* ============================= FAULT PANEL ============================= */
+
+function renderFaultPanel(){
+  const body = document.getElementById('faultBody');
+  body.innerHTML = '';
+  const rows = [
+    ['Conveyor Jam', ()=>tags.FAULT_JAM, ()=>{ tags.FAULT_JAM=!tags.FAULT_JAM; log(tags.FAULT_JAM?'Jam injected on conveyor':'Jam cleared', tags.FAULT_JAM?'bad':''); renderFaultPanel(); }],
+    ['Refill Bottle Hopper', ()=>stats.bottleSupply<=5, ()=>{ stats.bottleSupply=40; log('Bottle hopper refilled'); renderFaultPanel(); }],
+    ['Refill Cap Hopper', ()=>stats.capSupply<=5, ()=>{ stats.capSupply=40; log('Cap hopper refilled'); renderFaultPanel(); }],
+  ];
+  rows.forEach(([label, isBad, action])=>{
+    const row = document.createElement('div'); row.className='faultRow';
+    row.innerHTML = `<span style="color:${isBad()?'var(--amber)':'var(--dim)'}">${label}</span>
+      <button class="miniBtn">${label.startsWith('Refill')?'Refill':(tags.FAULT_JAM&&label==='Conveyor Jam'?'Clear':'Inject')}</button>`;
+    row.querySelector('button').addEventListener('click', action);
+    body.appendChild(row);
+  });
+  const note = document.createElement('div');
+  note.className = 'hint'; note.style.padding = '6px 0 0';
+  note.textContent = 'Fill timeout preset 6s, cap press 2s, carton size 6 bottles (all editable in the Ladder tab). Try clearing the ANY_FAULT interlock from CONV_RUN and injecting a jam — the belt keeps running.';
+  body.appendChild(note);
+}
+
+/* ============================= SCAN LOOP ============================= */
+
+let scanning = false;
+const btnScan = document.getElementById('btnScan');
+const scanLed = document.getElementById('scanLed');
+const scanLabel = document.getElementById('scanLabel');
+
+function scanCycle(){
+  simTick();
+  if (scanning) scanLadder();
+  drawLine();
+  renderTagsTab();
+  scanLed.classList.toggle('on');
+  PULSE_TAGS.forEach(t => tags[t] = false);
+}
+
+btnScan.addEventListener('click', ()=>{
+  scanning = !scanning;
+  scanLabel.textContent = scanning ? 'PLC SCAN RUNNING (500ms)' : 'PLC SCAN STOPPED';
+  btnScan.textContent = scanning ? 'Stop PLC Scan' : 'Start PLC Scan';
+  btnScan.classList.toggle('primary', !scanning);
+  btnScan.classList.toggle('danger', scanning);
+});
+
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  bottles = [];
+  [...SENSOR_TAGS, ...COIL_TAGS].forEach(t=>tags[t]=false);
+  stats.bottleSupply=40; stats.capSupply=40; stats.packedTotal=0; stats.rejectedTotal=0; stats.rate=0;
+  rateWindow = [];
+  rungs.forEach(r=>{ r._acc=0; r._cv=0; r._prevCond=false; });
+  log('Simulation reset.');
+});
+
+setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+setInterval(scanCycle, 500);
+
+/* ============================= INIT ============================= */
+
+renderRungs();
+renderFaultPanel();
+scanCycle();
+log('System initialised. Load the example bottling program, then press Start PLC Scan and the START pushbutton.');
+
+})();
+</script>
+</body>
+</html>
