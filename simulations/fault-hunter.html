@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Fault Hunter — Protection Relay Response Game | Apna Electromechanic Service</title>
+<style>
+:root{
+  --navy-950:#070a12;
+  --navy-900:#0a0f1c;
+  --navy-800:#0f1626;
+  --navy-700:#151f36;
+  --navy-600:#1c2a47;
+  --grid-line:rgba(88,166,255,0.07);
+  --cyan:#00d9ff;
+  --cyan-dim:#0891a8;
+  --amber:#ffb020;
+  --amber-dim:#b87c10;
+  --red:#ff4d5e;
+  --green:#3ddc84;
+  --text-hi:#e8f1ff;
+  --text-mid:#8fa3c4;
+  --text-lo:#5a6b8c;
+  --mono: 'IBM Plex Mono', 'Courier New', ui-monospace, monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+@font-face{
+  font-family:'IBM Plex Mono';
+  src:local('IBM Plex Mono');
+}
+html,body{
+  height:100%;
+  background:var(--navy-950);
+  color:var(--text-hi);
+  font-family:var(--mono);
+  overflow-x:hidden;
+}
+body{
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size:34px 34px;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:18px 12px 60px;
+}
+.wrap{width:100%;max-width:920px;}
+
+/* ---------- Header ---------- */
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  border-bottom:1px solid var(--navy-600);
+  padding-bottom:12px;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+  gap:10px;
+}
+.brand{
+  font-size:11px;
+  letter-spacing:1.5px;
+  color:var(--text-lo);
+  text-transform:uppercase;
+}
+.title{
+  font-size:22px;
+  font-weight:700;
+  color:var(--cyan);
+  letter-spacing:0.5px;
+  text-shadow:0 0 18px rgba(0,217,255,0.35);
+}
+.subtitle{
+  font-size:12px;
+  color:var(--text-mid);
+  margin-top:2px;
+}
+.hud{
+  display:flex;
+  gap:18px;
+  font-size:13px;
+  align-items:center;
+}
+.hud .item{display:flex;flex-direction:column;align-items:flex-end;}
+.hud .label{font-size:9px;color:var(--text-lo);letter-spacing:1px;text-transform:uppercase;}
+.hud .val{font-size:16px;font-weight:700;color:var(--text-hi);}
+.hud .val.amber{color:var(--amber);}
+.hud .val.cyan{color:var(--cyan);}
+.lives{display:flex;gap:4px;}
+.life-dot{width:11px;height:11px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);}
+.life-dot.dead{background:var(--navy-700);box-shadow:none;}
+
+/* ---------- Panels ---------- */
+.panel{
+  background:linear-gradient(180deg, var(--navy-800), var(--navy-900));
+  border:1px solid var(--navy-600);
+  border-radius:10px;
+  padding:22px;
+  margin-bottom:16px;
+  position:relative;
+}
+.panel::before{
+  content:'';
+  position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity:0.5;
+}
+
+/* ---------- Landing ---------- */
+#screen-start .lead{color:var(--text-mid);font-size:13.5px;line-height:1.7;margin-bottom:16px;}
+#screen-start .lead b{color:var(--text-hi);}
+.rules-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;
+  margin:18px 0;
+}
+.rule-card{
+  background:var(--navy-700);
+  border:1px solid var(--navy-600);
+  border-radius:8px;
+  padding:12px 14px;
+}
+.rule-card .k{color:var(--amber);font-size:12px;font-weight:700;margin-bottom:4px;}
+.rule-card .v{color:var(--text-mid);font-size:11.5px;line-height:1.5;}
+.btn-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;}
+.btn{
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:0.5px;
+  padding:12px 22px;
+  border-radius:7px;
+  border:1px solid var(--cyan);
+  background:rgba(0,217,255,0.08);
+  color:var(--cyan);
+  cursor:pointer;
+  transition:all .15s ease;
+  text-transform:uppercase;
+}
+.btn:hover{background:rgba(0,217,255,0.18);box-shadow:0 0 14px rgba(0,217,255,0.25);}
+.btn.secondary{border-color:var(--text-lo);color:var(--text-mid);background:transparent;}
+.btn.secondary:hover{border-color:var(--amber);color:var(--amber);background:rgba(255,176,32,0.06);}
+.btn.amber{border-color:var(--amber);color:var(--amber);background:rgba(255,176,32,0.08);}
+.btn.amber:hover{background:rgba(255,176,32,0.18);box-shadow:0 0 14px rgba(255,176,32,0.25);}
+.btn:disabled{opacity:0.35;cursor:not-allowed;}
+
+/* ---------- Cheat sheet ---------- */
+#cheatsheet{display:none;}
+#cheatsheet.show{display:block;}
+.ansi-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+  gap:10px;
+  margin-top:14px;
+}
+.ansi-item{
+  background:var(--navy-700);
+  border:1px solid var(--navy-600);
+  border-radius:6px;
+  padding:9px 11px;
+  font-size:11px;
+}
+.ansi-item .code{color:var(--cyan);font-weight:700;font-size:13px;}
+.ansi-item .name{color:var(--text-hi);margin:2px 0;}
+.ansi-item .desc{color:var(--text-lo);font-size:10px;line-height:1.4;}
+
+/* ---------- Game screen ---------- */
+#screen-game{display:none;}
+#screen-game.show{display:block;}
+.timerbar-outer{
+  height:8px;
+  background:var(--navy-700);
+  border-radius:4px;
+  overflow:hidden;
+  margin-bottom:18px;
+  border:1px solid var(--navy-600);
+}
+.timerbar-inner{
+  height:100%;
+  width:100%;
+  background:linear-gradient(90deg, var(--cyan), var(--amber));
+  transition:width .1s linear;
+}
+.timerbar-inner.danger{background:linear-gradient(90deg, var(--red), var(--amber));}
+
+.stage{
+  display:grid;
+  grid-template-columns:1.1fr 1fr;
+  gap:18px;
+}
+@media (max-width:720px){.stage{grid-template-columns:1fr;}}
+
+.sld-box{
+  background:var(--navy-900);
+  border:1px solid var(--navy-600);
+  border-radius:8px;
+  padding:10px;
+  min-height:230px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+}
+.sld-tag{
+  position:absolute;top:8px;left:10px;
+  font-size:10px;color:var(--text-lo);letter-spacing:1px;text-transform:uppercase;
+}
+.fault-flash{animation:flashfault 0.7s infinite;}
+@keyframes flashfault{
+  0%,100%{opacity:1;}
+  50%{opacity:0.35;}
+}
+
+.readings{
+  background:var(--navy-900);
+  border:1px solid var(--navy-600);
+  border-radius:8px;
+  padding:14px 16px;
+}
+.readings h4{font-size:11px;color:var(--text-lo);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;}
+.reading-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;border-bottom:1px dashed var(--navy-600);
+  font-size:13px;
+}
+.reading-row:last-child{border-bottom:none;}
+.reading-row .rlabel{color:var(--text-mid);}
+.reading-row .rval{color:var(--text-hi);font-weight:700;}
+.reading-row .rval.hot{color:var(--red);}
+.reading-row .rval.warn{color:var(--amber);}
+
+.narrative{
+  margin-top:14px;
+  padding:12px 14px;
+  background:var(--navy-700);
+  border-left:3px solid var(--cyan);
+  border-radius:0 6px 6px 0;
+  font-size:12.5px;
+  color:var(--text-mid);
+  line-height:1.6;
+}
+.narrative b{color:var(--text-hi);}
+
+.q-label{
+  margin-top:18px;
+  font-size:12px;
+  color:var(--amber);
+  letter-spacing:0.5px;
+  font-weight:700;
+}
+.options{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:10px;
+}
+@media (max-width:520px){.options{grid-template-columns:1fr;}}
+.opt-btn{
+  font-family:var(--mono);
+  text-align:left;
+  background:var(--navy-700);
+  border:1px solid var(--navy-600);
+  border-radius:7px;
+  padding:10px 12px;
+  color:var(--text-hi);
+  cursor:pointer;
+  transition:all .12s ease;
+}
+.opt-btn:hover:not(:disabled){border-color:var(--cyan);background:rgba(0,217,255,0.07);}
+.opt-btn .oc{color:var(--cyan);font-weight:700;margin-right:6px;}
+.opt-btn:disabled{cursor:default;}
+.opt-btn.correct{border-color:var(--green);background:rgba(61,220,132,0.12);}
+.opt-btn.correct .oc{color:var(--green);}
+.opt-btn.wrong{border-color:var(--red);background:rgba(255,77,94,0.12);}
+.opt-btn.wrong .oc{color:var(--red);}
+.opt-btn.dim{opacity:0.4;}
+
+/* ---------- Feedback modal ---------- */
+.overlay{
+  position:fixed;inset:0;
+  background:rgba(4,7,14,0.82);
+  display:none;
+  align-items:center;justify-content:center;
+  padding:16px;
+  z-index:50;
+}
+.overlay.show{display:flex;}
+.modal{
+  background:var(--navy-800);
+  border:1px solid var(--navy-600);
+  border-radius:10px;
+  padding:24px;
+  max-width:520px;width:100%;
+  position:relative;
+}
+.modal.correctborder{border-color:var(--green);box-shadow:0 0 30px rgba(61,220,132,0.15);}
+.modal.wrongborder{border-color:var(--red);box-shadow:0 0 30px rgba(255,77,94,0.15);}
+.modal .verdict{font-size:16px;font-weight:700;margin-bottom:4px;}
+.verdict.ok{color:var(--green);}
+.verdict.no{color:var(--red);}
+.modal .answer-line{font-size:13px;color:var(--text-mid);margin-bottom:14px;}
+.modal .answer-line b{color:var(--cyan);}
+.modal .explain{font-size:12.5px;color:var(--text-mid);line-height:1.65;background:var(--navy-700);border-radius:6px;padding:12px 14px;margin-bottom:16px;}
+.modal .explain b{color:var(--text-hi);}
+.modal .score-delta{font-size:12px;color:var(--text-lo);margin-bottom:16px;}
+.modal .score-delta span{color:var(--amber);font-weight:700;}
+
+/* ---------- End screen ---------- */
+#screen-end{display:none;}
+#screen-end.show{display:block;}
+.rank{
+  text-align:center;
+  padding:20px 0;
+}
+.rank .rank-title{font-size:26px;font-weight:800;color:var(--amber);text-shadow:0 0 20px rgba(255,176,32,0.35);}
+.rank .rank-sub{color:var(--text-mid);font-size:12.5px;margin-top:6px;}
+.stat-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:12px;margin:22px 0;
+}
+.stat-card{
+  background:var(--navy-700);border:1px solid var(--navy-600);border-radius:8px;
+  padding:14px;text-align:center;
+}
+.stat-card .n{font-size:22px;font-weight:800;color:var(--cyan);}
+.stat-card .l{font-size:10px;color:var(--text-lo);letter-spacing:1px;text-transform:uppercase;margin-top:4px;}
+
+footer{
+  margin-top:22px;
+  text-align:center;
+  font-size:10px;
+  color:var(--text-lo);
+  letter-spacing:0.5px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">Apna Electromechanic Service — Engineering Tools Suite</div>
+      <div class="title">⚡ FAULT HUNTER</div>
+      <div class="subtitle">Protection Relay Response Game — IEC 60255 / IEEE C37.2 ANSI Device Numbers</div>
+    </div>
+    <div class="hud" id="hud" style="display:none;">
+      <div class="item"><span class="label">Score</span><span class="val amber" id="hudScore">0</span></div>
+      <div class="item"><span class="label">Streak</span><span class="val cyan" id="hudStreak">0</span></div>
+      <div class="item"><span class="label">Level</span><span class="val" id="hudLevel">1</span></div>
+      <div class="item"><span class="label">Round</span><span class="val" id="hudRound">1/15</span></div>
+      <div class="item"><span class="label">Lives</span><div class="lives" id="hudLives"></div></div>
+    </div>
+  </header>
+
+  <!-- START SCREEN -->
+  <div id="screen-start" class="panel">
+    <p class="lead">You're the on-shift <b>Protection Engineer</b>. Field data streams in from a faulted element on the network — three-phase currents, neutral current, voltage, frequency. You must <b>diagnose the fault</b> and select the <b>correct ANSI protection device</b> that should operate, before the trip window closes. Wrong or late calls damage equipment.</p>
+
+    <div class="rules-grid">
+      <div class="rule-card"><div class="k">15 Rounds</div><div class="v">Feeders, transformers, motors, generators &amp; busbars — fault type is randomized each round.</div></div>
+      <div class="rule-card"><div class="k">3 Lives</div><div class="v">A wrong device selection or a timeout costs one life. Lose all 3 and the game ends.</div></div>
+      <div class="rule-card"><div class="k">Speed &amp; Streaks</div><div class="v">Faster correct answers score more. Consecutive correct answers build a streak multiplier.</div></div>
+      <div class="rule-card"><div class="k">Escalating Difficulty</div><div class="v">Every 5 correct rounds, the response window shortens and readings get subtler.</div></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" id="btnStart">Start Shift</button>
+      <button class="btn secondary" id="btnCheat">ANSI Device Cheat Sheet</button>
+    </div>
+
+    <div id="cheatsheet">
+      <div class="ansi-grid" id="ansiGrid"></div>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="screen-game" class="panel">
+    <div class="timerbar-outer"><div class="timerbar-inner" id="timerbarInner"></div></div>
+
+    <div class="stage">
+      <div class="sld-box" id="sldBox">
+        <div class="sld-tag" id="sldTag">SLD</div>
+      </div>
+      <div class="readings">
+        <h4>Live Field Data</h4>
+        <div id="readingRows"></div>
+        <div class="narrative" id="narrativeBox"></div>
+      </div>
+    </div>
+
+    <div class="q-label">Which protection device (ANSI/IEC 60255 number) should trip for this condition?</div>
+    <div class="options" id="optionsBox"></div>
+  </div>
+
+  <!-- END SCREEN -->
+  <div id="screen-end" class="panel">
+    <div class="rank">
+      <div class="rank-title" id="rankTitle">—</div>
+      <div class="rank-sub" id="rankSub">—</div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="n" id="finalScore">0</div><div class="l">Final Score</div></div>
+      <div class="stat-card"><div class="n" id="finalAcc">0%</div><div class="l">Accuracy</div></div>
+      <div class="stat-card"><div class="n" id="finalStreak">0</div><div class="l">Best Streak</div></div>
+      <div class="stat-card"><div class="n" id="finalLevel">1</div><div class="l">Level Reached</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btnRestart">Play Again</button>
+      <button class="btn secondary" id="btnBackMenu">Main Menu</button>
+    </div>
+  </div>
+
+  <footer>Apna Electromechanic Service — Offline single-file training tool. No data leaves this page.</footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal">
+    <div class="verdict" id="verdict">—</div>
+    <div class="answer-line" id="answerLine">—</div>
+    <div class="explain" id="explainBox">—</div>
+    <div class="score-delta" id="scoreDelta">—</div>
+    <button class="btn amber" id="btnNext">Next Round →</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= ANSI DEVICE LIBRARY ================= */
+const ANSI = {
+  '50':  {name:'Instantaneous Overcurrent', desc:'Trips instantly on phase current above a fixed high threshold. No intentional time delay.'},
+  '51':  {name:'AC Time Overcurrent', desc:'Trips on phase overcurrent after a time delay defined by an inverse-time curve.'},
+  '50N': {name:'Instantaneous Earth Fault', desc:'Instantaneous trip on residual/neutral current — used for high-magnitude ground faults.'},
+  '51N': {name:'Time Earth Fault', desc:'Time-delayed trip on residual/neutral current for ground faults.'},
+  '87':  {name:'Differential Protection', desc:'Compares current entering vs leaving a zone (bus/generator); trips on internal faults only.'},
+  '87T': {name:'Transformer Differential', desc:'Percentage differential across transformer windings — detects internal transformer faults, restrained by inrush.'},
+  '64':  {name:'Ground / REF Protection', desc:'Restricted earth fault — sensitive detection of transformer winding-to-earth faults.'},
+  '49':  {name:'Thermal Overload', desc:'Models winding temperature rise from current history; trips to prevent insulation damage from sustained overload.'},
+  '46':  {name:'Negative Sequence / Unbalance', desc:'Detects current unbalance between phases (e.g. single-phasing), which causes rotor heating in motors.'},
+  '27':  {name:'Undervoltage', desc:'Trips or alarms when system voltage falls below a set threshold.'},
+  '59':  {name:'Overvoltage', desc:'Trips or alarms when system voltage rises above a set threshold.'},
+  '81U': {name:'Underfrequency', desc:'Trips or sheds load when system frequency drops below a set threshold (generation deficit).'},
+  '81O': {name:'Overfrequency', desc:'Trips when system frequency rises above a set threshold (excess generation vs load).'},
+  '32':  {name:'Reverse Power', desc:'Detects power flowing backward into a generator — protects the prime mover from motoring.'},
+  '86':  {name:'Lockout Relay', desc:'Auxiliary relay that latches a trip and blocks reclosing until manually reset — not a fault detector itself.'},
+  '79':  {name:'Auto-Reclose', desc:'Automatically recloses a breaker after a transient trip on overhead lines — not used for internal equipment faults.'}
+};
+
+/* ================= SCENARIO TEMPLATES ================= */
+// Each scenario: equipment type, generator fn -> {readings[], narrative, correct, distractorPool}
+function rnd(min,max,dec){dec=dec||0; const v = Math.random()*(max-min)+min; return +v.toFixed(dec);}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+
+const SCENARIOS = [
+  // FEEDER — Phase overcurrent
+  {
+    equip:'feeder', title:'Feeder F-'+'', correct:'51',
+    build(rated){
+      const If = rnd(rated*3.5, rated*6, 0);
+      return {
+        readings:[
+          ['Ia', If+' A', 'hot'], ['Ib', If-rnd(5,20)+' A', 'hot'], ['Ic', If-rnd(2,15)+' A', 'hot'],
+          ['In (Neutral)', rnd(0,3,1)+' A', ''],
+          ['Voltage', rnd(10.8,11.2,2)+' kV', ''], ['Frequency', '50.0 Hz', '']
+        ],
+        narrative:'All three phase currents rise together to several times rated load current. Neutral current stays near zero — the three phases remain balanced.',
+        distractors:['50N','87T','49']
+      };
+    }
+  },
+  // FEEDER — Earth fault
+  {
+    equip:'feeder', correct:'51N',
+    build(rated){
+      const In = rnd(rated*0.6, rated*1.4, 0);
+      return {
+        readings:[
+          ['Ia', rnd(rated*0.9,rated*1.05,0)+' A', ''], ['Ib', rnd(rated*0.9,rated*1.05,0)+' A', ''],
+          ['Ic', (rnd(rated*0.9,rated*1.05,0)-In)+' A', 'warn'],
+          ['In (Neutral)', In+' A', 'hot'],
+          ['Voltage', rnd(10.5,11.0,2)+' kV', ''], ['Frequency', '50.0 Hz', '']
+        ],
+        narrative:'Phase currents stay close to rated load, but a significant neutral/residual current has appeared — one phase is leaking current to earth.',
+        distractors:['50','87','46']
+      };
+    }
+  },
+  // TRANSFORMER — Differential
+  {
+    equip:'transformer', correct:'87T',
+    build(rated){
+      return {
+        readings:[
+          ['HV side current', rnd(180,240,0)+' A', 'hot'], ['LV side current', rnd(20,60,0)+' A', 'warn'],
+          ['Differential current', rnd(15,40,1)+' A', 'hot'],
+          ['Winding temp (WTI)', rnd(70,90,0)+' °C', ''],
+          ['Frequency', '50.0 Hz', '']
+        ],
+        narrative:'HV and LV ampere-turns no longer balance — the current entering the transformer does not match the current leaving it, well beyond normal inrush/tap-changer tolerance. Internal winding fault suspected.',
+        distractors:['51','64','49']
+      };
+    }
+  },
+  // TRANSFORMER — REF / Ground
+  {
+    equip:'transformer', correct:'64',
+    build(rated){
+      return {
+        readings:[
+          ['LV neutral CT current', rnd(30,80,0)+' A', 'hot'],
+          ['LV line CT (summed)', rnd(2,8,1)+' A', ''],
+          ['Differential (87T)', rnd(0,2,1)+' A', ''],
+          ['Winding temp (WTI)', rnd(60,75,0)+' °C', '']
+        ],
+        narrative:'The neutral CT sees high current, but the summed line-side CTs and the main differential stay quiet — a sensitive, low-level winding-to-earth fault is indicated, below normal 87T sensitivity.',
+        distractors:['87T','51N','46']
+      };
+    }
+  },
+  // MOTOR — Thermal overload
+  {
+    equip:'motor', correct:'49',
+    build(rated){
+      const If = rnd(rated*1.1, rated*1.3, 0);
+      return {
+        readings:[
+          ['Ia', If+' A', 'warn'], ['Ib', (If-2)+' A', 'warn'], ['Ic', (If-1)+' A', 'warn'],
+          ['Stator temp (RTD)', rnd(115,140,0)+' °C', 'hot'],
+          ['Run time at load', rnd(35,70,0)+' min', '']
+        ],
+        narrative:'Phase currents are only mildly above rated FLA, balanced across all three phases, but stator winding temperature has been climbing steadily over a sustained run — consistent with a modest, continuous overload rather than a fault.',
+        distractors:['50','51','46']
+      };
+    }
+  },
+  // MOTOR — Negative sequence / single phasing
+  {
+    equip:'motor', correct:'46',
+    build(rated){
+      return {
+        readings:[
+          ['Ia', rnd(rated*1.0,rated*1.1,0)+' A', ''], ['Ib', rnd(rated*1.0,rated*1.1,0)+' A', ''],
+          ['Ic', rnd(rated*0.1,rated*0.3,0)+' A', 'hot'],
+          ['Negative seq. current', rnd(18,35,1)+' A', 'hot'],
+          ['Rotor temp trend', 'rising fast', 'warn']
+        ],
+        narrative:'Phase C current has collapsed while A and B remain near rated — a classic single-phasing / severe unbalance signature that produces double-frequency rotor heating not caught by simple overload elements.',
+        distractors:['49','50','51']
+      };
+    }
+  },
+  // GENERATOR — Differential
+  {
+    equip:'generator', correct:'87',
+    build(rated){
+      return {
+        readings:[
+          ['Terminal-side current', rnd(600,900,0)+' A', 'hot'],
+          ['Neutral-side current', rnd(50,150,0)+' A', 'warn'],
+          ['Differential current', rnd(400,700,0)+' A', 'hot'],
+          ['Terminal voltage', rnd(10.5,11.0,2)+' kV', '']
+        ],
+        narrative:'Current measured at the generator terminals and at the neutral end no longer match — a large internal stator winding fault is indicated inside the protected zone.',
+        distractors:['32','51','27']
+      };
+    }
+  },
+  // GENERATOR — Reverse power
+  {
+    equip:'generator', correct:'32',
+    build(rated){
+      return {
+        readings:[
+          ['Active power (MW)', '-'+rnd(0.5,2.5,2)+' MW', 'hot'],
+          ['Terminal current', rnd(30,90,0)+' A', ''],
+          ['Frequency', rnd(49.9,50.05,2)+' Hz', ''],
+          ['Governor status', 'closed / no fuel flow', 'warn']
+        ],
+        narrative:'Power flow at the generator terminals has gone negative — the grid is now driving the machine as a motor because the prime mover has stopped supplying torque. Steam/fuel supply lost while breaker remains closed.',
+        distractors:['81U','27','59']
+      };
+    }
+  },
+  // BUS — Differential
+  {
+    equip:'bus', correct:'87',
+    build(rated){
+      return {
+        readings:[
+          ['Sum of incoming CTs', rnd(1400,1800,0)+' A', 'hot'],
+          ['Sum of outgoing CTs', rnd(200,500,0)+' A', 'warn'],
+          ['Bus differential', rnd(900,1300,0)+' A', 'hot'],
+          ['Bus voltage', rnd(10.2,10.8,2)+' kV', 'warn']
+        ],
+        narrative:'Current flowing into the busbar zone far exceeds current flowing out to all feeders combined — an internal busbar fault is indicated within the protected zone.',
+        distractors:['51','50N','86']
+      };
+    }
+  },
+  // SYSTEM — Undervoltage
+  {
+    equip:'feeder', correct:'27',
+    build(rated){
+      return {
+        readings:[
+          ['Ia', rnd(rated*0.8,rated*1.0,0)+' A', ''], ['Ib', rnd(rated*0.8,rated*1.0,0)+' A', ''],
+          ['Ic', rnd(rated*0.8,rated*1.0,0)+' A', ''],
+          ['Voltage', rnd(7.2,8.5,2)+' kV', 'hot'],
+          ['Frequency', rnd(49.7,50.0,2)+' Hz', '']
+        ],
+        narrative:'Load currents are within normal range, but bus voltage has sagged well below nominal — a sustained voltage depression, not an overcurrent condition, is the primary concern.',
+        distractors:['59','51','81U']
+      };
+    }
+  },
+  // SYSTEM — Overfrequency
+  {
+    equip:'generator', correct:'81O',
+    build(rated){
+      return {
+        readings:[
+          ['Frequency', rnd(51.5,52.5,2)+' Hz', 'hot'],
+          ['Active power (MW)', rnd(0.2,0.8,2)+' MW', 'warn'],
+          ['Terminal voltage', rnd(10.9,11.3,2)+' kV', ''],
+          ['Governor status', 'load rejection detected', 'warn']
+        ],
+        narrative:'A sudden loss of load has left generation in excess — the machine is accelerating and system frequency is climbing well above nominal 50 Hz.',
+        distractors:['81U','59','32']
+      };
+    }
+  },
+  // SYSTEM — Underfrequency
+  {
+    equip:'bus', correct:'81U',
+    build(rated){
+      return {
+        readings:[
+          ['Frequency', rnd(47.5,48.8,2)+' Hz', 'hot'],
+          ['Total load', rnd(80,120,0)+' % of gen. capacity', 'warn'],
+          ['Bus voltage', rnd(10.0,10.6,2)+' kV', 'warn'],
+          ['Spinning reserve', 'depleted', 'warn']
+        ],
+        narrative:'A generation shortfall relative to connected load is dragging system frequency down — load shedding is required before frequency collapses further.',
+        distractors:['81O','27','32']
+      };
+    }
+  }
+];
+
+/* ================= GAME STATE ================= */
+const TOTAL_ROUNDS = 15;
+let state = {};
+
+function resetState(){
+  state = {
+    round:0, score:0, streak:0, bestStreak:0, lives:3,
+    level:1, correctCount:0, wrongCount:0,
+    timeLeft:0, timerId:null, timerMax:15,
+    currentScenario:null, answered:false, roundStart:0,
+    usedIdx:[]
+  };
+}
+
+/* ================= DOM refs ================= */
+const $ = id=>document.getElementById(id);
+const screenStart=$('screen-start'), screenGame=$('screen-game'), screenEnd=$('screen-end');
+const hud=$('hud');
+
+/* ---- cheat sheet ---- */
+function buildCheatSheet(){
+  const grid = $('ansiGrid');
+  grid.innerHTML='';
+  Object.keys(ANSI).forEach(code=>{
+    const d = ANSI[code];
+    const el = document.createElement('div');
+    el.className='ansi-item';
+    el.innerHTML = `<div class="code">${code}</div><div class="name">${d.name}</div><div class="desc">${d.desc}</div>`;
+    grid.appendChild(el);
+  });
+}
+buildCheatSheet();
+$('btnCheat').addEventListener('click', ()=>{
+  $('cheatsheet').classList.toggle('show');
+  $('btnCheat').textContent = $('cheatsheet').classList.contains('show') ? 'Hide Cheat Sheet' : 'ANSI Device Cheat Sheet';
+});
+
+/* ================= SLD RENDERING ================= */
+function renderSLD(equip, faulted){
+  const box = $('sldBox');
+  const flashClass = faulted ? 'fault-flash' : '';
+  let svg = '';
+  const stroke = '#58a6ff';
+  const fault = '#ff4d5e';
+  const amber = '#ffb020';
+
+  if(equip==='feeder'){
+    svg = `<svg width="260" height="180" viewBox="0 0 260 180">
+      <rect x="10" y="80" width="26" height="20" fill="none" stroke="${stroke}" stroke-width="2"/>
+      <line x1="36" y1="90" x2="90" y2="90" stroke="${stroke}" stroke-width="2"/>
+      <rect x="90" y="78" width="18" height="24" fill="none" stroke="${amber}" stroke-width="2" class="${flashClass}"/>
+      <line x1="108" y1="90" x2="160" y2="90" stroke="${stroke}" stroke-width="2"/>
+      <polygon points="160,80 190,90 160,100" fill="none" stroke="${fault}" stroke-width="2" class="${flashClass}"/>
+      <line x1="190" y1="90" x2="240" y2="90" stroke="${fault}" stroke-width="2" class="${flashClass}"/>
+      <text x="20" y="70" fill="#8fa3c4" font-size="9" font-family="monospace">SRC</text>
+      <text x="85" y="70" fill="#8fa3c4" font-size="9" font-family="monospace">CB</text>
+      <text x="185" y="120" fill="#8fa3c4" font-size="9" font-family="monospace">FEEDER F-12</text>
+    </svg>`;
+  } else if(equip==='transformer'){
+    svg = `<svg width="260" height="180" viewBox="0 0 260 180">
+      <line x1="20" y1="90" x2="90" y2="90" stroke="${stroke}" stroke-width="2"/>
+      <circle cx="115" cy="90" r="24" fill="none" stroke="${fault}" stroke-width="2.5" class="${flashClass}"/>
+      <circle cx="145" cy="90" r="24" fill="none" stroke="${fault}" stroke-width="2.5" class="${flashClass}"/>
+      <line x1="169" y1="90" x2="240" y2="90" stroke="${stroke}" stroke-width="2"/>
+      <text x="95" y="140" fill="#8fa3c4" font-size="9" font-family="monospace">TRANSFORMER T-1</text>
+      <text x="20" y="75" fill="#8fa3c4" font-size="9" font-family="monospace">HV</text>
+      <text x="222" y="75" fill="#8fa3c4" font-size="9" font-family="monospace">LV</text>
+    </svg>`;
+  } else if(equip==='motor'){
+    svg = `<svg width="260" height="180" viewBox="0 0 260 180">
+      <line x1="20" y1="90" x2="90" y2="90" stroke="${stroke}" stroke-width="2"/>
+      <rect x="90" y="78" width="18" height="24" fill="none" stroke="${amber}" stroke-width="2"/>
+      <line x1="108" y1="90" x2="150" y2="90" stroke="${stroke}" stroke-width="2"/>
+      <circle cx="180" cy="90" r="30" fill="none" stroke="${fault}" stroke-width="2.5" class="${flashClass}"/>
+      <text x="172" y="96" fill="${fault}" font-size="18" font-family="monospace" font-weight="bold">M</text>
+      <text x="150" y="140" fill="#8fa3c4" font-size="9" font-family="monospace">MOTOR M-3</text>
+    </svg>`;
+  } else if(equip==='generator'){
+    svg = `<svg width="260" height="180" viewBox="0 0 260 180">
+      <circle cx="70" cy="90" r="30" fill="none" stroke="${fault}" stroke-width="2.5" class="${flashClass}"/>
+      <text x="61" y="96" fill="${fault}" font-size="18" font-family="monospace" font-weight="bold">G</text>
+      <line x1="100" y1="90" x2="160" y2="90" stroke="${stroke}" stroke-width="2"/>
+      <rect x="160" y="78" width="18" height="24" fill="none" stroke="${amber}" stroke-width="2"/>
+      <line x1="178" y1="90" x2="235" y2="90" stroke="${stroke}" stroke-width="2"/>
+      <text x="45" y="140" fill="#8fa3c4" font-size="9" font-family="monospace">GENERATOR G-1</text>
+    </svg>`;
+  } else if(equip==='bus'){
+    svg = `<svg width="260" height="180" viewBox="0 0 260 180">
+      <line x1="20" y1="90" x2="240" y2="90" stroke="${fault}" stroke-width="5" class="${flashClass}"/>
+      <line x1="60" y1="90" x2="60" y2="130" stroke="${stroke}" stroke-width="2"/>
+      <rect x="52" y="130" width="16" height="16" fill="none" stroke="${amber}" stroke-width="2"/>
+      <line x1="130" y1="90" x2="130" y2="130" stroke="${stroke}" stroke-width="2"/>
+      <rect x="122" y="130" width="16" height="16" fill="none" stroke="${amber}" stroke-width="2"/>
+      <line x1="200" y1="90" x2="200" y2="130" stroke="${stroke}" stroke-width="2"/>
+      <rect x="192" y="130" width="16" height="16" fill="none" stroke="${amber}" stroke-width="2"/>
+      <text x="95" y="70" fill="#8fa3c4" font-size="9" font-family="monospace">11kV BUS-A</text>
+    </svg>`;
+  }
+  box.innerHTML = `<div class="sld-tag">SLD — ${equip.toUpperCase()}</div>` + svg;
+}
+
+/* ================= ROUND LOGIC ================= */
+function ratedFor(equip){
+  if(equip==='feeder') return rnd(80,150,0);
+  if(equip==='transformer') return rnd(150,300,0);
+  if(equip==='motor') return rnd(40,90,0);
+  if(equip==='generator') return rnd(400,700,0);
+  if(equip==='bus') return rnd(600,1000,0);
+  return 100;
+}
+
+function pickScenario(){
+  let idx;
+  do{ idx = Math.floor(Math.random()*SCENARIOS.length); }
+  while(state.usedIdx.includes(idx) && state.usedIdx.length < SCENARIOS.length);
+  state.usedIdx.push(idx);
+  if(state.usedIdx.length > 4) state.usedIdx.shift();
+  return SCENARIOS[idx];
+}
+
+function timerMaxForLevel(){
+  return Math.max(6, 15 - (state.level-1)*1.5);
+}
+
+function startRound(){
+  state.round++;
+  state.answered = false;
+  if(state.round > TOTAL_ROUNDS){ return endGame(); }
+
+  const tmpl = pickScenario();
+  const rated = ratedFor(tmpl.equip);
+  const built = tmpl.build(rated);
+  const correctCode = tmpl.correct;
+  const opts = [correctCode].concat(built.distractors);
+  // shuffle
+  for(let i=opts.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [opts[i],opts[j]]=[opts[j],opts[i]]; }
+
+  state.currentScenario = {equip:tmpl.equip, correctCode, readings:built.readings, narrative:built.narrative, opts};
+
+  renderSLD(tmpl.equip, true);
+  const rowsEl = $('readingRows'); rowsEl.innerHTML='';
+  built.readings.forEach(r=>{
+    const cls = r[2] ? ' '+r[2] : '';
+    rowsEl.innerHTML += `<div class="reading-row"><span class="rlabel">${r[0]}</span><span class="rval${cls}">${r[1]}</span></div>`;
+  });
+  $('narrativeBox').innerHTML = built.narrative;
+
+  const optBox = $('optionsBox'); optBox.innerHTML='';
+  opts.forEach(code=>{
+    const btn = document.createElement('button');
+    btn.className='opt-btn';
+    btn.innerHTML = `<span class="oc">${code}</span>${ANSI[code].name}`;
+    btn.addEventListener('click', ()=>handleAnswer(code, btn));
+    optBox.appendChild(btn);
+  });
+
+  updateHud();
+  startTimer();
+  state.roundStart = Date.now();
+}
+
+function startTimer(){
+  clearInterval(state.timerId);
+  state.timerMax = timerMaxForLevel();
+  state.timeLeft = state.timerMax;
+  const inner = $('timerbarInner');
+  inner.style.width='100%';
+  inner.classList.remove('danger');
+  state.timerId = setInterval(()=>{
+    state.timeLeft -= 0.1;
+    const pct = Math.max(0, (state.timeLeft/state.timerMax)*100);
+    inner.style.width = pct+'%';
+    if(pct < 30) inner.classList.add('danger');
+    if(state.timeLeft <= 0){
+      clearInterval(state.timerId);
+      handleAnswer(null, null); // timeout
+    }
+  }, 100);
+}
+
+function handleAnswer(chosenCode, btnEl){
+  if(state.answered) return;
+  state.answered = true;
+  clearInterval(state.timerId);
+
+  const sc = state.currentScenario;
+  const correct = chosenCode === sc.correctCode;
+  const elapsed = (Date.now() - state.roundStart)/1000;
+
+  // disable all buttons, highlight
+  const allBtns = document.querySelectorAll('.opt-btn');
+  allBtns.forEach(b=>{
+    b.disabled = true;
+    const code = b.querySelector('.oc').textContent;
+    if(code === sc.correctCode) b.classList.add('correct');
+    else if(b===btnEl) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+
+  let delta = 0;
+  if(correct){
+    state.correctCount++;
+    state.streak++;
+    state.bestStreak = Math.max(state.bestStreak, state.streak);
+    const speedBonus = Math.max(0, Math.round((state.timerMax - elapsed) * 8));
+    const streakBonus = state.streak > 1 ? (state.streak-1)*20 : 0;
+    delta = 100 + speedBonus + streakBonus;
+    state.score += delta;
+    if(state.correctCount % 5 === 0) state.level++;
+  } else {
+    state.wrongCount++;
+    state.streak = 0;
+    state.lives--;
+  }
+
+  updateHud();
+  showFeedback(correct, sc, delta, chosenCode);
+}
+
+function showFeedback(correct, sc, delta, chosenCode){
+  const modal = $('modal');
+  modal.classList.remove('correctborder','wrongborder');
+  modal.classList.add(correct ? 'correctborder' : 'wrongborder');
+  $('verdict').className = 'verdict ' + (correct?'ok':'no');
+  $('verdict').textContent = correct ? '✓ CORRECT RESPONSE' : (chosenCode ? '✗ INCORRECT DEVICE' : '⏱ TIME EXPIRED — NO TRIP ISSUED');
+  $('answerLine').innerHTML = `Correct device: <b>${sc.correctCode} — ${ANSI[sc.correctCode].name}</b>`;
+  $('explainBox').innerHTML = `<b>Why:</b> ${ANSI[sc.correctCode].desc} ${explainWhyNotDistractor(sc)}`;
+  $('scoreDelta').innerHTML = correct ? `Round score: <span>+${delta}</span>` : `Life lost. Score unchanged.`;
+  $('overlay').classList.add('show');
+}
+
+function explainWhyNotDistractor(sc){
+  return 'In this scenario: ' + sc.narrative;
+}
+
+$('btnNext').addEventListener('click', ()=>{
+  $('overlay').classList.remove('show');
+  if(state.lives <= 0){ return endGame(); }
+  if(state.round >= TOTAL_ROUNDS){ return endGame(); }
+  startRound();
+});
+
+/* ================= HUD ================= */
+function updateHud(){
+  $('hudScore').textContent = state.score;
+  $('hudStreak').textContent = state.streak;
+  $('hudLevel').textContent = state.level;
+  $('hudRound').textContent = Math.min(state.round, TOTAL_ROUNDS)+'/'+TOTAL_ROUNDS;
+  const livesEl = $('hudLives'); livesEl.innerHTML='';
+  for(let i=0;i<3;i++){
+    const d = document.createElement('div');
+    d.className = 'life-dot' + (i < state.lives ? '' : ' dead');
+    livesEl.appendChild(d);
+  }
+}
+
+/* ================= FLOW CONTROL ================= */
+function showScreen(name){
+  [screenStart, screenGame, screenEnd].forEach(s=>s.classList.remove('show'));
+  if(name==='start'){ screenStart.classList.add('show'); hud.style.display='none'; }
+  if(name==='game'){ screenGame.classList.add('show'); hud.style.display='flex'; }
+  if(name==='end'){ screenEnd.classList.add('show'); hud.style.display='none'; }
+}
+
+$('btnStart').addEventListener('click', ()=>{
+  resetState();
+  showScreen('game');
+  startRound();
+});
+
+function endGame(){
+  clearInterval(state.timerId);
+  showScreen('end');
+  const acc = state.correctCount+state.wrongCount>0 ? Math.round(100*state.correctCount/(state.correctCount+state.wrongCount)) : 0;
+  $('finalScore').textContent = state.score;
+  $('finalAcc').textContent = acc+'%';
+  $('finalStreak').textContent = state.bestStreak;
+  $('finalLevel').textContent = state.level;
+
+  let title, sub;
+  if(state.lives<=0 && state.round < TOTAL_ROUNDS){
+    title = 'Shift Ended — Lockout Tripped';
+    sub = 'Three incorrect responses forced a shutdown. Review the cheat sheet and try again.';
+  } else if(state.score >= 1800){
+    title = 'Chief Protection Engineer'; sub='Outstanding — fast, accurate, standards-grade diagnosis under pressure.';
+  } else if(state.score >= 1200){
+    title = 'Senior Protection Engineer'; sub='Strong performance — solid grasp of ANSI device selection.';
+  } else if(state.score >= 700){
+    title = 'Protection Engineer'; sub='Good work — a bit more speed and precision will sharpen this further.';
+  } else {
+    title = 'Trainee — Keep Studying'; sub='Revisit the cheat sheet and try again to build fluency with the ANSI codes.';
+  }
+  $('rankTitle').textContent = title;
+  $('rankSub').textContent = sub;
+}
+
+$('btnRestart').addEventListener('click', ()=>{
+  resetState();
+  showScreen('game');
+  startRound();
+});
+$('btnBackMenu').addEventListener('click', ()=>{
+  showScreen('start');
+});
+
+/* init */
+resetState();
+showScreen('start');
+})();
+</script>
+</body>
+</html>
