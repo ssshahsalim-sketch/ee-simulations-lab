@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Risk &amp; Verification Console — Apna Electromechanic Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root{
+    --navy-950:#060a14;
+    --navy-900:#0a0f1e;
+    --navy-800:#101830;
+    --navy-700:#182444;
+    --grid-line:rgba(0,217,255,0.06);
+    --cyan:#22d3ee;
+    --cyan-dim:#0e7490;
+    --amber:#f5a623;
+    --amber-dim:#8a5a12;
+    --red:#ff5c5c;
+    --green:#3ddc84;
+    --text-main:#e6f1ff;
+    --text-dim:#7d8bab;
+    --mono:'IBM Plex Mono', monospace;
+    --sans:'IBM Plex Sans', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+      radial-gradient(ellipse at top, #0d1730 0%, var(--navy-950) 60%);
+    background-size: 34px 34px, 34px 34px, cover;
+    color:var(--text-main);
+    font-family:var(--sans);
+    padding:28px 16px 60px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+
+  header.top{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    flex-wrap:wrap;gap:14px;margin-bottom:28px;
+    border-bottom:1px solid var(--navy-700);
+    padding-bottom:18px;
+  }
+  .brand{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;}
+  .brand span{color:var(--amber);}
+  h1{
+    font-family:var(--mono);font-weight:700;font-size:1.5rem;margin:6px 0 4px;
+    color:var(--text-main); letter-spacing:0.5px;
+  }
+  h1 .accent{color:var(--cyan);}
+  .subtitle{color:var(--text-dim);font-size:0.9rem;max-width:520px;}
+  .badge{
+    font-family:var(--mono);font-size:11px;color:var(--cyan);
+    border:1px solid var(--cyan-dim);border-radius:20px;padding:5px 12px;
+    display:flex;align-items:center;gap:6px;white-space:nowrap;
+  }
+
+  .search-row{
+    display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;
+  }
+  #emailInput{
+    flex:1;min-width:220px;
+    background:var(--navy-900);border:1px solid var(--navy-700);
+    color:var(--text-main);font-family:var(--mono);font-size:0.95rem;
+    padding:14px 16px;border-radius:8px;outline:none;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  #emailInput:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,0.12);}
+  #analyzeBtn{
+    background:linear-gradient(180deg, var(--cyan) 0%, var(--cyan-dim) 130%);
+    color:#03222b;font-family:var(--mono);font-weight:700;font-size:0.9rem;
+    border:none;border-radius:8px;padding:0 22px;cursor:pointer;
+    display:flex;align-items:center;gap:8px;letter-spacing:0.5px;
+    transition:transform .15s, filter .15s;
+  }
+  #analyzeBtn:hover{filter:brightness(1.1);}
+  #analyzeBtn:active{transform:scale(0.97);}
+  #analyzeBtn:disabled{opacity:0.5;cursor:not-allowed;}
+  .hint{font-size:0.78rem;color:var(--text-dim);margin-bottom:26px;font-family:var(--mono);}
+
+  .scope-note{
+    font-size:0.82rem;color:var(--text-dim);
+    background:var(--navy-900);border:1px dashed var(--navy-700);
+    border-radius:8px;padding:10px 14px;margin-bottom:26px;
+    display:flex;gap:10px;align-items:flex-start;
+  }
+  .scope-note i{color:var(--amber);margin-top:2px;}
+
+  #results{display:none;}
+  #results.show{display:block;}
+
+  .grid-cards{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:16px;margin-bottom:20px;
+  }
+  .card{
+    background:var(--navy-900);border:1px solid var(--navy-700);
+    border-radius:12px;padding:18px;position:relative;overflow:hidden;
+  }
+  .card::before{
+    content:'';position:absolute;top:0;left:0;width:100%;height:2px;
+    background:linear-gradient(90deg, var(--cyan), transparent);
+  }
+  .card-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .card-head i{font-size:1.05rem;color:var(--cyan);width:20px;text-align:center;}
+  .card-title{font-family:var(--mono);font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);}
+  .card-body{font-family:var(--mono);font-size:0.9rem;}
+  .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--navy-800);font-size:0.85rem;}
+  .row:last-child{border-bottom:none;}
+  .row .k{color:var(--text-dim);}
+  .row .v{color:var(--text-main);font-weight:500;text-align:right;}
+  .v.ok{color:var(--green);}
+  .v.warn{color:var(--amber);}
+  .v.bad{color:var(--red);}
+
+  .status-pill{
+    display:inline-flex;align-items:center;gap:6px;font-size:0.75rem;
+    padding:3px 10px;border-radius:20px;font-family:var(--mono);font-weight:600;
+  }
+  .pill-ok{background:rgba(61,220,132,0.12);color:var(--green);border:1px solid rgba(61,220,132,0.35);}
+  .pill-warn{background:rgba(245,166,35,0.12);color:var(--amber);border:1px solid rgba(245,166,35,0.35);}
+  .pill-bad{background:rgba(255,92,92,0.12);color:var(--red);border:1px solid rgba(255,92,92,0.35);}
+  .pill-neutral{background:rgba(125,139,171,0.12);color:var(--text-dim);border:1px solid rgba(125,139,171,0.3);}
+
+  .gravatar-row{display:flex;align-items:center;gap:14px;}
+  .avatar-box{
+    width:56px;height:56px;border-radius:10px;overflow:hidden;
+    background:var(--navy-800);border:1px solid var(--navy-700);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .avatar-box img{width:100%;height:100%;object-fit:cover;}
+  .avatar-box i{color:var(--text-dim);font-size:1.3rem;}
+
+  /* Risk gauge */
+  .gauge-card{grid-column:1 / -1;}
+  .gauge-wrap{display:flex;align-items:center;gap:26px;flex-wrap:wrap;}
+  .gauge-svg{flex-shrink:0;}
+  .gauge-detail{flex:1;min-width:200px;}
+  .gauge-score{font-family:var(--mono);font-size:2.2rem;font-weight:700;line-height:1;}
+  .gauge-label{font-family:var(--mono);font-size:0.8rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
+  .factor-list{margin-top:12px;list-style:none;padding:0;font-size:0.82rem;font-family:var(--mono);}
+  .factor-list li{padding:3px 0;color:var(--text-dim);display:flex;gap:8px;align-items:flex-start;}
+  .factor-list li i{margin-top:3px;width:14px;text-align:center;}
+  .factor-list li.f-ok i{color:var(--green);}
+  .factor-list li.f-warn i{color:var(--amber);}
+  .factor-list li.f-bad i{color:var(--red);}
+
+  /* Breach section */
+  .breach-card{grid-column:1 / -1;}
+  .hibp-inputrow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .hibp-inputrow input{
+    flex:1;min-width:180px;background:var(--navy-950);border:1px solid var(--navy-700);
+    color:var(--text-main);font-family:var(--mono);font-size:0.82rem;padding:9px 12px;border-radius:6px;
+  }
+  .hibp-inputrow button{
+    background:var(--navy-800);border:1px solid var(--amber-dim);color:var(--amber);
+    font-family:var(--mono);font-size:0.8rem;padding:0 16px;border-radius:6px;cursor:pointer;
+  }
+  .hibp-inputrow button:hover{background:var(--navy-700);}
+  .breach-list{margin-top:10px;}
+  .breach-item{
+    display:flex;justify-content:space-between;align-items:center;
+    background:var(--navy-950);border:1px solid var(--navy-800);border-radius:6px;
+    padding:8px 12px;margin-bottom:6px;font-size:0.82rem;font-family:var(--mono);
+  }
+  .breach-item .bname{color:var(--text-main);}
+  .breach-item .bdate{color:var(--text-dim);}
+  .small-note{font-size:0.76rem;color:var(--text-dim);margin-top:8px;line-height:1.4;}
+  .small-note i{color:var(--cyan);margin-right:4px;}
+
+  .spinner{
+    display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.25);
+    border-top-color:#03222b;border-radius:50%;animation:spin 0.7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  footer{
+    text-align:center;color:var(--text-dim);font-family:var(--mono);
+    font-size:0.72rem;margin-top:36px;letter-spacing:0.5px;
+  }
+
+  @media (max-width:520px){
+    h1{font-size:1.2rem;}
+    .gauge-wrap{flex-direction:column;align-items:flex-start;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <div class="brand">Apna Electromechanic Service <span>// Engineering Tools Suite</span></div>
+      <h1><i class="fa-solid fa-shield-halved accent" style="font-size:1.1rem;"></i> Email Risk <span class="accent">&amp;</span> Verification Console</h1>
+      <div class="subtitle">Check syntax, domain deliverability, disposable-address risk, and known breach exposure before you quote or onboard a client.</div>
+    </div>
+    <div class="badge"><i class="fa-solid fa-lock"></i> Client-side only</div>
+  </header>
+
+  <div class="search-row">
+    <input type="text" id="emailInput" placeholder="e.g. contact@clientcompany.com" autocomplete="off">
+    <button id="analyzeBtn"><i class="fa-solid fa-magnifying-glass"></i> Analyze</button>
+  </div>
+  <div class="hint">Press Enter or click Analyze — runs live MX / Gravatar checks over HTTPS, nothing is stored server-side.</div>
+
+  <div class="scope-note">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>This tool verifies whether an email address is well-formed, deliverable, and disposable, and checks two public-by-design signals (Gravatar, optional Have I Been Pwned). It does not attempt to identify, locate, or profile the person behind the address.</div>
+  </div>
+
+  <div id="results">
+
+    <div class="grid-cards">
+
+      <!-- Syntax card -->
+      <div class="card" id="syntaxCard">
+        <div class="card-head"><i class="fa-solid fa-code"></i><div class="card-title">Syntax &amp; Structure</div></div>
+        <div class="card-body" id="syntaxBody"></div>
+      </div>
+
+      <!-- Domain card -->
+      <div class="card" id="domainCard">
+        <div class="card-head"><i class="fa-solid fa-server"></i><div class="card-title">Domain Intelligence</div></div>
+        <div class="card-body" id="domainBody"></div>
+      </div>
+
+      <!-- Disposable card -->
+      <div class="card" id="dispCard">
+        <div class="card-head"><i class="fa-solid fa-trash-can"></i><div class="card-title">Disposable / Throwaway Check</div></div>
+        <div class="card-body" id="dispBody"></div>
+      </div>
+
+      <!-- Gravatar card -->
+      <div class="card" id="gravCard">
+        <div class="card-head"><i class="fa-solid fa-user-circle"></i><div class="card-title">Gravatar Presence</div></div>
+        <div class="card-body" id="gravBody"></div>
+      </div>
+
+      <!-- Risk gauge -->
+      <div class="card gauge-card" id="gaugeCard">
+        <div class="card-head"><i class="fa-solid fa-gauge-high"></i><div class="card-title">Aggregate Risk Score</div></div>
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" width="150" height="90" viewBox="0 0 150 90">
+            <path d="M15,80 A60,60 0 0,1 135,80" fill="none" stroke="#182444" stroke-width="14" stroke-linecap="round"/>
+            <path id="gaugeArc" d="M15,80 A60,60 0 0,1 135,80" fill="none" stroke="#22d3ee" stroke-width="14" stroke-linecap="round" stroke-dasharray="188" stroke-dashoffset="188"/>
+          </svg>
+          <div class="gauge-detail">
+            <div class="gauge-score" id="gaugeScore">--</div>
+            <div class="gauge-label" id="gaugeLabel">awaiting analysis</div>
+            <ul class="factor-list" id="factorList"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Breach card -->
+      <div class="card breach-card" id="breachCard">
+        <div class="card-head"><i class="fa-solid fa-database"></i><div class="card-title">Breach Exposure (Optional)</div></div>
+        <div class="hibp-inputrow">
+          <input type="password" id="hibpKey" placeholder="Your Have I Been Pwned API key (optional)">
+          <button id="hibpBtn"><i class="fa-solid fa-key"></i> Check</button>
+        </div>
+        <div id="breachBody" class="card-body">
+          <div class="small-note"><i class="fa-solid fa-circle-info"></i>Breach checking requires your own HIBP API key (paid, from haveibeenpwned.com/API/Key). We never store or transmit the key anywhere except directly to HIBP's API, from your browser.</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <footer>APNA ELECTROMECHANIC SERVICE — ENGINEERING TOOLS SUITE // OFFLINE-CAPABLE SINGLE-FILE HTML TOOL</footer>
+</div>
+
+<script>
+// ---------- Minimal MD5 implementation (for Gravatar hash) ----------
+function md5(str){
+  function rl(n,c){return (n<<c)|(n>>>(32-c));}
+  function ad(a,b){
+    var l=(a&0xFFFF)+(b&0xFFFF);var m=(a>>16)+(b>>16)+(l>>16);
+    return (m<<16)|(l&0xFFFF);
+  }
+  function cmn(q,a,b,x,s,t){return ad(rl(ad(ad(a,q),ad(x,t)),s),b);}
+  function ff(a,b,c,d,x,s,t){return cmn((b&c)|((~b)&d),a,b,x,s,t);}
+  function gg(a,b,c,d,x,s,t){return cmn((b&d)|(c&(~d)),a,b,x,s,t);}
+  function hh(a,b,c,d,x,s,t){return cmn(b^c^d,a,b,x,s,t);}
+  function ii(a,b,c,d,x,s,t){return cmn(c^(b|(~d)),a,b,x,s,t);}
+  function toBytes(s){
+    var bytes=[]; s=unescape(encodeURIComponent(s));
+    for(var i=0;i<s.length;i++) bytes.push(s.charCodeAt(i));
+    return bytes;
+  }
+  function toWords(bytes){
+    var n=bytes.length; var words=[];
+    for(var i=0;i<n*8;i+=8) words[i>>5]|=(bytes[i/8]&0xFF)<<(i%32);
+    words[n*8>>5]|=0x80<<((n*8)%32);
+    words[(((n+8)>>6)+1)*16-2]=n*8;
+    return words;
+  }
+  var x=toWords(toBytes(str));
+  var a=1732584193,b=-271733879,c=-1732584194,d=271733878;
+  for(var i=0;i<x.length;i+=16){
+    var oa=a,ob=b,oc=c,od=d;
+    a=ff(a,b,c,d,x[i+0]||0,7,-680876936);d=ff(d,a,b,c,x[i+1]||0,12,-389564586);
+    c=ff(c,d,a,b,x[i+2]||0,17,606105819);b=ff(b,c,d,a,x[i+3]||0,22,-1044525330);
+    a=ff(a,b,c,d,x[i+4]||0,7,-176418897);d=ff(d,a,b,c,x[i+5]||0,12,1200080426);
+    c=ff(c,d,a,b,x[i+6]||0,17,-1473231341);b=ff(b,c,d,a,x[i+7]||0,22,-45705983);
+    a=ff(a,b,c,d,x[i+8]||0,7,1770035416);d=ff(d,a,b,c,x[i+9]||0,12,-1958414417);
+    c=ff(c,d,a,b,x[i+10]||0,17,-42063);b=ff(b,c,d,a,x[i+11]||0,22,-1990404162);
+    a=ff(a,b,c,d,x[i+12]||0,7,1804603682);d=ff(d,a,b,c,x[i+13]||0,12,-40341101);
+    c=ff(c,d,a,b,x[i+14]||0,17,-1502002290);b=ff(b,c,d,a,x[i+15]||0,22,1236535329);
+    a=gg(a,b,c,d,x[i+1]||0,5,-165796510);d=gg(d,a,b,c,x[i+6]||0,9,-1069501632);
+    c=gg(c,d,a,b,x[i+11]||0,14,643717713);b=gg(b,c,d,a,x[i+0]||0,20,-373897302);
+    a=gg(a,b,c,d,x[i+5]||0,5,-701558691);d=gg(d,a,b,c,x[i+10]||0,9,38016083);
+    c=gg(c,d,a,b,x[i+15]||0,14,-660478335);b=gg(b,c,d,a,x[i+4]||0,20,-405537848);
+    a=gg(a,b,c,d,x[i+9]||0,5,568446438);d=gg(d,a,b,c,x[i+14]||0,9,-1019803690);
+    c=gg(c,d,a,b,x[i+3]||0,14,-187363961);b=gg(b,c,d,a,x[i+8]||0,20,1163531501);
+    a=gg(a,b,c,d,x[i+13]||0,5,-1444681467);d=gg(d,a,b,c,x[i+2]||0,9,-51403784);
+    c=gg(c,d,a,b,x[i+7]||0,14,1735328473);b=gg(b,c,d,a,x[i+12]||0,20,-1926607734);
+    a=hh(a,b,c,d,x[i+5]||0,4,-378558);d=hh(d,a,b,c,x[i+8]||0,11,-2022574463);
+    c=hh(c,d,a,b,x[i+11]||0,16,1839030562);b=hh(b,c,d,a,x[i+14]||0,23,-35309556);
+    a=hh(a,b,c,d,x[i+1]||0,4,-1530992060);d=hh(d,a,b,c,x[i+4]||0,11,1272893353);
+    c=hh(c,d,a,b,x[i+7]||0,16,-155497632);b=hh(b,c,d,a,x[i+10]||0,23,-1094730640);
+    a=hh(a,b,c,d,x[i+13]||0,4,681279174);d=hh(d,a,b,c,x[i+0]||0,11,-358537222);
+    c=hh(c,d,a,b,x[i+3]||0,16,-722521979);b=hh(b,c,d,a,x[i+6]||0,23,76029189);
+    a=hh(a,b,c,d,x[i+9]||0,4,-640364487);d=hh(d,a,b,c,x[i+12]||0,11,-421815835);
+    c=hh(c,d,a,b,x[i+15]||0,16,530742520);b=hh(b,c,d,a,x[i+2]||0,23,-995338651);
+    a=ii(a,b,c,d,x[i+0]||0,6,-198630844);d=ii(d,a,b,c,x[i+7]||0,10,1126891415);
+    c=ii(c,d,a,b,x[i+14]||0,15,-1416354905);b=ii(b,c,d,a,x[i+5]||0,21,-57434055);
+    a=ii(a,b,c,d,x[i+12]||0,6,1700485571);d=ii(d,a,b,c,x[i+3]||0,10,-1894986606);
+    c=ii(c,d,a,b,x[i+10]||0,15,-1051523);b=ii(b,c,d,a,x[i+1]||0,21,-2054922799);
+    a=ii(a,b,c,d,x[i+8]||0,6,1873313359);d=ii(d,a,b,c,x[i+15]||0,10,-30611744);
+    c=ii(c,d,a,b,x[i+6]||0,15,-1560198380);b=ii(b,c,d,a,x[i+13]||0,21,1309151649);
+    a=ii(a,b,c,d,x[i+4]||0,6,-145523070);d=ii(d,a,b,c,x[i+11]||0,10,-1120210379);
+    c=ii(c,d,a,b,x[i+2]||0,15,718787259);b=ii(b,c,d,a,x[i+9]||0,21,-343485551);
+    a=ad(a,oa);b=ad(b,ob);c=ad(c,oc);d=ad(d,od);
+  }
+  function toHex(n){
+    var s='',v;
+    for(var i=0;i<4;i++){
+      v=(n>>(i*8))&255; s+=('0'+v.toString(16)).slice(-2);
+    }
+    return s;
+  }
+  return toHex(a)+toHex(b)+toHex(c)+toHex(d);
+}
+
+// ---------- Disposable domain list (common throwaway providers) ----------
+const DISPOSABLE_DOMAINS = new Set([
+  "mailinator.com","10minutemail.com","guerrillamail.com","tempmail.com","temp-mail.org",
+  "yopmail.com","throwawaymail.com","getnada.com","trashmail.com","fakeinbox.com",
+  "sharklasers.com","dispostable.com","maildrop.cc","mintemail.com","mailnesia.com",
+  "moakt.com","33mail.com","emailondeck.com","mytemp.email","tempinbox.com"
+]);
+
+const FREE_PROVIDERS = new Set([
+  "gmail.com","yahoo.com","outlook.com","hotmail.com","icloud.com","aol.com",
+  "protonmail.com","live.com","rediffmail.com","yandex.com"
+]);
+
+function escapeHtml(s){
+  return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+async function dnsOverHttps(domain, type){
+  const url = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=${type}`;
+  const res = await fetch(url, {headers:{'accept':'application/dns-json'}});
+  if(!res.ok) throw new Error('DNS query failed');
+  return res.json();
+}
+
+function gravatarCheck(hash){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    const url = `https://www.gravatar.com/avatar/${hash}?d=404&s=120`;
+    img.onload = ()=>resolve({found:true, url});
+    img.onerror = ()=>resolve({found:false, url:null});
+    img.src = url;
+  });
+}
+
+let currentScore = {points:0, max:0, factors:[]};
+
+function addFactor(label, status, weight){
+  // status: ok | warn | bad
+  currentScore.max += weight;
+  if(status==='ok') currentScore.points += weight;
+  else if(status==='warn') currentScore.points += weight*0.5;
+  currentScore.factors.push({label,status});
+}
+
+function renderGauge(){
+  const pct = currentScore.max ? (currentScore.points/currentScore.max) : 0;
+  const circumference = 188;
+  const offset = circumference - (pct*circumference);
+  const arc = document.getElementById('gaugeArc');
+  arc.style.transition = 'stroke-dashoffset 0.8s ease, stroke 0.4s ease';
+  arc.setAttribute('stroke-dashoffset', offset);
+  let color = '#3ddc84', label='LOW RISK';
+  if(pct < 0.5){ color='#ff5c5c'; label='HIGH RISK'; }
+  else if(pct < 0.8){ color='#f5a623'; label='MODERATE RISK'; }
+  arc.setAttribute('stroke', color);
+  document.getElementById('gaugeScore').textContent = Math.round(pct*100) + '%';
+  document.getElementById('gaugeScore').style.color = color;
+  document.getElementById('gaugeLabel').textContent = label + ' \u2022 confidence score';
+
+  const list = document.getElementById('factorList');
+  list.innerHTML = currentScore.factors.map(f=>{
+    const icon = f.status==='ok' ? 'fa-check' : (f.status==='warn' ? 'fa-triangle-exclamation' : 'fa-xmark');
+    return `<li class="f-${f.status}"><i class="fa-solid ${icon}"></i>${escapeHtml(f.label)}</li>`;
+  }).join('');
+}
+
+async function analyze(){
+  const emailRaw = document.getElementById('emailInput').value.trim();
+  const btn = document.getElementById('analyzeBtn');
+  if(!emailRaw){ return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analyzing';
+  currentScore = {points:0, max:0, factors:[]};
+
+  document.getElementById('results').classList.add('show');
+
+  // ---- 1. Syntax check ----
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  const valid = emailRegex.test(emailRaw);
+  const [localPart, domain] = emailRaw.split('@');
+  const syntaxBody = document.getElementById('syntaxBody');
+
+  if(valid){
+    syntaxBody.innerHTML = `
+      <div class="row"><span class="k">Status</span><span class="status-pill pill-ok"><i class="fa-solid fa-check"></i> Well-formed</span></div>
+      <div class="row"><span class="k">Local part</span><span class="v">${escapeHtml(localPart)}</span></div>
+      <div class="row"><span class="k">Domain</span><span class="v">${escapeHtml(domain||'-')}</span></div>
+      <div class="row"><span class="k">Length</span><span class="v">${emailRaw.length} chars</span></div>
+    `;
+    addFactor('Valid email syntax', 'ok', 20);
+  } else {
+    syntaxBody.innerHTML = `
+      <div class="row"><span class="k">Status</span><span class="status-pill pill-bad"><i class="fa-solid fa-xmark"></i> Invalid format</span></div>
+      <div class="row"><span class="k">Input</span><span class="v">${escapeHtml(emailRaw)}</span></div>
+    `;
+    addFactor('Invalid email syntax', 'bad', 20);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Analyze';
+    // Still render dependent cards with neutral state
+    document.getElementById('domainBody').innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-neutral">Skipped — fix syntax first</span></div>`;
+    document.getElementById('dispBody').innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-neutral">Skipped</span></div>`;
+    document.getElementById('gravBody').innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-neutral">Skipped</span></div>`;
+    renderGauge();
+    return;
+  }
+
+  const domainLower = domain.toLowerCase();
+
+  // ---- 2. Disposable check ----
+  const dispBody = document.getElementById('dispBody');
+  const isDisposable = DISPOSABLE_DOMAINS.has(domainLower);
+  const isFree = FREE_PROVIDERS.has(domainLower);
+  if(isDisposable){
+    dispBody.innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-bad"><i class="fa-solid fa-triangle-exclamation"></i> Disposable domain</span></div>
+      <div class="row"><span class="k">Provider type</span><span class="v bad">Known throwaway service</span></div>`;
+    addFactor('Disposable/throwaway domain detected', 'bad', 25);
+  } else if(isFree){
+    dispBody.innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-warn"><i class="fa-solid fa-circle-info"></i> Free consumer domain</span></div>
+      <div class="row"><span class="k">Provider type</span><span class="v warn">Personal/free email</span></div>`;
+    addFactor('Free consumer email (not business domain)', 'warn', 25);
+  } else {
+    dispBody.innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-ok"><i class="fa-solid fa-check"></i> Not disposable</span></div>
+      <div class="row"><span class="k">Provider type</span><span class="v ok">Custom/business domain</span></div>`;
+    addFactor('Not a known disposable domain', 'ok', 25);
+  }
+
+  // ---- 3. Domain / MX check ----
+  const domainBody = document.getElementById('domainBody');
+  domainBody.innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-neutral"><span class="spinner" style="border-top-color:#22d3ee;"></span> Querying MX...</span></div>`;
+  try{
+    const mxData = await dnsOverHttps(domainLower, 'MX');
+    const answers = mxData.Answer || [];
+    if(answers.length > 0){
+      const mxHosts = answers.map(a=>a.data.split(' ').pop().replace(/\.$/,'')).slice(0,3);
+      domainBody.innerHTML = `
+        <div class="row"><span class="k">Status</span><span class="status-pill pill-ok"><i class="fa-solid fa-check"></i> Mail server found</span></div>
+        <div class="row"><span class="k">MX records</span><span class="v ok">${answers.length}</span></div>
+        <div class="row"><span class="k">Primary host</span><span class="v" style="word-break:break-all;">${escapeHtml(mxHosts[0]||'-')}</span></div>
+      `;
+      addFactor('Domain has valid MX records (can receive mail)', 'ok', 30);
+    } else {
+      domainBody.innerHTML = `
+        <div class="row"><span class="k">Status</span><span class="status-pill pill-bad"><i class="fa-solid fa-xmark"></i> No MX records</span></div>
+        <div class="row"><span class="k">Deliverability</span><span class="v bad">Domain cannot receive mail</span></div>
+      `;
+      addFactor('No MX records found — likely undeliverable', 'bad', 30);
+    }
+  } catch(e){
+    domainBody.innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-neutral"><i class="fa-solid fa-circle-exclamation"></i> Lookup failed</span></div>
+      <div class="row"><span class="k">Reason</span><span class="v">Network/CORS error</span></div>`;
+    addFactor('MX lookup unavailable', 'warn', 30);
+  }
+
+  // ---- 4. Gravatar check ----
+  const gravBody = document.getElementById('gravBody');
+  gravBody.innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-neutral"><span class="spinner" style="border-top-color:#22d3ee;"></span> Checking...</span></div>`;
+  try{
+    const hash = md5(emailRaw.trim().toLowerCase());
+    const g = await gravatarCheck(hash);
+    if(g.found){
+      gravBody.innerHTML = `
+        <div class="gravatar-row">
+          <div class="avatar-box"><img src="${g.url}" alt="Gravatar"></div>
+          <div>
+            <div class="status-pill pill-ok" style="margin-bottom:6px;"><i class="fa-solid fa-check"></i> Public profile found</div>
+            <div style="font-size:0.78rem;color:var(--text-dim);">This address has a self-published Gravatar image.</div>
+          </div>
+        </div>`;
+      addFactor('Gravatar profile exists (self-published, public)', 'ok', 15);
+    } else {
+      gravBody.innerHTML = `
+        <div class="gravatar-row">
+          <div class="avatar-box"><i class="fa-solid fa-user-slash"></i></div>
+          <div class="status-pill pill-neutral">No public Gravatar found</div>
+        </div>`;
+      addFactor('No Gravatar profile', 'warn', 15);
+    }
+  } catch(e){
+    gravBody.innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-neutral">Lookup unavailable</span></div>`;
+  }
+
+  renderGauge();
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Analyze';
+}
+
+// ---- Optional HIBP breach check (user supplies their own paid API key) ----
+document.getElementById('hibpBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('emailInput').value.trim();
+  const key = document.getElementById('hibpKey').value.trim();
+  const body = document.getElementById('breachBody');
+  if(!email){
+    body.innerHTML = `<div class="small-note"><i class="fa-solid fa-triangle-exclamation" style="color:var(--amber);"></i>Enter and analyze an email address first.</div>`;
+    return;
+  }
+  if(!key){
+    body.innerHTML = `<div class="small-note"><i class="fa-solid fa-triangle-exclamation" style="color:var(--amber);"></i>Add your own Have I Been Pwned API key to run this check. Get one at haveibeenpwned.com/API/Key.</div>`;
+    return;
+  }
+  body.innerHTML = `<div class="small-note"><span class="spinner" style="border-top-color:#22d3ee;"></span> Checking breach records...</div>`;
+  try{
+    const res = await fetch(`https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(email)}?truncateResponse=false`, {
+      headers: { 'hibp-api-key': key, 'user-agent': 'EmailRiskConsole' }
+    });
+    if(res.status === 404){
+      body.innerHTML = `<div class="row"><span class="k">Status</span><span class="status-pill pill-ok"><i class="fa-solid fa-check"></i> No breaches found</span></div>`;
+    } else if(res.status === 200){
+      const breaches = await res.json();
+      const items = breaches.map(b=>`
+        <div class="breach-item">
+          <span class="bname"><i class="fa-solid fa-triangle-exclamation" style="color:var(--red);margin-right:6px;"></i>${escapeHtml(b.Name)}</span>
+          <span class="bdate">${escapeHtml(b.BreachDate)}</span>
+        </div>`).join('');
+      body.innerHTML = `
+        <div class="row"><span class="k">Status</span><span class="status-pill pill-bad"><i class="fa-solid fa-triangle-exclamation"></i> ${breaches.length} breach(es) found</span></div>
+        <div class="breach-list">${items}</div>
+        <div class="small-note"><i class="fa-solid fa-circle-info"></i>Recommend rotating passwords for these services if reused elsewhere.</div>
+      `;
+    } else if(res.status === 401){
+      body.innerHTML = `<div class="small-note"><i class="fa-solid fa-xmark" style="color:var(--red);"></i>Invalid API key.</div>`;
+    } else if(res.status === 429){
+      body.innerHTML = `<div class="small-note"><i class="fa-solid fa-clock" style="color:var(--amber);"></i>Rate limited — wait a moment and try again.</div>`;
+    } else {
+      body.innerHTML = `<div class="small-note"><i class="fa-solid fa-circle-exclamation"></i>Unexpected response (${res.status}).</div>`;
+    }
+  } catch(e){
+    body.innerHTML = `<div class="small-note"><i class="fa-solid fa-circle-exclamation" style="color:var(--red);"></i>Request failed — check your network/CORS settings.</div>`;
+  }
+});
+
+document.getElementById('analyzeBtn').addEventListener('click', analyze);
+document.getElementById('emailInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') analyze();
+});
+</script>
+</body>
+</html>
