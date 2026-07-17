@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MySQL Interactive Learning Lab</title>
+<style>
+:root{
+  --navy-950:#060b16;
+  --navy-900:#0a1120;
+  --navy-800:#0f1a2e;
+  --navy-700:#152540;
+  --navy-600:#1c3154;
+  --grid-line:rgba(94,234,212,0.055);
+  --cyan:#5eead4;
+  --cyan-bright:#a7f3ec;
+  --amber:#f5b942;
+  --amber-dim:#c99530;
+  --text-hi:#e7edf7;
+  --text-mid:#a9b7cc;
+  --text-dim:#69789a;
+  --danger:#f16d6d;
+  --ok:#7ee081;
+  --mono: 'IBM Plex Mono','SFMono-Regular','Consolas','Menlo',monospace;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0/34px 34px,
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0/34px 34px,
+    radial-gradient(ellipse at 20% -10%, #123054 0%, transparent 55%),
+    var(--navy-950);
+  color:var(--text-hi);
+  font-family:var(--mono);
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--cyan);color:var(--navy-950);}
+a{color:var(--cyan);}
+button{font-family:var(--mono);cursor:pointer;}
+.scanline{
+  position:fixed;inset:0;pointer-events:none;z-index:5;
+  background:repeating-linear-gradient(180deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+  mix-blend-mode:overlay;
+}
+
+/* ---------- Header ---------- */
+header.top{
+  padding:22px 28px 16px;
+  border-bottom:1px solid var(--navy-700);
+  background:linear-gradient(180deg, rgba(15,26,46,0.9), rgba(15,26,46,0.55));
+  position:sticky;top:0;z-index:20;
+  backdrop-filter:blur(6px);
+}
+.eyebrow{
+  font-size:11px;letter-spacing:.22em;color:var(--amber);text-transform:uppercase;
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pulse 2.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+h1.brand{
+  margin:6px 0 2px;
+  font-size:26px;letter-spacing:.01em;color:var(--text-hi);font-weight:600;
+}
+h1.brand span{color:var(--cyan);}
+.tagline{color:var(--text-mid);font-size:13px;max-width:640px;line-height:1.5;}
+
+/* ---------- Layout ---------- */
+.shell{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 108px);}
+nav.sidenav{
+  border-right:1px solid var(--navy-700);
+  padding:18px 10px 60px;
+  position:sticky;top:108px;align-self:start;height:calc(100vh - 108px);overflow-y:auto;
+}
+nav.sidenav::-webkit-scrollbar{width:6px;}
+nav.sidenav::-webkit-scrollbar-thumb{background:var(--navy-700);border-radius:4px;}
+.nav-group-label{
+  font-size:10px;letter-spacing:.18em;color:var(--text-dim);text-transform:uppercase;
+  padding:14px 10px 6px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:5px;color:var(--text-mid);font-size:12.5px;
+  border-left:2px solid transparent;cursor:pointer;transition:background .12s, color .12s;
+}
+.nav-item .idx{color:var(--text-dim);font-size:10.5px;min-width:16px;}
+.nav-item:hover{background:var(--navy-800);color:var(--text-hi);}
+.nav-item.active{background:var(--navy-700);color:var(--cyan-bright);border-left-color:var(--cyan);}
+.nav-item.active .idx{color:var(--cyan);}
+
+main.content{padding:30px 34px 90px;max-width:980px;}
+section.panel{display:none;}
+section.panel.active{display:block;animation:fadein .25s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+.topic-tag{
+  display:inline-block;font-size:10.5px;letter-spacing:.16em;color:var(--amber);
+  border:1px solid var(--amber-dim);padding:3px 9px;border-radius:3px;text-transform:uppercase;margin-bottom:10px;
+}
+h2.topic-title{font-size:24px;margin:4px 0 14px;color:var(--text-hi);}
+h2.topic-title span{color:var(--cyan);}
+.lede{color:var(--text-mid);font-size:14px;line-height:1.7;max-width:760px;margin-bottom:20px;}
+.lede code, p code, li code, td code{
+  background:var(--navy-800);border:1px solid var(--navy-600);color:var(--cyan-bright);
+  padding:1px 6px;border-radius:3px;font-size:12.5px;
+}
+h3.sub{font-size:14px;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin:26px 0 10px;}
+ul.plain, ol.plain{color:var(--text-mid);font-size:13.5px;line-height:1.85;padding-left:20px;}
+ul.plain li b, ol.plain li b{color:var(--text-hi);}
+
+/* Example query cards */
+.example{
+  border:1px solid var(--navy-700);background:var(--navy-900);border-radius:8px;margin:14px 0;overflow:hidden;
+}
+.example .ex-head{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:9px 14px;background:var(--navy-800);border-bottom:1px solid var(--navy-700);
+}
+.example .ex-label{font-size:11.5px;color:var(--text-mid);}
+.example .ex-run{
+  font-size:11px;color:var(--navy-950);background:var(--cyan);border:none;padding:5px 11px;border-radius:4px;font-weight:700;letter-spacing:.03em;
+}
+.example .ex-run:hover{background:var(--cyan-bright);}
+.example pre{margin:0;padding:14px;color:var(--cyan-bright);font-size:12.8px;overflow-x:auto;line-height:1.6;}
+.example .ex-note{padding:0 14px 12px;color:var(--text-dim);font-size:12px;line-height:1.6;}
+
+/* Quiz */
+.quiz-block{border:1px solid var(--navy-700);border-radius:8px;padding:18px;margin:16px 0;background:var(--navy-900);}
+.quiz-q{font-size:13.5px;color:var(--text-hi);margin-bottom:10px;}
+.quiz-opts{display:flex;flex-direction:column;gap:7px;}
+.quiz-opt{
+  text-align:left;padding:8px 12px;border:1px solid var(--navy-600);background:var(--navy-800);color:var(--text-mid);
+  border-radius:5px;font-size:12.8px;
+}
+.quiz-opt:hover{border-color:var(--cyan);color:var(--text-hi);}
+.quiz-opt.correct{border-color:var(--ok);color:var(--ok);background:rgba(126,224,129,0.08);}
+.quiz-opt.wrong{border-color:var(--danger);color:var(--danger);background:rgba(241,109,109,0.08);}
+.quiz-fb{margin-top:10px;font-size:12.3px;color:var(--text-dim);display:none;}
+
+/* Buttons general */
+.btn{
+  border:1px solid var(--navy-600);background:var(--navy-800);color:var(--text-hi);
+  padding:8px 14px;border-radius:5px;font-size:12px;letter-spacing:.02em;
+}
+.btn:hover{border-color:var(--cyan);color:var(--cyan-bright);}
+.btn.primary{background:var(--cyan);color:var(--navy-950);border-color:var(--cyan);font-weight:700;}
+.btn.primary:hover{background:var(--cyan-bright);}
+.btn.amber{background:var(--amber);color:var(--navy-950);border-color:var(--amber);font-weight:700;}
+
+/* ---------- Playground ---------- */
+.pg-wrap{display:grid;grid-template-columns:240px 1fr;gap:16px;}
+.schema-panel{border:1px solid var(--navy-700);border-radius:8px;background:var(--navy-900);padding:12px;height:fit-content;}
+.schema-panel h4{margin:0 0 10px;font-size:11px;letter-spacing:.14em;color:var(--text-dim);text-transform:uppercase;}
+.tbl-card{margin-bottom:10px;border:1px solid var(--navy-700);border-radius:6px;overflow:hidden;}
+.tbl-card .tbl-name{
+  padding:6px 10px;background:var(--navy-700);color:var(--cyan-bright);font-size:12px;font-weight:700;
+  display:flex;justify-content:space-between;cursor:pointer;
+}
+.tbl-card .tbl-cols{padding:8px 10px;font-size:11px;color:var(--text-mid);line-height:1.7;display:none;}
+.tbl-card .tbl-cols.open{display:block;}
+.tbl-card .tbl-cols b{color:var(--text-hi);}
+
+.editor-col{display:flex;flex-direction:column;gap:10px;}
+#sqlEditor{
+  width:100%;min-height:130px;resize:vertical;background:var(--navy-900);border:1px solid var(--navy-700);
+  border-radius:8px;color:var(--cyan-bright);font-family:var(--mono);font-size:13.5px;padding:14px;line-height:1.6;
+}
+#sqlEditor:focus{outline:none;border-color:var(--cyan);}
+.pg-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.pg-hint{font-size:11.5px;color:var(--text-dim);}
+.result-wrap{border:1px solid var(--navy-700);border-radius:8px;background:var(--navy-900);min-height:120px;}
+.result-status{padding:9px 14px;font-size:12px;border-bottom:1px solid var(--navy-700);color:var(--text-mid);}
+.result-status.err{color:var(--danger);}
+.result-status.ok{color:var(--ok);}
+.result-table-scroll{overflow:auto;max-height:360px;}
+table.result-table{border-collapse:collapse;width:100%;font-size:12px;}
+table.result-table th{
+  position:sticky;top:0;background:var(--navy-800);color:var(--amber);text-align:left;padding:7px 10px;
+  border-bottom:1px solid var(--navy-700);white-space:nowrap;
+}
+table.result-table td{padding:6px 10px;border-bottom:1px solid var(--navy-800);color:var(--text-hi);white-space:nowrap;}
+table.result-table tr:hover td{background:var(--navy-800);}
+.result-empty{padding:30px;text-align:center;color:var(--text-dim);font-size:12.5px;}
+
+/* ER diagram */
+.erd-wrap{border:1px solid var(--navy-700);border-radius:8px;background:var(--navy-900);padding:10px;margin:18px 0 26px;overflow-x:auto;}
+
+/* Project steps */
+.step{border:1px solid var(--navy-700);border-radius:8px;margin:14px 0;background:var(--navy-900);overflow:hidden;}
+.step-head{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--navy-800);}
+.step-num{
+  width:24px;height:24px;border-radius:50%;background:var(--navy-700);color:var(--cyan-bright);
+  display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;flex-shrink:0;
+}
+.step-num.done{background:var(--ok);color:var(--navy-950);}
+.step-title{font-size:13.5px;color:var(--text-hi);flex:1;}
+.step-body{padding:14px 16px 16px;}
+.step-goal{color:var(--text-mid);font-size:13px;line-height:1.7;margin-bottom:12px;}
+.step-check-result{margin-top:10px;font-size:12.3px;}
+.step-check-result.pass{color:var(--ok);}
+.step-check-result.fail{color:var(--danger);}
+
+.badge-row{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;}
+.badge{font-size:11px;border:1px solid var(--navy-600);color:var(--text-mid);padding:4px 10px;border-radius:20px;}
+
+footer.foot{
+  border-top:1px solid var(--navy-700);padding:22px 34px;color:var(--text-dim);font-size:11.5px;
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;
+}
+
+@media (max-width: 880px){
+  .shell{grid-template-columns:1fr;}
+  nav.sidenav{position:static;height:auto;border-right:none;border-bottom:1px solid var(--navy-700);
+    display:flex;overflow-x:auto;white-space:nowrap;padding:10px;}
+  .nav-group-label{display:none;}
+  .nav-item{border-left:none;border-bottom:2px solid transparent;flex-shrink:0;}
+  .nav-item.active{border-left-color:transparent;border-bottom-color:var(--cyan);}
+  .pg-wrap{grid-template-columns:1fr;}
+  main.content{padding:20px 16px 70px;}
+}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+@media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<header class="top">
+  <div class="eyebrow"><span class="dot"></span> OFFLINE &middot; SINGLE FILE &middot; NO SERVER REQUIRED</div>
+  <h1 class="brand">MySQL <span>Interactive</span> Learning Lab</h1>
+  <div class="tagline">A self-contained playground for learning MySQL end to end — concepts, runnable examples against a live sample database, and a guided project. Every query actually executes in your browser.</div>
+</header>
+
+<div class="shell">
+  <nav class="sidenav" id="sidenav"></nav>
+  <main class="content" id="content"></main>
+</div>
+
+<footer class="foot">
+  <span>MySQL Interactive Learning Lab &middot; runs entirely client-side, nothing is sent anywhere</span>
+  <span id="scoreFoot">Quiz score: 0 / 0</span>
+</footer>
+
+<script>
+/* =====================================================================
+   1. SAMPLE DATABASE
+   ===================================================================== */
+function freshDatabase(){
+  return {
+    tables:{
+      departments:{
+        columns:['dept_id','dept_name','location'],
+        rows:[
+          {dept_id:1, dept_name:'Engineering', location:'Mumbai'},
+          {dept_id:2, dept_name:'Sales', location:'Delhi'},
+          {dept_id:3, dept_name:'Human Resources', location:'Bengaluru'},
+          {dept_id:4, dept_name:'Finance', location:'Mumbai'}
+        ]
+      },
+      employees:{
+        columns:['emp_id','emp_name','dept_id','salary','hire_date','manager_id'],
+        rows:[
+          {emp_id:101, emp_name:'Aarav Shah', dept_id:1, salary:95000, hire_date:'2019-03-14', manager_id:null},
+          {emp_id:102, emp_name:'Priya Nair', dept_id:1, salary:87000, hire_date:'2020-07-01', manager_id:101},
+          {emp_id:103, emp_name:'Rohan Mehta', dept_id:2, salary:62000, hire_date:'2021-01-11', manager_id:null},
+          {emp_id:104, emp_name:'Sneha Iyer', dept_id:2, salary:58000, hire_date:'2022-05-19', manager_id:103},
+          {emp_id:105, emp_name:'Vikram Singh', dept_id:3, salary:71000, hire_date:'2018-11-02', manager_id:null},
+          {emp_id:106, emp_name:'Ananya Gupta', dept_id:4, salary:99000, hire_date:'2017-06-23', manager_id:null},
+          {emp_id:107, emp_name:'Karan Verma', dept_id:1, salary:76000, hire_date:'2023-02-10', manager_id:101},
+          {emp_id:108, emp_name:'Ishita Rao', dept_id:4, salary:64000, hire_date:'2021-09-05', manager_id:106}
+        ]
+      },
+      customers:{
+        columns:['cust_id','cust_name','city','email'],
+        rows:[
+          {cust_id:1, cust_name:'Rahul Deshmukh', city:'Mumbai', email:'rahul.d@example.com'},
+          {cust_id:2, cust_name:'Meera Joshi', city:'Pune', email:'meera.j@example.com'},
+          {cust_id:3, cust_name:'Arjun Kulkarni', city:'Mumbai', email:'arjun.k@example.com'},
+          {cust_id:4, cust_name:'Divya Reddy', city:'Hyderabad', email:'divya.r@example.com'},
+          {cust_id:5, cust_name:'Sanjay Kapoor', city:'Delhi', email:'sanjay.k@example.com'},
+          {cust_id:6, cust_name:'Neha Kulkarni', city:'Nagpur', email:'neha.k@example.com'}
+        ]
+      },
+      products:{
+        columns:['prod_id','prod_name','category','price','stock'],
+        rows:[
+          {prod_id:1, prod_name:'Wireless Mouse', category:'Electronics', price:699, stock:150},
+          {prod_id:2, prod_name:'Mechanical Keyboard', category:'Electronics', price:2999, stock:80},
+          {prod_id:3, prod_name:'USB-C Cable', category:'Accessories', price:249, stock:300},
+          {prod_id:4, prod_name:'Laptop Stand', category:'Accessories', price:1299, stock:60},
+          {prod_id:5, prod_name:'27-inch Monitor', category:'Electronics', price:15999, stock:25},
+          {prod_id:6, prod_name:'Desk Lamp', category:'Home', price:899, stock:110},
+          {prod_id:7, prod_name:'Webcam HD', category:'Electronics', price:1999, stock:40}
+        ]
+      },
+      orders:{
+        columns:['order_id','cust_id','order_date','status'],
+        rows:[
+          {order_id:1, cust_id:1, order_date:'2024-01-15', status:'Delivered'},
+          {order_id:2, cust_id:2, order_date:'2024-01-18', status:'Delivered'},
+          {order_id:3, cust_id:1, order_date:'2024-02-02', status:'Shipped'},
+          {order_id:4, cust_id:3, order_date:'2024-02-10', status:'Pending'},
+          {order_id:5, cust_id:4, order_date:'2024-02-14', status:'Delivered'},
+          {order_id:6, cust_id:5, order_date:'2024-03-01', status:'Cancelled'},
+          {order_id:7, cust_id:2, order_date:'2024-03-05', status:'Shipped'}
+        ]
+      },
+      order_items:{
+        columns:['item_id','order_id','prod_id','quantity'],
+        rows:[
+          {item_id:1, order_id:1, prod_id:1, quantity:2},
+          {item_id:2, order_id:1, prod_id:3, quantity:1},
+          {item_id:3, order_id:2, prod_id:2, quantity:1},
+          {item_id:4, order_id:3, prod_id:4, quantity:1},
+          {item_id:5, order_id:4, prod_id:5, quantity:1},
+          {item_id:6, order_id:5, prod_id:6, quantity:2},
+          {item_id:7, order_id:6, prod_id:1, quantity:1},
+          {item_id:8, order_id:7, prod_id:3, quantity:3}
+        ]
+      }
+    },
+    views:{}
+  };
+}
+let DB = freshDatabase();
+
+/* =====================================================================
+   2. MINI SQL ENGINE
+   A pragmatic, from-scratch interpreter covering the SQL that a MySQL
+   learner writes day to day: CREATE/DROP TABLE, INSERT, UPDATE, DELETE,
+   SELECT (WHERE / JOIN / GROUP BY / HAVING / ORDER BY / LIMIT),
+   CREATE VIEW, START TRANSACTION / COMMIT / ROLLBACK, SHOW TABLES, DESCRIBE.
+   It is intentionally not a full MySQL implementation - the lessons
+   flag the few spots where the simulator simplifies real behaviour.
+   ===================================================================== */
+const MiniSQL = (function(){
+
+  let txSnapshot = null; // for START TRANSACTION / ROLLBACK
+
+  function clone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+  function stripSemicolon(s){ return s.trim().replace(/;\s*$/,''); }
+
+  function normalizeKeywords(sql){
+    return sql
+      .replace(/left\s+join/gi,' LEFTJOIN ')
+      .replace(/right\s+join/gi,' RIGHTJOIN ')
+      .replace(/inner\s+join/gi,' JOIN ')
+      .replace(/\bjoin\b/gi,(m,offset,str)=>{ return ' JOIN '; })
+      .replace(/group\s+by/gi,' GROUPBY ')
+      .replace(/order\s+by/gi,' ORDERBY ')
+      .replace(/not\s+in\b/gi,' NOTIN ')
+      .replace(/not\s+like/gi,' NOTLIKE ')
+      .replace(/is\s+not\s+null/gi,' ISNOTNULL')
+      .replace(/is\s+null/gi,' ISNULL');
+  }
+
+  const CLAUSE_KEYWORDS = ['SELECT','FROM','LEFTJOIN','RIGHTJOIN','JOIN','ON','WHERE','GROUPBY','HAVING','ORDERBY','LIMIT'];
+
+  function splitClauses(sql){
+    const re = new RegExp('\\b('+CLAUSE_KEYWORDS.join('|')+')\\b','gi');
+    const parts = sql.split(re);
+    // parts alternates: [pre, KW, text, KW, text, ...]
+    const out = [];
+    for(let i=1;i<parts.length;i+=2){
+      out.push({ kw: parts[i].toUpperCase(), text: (parts[i+1]||'').trim() });
+    }
+    return out;
+  }
+
+  function findMatchingParen(str, openIdx){
+    let depth = 0;
+    for(let i=openIdx;i<str.length;i++){
+      if(str[i]==='(') depth++;
+      else if(str[i]===')'){ depth--; if(depth===0) return i; }
+    }
+    return -1;
+  }
+
+  // Resolve subqueries: "col IN (SELECT ...)" -> "col IN (1,2,3)"
+  function resolveSubqueries(sql){
+    let out = sql;
+    let guard = 0;
+    while(guard++ < 25){
+      const m = /\(\s*SELECT/i.exec(out);
+      if(!m) break;
+      const openIdx = out.indexOf('(', m.index);
+      const closeIdx = findMatchingParen(out, openIdx);
+      if(closeIdx === -1) break;
+      const innerSQL = out.slice(openIdx+1, closeIdx);
+      const innerResult = execute(innerSQL, true);
+      if(!innerResult.columns || innerResult.columns.length===0){
+        throw new Error('Subquery returned no columns to compare against.');
+      }
+      const col = innerResult.columns[0];
+      const literal = innerResult.rows.map(r=>formatLiteral(r[col])).join(', ');
+      out = out.slice(0, openIdx) + '(' + (literal || 'NULL') + ')' + out.slice(closeIdx+1);
+    }
+    return out;
+  }
+
+  function formatLiteral(v){
+    if(v === null || v === undefined) return 'NULL';
+    if(typeof v === 'number') return String(v);
+    return "'" + String(v).replace(/'/g,"''") + "'";
+  }
+
+  /* ---------- WHERE / ON / HAVING expression conversion ---------- */
+  function convertExpr(raw){
+    let e = ' ' + raw.trim() + ' ';
+    // IS NULL / IS NOT NULL (already tagged ISNULL / ISNOTNULL by normalizeKeywords)
+    e = e.replace(/([\w.]+)\s+ISNOTNULL/gi, '($1 !== null && $1 !== undefined)');
+    e = e.replace(/([\w.]+)\s+ISNULL/gi, '($1 === null || $1 === undefined)');
+    // BETWEEN
+    e = e.replace(/([\w.]+)\s+BETWEEN\s+('[^']*'|[\w.]+)\s+AND\s+('[^']*'|[\w.]+)/gi, '($1 >= $2 && $1 <= $3)');
+    // LIKE / NOT LIKE
+    e = e.replace(/([\w.]+)\s+NOTLIKE\s+'([^']*)'/gi, (m,col,pat)=>likeToRegex(col,pat,true));
+    e = e.replace(/([\w.]+)\s+LIKE\s+'([^']*)'/gi, (m,col,pat)=>likeToRegex(col,pat,false));
+    // IN / NOT IN
+    e = e.replace(/([\w.]+)\s+NOTIN\s*\(([^)]*)\)/gi, '(![$2].includes($1))');
+    e = e.replace(/([\w.]+)\s+IN\s*\(([^)]*)\)/gi, '([$2].includes($1))');
+    // operators
+    e = e.replace(/<>/g,'!==');
+    e = e.replace(/(?<![<>=!])=(?!=)/g,'===');
+    e = e.replace(/\bAND\b/gi,'&&');
+    e = e.replace(/\bOR\b/gi,'||');
+    e = e.replace(/\bNOT\b/gi,'!');
+    return e;
+  }
+  function likeToRegex(col, pattern, negate){
+    const rx = pattern.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/%/g,'.*').replace(/_/g,'.');
+    return (negate?'!':'') + '(/^'+rx+'$/i.test('+col+'))';
+  }
+
+  function evalExprOnRow(exprRaw, ctx){
+    const js = convertExpr(exprRaw);
+    try{
+      const fn = new Function('row', 'with(row){ return (' + js + '); }');
+      return fn(ctx);
+    }catch(err){
+      throw new Error('Could not evaluate: "'+exprRaw.trim()+'" ('+err.message+')');
+    }
+  }
+  function evalCondOnRow(exprRaw, ctx){
+    return !!evalExprOnRow(exprRaw, ctx);
+  }
+
+  function buildContext(rowObj, tableName, alias){
+    const ctx = Object.assign({}, rowObj);
+    ctx[tableName] = rowObj;
+    if(alias && alias !== tableName) ctx[alias] = rowObj;
+    return ctx;
+  }
+
+  function mergeContext(a,b){ return Object.assign({}, a, b); }
+
+  function resolveTable(name){
+    if(DB.tables[name]) return DB.tables[name];
+    if(DB.views[name]){
+      const r = execute(DB.views[name], true);
+      return { columns: r.columns, rows: r.rows };
+    }
+    throw new Error("Table '"+name+"' doesn't exist. Try SHOW TABLES;");
+  }
+
+  function parseFromExpr(text){
+    // "employees e" or "employees AS e" or "employees"
+    const t = text.trim();
+    const m = /^([\w]+)(?:\s+(?:AS\s+)?([\w]+))?$/i.exec(t);
+    if(!m) throw new Error('Could not parse table reference: "'+t+'"');
+    return { table: m[1], alias: m[2] || m[1] };
+  }
+
+  /* ---------- SELECT ---------- */
+  function runSelect(sql){
+    const clauses = splitClauses(sql);
+    let selectText=null, fromText=null, whereText=null, groupText=null, havingText=null, orderText=null, limitText=null;
+    const joins = [];
+    let pendingJoinType = null, pendingJoinTable = null;
+
+    for(const c of clauses){
+      if(c.kw==='SELECT') selectText=c.text;
+      else if(c.kw==='FROM') fromText=c.text;
+      else if(c.kw==='JOIN' || c.kw==='LEFTJOIN' || c.kw==='RIGHTJOIN'){
+        pendingJoinType = c.kw==='JOIN'?'INNER':(c.kw==='LEFTJOIN'?'LEFT':'RIGHT');
+        pendingJoinTable = c.text;
+      }
+      else if(c.kw==='ON'){
+        joins.push({ type: pendingJoinType, ref: parseFromExpr(pendingJoinTable), on: c.text });
+        pendingJoinType=null; pendingJoinTable=null;
+      }
+      else if(c.kw==='WHERE') whereText=c.text;
+      else if(c.kw==='GROUPBY') groupText=c.text;
+      else if(c.kw==='HAVING') havingText=c.text;
+      else if(c.kw==='ORDERBY') orderText=c.text;
+      else if(c.kw==='LIMIT') limitText=c.text;
+    }
+    if(!selectText || !fromText) throw new Error('A SELECT needs both a SELECT list and a FROM table.');
+
+    const fromRef = parseFromExpr(fromText);
+    const baseTable = resolveTable(fromRef.table);
+
+    // Build joined row list: array of context objects
+    let contexts = baseTable.rows.map(r => buildContext(r, fromRef.table, fromRef.alias));
+
+    for(const j of joins){
+      const joinTable = resolveTable(j.ref.table);
+      const nextContexts = [];
+      for(const leftCtx of contexts){
+        let matched = false;
+        for(const rightRow of joinTable.rows){
+          const rightCtx = buildContext(rightRow, j.ref.table, j.ref.alias);
+          const merged = mergeContext(leftCtx, rightCtx);
+          if(evalCondOnRow(j.on, merged)){
+            nextContexts.push(merged);
+            matched = true;
+          }
+        }
+        if(!matched && j.type!=='INNER'){
+          // LEFT/RIGHT join: keep left row with right side columns as null
+          const nullsCtx = {}; joinTable.columns.forEach(c=>nullsCtx[c]=null);
+          const rightCtx = buildContext(nullsCtx, j.ref.table, j.ref.alias);
+          nextContexts.push(mergeContext(leftCtx, rightCtx));
+        }
+      }
+      contexts = nextContexts;
+    }
+
+    if(whereText){
+      contexts = contexts.filter(ctx => evalCondOnRow(whereText, ctx));
+    }
+
+    // SELECT list parsing (strip a leading DISTINCT - handled separately below)
+    const selectListText = selectText.replace(/^\s*DISTINCT\s+/i, '');
+    const selectItems = parseSelectList(selectListText);
+    const hasAggregate = selectItems.some(it=>it.agg);
+    const groupCols = groupText ? groupText.split(',').map(s=>s.trim()) : [];
+
+    let projected = [];
+    let columnNames = [];
+
+    if(groupCols.length>0 || hasAggregate){
+      const groups = new Map();
+      if(groupCols.length>0){
+        for(const ctx of contexts){
+          const key = groupCols.map(g=>String(evalExprOnRow(g, ctx))).join('\u0001');
+          if(!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(ctx);
+        }
+      } else {
+        groups.set('__all__', contexts);
+      }
+      for(const [, groupRows] of groups){
+        if(groupRows.length===0 && groupCols.length>0) continue;
+        const repRow = groupRows[0] || {};
+        const outRow = {};
+        for(const item of selectItems){
+          const {name, value} = projectItem(item, groupRows, repRow);
+          outRow[name] = value;
+        }
+        if(havingText && !evalHaving(havingText, groupRows, outRow)) continue;
+        projected.push(outRow);
+      }
+      columnNames = selectItems.flatMap(it=> it.star ? [] : [it.outName]);
+      if(selectItems.some(it=>it.star)) columnNames = projected.length? Object.keys(projected[0]) : columnNames;
+    } else {
+      for(const ctx of contexts){
+        const outRow = {};
+        for(const item of selectItems){
+          if(item.star){
+            const src = item.table ? (ctx[item.table]||{}) : flattenForStar(ctx);
+            Object.assign(outRow, src);
+          } else {
+            outRow[item.outName] = evalExprOnRow(item.expr, ctx);
+          }
+        }
+        projected.push(outRow);
+      }
+      columnNames = projected.length ? Object.keys(projected[0]) : selectItems.filter(i=>!i.star).map(i=>i.outName);
+    }
+
+    // DISTINCT
+    if(/^\s*DISTINCT\s+/i.test(selectText)){
+      const seen = new Set(); const uniq=[];
+      for(const r of projected){ const k=JSON.stringify(r); if(!seen.has(k)){seen.add(k); uniq.push(r);} }
+      projected = uniq;
+    }
+
+    // ORDER BY
+    if(orderText){
+      const orderSpecs = orderText.split(',').map(s=>{
+        const m = /^(.+?)\s+(ASC|DESC)$/i.exec(s.trim());
+        return m ? {col:m[1].trim(), dir:m[2].toUpperCase()} : {col:s.trim(), dir:'ASC'};
+      });
+      projected.sort((a,b)=>{
+        for(const spec of orderSpecs){
+          const av=a[spec.col], bv=b[spec.col];
+          let cmp;
+          if(av===bv) cmp=0;
+          else if(av===null||av===undefined) cmp=-1;
+          else if(bv===null||bv===undefined) cmp=1;
+          else cmp = av>bv ? 1 : -1;
+          if(spec.dir==='DESC') cmp = -cmp;
+          if(cmp!==0) return cmp;
+        }
+        return 0;
+      });
+    }
+
+    // LIMIT
+    if(limitText){
+      const nums = limitText.split(',').map(s=>parseInt(s.trim(),10));
+      if(nums.length===2) projected = projected.slice(nums[0], nums[0]+nums[1]);
+      else projected = projected.slice(0, nums[0]);
+    }
+
+    return { columns: columnNames, rows: projected };
+  }
+
+  function flattenForStar(ctx){
+    // return only "plain" (non table-namespaced) keys, i.e. actual columns
+    const out = {};
+    for(const k in ctx){
+      if(typeof ctx[k] !== 'object' || ctx[k]===null) out[k]=ctx[k];
+    }
+    return out;
+  }
+
+  function parseSelectList(text){
+    const parts = splitTopLevelCommas(text);
+    return parts.map(p=>{
+      let s = p.trim();
+      let expr = s, outName = s;
+      const asMatch = /^(.*?)\s+AS\s+([\w]+)$/i.exec(s);
+      if(asMatch){ expr = asMatch[1].trim(); outName = asMatch[2]; }
+
+      if(expr.trim()==='*') return {star:true, table:null, outName:'*'};
+      const starTbl = /^([\w]+)\.\*$/.exec(expr.trim());
+      if(starTbl) return {star:true, table:starTbl[1], outName:'*'};
+
+      const aggMatch = /^(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*(DISTINCT\s+)?(.+?)\s*\)$/i.exec(expr.trim());
+      if(aggMatch){
+        return {
+          agg:aggMatch[1].toUpperCase(),
+          distinct: !!aggMatch[2],
+          arg: aggMatch[3].trim(),
+          outName: asMatch ? outName : (aggMatch[1].toUpperCase()+'('+aggMatch[3].trim()+')')
+        };
+      }
+      return { expr: expr.trim(), outName: asMatch ? outName : expr.trim() };
+    });
+  }
+
+  function splitTopLevelCommas(text){
+    const out=[]; let depth=0; let cur='';
+    for(const ch of text){
+      if(ch==='(') depth++;
+      if(ch===')') depth--;
+      if(ch===',' && depth===0){ out.push(cur); cur=''; }
+      else cur+=ch;
+    }
+    if(cur.trim()) out.push(cur);
+    return out;
+  }
+
+  function computeAggregateValue(fn, arg, distinct, groupRows){
+    if(fn==='COUNT'){
+      if(arg.trim()==='*') return groupRows.length;
+      let vals = groupRows.map(r=>evalExprOnRow(arg,r)).filter(v=>v!==null && v!==undefined);
+      if(distinct) vals = [...new Set(vals)];
+      return vals.length;
+    }
+    let nums = groupRows.map(r=>Number(evalExprOnRow(arg,r))).filter(v=>!isNaN(v));
+    if(fn==='SUM') return nums.reduce((a,b)=>a+b,0);
+    if(fn==='AVG') return nums.length? +(nums.reduce((a,b)=>a+b,0)/nums.length).toFixed(2):null;
+    if(fn==='MIN') return nums.length? Math.min(...nums):null;
+    if(fn==='MAX') return nums.length? Math.max(...nums):null;
+    return null;
+  }
+
+  function projectItem(item, groupRows, repRow){
+    if(item.agg){
+      return { name:item.outName, value: computeAggregateValue(item.agg, item.arg, item.distinct, groupRows) };
+    }
+    if(item.star){
+      // used rarely in group-by context; return rep row flattened
+      return {name:'*', value: JSON.stringify(flattenForStar(repRow))};
+    }
+    return {name:item.outName, value: evalExprOnRow(item.expr, repRow)};
+  }
+
+  // HAVING can reference aggregate functions directly, e.g. HAVING COUNT(*) > 1.
+  // Substitute each aggregate call with its computed literal value for this group,
+  // then evaluate the rest as an ordinary condition against the projected row.
+  function evalHaving(havingText, groupRows, outRow){
+    const substituted = havingText.replace(
+      /(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*(DISTINCT\s+)?([^)]*)\)/gi,
+      (m, fn, dist, arg) => {
+        const val = computeAggregateValue(fn.toUpperCase(), arg.trim(), !!dist, groupRows);
+        return (val === null || val === undefined) ? 'null' : String(val);
+      }
+    );
+    return evalCondOnRow(substituted, outRow);
+  }
+
+  /* ---------- INSERT / UPDATE / DELETE / DDL ---------- */
+  function runInsert(sql){
+    const m = /^INSERT\s+INTO\s+([\w]+)\s*(?:\(([^)]*)\))?\s*VALUES\s*(.+)$/is.exec(sql);
+    if(!m) throw new Error('Expected: INSERT INTO table (col1, col2) VALUES (v1, v2);');
+    const tableName = m[1];
+    const table = DB.tables[tableName];
+    if(!table) throw new Error("Table '"+tableName+"' doesn't exist.");
+    const explicitCols = m[2] ? m[2].split(',').map(s=>s.trim()) : table.columns;
+    const valueGroups = [];
+    const groupRe = /\(([^()]*)\)/g; let gm;
+    while((gm = groupRe.exec(m[3]))){ valueGroups.push(gm[1]); }
+    if(valueGroups.length===0) throw new Error('No VALUES(...) group found.');
+    let inserted = 0;
+    for(const grp of valueGroups){
+      const rawVals = splitTopLevelCommas(grp).map(v=>parseLiteral(v.trim()));
+      const row = {};
+      table.columns.forEach(c=> row[c] = null);
+      explicitCols.forEach((c,i)=>{ row[c] = rawVals[i] !== undefined ? rawVals[i] : null; });
+      table.rows.push(row);
+      inserted++;
+    }
+    return { message: inserted + ' row(s) inserted into `'+tableName+'`.' };
+  }
+
+  function parseLiteral(v){
+    if(/^NULL$/i.test(v)) return null;
+    if(/^'(.*)'$/.test(v)) return v.slice(1,-1).replace(/''/g,"'");
+    if(/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
+    return v;
+  }
+
+  function runUpdate(sql){
+    const m = /^UPDATE\s+([\w]+)\s+SET\s+(.+?)(?:\s+WHERE\s+(.+))?$/is.exec(sql);
+    if(!m) throw new Error('Expected: UPDATE table SET col = value WHERE condition;');
+    const tableName = m[1];
+    const table = DB.tables[tableName];
+    if(!table) throw new Error("Table '"+tableName+"' doesn't exist.");
+    const assignments = splitTopLevelCommas(m[2]).map(a=>{
+      const am = /^([\w]+)\s*=\s*(.+)$/.exec(a.trim());
+      if(!am) throw new Error('Bad SET clause: "'+a+'"');
+      return {col:am[1], exprRaw: am[2].trim()};
+    });
+    const where = m[3];
+    let count=0;
+    for(const row of table.rows){
+      const ctx = buildContext(row, tableName, tableName);
+      if(where && !evalCondOnRow(where, ctx)) continue;
+      // Evaluate every new value first (against the pre-update row), then apply -
+      // this mirrors MySQL's behaviour of a single consistent SET pass per row.
+      const newValues = assignments.map(a => evalExprOnRow(a.exprRaw, ctx));
+      assignments.forEach((a,i)=> row[a.col] = newValues[i]);
+      count++;
+    }
+    return { message: count + ' row(s) updated in `'+tableName+'`.' };
+  }
+
+  function runDelete(sql){
+    const m = /^DELETE\s+FROM\s+([\w]+)(?:\s+WHERE\s+(.+))?$/is.exec(sql);
+    if(!m) throw new Error('Expected: DELETE FROM table WHERE condition;');
+    const tableName = m[1];
+    const table = DB.tables[tableName];
+    if(!table) throw new Error("Table '"+tableName+"' doesn't exist.");
+    const where = m[2];
+    const before = table.rows.length;
+    table.rows = table.rows.filter(row=>{
+      const ctx = buildContext(row, tableName, tableName);
+      return where ? !evalCondOnRow(where, ctx) : false;
+    });
+    return { message: (before-table.rows.length) + ' row(s) deleted from `'+tableName+'`.' };
+  }
+
+  function runCreateTable(sql){
+    const m = /^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w]+)\s*\(([\s\S]+)\)$/i.exec(sql);
+    if(!m) throw new Error('Expected: CREATE TABLE name (col1 TYPE, col2 TYPE, ...);');
+    const tableName = m[1];
+    const colDefs = splitTopLevelCommas(m[2]);
+    const columns = colDefs
+      .map(c=>c.trim().split(/\s+/)[0])
+      .filter(c=> !/^(PRIMARY|FOREIGN|UNIQUE|KEY|CONSTRAINT)$/i.test(c));
+    DB.tables[tableName] = { columns, rows: [] };
+    return { message: "Table `"+tableName+"` created with columns: "+columns.join(', ')+'.' };
+  }
+
+  function runDropTable(sql){
+    const m = /^DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?([\w]+)$/i.exec(sql);
+    if(!m) throw new Error('Expected: DROP TABLE name;');
+    delete DB.tables[m[1]];
+    return { message: "Table `"+m[1]+"` dropped." };
+  }
+
+  function runCreateView(sql){
+    const m = /^CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([\w]+)\s+AS\s+([\s\S]+)$/i.exec(sql);
+    if(!m) throw new Error('Expected: CREATE VIEW name AS SELECT ...;');
+    DB.views[m[1]] = m[2];
+    return { message: "View `"+m[1]+"` created." };
+  }
+
+  function runShowTables(){
+    const rows = [...Object.keys(DB.tables), ...Object.keys(DB.views)].map(t=>({Tables:t}));
+    return { columns:['Tables'], rows };
+  }
+
+  function runDescribe(sql){
+    const m = /^(?:DESCRIBE|DESC)\s+([\w]+)$/i.exec(sql);
+    if(!m) throw new Error('Expected: DESCRIBE table;');
+    const table = DB.tables[m[1]];
+    if(!table) throw new Error("Table '"+m[1]+"' doesn't exist.");
+    return { columns:['Field'], rows: table.columns.map(c=>({Field:c})) };
+  }
+
+  /* ---------- top-level dispatch ---------- */
+  function execute(rawSql, isSubquery){
+    let sql = stripSemicolon(rawSql);
+    if(!sql) throw new Error('Empty query.');
+
+    if(/^START\s+TRANSACTION/i.test(sql)){
+      txSnapshot = clone(DB);
+      return { message: 'Transaction started. Changes are now provisional until COMMIT or ROLLBACK.' };
+    }
+    if(/^COMMIT$/i.test(sql)){
+      if(!txSnapshot) return { message: 'Nothing to commit (no transaction in progress).' };
+      txSnapshot = null;
+      return { message: 'Transaction committed. Changes are now permanent.' };
+    }
+    if(/^ROLLBACK$/i.test(sql)){
+      if(!txSnapshot) return { message: 'Nothing to roll back (no transaction in progress).' };
+      DB = clone(txSnapshot);
+      txSnapshot = null;
+      return { message: 'Transaction rolled back. All changes since START TRANSACTION were undone.' };
+    }
+    if(/^SHOW\s+TABLES/i.test(sql)) return runShowTables();
+    if(/^(DESCRIBE|DESC)\s+/i.test(sql)) return runDescribe(sql);
+    if(/^CREATE\s+(OR\s+REPLACE\s+)?VIEW/i.test(sql)) return runCreateView(sql);
+    if(/^CREATE\s+TABLE/i.test(sql)) return runCreateTable(sql);
+    if(/^DROP\s+TABLE/i.test(sql)) return runDropTable(sql);
+    if(/^INSERT\s+INTO/i.test(sql)) return runInsert(sql);
+    if(/^UPDATE\s+/i.test(sql)) return runUpdate(sql);
+    if(/^DELETE\s+FROM/i.test(sql)) return runDelete(sql);
+    if(/^SELECT\s+/i.test(sql)){
+      let prepared = normalizeKeywords(sql);
+      if(!isSubquery) prepared = resolveSubqueries(prepared);
+      return runSelect(prepared);
+    }
+    throw new Error('This simulator understands SELECT, INSERT, UPDATE, DELETE, CREATE/DROP TABLE, CREATE VIEW, SHOW TABLES, DESCRIBE, and START TRANSACTION / COMMIT / ROLLBACK. "'+sql.split(/\s+/)[0]+'" isn\'t one of those.');
+  }
+
+  return {
+    run(sql){ return execute(sql, false); },
+    reset(){ DB = freshDatabase(); txSnapshot = null; }
+  };
+})();
+
+/* =====================================================================
+   3. UI: NAVIGATION + LESSON CONTENT
+   ===================================================================== */
+const TOPICS = [
+  {id:'intro', group:'Foundations', label:'What is MySQL?'},
+  {id:'ddl', group:'Foundations', label:'Databases & Tables (DDL)'},
+  {id:'dml', group:'Foundations', label:'Insert, Update, Delete'},
+  {id:'select', group:'Querying', label:'SELECT & Filtering'},
+  {id:'sorting', group:'Querying', label:'Sorting & Limiting'},
+  {id:'aggregate', group:'Querying', label:'Aggregates & GROUP BY'},
+  {id:'joins', group:'Querying', label:'Joins'},
+  {id:'subqueries', group:'Querying', label:'Subqueries'},
+  {id:'views', group:'Structures', label:'Views'},
+  {id:'indexes', group:'Structures', label:'Indexes & Performance'},
+  {id:'transactions', group:'Structures', label:'Transactions & ACID'},
+  {id:'procedures', group:'Structures', label:'Procedures & Triggers'},
+  {id:'normalization', group:'Design', label:'Normalization'},
+  {id:'security', group:'Design', label:'Users & Security'},
+  {id:'playground', group:'Practice', label:'Free Playground'},
+  {id:'project', group:'Practice', label:'Live Project'},
+];
+
+function el(tag, attrs, ...children){
+  const e = document.createElement(tag);
+  if(attrs) for(const k in attrs){
+    if(k==='html') e.innerHTML = attrs[k];
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2), attrs[k]);
+    else e.setAttribute(k, attrs[k]);
+  }
+  children.flat().forEach(c=>{ if(c!=null) e.append(c.nodeType?c:document.createTextNode(c)); });
+  return e;
+}
+
+function buildSidenav(){
+  const nav = document.getElementById('sidenav');
+  let lastGroup = null;
+  TOPICS.forEach((t,i)=>{
+    if(t.group !== lastGroup){
+      nav.append(el('div',{class:'nav-group-label'}, t.group));
+      lastGroup = t.group;
+    }
+    const item = el('div',{class:'nav-item', 'data-id':t.id, onclick:()=>showTopic(t.id)},
+      el('span',{class:'idx'}, String(i+1).padStart(2,'0')), t.label
+    );
+    nav.append(item);
+  });
+}
+
+function showTopic(id){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.id===id));
+  document.querySelectorAll('section.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+id));
+  window.scrollTo({top:0, behavior:'instant' in window ? 'instant':'auto'});
+  localStorage.removeItem; // no-op, artifacts avoid localStorage
+}
+
+function exampleCard(label, sql, note){
+  const card = el('div',{class:'example'});
+  const head = el('div',{class:'ex-head'},
+    el('span',{class:'ex-label'}, label),
+    el('button',{class:'ex-run', onclick:()=>sendToPlayground(sql)}, '▶ Try it')
+  );
+  card.append(head, el('pre', null, sql), note ? el('div',{class:'ex-note'}, note) : null);
+  return card;
+}
+
+function sendToPlayground(sql){
+  showTopic('playground');
+  const editor = document.getElementById('sqlEditor');
+  editor.value = sql;
+  runPlaygroundQuery();
+}
+
+/* ---- Quiz helper ---- */
+let quizScore = {correct:0, total:0};
+function quizBlock(question, options, correctIdx, explain){
+  const block = el('div',{class:'quiz-block'});
+  block.append(el('div',{class:'quiz-q'}, question));
+  const opts = el('div',{class:'quiz-opts'});
+  const fb = el('div',{class:'quiz-fb'}, explain);
+  options.forEach((opt,i)=>{
+    const b = el('button',{class:'quiz-opt', onclick:()=>{
+      if(b.dataset.answered) return;
+      opts.querySelectorAll('.quiz-opt').forEach(o=>o.dataset.answered='1');
+      opts.children[correctIdx].classList.add('correct');
+      if(i!==correctIdx) b.classList.add('wrong');
+      fb.style.display='block';
+      quizScore.total++; if(i===correctIdx) quizScore.correct++;
+      document.getElementById('scoreFoot').textContent = 'Quiz score: '+quizScore.correct+' / '+quizScore.total;
+    }}, opt);
+    opts.append(b);
+  });
+  block.append(opts, fb);
+  return block;
+}
+
+/* =====================================================================
+   4. LESSON PANELS
+   ===================================================================== */
+function buildContentPanels(){
+  const content = document.getElementById('content');
+
+  content.append(panelIntro());
+  content.append(panelDDL());
+  content.append(panelDML());
+  content.append(panelSelect());
+  content.append(panelSorting());
+  content.append(panelAggregate());
+  content.append(panelJoins());
+  content.append(panelSubqueries());
+  content.append(panelViews());
+  content.append(panelIndexes());
+  content.append(panelTransactions());
+  content.append(panelProcedures());
+  content.append(panelNormalization());
+  content.append(panelSecurity());
+  content.append(panelPlayground());
+  content.append(panelProject());
+}
+
+function panelShell(id, tag, title, lede){
+  const s = el('section',{class:'panel', id:'panel-'+id});
+  s.append(el('div',{class:'topic-tag'}, tag));
+  s.append(el('h2',{class:'topic-title', html:title}));
+  s.append(el('div',{class:'lede'}, lede));
+  return s;
+}
+
+function panelIntro(){
+  const s = panelShell('intro','01 · Foundations','What is <span>MySQL</span>?',
+    "MySQL is a relational database management system (RDBMS): software that stores data in tables made of rows and columns, and lets you query, filter, and combine that data using SQL (Structured Query Language). It's open-source, owned by Oracle, and is one of the most widely deployed databases in the world - it powers everything from WordPress sites to large-scale web applications at companies like Facebook, YouTube, and Airbnb.");
+
+  s.append(el('h3',{class:'sub'},'How it fits together'));
+  s.append(el('ul',{class:'plain'},
+    el('li', null, el('b',null,'Server'),' — the mysqld process that stores your data on disk and answers queries.'),
+    el('li', null, el('b',null,'Client'),' — a program that sends SQL to the server: the ',el('code',null,'mysql'),' command-line client, MySQL Workbench, phpMyAdmin, or a driver from your application code.'),
+    el('li', null, el('b',null,'Database (schema)'),' — a named container of tables. A single server can host many databases.'),
+    el('li', null, el('b',null,'Table'),' — a structured collection of rows, each with the same set of typed columns.')
+  ));
+
+  s.append(el('h3',{class:'sub'},'Getting MySQL onto your own machine'));
+  s.append(el('ul',{class:'plain'},
+    el('li',null,'Install ',el('code',null,'MySQL Community Server'),' from dev.mysql.com, or use a bundled stack like XAMPP/WAMP for local web development.'),
+    el('li',null,'Connect with ',el('code',null,'mysql -u root -p'),' from a terminal, or use ',el('code',null,'MySQL Workbench'),' for a graphical interface.'),
+    el('li',null,'Everything on this page runs in a JavaScript simulator so you can learn the language without installing anything first - but the syntax you practice here is real MySQL syntax.')
+  ));
+
+  s.append(el('h3',{class:'sub'},'The sample database used throughout this lab'));
+  s.append(erdDiagram());
+  s.append(el('div',{class:'lede'}, "Six tables model two everyday systems: a small company's staff records (departments, employees) and a simple online store (customers, products, orders, order_items). Every example query below runs against this exact data - open the Free Playground tab any time to inspect or query it directly."));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('Which statement best describes MySQL?',
+    ['A programming language for building websites','A relational database management system that stores and queries structured data','A spreadsheet application','An operating system'], 1,
+    'MySQL is an RDBMS - it stores data in related tables and lets you query it with SQL. It has no built-in concept of "pages" or windows; other tools talk to it.'));
+  return s;
+}
+
+function erdDiagram(){
+  const wrap = el('div',{class:'erd-wrap'});
+  wrap.innerHTML = `
+  <svg viewBox="0 0 920 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:760px;">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#5eead4"/>
+      </marker>
+    </defs>
+    <style>
+      .erd-box{fill:#0f1a2e;stroke:#1c3154;stroke-width:1.2;}
+      .erd-title{fill:#a7f3ec;font:700 12px monospace;}
+      .erd-col{fill:#a9b7cc;font:11px monospace;}
+      .erd-pk{fill:#f5b942;font:11px monospace;}
+      .erd-line{stroke:#3a5a80;stroke-width:1.2;fill:none;}
+    </style>
+    <!-- departments -->
+    <rect class="erd-box" x="20" y="20" width="170" height="96" rx="6"/>
+    <text class="erd-title" x="32" y="38">departments</text>
+    <text class="erd-pk" x="32" y="58">dept_id (PK)</text>
+    <text class="erd-col" x="32" y="76">dept_name</text>
+    <text class="erd-col" x="32" y="94">location</text>
+
+    <!-- employees -->
+    <rect class="erd-box" x="230" y="10" width="190" height="130" rx="6"/>
+    <text class="erd-title" x="242" y="28">employees</text>
+    <text class="erd-pk" x="242" y="48">emp_id (PK)</text>
+    <text class="erd-col" x="242" y="66">emp_name</text>
+    <text class="erd-col" x="242" y="84">dept_id (FK)</text>
+    <text class="erd-col" x="242" y="102">salary, hire_date</text>
+    <text class="erd-col" x="242" y="120">manager_id</text>
+
+    <path class="erd-line" d="M190,68 L230,75" marker-end="url(#arrow)"/>
+
+    <!-- customers -->
+    <rect class="erd-box" x="20" y="180" width="170" height="96" rx="6"/>
+    <text class="erd-title" x="32" y="198">customers</text>
+    <text class="erd-pk" x="32" y="218">cust_id (PK)</text>
+    <text class="erd-col" x="32" y="236">cust_name, city</text>
+    <text class="erd-col" x="32" y="254">email</text>
+
+    <!-- orders -->
+    <rect class="erd-box" x="230" y="170" width="180" height="110" rx="6"/>
+    <text class="erd-title" x="242" y="188">orders</text>
+    <text class="erd-pk" x="242" y="208">order_id (PK)</text>
+    <text class="erd-col" x="242" y="226">cust_id (FK)</text>
+    <text class="erd-col" x="242" y="244">order_date</text>
+    <text class="erd-col" x="242" y="262">status</text>
+
+    <path class="erd-line" d="M190,232 L230,228" marker-end="url(#arrow)"/>
+
+    <!-- order_items -->
+    <rect class="erd-box" x="450" y="170" width="190" height="110" rx="6"/>
+    <text class="erd-title" x="462" y="188">order_items</text>
+    <text class="erd-pk" x="462" y="208">item_id (PK)</text>
+    <text class="erd-col" x="462" y="226">order_id (FK)</text>
+    <text class="erd-col" x="462" y="244">prod_id (FK)</text>
+    <text class="erd-col" x="462" y="262">quantity</text>
+
+    <path class="erd-line" d="M410,225 L450,225" marker-end="url(#arrow)"/>
+
+    <!-- products -->
+    <rect class="erd-box" x="700" y="170" width="190" height="110" rx="6"/>
+    <text class="erd-title" x="712" y="188">products</text>
+    <text class="erd-pk" x="712" y="208">prod_id (PK)</text>
+    <text class="erd-col" x="712" y="226">prod_name, category</text>
+    <text class="erd-col" x="712" y="244">price</text>
+    <text class="erd-col" x="712" y="262">stock</text>
+
+    <path class="erd-line" d="M640,225 L700,225" marker-end="url(#arrow)"/>
+  </svg>`;
+  return wrap;
+}
+
+function panelDDL(){
+  const s = panelShell('ddl','02 · Foundations','Databases &amp; Tables <span>(DDL)</span>',
+    "Data Definition Language (DDL) is the part of SQL that shapes the structure of your data - creating and modifying databases, tables, and their columns. Every column has a data type that constrains what it can hold.");
+
+  s.append(el('h3',{class:'sub'},'Common MySQL data types'));
+  s.append(el('ul',{class:'plain'},
+    el('li',null,el('b',null,'INT / BIGINT'),' — whole numbers, e.g. IDs and counts.'),
+    el('li',null,el('b',null,'DECIMAL(p,s)'),' — exact fixed-point numbers, ideal for money (avoids floating-point rounding errors).'),
+    el('li',null,el('b',null,'VARCHAR(n)'),' — variable-length text up to n characters; ',el('code',null,'CHAR(n)'),' is fixed-length.'),
+    el('li',null,el('b',null,'TEXT'),' — long free-form text with no practical length ceiling.'),
+    el('li',null,el('b',null,'DATE / DATETIME / TIMESTAMP'),' — calendar dates and date-times.'),
+    el('li',null,el('b',null,'BOOLEAN'),' — stored internally as TINYINT(1): 0 or 1.'),
+    el('li',null,el('b',null,'ENUM('),"'a','b','c'",el('b',null,')'),' — a fixed list of allowed string values.')
+  ));
+
+  s.append(el('h3',{class:'sub'},'Creating a table'));
+  s.append(exampleCard('Define a new table', 
+`CREATE TABLE departments (
+  dept_id INT PRIMARY KEY,
+  dept_name VARCHAR(100),
+  location VARCHAR(100)
+);`,
+'PRIMARY KEY marks the column that uniquely identifies each row. This simulator accepts the syntax and creates the table; real MySQL additionally enforces the primary key and type constraints for you.'));
+
+  s.append(el('h3',{class:'sub'},'Try it against a brand-new table'));
+  s.append(exampleCard('Create and inspect a table', 
+`CREATE TABLE suppliers (
+  supplier_id INT,
+  supplier_name VARCHAR(100),
+  country VARCHAR(50)
+);`,
+'Run this, then try DESCRIBE suppliers; in the playground to see the columns you just defined.'));
+  s.append(exampleCard('List every table in the database', 'SHOW TABLES;'));
+  s.append(exampleCard('Inspect a table\'s columns', 'DESCRIBE employees;'));
+
+  s.append(el('h3',{class:'sub'},'Altering and removing tables'));
+  s.append(el('ul',{class:'plain'},
+    el('li',null,el('code',null,'ALTER TABLE t ADD COLUMN c TYPE;'),' — add a column to an existing table.'),
+    el('li',null,el('code',null,'ALTER TABLE t DROP COLUMN c;'),' — remove a column.'),
+    el('li',null,el('code',null,'DROP TABLE t;'),' — delete a table and all its data, permanently.')
+  ));
+  s.append(el('div',{class:'ex-note',style:'color:var(--text-dim);margin:8px 0 20px;'},'Note: this simulator supports CREATE TABLE and DROP TABLE for hands-on practice, but not ALTER TABLE - keep that one in mind for a real MySQL install.'));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('Which data type is best for storing a product price precisely?',
+    ['FLOAT','DECIMAL(10,2)','VARCHAR(10)','BOOLEAN'], 1,
+    'DECIMAL stores exact fixed-point values, so money never suffers the tiny rounding errors that FLOAT/DOUBLE can introduce.'));
+  return s;
+}
+
+function panelDML(){
+  const s = panelShell('dml','03 · Foundations','Insert, Update, <span>Delete</span>',
+    "Data Manipulation Language (DML) is how you change the rows inside a table: adding new records, editing existing ones, and removing the ones you no longer need.");
+
+  s.append(el('h3',{class:'sub'},'INSERT — add rows'));
+  s.append(exampleCard('Add one supplier', 
+`INSERT INTO suppliers (supplier_id, supplier_name, country)
+VALUES (1, 'Bharat Components Pvt Ltd', 'India');`,
+'Run the CREATE TABLE suppliers example on the previous tab first if this table does not exist yet.'));
+  s.append(exampleCard('Add several rows at once', 
+`INSERT INTO suppliers (supplier_id, supplier_name, country)
+VALUES
+  (2, 'Global Electro Traders', 'India'),
+  (3, 'Nordic Parts AB', 'Sweden');`));
+
+  s.append(el('h3',{class:'sub'},'UPDATE — change existing rows'));
+  s.append(exampleCard('Give one employee a raise', 
+`UPDATE employees
+SET salary = 92000
+WHERE emp_id = 104;`,
+'Always include a WHERE clause - an UPDATE without one changes every row in the table.'));
+  s.append(exampleCard('Bulk update by condition', 
+`UPDATE employees
+SET salary = salary + 5000
+WHERE dept_id = 1;`,
+'Expressions like salary + 5000 work on the right-hand side of SET.'));
+
+  s.append(el('h3',{class:'sub'},'DELETE — remove rows'));
+  s.append(exampleCard('Remove a single supplier', "DELETE FROM suppliers WHERE supplier_id = 3;"));
+  s.append(exampleCard('Remove by condition', 
+`DELETE FROM orders WHERE status = 'Cancelled';`,
+'Reset the database from the Free Playground tab if you want the cancelled order back afterwards.'));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('What happens if you run UPDATE employees SET salary = 50000; with no WHERE clause?',
+    ['Nothing changes','Only the first row changes','Every employee\'s salary is set to 50000','MySQL refuses to run it'], 2,
+    'Without a WHERE clause, UPDATE (and DELETE) apply to every row in the table - a common and costly mistake, so always double-check the WHERE before running one in production.'));
+  return s;
+}
+
+function panelSelect(){
+  const s = panelShell('select','04 · Querying','SELECT &amp; <span>Filtering</span>',
+    "SELECT is the workhorse of SQL: it reads rows out of a table, optionally narrowed down with WHERE. Almost everything else in this lab builds on top of it.");
+
+  s.append(el('h3',{class:'sub'},'The basic shape'));
+  s.append(exampleCard('Every column, every row', 'SELECT * FROM employees;'));
+  s.append(exampleCard('Just the columns you need', 'SELECT emp_name, salary FROM employees;'));
+
+  s.append(el('h3',{class:'sub'},'Filtering with WHERE'));
+  s.append(exampleCard('Comparison operators', "SELECT emp_name, salary FROM employees WHERE salary > 70000;"));
+  s.append(exampleCard('Combining conditions with AND / OR', 
+`SELECT emp_name, dept_id, salary
+FROM employees
+WHERE dept_id = 1 AND salary > 80000;`));
+  s.append(exampleCard('Matching a set with IN', "SELECT emp_name, dept_id FROM employees WHERE dept_id IN (1, 4);"));
+  s.append(exampleCard('A range with BETWEEN', "SELECT emp_name, salary FROM employees WHERE salary BETWEEN 60000 AND 90000;"));
+  s.append(exampleCard('Pattern matching with LIKE', "SELECT prod_name FROM products WHERE prod_name LIKE '%Key%';",
+    "% matches any run of characters, _ matches exactly one character. This example finds product names containing 'Key'."));
+  s.append(exampleCard('Checking for missing values', "SELECT emp_name, manager_id FROM employees WHERE manager_id IS NULL;",
+    "NULL means 'no value' - it is never equal to anything, even itself, which is why SQL needs the special IS NULL / IS NOT NULL operators instead of = NULL."));
+
+  s.append(el('h3',{class:'sub'},'Column aliases'));
+  s.append(exampleCard('Rename output columns with AS', 
+`SELECT emp_name AS employee, salary AS monthly_salary
+FROM employees
+WHERE dept_id = 2;`));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('Which WHERE clause correctly finds employees earning between 60,000 and 90,000 inclusive?',
+    ["WHERE salary > 60000 AND < 90000","WHERE salary BETWEEN 60000 AND 90000","WHERE salary IN 60000 TO 90000","WHERE salary = 60000-90000"], 1,
+    'BETWEEN a AND b is inclusive of both endpoints and is the idiomatic way to express a numeric or date range.'));
+  return s;
+}
+
+function panelSorting(){
+  const s = panelShell('sorting','05 · Querying','Sorting &amp; <span>Limiting</span>',
+    "ORDER BY controls the sequence of rows in your result, and LIMIT caps how many come back - essential for leaderboards, \"top N\" reports, and pagination.");
+
+  s.append(exampleCard('Sort ascending (default)', "SELECT emp_name, salary FROM employees ORDER BY salary;"));
+  s.append(exampleCard('Sort descending', "SELECT emp_name, salary FROM employees ORDER BY salary DESC;"));
+  s.append(exampleCard('Sort by multiple columns', 
+`SELECT emp_name, dept_id, salary
+FROM employees
+ORDER BY dept_id ASC, salary DESC;`,
+'Rows are sorted by the first column, and ties are broken by the second.'));
+  s.append(exampleCard('Top 3 highest earners', "SELECT emp_name, salary FROM employees ORDER BY salary DESC LIMIT 3;"));
+  s.append(exampleCard('Pagination with LIMIT offset, count', 
+"SELECT prod_name, price FROM products ORDER BY price DESC LIMIT 2, 2;",
+"Skips the first 2 rows, then returns the next 2 - page 2 of a 2-per-page product listing."));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('You want the 3 cheapest products. Which query is correct?',
+    ['SELECT prod_name, price FROM products ORDER BY price DESC LIMIT 3;',
+     'SELECT prod_name, price FROM products ORDER BY price ASC LIMIT 3;',
+     'SELECT prod_name, price FROM products LIMIT 3 ORDER BY price;',
+     'SELECT prod_name, price FROM products WHERE price = MIN;'], 1,
+    'ASC sorts from lowest to highest, so combined with LIMIT 3 you get the three cheapest rows. LIMIT must come after ORDER BY in MySQL\'s clause order.'));
+  return s;
+}
+
+function panelAggregate(){
+  const s = panelShell('aggregate','06 · Querying','Aggregates &amp; <span>GROUP BY</span>',
+    "Aggregate functions collapse many rows into a single summary value - a count, a total, an average. GROUP BY runs that summary separately for each distinct value of a column, which is how you build reports like \"total sales per city\" or \"average salary per department\".");
+
+  s.append(el('h3',{class:'sub'},'The five core aggregate functions'));
+  s.append(el('ul',{class:'plain'},
+    el('li',null,el('code',null,'COUNT(*)'),' — number of rows.'),
+    el('li',null,el('code',null,'SUM(col)'),' — total of a numeric column.'),
+    el('li',null,el('code',null,'AVG(col)'),' — average of a numeric column.'),
+    el('li',null,el('code',null,'MIN(col)'),' / ',el('code',null,'MAX(col)'),' — smallest / largest value.')
+  ));
+
+  s.append(exampleCard('Count all employees', "SELECT COUNT(*) AS total_employees FROM employees;"));
+  s.append(exampleCard('Average salary company-wide', "SELECT AVG(salary) AS avg_salary FROM employees;"));
+
+  s.append(el('h3',{class:'sub'},'Grouping'));
+  s.append(exampleCard('Employee count per department', 
+`SELECT dept_id, COUNT(*) AS headcount
+FROM employees
+GROUP BY dept_id;`));
+  s.append(exampleCard('Average salary per department', 
+`SELECT dept_id, AVG(salary) AS avg_salary
+FROM employees
+GROUP BY dept_id
+ORDER BY avg_salary DESC;`));
+  s.append(exampleCard('Total quantity sold per product', 
+`SELECT prod_id, SUM(quantity) AS units_sold
+FROM order_items
+GROUP BY prod_id
+ORDER BY units_sold DESC;`));
+
+  s.append(el('h3',{class:'sub'},'Filtering groups with HAVING'));
+  s.append(exampleCard('Only departments with more than one employee', 
+`SELECT dept_id, COUNT(*) AS headcount
+FROM employees
+GROUP BY dept_id
+HAVING COUNT(*) > 1;`,
+"WHERE filters rows before grouping; HAVING filters groups after the aggregate has been computed - that's why HAVING can reference COUNT(*) and WHERE can't."));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('You need "departments where the average salary exceeds 80,000". Which clause filters on that?',
+    ['WHERE AVG(salary) > 80000','HAVING AVG(salary) > 80000','GROUP BY AVG(salary) > 80000','FILTER AVG(salary) > 80000'], 1,
+    'HAVING runs after GROUP BY and can test aggregate results directly; WHERE only ever sees individual rows, before any aggregation happens.'));
+  return s;
+}
+
+function panelJoins(){
+  const s = panelShell('joins','07 · Querying','<span>Joins</span>',
+    "Real data lives in more than one table on purpose - it avoids duplication. A JOIN stitches rows from two tables together based on a matching column, most often a foreign key pointing at another table's primary key.");
+
+  s.append(el('h3',{class:'sub'},'INNER JOIN — only matching rows'));
+  s.append(exampleCard('Employees with their department name', 
+`SELECT e.emp_name, d.dept_name, e.salary
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id;`,
+"e and d are table aliases - shorthand so you don't repeat the full table name in every column reference."));
+
+  s.append(el('h3',{class:'sub'},'LEFT JOIN — keep every row from the left table'));
+  s.append(exampleCard('Every employee, even if manager_id is unknown', 
+`SELECT e.emp_name AS employee, m.emp_name AS manager
+FROM employees e
+LEFT JOIN employees m ON e.manager_id = m.emp_id;`,
+"This is a self-join: the employees table joined to itself, using two different aliases, to look up each person's manager by name."));
+  s.append(exampleCard('Customers and their orders, including customers with none', 
+`SELECT c.cust_name, o.order_id, o.status
+FROM customers c
+LEFT JOIN orders o ON c.cust_id = o.cust_id;`,
+"With an INNER JOIN, a customer who never ordered would disappear entirely. LEFT JOIN keeps them, with NULLs in the order columns."));
+
+  s.append(el('h3',{class:'sub'},'Joining three tables'));
+  s.append(exampleCard('Full order detail: customer, product, and quantity', 
+`SELECT c.cust_name, p.prod_name, oi.quantity, o.order_date
+FROM orders o
+JOIN customers c ON o.cust_id = c.cust_id
+JOIN order_items oi ON oi.order_id = o.order_id
+JOIN products p ON p.prod_id = oi.prod_id
+ORDER BY o.order_date;`));
+
+  s.append(el('h3',{class:'sub'},'Joins plus aggregation'));
+  s.append(exampleCard('Revenue per product', 
+`SELECT p.prod_name, SUM(p.price * oi.quantity) AS revenue
+FROM order_items oi
+JOIN products p ON p.prod_id = oi.prod_id
+GROUP BY p.prod_name
+ORDER BY revenue DESC;`));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('You want every department listed even if it currently has zero employees. Which join?',
+    ['INNER JOIN from departments to employees','LEFT JOIN from departments to employees','RIGHT JOIN from employees to departments','No join needed'], 1,
+    'A LEFT JOIN keeps every row from the left-hand table (departments) regardless of whether a match exists on the right (employees) - option 3 (RIGHT JOIN from employees) is logically equivalent, but option 2 is the direct answer as phrased.'));
+  return s;
+}
+
+function panelSubqueries(){
+  const s = panelShell('subqueries','08 · Querying','<span>Subqueries</span>',
+    "A subquery is a SELECT nested inside another query, used when the filter you need depends on a computed result rather than a fixed value.");
+
+  s.append(exampleCard('Employees earning above the company average', 
+`SELECT emp_name, salary
+FROM employees
+WHERE salary > (SELECT AVG(salary) FROM employees);`,
+'The inner query computes one number; the outer query compares every row against it.'));
+
+  s.append(exampleCard('Customers who have placed at least one order', 
+`SELECT cust_name
+FROM customers
+WHERE cust_id IN (SELECT cust_id FROM orders);`));
+
+  s.append(exampleCard('Products that have never been ordered', 
+`SELECT prod_name
+FROM products
+WHERE prod_id NOT IN (SELECT prod_id FROM order_items);`));
+
+  s.append(el('h3',{class:'sub'},'Subqueries vs. joins'));
+  s.append(el('div',{class:'lede'}, "The customers-who-ordered example above could also be written as a JOIN with SELECT DISTINCT. Both are valid; subqueries often read more like a sentence ('where the id is in this other set'), while joins are usually faster in a real database because the engine can plan both tables together."));
+  s.append(el('div',{class:'ex-note',style:'color:var(--text-dim);margin:0 0 20px;'},"This simulator supports subqueries used with IN / NOT IN in a WHERE clause, and a single scalar subquery compared with =, >, <, etc. Correlated subqueries (where the inner query references the outer row) and subqueries inside FROM are outside its scope - a good reason to also practice on a real MySQL install."));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('What does WHERE prod_id NOT IN (SELECT prod_id FROM order_items) return?',
+    ['Products that have been ordered at least once','Products that have never appeared in any order','All products, unfiltered','An error, because NOT IN is invalid'], 1,
+    "The subquery collects every prod_id that appears in order_items; NOT IN keeps only the products absent from that list."));
+  return s;
+}
+
+function panelViews(){
+  const s = panelShell('views','09 · Structures','<span>Views</span>',
+    "A view is a saved SELECT statement that behaves like a virtual table. It doesn't store data itself - every time you query it, MySQL re-runs the underlying query. Views are useful for hiding complexity, enforcing consistent business logic, and restricting which columns different users can see.");
+
+  s.append(exampleCard('Create a view for department payroll summaries', 
+`CREATE VIEW dept_payroll AS
+SELECT d.dept_name, COUNT(*) AS headcount, SUM(e.salary) AS total_payroll
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id
+GROUP BY d.dept_name;`));
+  s.append(exampleCard('Query the view exactly like a table', "SELECT * FROM dept_payroll ORDER BY total_payroll DESC;",
+    'Run the CREATE VIEW example above first if you haven\'t already - views persist for the rest of your session.'));
+
+  s.append(el('h3',{class:'sub'},'Why bother?'));
+  s.append(el('ul',{class:'plain'},
+    el('li',null,'Application code can ',el('code',null,'SELECT * FROM dept_payroll'),' without knowing the join logic behind it.'),
+    el('li',null,'If the underlying tables change shape, you only need to update the view definition once.'),
+    el('li',null,'A view can expose only certain columns, which is a lightweight way to limit what a particular user or report sees.')
+  ));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('Where does a view store its data?',
+    ['In its own copy, refreshed nightly','Nowhere - it re-runs its underlying query each time it\'s selected from','In a hidden temporary table created at CREATE VIEW time','In memory only, and it disappears after the first query'], 1,
+    'A standard view has no storage of its own; it is just a named, reusable query. (MySQL also supports "materialized"-style patterns via manually maintained summary tables, but that\'s a separate technique.)'));
+  return s;
+}
+
+function panelIndexes(){
+  const s = panelShell('indexes','10 · Structures','Indexes &amp; <span>Performance</span>',
+    "An index is a separate data structure (usually a B-tree) that lets MySQL find rows matching a condition without scanning the entire table. Think of it like the index at the back of a book - instead of reading every page, you jump straight to the right one.");
+
+  s.append(el('h3',{class:'sub'},'Creating an index'));
+  s.append(exampleCard('Speed up lookups by department', "CREATE INDEX idx_emp_dept ON employees (dept_id);",
+    "This simulator recognizes CREATE INDEX syntax for reference, but since the sample tables are tiny, it doesn't build a real index structure - the performance benefit only shows up on real, larger tables."));
+
+  s.append(el('h3',{class:'sub'},'When indexes help'));
+  s.append(el('ul',{class:'plain'},
+    el('li',null,'Columns frequently used in ',el('code',null,'WHERE'),', ',el('code',null,'JOIN ... ON'),', or ',el('code',null,'ORDER BY'),' clauses.'),
+    el('li',null,'Foreign key columns - MySQL often needs these indexed anyway to enforce referential integrity efficiently.'),
+    el('li',null,'A ',el('b',null,'PRIMARY KEY'),' is automatically indexed; so, by default, is a ',el('b',null,'UNIQUE'),' constraint.')
+  ));
+
+  s.append(el('h3',{class:'sub'},'The tradeoff'));
+  s.append(el('div',{class:'lede'},"Indexes speed up reads but slow down writes slightly, because MySQL has to update the index every time a row is inserted, updated, or deleted, and they take extra disk space. The rule of thumb: index columns you filter or join on often, and avoid indexing every column just in case."));
+
+  s.append(el('h3',{class:'sub'},'Reading a query plan'));
+  s.append(el('div',{class:'lede'},"On a real server, prefix any query with EXPLAIN to see how MySQL intends to execute it - which indexes it will use, in what order it will join tables, and roughly how many rows it expects to scan. It's the main diagnostic tool for a slow query."));
+  s.append(exampleCard('Ask MySQL to explain its plan (real server only)', "EXPLAIN SELECT * FROM employees WHERE dept_id = 1;",
+    "This simulator doesn't execute EXPLAIN since there's no query planner to inspect - try it on a real MySQL instance."));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('What is the main cost of adding an index?',
+    ['Reads become slower','Writes (INSERT/UPDATE/DELETE) become slightly slower and it uses extra disk space','It makes the data itself unreliable','Indexes have no cost'], 1,
+    'Every index needs to be kept in sync as data changes, so writes carry a small extra cost in exchange for much faster reads on that column.'));
+  return s;
+}
+
+function panelTransactions(){
+  const s = panelShell('transactions','11 · Structures','Transactions &amp; <span>ACID</span>',
+    "A transaction groups several statements into a single all-or-nothing unit. Either every statement in it succeeds and is saved (COMMIT), or something goes wrong and none of them take effect (ROLLBACK). This matters whenever multiple changes must stay consistent with each other - like moving stock out of one table while recording a sale in another.");
+
+  s.append(el('h3',{class:'sub'},'ACID, briefly'));
+  s.append(el('ul',{class:'plain'},
+    el('li',null,el('b',null,'Atomicity'),' — a transaction happens completely, or not at all.'),
+    el('li',null,el('b',null,'Consistency'),' — a transaction moves the database from one valid state to another.'),
+    el('li',null,el('b',null,'Isolation'),' — concurrent transactions don\'t see each other\'s half-finished work.'),
+    el('li',null,el('b',null,'Durability'),' — once committed, changes survive a crash.')
+  ));
+
+  s.append(el('h3',{class:'sub'},'Try it - this actually works in this simulator'));
+  s.append(exampleCard('Start a transaction, make a change, then commit', 
+`START TRANSACTION;
+UPDATE products SET stock = stock - 2 WHERE prod_id = 1;
+COMMIT;`,
+'Run these three lines one at a time (or all at once - the playground executes them in order). After COMMIT, the stock reduction is permanent.'));
+  s.append(exampleCard('Start a transaction, then change your mind', 
+`START TRANSACTION;
+DELETE FROM products WHERE prod_id = 6;
+ROLLBACK;`,
+'ROLLBACK restores the database to how it was right before START TRANSACTION - the Desk Lamp product will still be there.'));
+
+  s.append(el('div',{class:'ex-note',style:'color:var(--text-dim);margin:6px 0 20px;'},"This simulator models transactions with a simple snapshot-and-restore, which is enough to feel the commit/rollback workflow. Real MySQL (with the InnoDB storage engine) implements full multi-user isolation, locking, and crash recovery underneath this same syntax."));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('After START TRANSACTION, you run three UPDATEs and then ROLLBACK. What happens?',
+    ['All three updates are saved permanently','Only the last update is saved','None of the three updates take effect - the data returns to its pre-transaction state','MySQL asks you to choose which updates to keep'], 2,
+    'ROLLBACK discards every change made since the transaction began, restoring the exact state from before START TRANSACTION.'));
+  return s;
+}
+
+function panelProcedures(){
+  const s = panelShell('procedures','12 · Structures','Procedures &amp; <span>Triggers</span>',
+    "Stored procedures and triggers let you move logic into the database itself. This lab shows the real syntax for reference - the simulator focuses on statements you run interactively, so treat the blocks below as reading material rather than runnable examples.");
+
+  s.append(el('h3',{class:'sub'},'Stored procedures'));
+  s.append(el('div',{class:'lede'},"A stored procedure is a named, reusable block of SQL that can take parameters. Because a procedure body contains semicolons of its own, MySQL clients temporarily switch the statement terminator with DELIMITER so the whole block is sent together."));
+  const proc = el('div',{class:'example'});
+  proc.append(el('div',{class:'ex-head'}, el('span',{class:'ex-label'},'Syntax reference - not executable here')));
+  proc.append(el('pre',null,
+`DELIMITER //
+
+CREATE PROCEDURE GiveRaise(IN employee_id INT, IN raise_amount DECIMAL(10,2))
+BEGIN
+  UPDATE employees
+  SET salary = salary + raise_amount
+  WHERE emp_id = employee_id;
+END //
+
+DELIMITER ;
+
+CALL GiveRaise(104, 5000);`));
+  s.append(proc);
+
+  s.append(el('h3',{class:'sub'},'Triggers'));
+  s.append(el('div',{class:'lede'},"A trigger is a block of SQL that MySQL runs automatically whenever a specified INSERT, UPDATE, or DELETE happens on a table - useful for maintaining audit logs, enforcing rules that go beyond a simple constraint, or keeping a summary column up to date."));
+  const trig = el('div',{class:'example'});
+  trig.append(el('div',{class:'ex-head'}, el('span',{class:'ex-label'},'Syntax reference - not executable here')));
+  trig.append(el('pre',null,
+`DELIMITER //
+
+CREATE TRIGGER before_employee_delete
+BEFORE DELETE ON employees
+FOR EACH ROW
+BEGIN
+  INSERT INTO employee_audit_log (emp_id, action, action_date)
+  VALUES (OLD.emp_id, 'DELETED', NOW());
+END //
+
+DELIMITER ;`));
+  s.append(trig);
+  s.append(el('div',{class:'ex-note',style:'color:var(--text-dim);margin:0 0 20px;'},'OLD refers to the row before the change; NEW (used in INSERT/UPDATE triggers) refers to the row after it.'));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('Inside an UPDATE trigger, what does NEW.salary refer to?',
+    ['The salary value before the update','The salary value after the update','The average salary in the table','A syntax error - NEW doesn\'t exist in UPDATE triggers'], 1,
+    'NEW gives you the row as it will look after the change; OLD gives you the row as it looked before. Both are available inside an UPDATE trigger.'));
+  return s;
+}
+
+function panelNormalization(){
+  const s = panelShell('normalization','13 · Design','<span>Normalization</span>',
+    "Normalization is the process of organizing tables to reduce redundancy and avoid update anomalies - situations where the same fact is stored in more than one place and can go out of sync.");
+
+  s.append(el('h3',{class:'sub'},'A denormalized starting point'));
+  s.append(el('div',{class:'lede'},"Imagine one big orders table that repeats customer and product details on every single row:"));
+  s.append(el('ul',{class:'plain'},
+    el('li',null,'order_id, cust_name, cust_city, prod_name, prod_price, quantity'),
+  ));
+  s.append(el('div',{class:'lede'},"If a customer moves cities, you'd have to update every order row they've ever placed - miss one, and your data disagrees with itself."));
+
+  s.append(el('h3',{class:'sub'},'First Normal Form (1NF)'));
+  s.append(el('div',{class:'lede'},"Every column holds a single, atomic value (no comma-separated lists crammed into one field), and rows are uniquely identifiable."));
+
+  s.append(el('h3',{class:'sub'},'Second Normal Form (2NF)'));
+  s.append(el('div',{class:'lede'},"Builds on 1NF: every non-key column must depend on the whole primary key, not just part of it. This matters most when a table has a composite key."));
+
+  s.append(el('h3',{class:'sub'},'Third Normal Form (3NF)'));
+  s.append(el('div',{class:'lede'},"Builds on 2NF: no non-key column depends on another non-key column. This is exactly why this lab splits data into departments / employees and customers / orders / order_items / products, instead of one giant flat table - cust_city belongs with customers, prod_price belongs with products, and each fact is stored exactly once."));
+
+  s.append(el('h3',{class:'sub'},'The normalized version, in this lab\'s own schema'));
+  s.append(exampleCard('Customer city lives in one place only', "SELECT cust_name, city FROM customers;"));
+  s.append(exampleCard('Product price lives in one place only', "SELECT prod_name, price FROM products;"));
+  s.append(exampleCard('...and joins reassemble the full picture on demand', 
+`SELECT c.cust_name, c.city, p.prod_name, p.price, oi.quantity
+FROM order_items oi
+JOIN orders o ON oi.order_id = o.order_id
+JOIN customers c ON o.cust_id = c.cust_id
+JOIN products p ON p.prod_id = oi.prod_id;`));
+
+  s.append(el('h3',{class:'sub'},'When to break the rules'));
+  s.append(el('div',{class:'lede'},"Highly normalized schemas minimize redundancy but require more joins to answer a question. Some read-heavy systems deliberately denormalize (duplicate) a little data for speed. Start normalized, and only denormalize deliberately, with a measured reason."));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('Why does this lab keep prod_name and price in a separate products table instead of repeating them on every order_items row?',
+    ['MySQL doesn\'t allow text columns in an items table','So a price change only needs to happen in one place, and stays consistent everywhere it\'s referenced','It makes queries impossible to write','There is no reason - it\'s just a style preference'], 1,
+    'This is the core benefit of normalization: each fact (like a product\'s price) is stored once, so updating it in one place keeps every related order consistent.'));
+  return s;
+}
+
+function panelSecurity(){
+  const s = panelShell('security','14 · Design','Users &amp; <span>Security</span>',
+    "MySQL controls access with users and privileges: who can connect, from where, and exactly what they're allowed to do once connected. This is reference material - user management needs a real server to try hands-on.");
+
+  s.append(exampleCard('Create a user and grant limited access', 
+`CREATE USER 'reporting'@'localhost' IDENTIFIED BY 'a-strong-password';
+
+GRANT SELECT ON company_db.* TO 'reporting'@'localhost';
+
+FLUSH PRIVILEGES;`,
+'This user can only read data (SELECT) - it cannot INSERT, UPDATE, DELETE, or change the schema.'));
+
+  s.append(exampleCard('Grant broader access to an application account', 
+`GRANT SELECT, INSERT, UPDATE, DELETE ON company_db.* TO 'app_user'@'%';`,
+"'%' as the host means this user can connect from any host, which is common for an application server but should be scoped down whenever possible."));
+
+  s.append(exampleCard('Revoke a privilege', "REVOKE DELETE ON company_db.* FROM 'app_user'@'%';"));
+
+  s.append(el('h3',{class:'sub'},'Good habits'));
+  s.append(el('ul',{class:'plain'},
+    el('li',null,'Give each application or person the ',el('b',null,'least privilege'),' needed to do its job - a reporting dashboard rarely needs DELETE.'),
+    el('li',null,'Never connect application code as ',el('code',null,'root'),'.'),
+    el('li',null,'Use parameterized queries / prepared statements in application code to prevent SQL injection - never build a query by concatenating raw user input into a string.'),
+    el('li',null,'Keep backups (',el('code',null,'mysqldump'),' or binary log based) and test restoring them.')
+  ));
+
+  s.append(el('h3',{class:'sub'},'Quick check'));
+  s.append(quizBlock('What does the principle of "least privilege" mean for a database user?',
+    ['Give every user full admin access to simplify setup','Grant only the specific permissions that user genuinely needs, nothing more','Only the root user should ever be created','Privileges don\'t matter if the server isn\'t exposed to the internet'], 1,
+    'Limiting each account to exactly what it needs shrinks the damage a mistake, bug, or compromised credential can do.'));
+  return s;
+}
+
+function panelPlayground(){
+  const s = panelShell('playground','15 · Practice','Free <span>Playground</span>',
+    "Write any query from this lab (or your own) and run it against the live sample database. Nothing here ever leaves your browser.");
+
+  const wrap = el('div',{class:'pg-wrap'});
+  const schemaPanel = el('div',{class:'schema-panel'});
+  schemaPanel.append(el('h4',null,'Schema'));
+  Object.keys(DB.tables).forEach(t=>{
+    const card = el('div',{class:'tbl-card'});
+    const head = el('div',{class:'tbl-name'}, '▸ '+t);
+    const cols = el('div',{class:'tbl-cols'});
+    DB.tables[t].columns.forEach(c=> cols.append(el('div',null, el('b',null,c))));
+    head.addEventListener('click',()=> cols.classList.toggle('open'));
+    card.append(head, cols);
+    schemaPanel.append(card);
+  });
+  schemaPanel.append(el('button',{class:'btn', style:'width:100%;margin-top:6px;', onclick:resetDatabase}, '↺ Reset database'));
+
+  const editorCol = el('div',{class:'editor-col'});
+  editorCol.append(el('textarea',{id:'sqlEditor', spellcheck:'false', placeholder:'SELECT * FROM employees;'}));
+  editorCol.append(el('div',{class:'pg-actions'},
+    el('button',{class:'btn primary', onclick:runPlaygroundQuery}, '▶ Run query'),
+    el('button',{class:'btn', onclick:()=>{document.getElementById('sqlEditor').value='';}}, 'Clear'),
+    el('span',{class:'pg-hint'},'Supports SELECT, INSERT, UPDATE, DELETE, CREATE/DROP TABLE, CREATE VIEW, SHOW TABLES, DESCRIBE, START TRANSACTION / COMMIT / ROLLBACK.')
+  ));
+  const resultWrap = el('div',{class:'result-wrap', id:'resultWrap'});
+  resultWrap.append(el('div',{class:'result-empty'},'Run a query to see results here.'));
+  editorCol.append(resultWrap);
+
+  wrap.append(schemaPanel, editorCol);
+  s.append(wrap);
+  return s;
+}
+
+function resetDatabase(){
+  MiniSQL.reset();
+  showTopic('playground');
+  document.getElementById('content').querySelector('#panel-playground').remove();
+  const s = panelPlayground();
+  document.getElementById('content').append(s);
+  s.classList.add('active');
+  const editor = document.getElementById('sqlEditor');
+  editor.value='';
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.id==='playground'));
+}
+
+function renderResult(container, result, error){
+  container.innerHTML='';
+  if(error){
+    container.append(el('div',{class:'result-status err'}, '✕ '+error.message));
+    return;
+  }
+  if(result.message){
+    container.append(el('div',{class:'result-status ok'}, '✓ '+result.message));
+    return;
+  }
+  container.append(el('div',{class:'result-status ok'}, '✓ '+result.rows.length+' row(s) returned'));
+  if(result.rows.length===0){
+    container.append(el('div',{class:'result-empty'},'Query ran successfully - no rows matched.'));
+    return;
+  }
+  const scroller = el('div',{class:'result-table-scroll'});
+  const table = el('table',{class:'result-table'});
+  const thead = el('thead',null, el('tr',null, result.columns.map(c=>el('th',null,c))));
+  const tbody = el('tbody');
+  result.rows.forEach(r=>{
+    tbody.append(el('tr',null, result.columns.map(c=>el('td',null, r[c]===null||r[c]===undefined ? 'NULL' : String(r[c])))));
+  });
+  table.append(thead, tbody);
+  scroller.append(table);
+  container.append(scroller);
+}
+
+function runPlaygroundQuery(){
+  const editor = document.getElementById('sqlEditor');
+  const resultWrap = document.getElementById('resultWrap');
+  const statements = editor.value.split(';').map(s=>s.trim()).filter(Boolean);
+  if(statements.length===0){
+    resultWrap.innerHTML='';
+    resultWrap.append(el('div',{class:'result-empty'},'Write a query above and hit Run.'));
+    return;
+  }
+  let lastResult=null, lastError=null;
+  for(const stmt of statements){
+    try{ lastResult = MiniSQL.run(stmt); lastError=null; }
+    catch(err){ lastError = err; break; }
+  }
+  renderResult(resultWrap, lastResult||{rows:[],columns:[]}, lastError);
+}
+
+/* =====================================================================
+   5. LIVE PROJECT
+   ===================================================================== */
+const PROJECT_STEPS = [
+  {
+    title:'Stand up a new table: a loyalty_points ledger',
+    goal:"Every business needs to track something new sooner or later. Create a table called loyalty_points with columns: cust_id INT, points INT, earned_date DATE.",
+    check(){
+      if(!DB.tables['loyalty_points']) return {pass:false, msg:'No table called loyalty_points found yet. Run your CREATE TABLE statement in the Playground above.'};
+      const cols = DB.tables['loyalty_points'].columns.map(c=>c.toLowerCase());
+      const need = ['cust_id','points','earned_date'];
+      const ok = need.every(n=>cols.includes(n));
+      return ok ? {pass:true, msg:'Table created with the right columns.'} : {pass:false, msg:'Table exists, but is missing one of: cust_id, points, earned_date.'};
+    }
+  },
+  {
+    title:'Populate it for every delivered order',
+    goal:"Insert a loyalty_points row for each of the 3 'Delivered' orders in the sample data, awarding 10 points per order (cust_id 1, 2, and 4). Use three INSERT statements (or one with multiple VALUES groups).",
+    check(){
+      const t = DB.tables['loyalty_points'];
+      if(!t) return {pass:false, msg:'Create the loyalty_points table first (previous step).'};
+      const custs = t.rows.map(r=>Number(r.cust_id)).sort();
+      const ok = custs.length>=3 && [1,2,4].every(c=>custs.includes(c));
+      return ok ? {pass:true, msg:'Looks right - all three delivered-order customers have loyalty rows.'} : {pass:false, msg:'Expected loyalty_points rows for cust_id 1, 2, and 4. Check your INSERT statements.'};
+    }
+  },
+  {
+    title:'Report total points per customer, joined with their name',
+    goal:"Write a SELECT that joins customers to loyalty_points and shows cust_name alongside SUM(points) AS total_points, grouped by customer, highest first.",
+    check(){
+      try{
+        const r = MiniSQL.run(document.getElementById('sqlEditor').value || 'SELECT 1 WHERE 1=0');
+        if(!r.columns) return {pass:false, msg:'Type your SELECT into the Playground editor above, run it, then click Check answer.'};
+        const hasNameCol = r.columns.some(c=>/name/i.test(c));
+        const hasPointsCol = r.columns.some(c=>/points/i.test(c));
+        return (hasNameCol && hasPointsCol) ? {pass:true, msg:'Columns look right - a name-like column plus a points total.'} : {pass:false, msg:'Make sure your result includes a customer name column and a total-points column.'};
+      }catch(e){ return {pass:false, msg:'Your query in the Playground editor has an error: '+e.message}; }
+    }
+  },
+  {
+    title:'Find customers with no loyalty points yet',
+    goal:"Write a query (subquery or LEFT JOIN) that lists every customer NOT present in loyalty_points.",
+    check(){
+      try{
+        const r = MiniSQL.run(document.getElementById('sqlEditor').value || 'SELECT 1 WHERE 1=0');
+        if(!r.rows) return {pass:false, msg:'Run your query in the Playground editor above first.'};
+        const names = r.rows.map(row=>Object.values(row)[0]);
+        const expectMissing = ['Arjun Kulkarni','Sanjay Kapoor']; // cust_id 3 and 5 never got points
+        const ok = expectMissing.every(n=> names.some(v=> String(v).includes(n)) ) || r.rows.length===2;
+        return ok ? {pass:true, msg:'Nice - that matches the two customers who never got loyalty points (cust_id 3 and 5).'} : {pass:false, msg:'Expected exactly the 2 customers who were never inserted into loyalty_points (Arjun Kulkarni and Sanjay Kapoor).'};
+      }catch(e){ return {pass:false, msg:'Query error: '+e.message}; }
+    }
+  },
+  {
+    title:'Wrap a risky change in a transaction',
+    goal:"Practice safety: run START TRANSACTION, then DELETE FROM loyalty_points WHERE cust_id = 1, then ROLLBACK - and confirm the row is still there afterwards with a SELECT.",
+    check(){
+      const t = DB.tables['loyalty_points'];
+      const stillThere = t && t.rows.some(r=>Number(r.cust_id)===1);
+      return stillThere ? {pass:true, msg:"Customer 1's loyalty row is intact - your rollback worked."} : {pass:false, msg:"Customer 1's loyalty row is missing. Make sure you ran ROLLBACK (not COMMIT) after the DELETE."};
+    }
+  },
+  {
+    title:'Ship a reporting view',
+    goal:"Create a view called customer_loyalty_summary that presents cust_name and total_points together, so a future report can just SELECT * FROM customer_loyalty_summary.",
+    check(){
+      if(!DB.views['customer_loyalty_summary']) return {pass:false, msg:'No view called customer_loyalty_summary yet.'};
+      try{
+        const r = MiniSQL.run('SELECT * FROM customer_loyalty_summary');
+        return {pass:true, msg:'View created and runs cleanly - '+r.rows.length+' row(s) returned.'};
+      }catch(e){ return {pass:false, msg:'The view exists but fails to run: '+e.message}; }
+    }
+  }
+];
+
+function panelProject(){
+  const s = panelShell('project','16 · Practice','Live <span>Project</span>: Customer Loyalty Program',
+    "A guided, self-checking mini-project built on the same sample database. You'll design a new table, populate it, report on it, and protect it with a transaction and a view - the same lifecycle a real feature goes through. Work in the Free Playground tab; come back here and press \"Check my work\" after each step.");
+
+  s.append(el('div',{class:'badge-row'},
+    el('span',{class:'badge'},'Uses: CREATE TABLE'), el('span',{class:'badge'},'INSERT'),
+    el('span',{class:'badge'},'JOIN'), el('span',{class:'badge'},'GROUP BY'),
+    el('span',{class:'badge'},'Subquery / LEFT JOIN'), el('span',{class:'badge'},'Transactions'),
+    el('span',{class:'badge'},'VIEW')
+  ));
+
+  PROJECT_STEPS.forEach((step, i)=>{
+    const stepEl = el('div',{class:'step'});
+    const num = el('div',{class:'step-num'}, String(i+1));
+    const head = el('div',{class:'step-head'}, num, el('div',{class:'step-title'}, step.title));
+    const body = el('div',{class:'step-body'});
+    body.append(el('div',{class:'step-goal'}, step.goal));
+    body.append(el('button',{class:'btn amber', onclick:()=>{
+      const r = step.check();
+      let resEl = body.querySelector('.step-check-result');
+      if(!resEl){ resEl = el('div',{class:'step-check-result'}); body.append(resEl); }
+      resEl.className = 'step-check-result ' + (r.pass?'pass':'fail');
+      resEl.textContent = (r.pass?'✓ ':'✕ ') + r.msg;
+      num.classList.toggle('done', r.pass);
+    }}, 'Check my work'));
+    body.append(el('button',{class:'btn', style:'margin-left:8px;', onclick:()=>showTopic('playground')}, 'Open Playground'));
+    stepEl.append(head, body);
+    s.append(stepEl);
+  });
+
+  s.append(el('h3',{class:'sub'},'Where to go from here'));
+  s.append(el('ul',{class:'plain'},
+    el('li',null,'Install MySQL Community Server locally and rebuild this exact schema with real CREATE TABLE / foreign key constraints.'),
+    el('li',null,'Extend the project: add a redemption table, expire points after a date, or build a small report combining revenue (from products/order_items) with loyalty earned.'),
+    el('li',null,'Practice EXPLAIN and indexing decisions on a larger, generated dataset (thousands of rows) where performance differences actually become visible.'),
+    el('li',null,'Connect a real application (Python + mysql-connector, Node + mysql2, or PHP + PDO) to a local MySQL instance and reproduce these queries from code.')
+  ));
+  return s;
+}
+
+/* =====================================================================
+   6. BOOTSTRAP
+   ===================================================================== */
+buildSidenav();
+buildContentPanels();
+showTopic('intro');
+</script>
+</body>
+</html>
