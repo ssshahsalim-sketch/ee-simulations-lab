@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earthing System Design Simulator — IS 3043:2018 | Apna Electromechanic Service</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  :root{
+    --navy-0:#060912;
+    --navy-1:#0a0f1c;
+    --navy-2:#0f1626;
+    --navy-3:#151d33;
+    --navy-4:#1c263f;
+    --line:#233053;
+    --cyan:#00d9ff;
+    --cyan-dim:#0891a8;
+    --amber:#ffb020;
+    --amber-dim:#a3720f;
+    --green:#3ddc84;
+    --red:#ff5c5c;
+    --text-0:#eaf2ff;
+    --text-1:#a9b8d8;
+    --text-2:#6d7ea6;
+    --mono:'IBM Plex Mono', monospace;
+    --sans:'IBM Plex Sans', sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--navy-0);
+    color:var(--text-0);
+    font-family:var(--sans);
+    background-image:
+      linear-gradient(rgba(35,48,83,0.35) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(35,48,83,0.35) 1px, transparent 1px);
+    background-size:32px 32px;
+    min-height:100vh;
+  }
+
+  ::selection{background:var(--cyan);color:var(--navy-0);}
+
+  a{color:var(--cyan);}
+
+  /* ---------- Header ---------- */
+  header{
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(15,22,38,0.9), rgba(10,15,28,0.6));
+    backdrop-filter:blur(6px);
+    padding:22px 28px;
+    position:sticky;top:0;z-index:50;
+  }
+  .header-inner{
+    max-width:1400px;margin:0 auto;
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand svg{width:40px;height:40px;flex-shrink:0;}
+  .brand-text .eyebrow{
+    font-family:var(--mono);font-size:11px;letter-spacing:0.14em;color:var(--amber);
+    text-transform:uppercase;margin-bottom:2px;
+  }
+  .brand-text h1{
+    font-size:19px;margin:0;font-weight:700;letter-spacing:0.01em;
+  }
+  .brand-text .sub{font-size:12px;color:var(--text-2);font-family:var(--mono);}
+  .std-badge{
+    font-family:var(--mono);font-size:11px;color:var(--cyan);
+    border:1px solid var(--cyan-dim);border-radius:3px;padding:6px 12px;
+    background:rgba(0,217,255,0.06);letter-spacing:0.04em;
+  }
+
+  main{max-width:1400px;margin:0 auto;padding:28px;}
+
+  /* ---------- Grid layout ---------- */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+  @media(max-width:1000px){.grid-2{grid-template-columns:1fr;} .grid-4{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){.grid-4{grid-template-columns:1fr;}}
+
+  /* ---------- Panels ---------- */
+  .panel{
+    background:linear-gradient(180deg, var(--navy-2), var(--navy-1));
+    border:1px solid var(--line);
+    border-radius:6px;
+    margin-bottom:20px;
+    overflow:hidden;
+    position:relative;
+  }
+  .panel::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg, var(--accent, var(--cyan)), transparent 70%);
+  }
+  .panel-head{
+    display:flex;align-items:center;gap:12px;
+    padding:16px 20px;border-bottom:1px solid var(--line);
+    background:rgba(255,255,255,0.015);
+  }
+  .panel-num{
+    font-family:var(--mono);font-weight:700;font-size:14px;
+    width:30px;height:30px;border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(0,217,255,0.1);color:var(--cyan);border:1px solid var(--cyan-dim);
+    flex-shrink:0;
+  }
+  .panel[data-accent="amber"] .panel-num{background:rgba(255,176,32,0.1);color:var(--amber);border-color:var(--amber-dim);}
+  .panel[data-accent="green"] .panel-num{background:rgba(61,220,132,0.1);color:var(--green);border-color:#1f7a4a;}
+  .panel[data-accent="red"] .panel-num{background:rgba(255,92,92,0.1);color:var(--red);border-color:#7a2626;}
+  .panel[data-accent="amber"]::before{background:linear-gradient(90deg, var(--amber), transparent 70%);}
+  .panel[data-accent="green"]::before{background:linear-gradient(90deg, var(--green), transparent 70%);}
+  .panel[data-accent="red"]::before{background:linear-gradient(90deg, var(--red), transparent 70%);}
+
+  .panel-title{font-size:15px;font-weight:700;letter-spacing:0.01em;}
+  .panel-title .clause{
+    display:block;font-family:var(--mono);font-size:10.5px;color:var(--text-2);
+    font-weight:400;margin-top:2px;letter-spacing:0.03em;
+  }
+  .panel-body{padding:20px;}
+
+  /* ---------- Form controls ---------- */
+  .field{margin-bottom:16px;}
+  .field label{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-size:12.5px;color:var(--text-1);margin-bottom:6px;font-family:var(--mono);
+  }
+  .field label .val{color:var(--cyan);font-weight:600;}
+  .field input[type="number"], .field select{
+    width:100%;background:var(--navy-3);border:1px solid var(--line);
+    color:var(--text-0);padding:9px 10px;border-radius:4px;font-family:var(--mono);
+    font-size:13.5px;outline:none;transition:border-color .15s;
+  }
+  .field input[type="number"]:focus, .field select:focus{border-color:var(--cyan);}
+  .field input[type="range"]{
+    width:100%;accent-color:var(--cyan);height:4px;cursor:pointer;
+  }
+  .field-note{font-size:11px;color:var(--text-2);margin-top:4px;font-family:var(--mono);}
+  select option{background:var(--navy-3);}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+  /* ---------- Formula display ---------- */
+  .formula-box{
+    background:var(--navy-3);border:1px solid var(--line);border-radius:5px;
+    padding:14px 16px;margin-bottom:16px;font-family:var(--mono);
+  }
+  .formula-box .flabel{font-size:10px;color:var(--amber);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;}
+  .formula-main{font-size:16px;color:var(--cyan);text-align:center;padding:6px 0;}
+  .formula-legend{font-size:11px;color:var(--text-2);margin-top:8px;line-height:1.7;}
+  .formula-legend b{color:var(--text-1);}
+
+  /* ---------- Result cards ---------- */
+  .result-card{
+    background:rgba(61,220,132,0.06);border:1px solid #1f7a4a;border-radius:5px;
+    padding:14px 16px;display:flex;justify-content:space-between;align-items:center;
+    margin-top:6px;
+  }
+  .result-card.warn{background:rgba(255,92,92,0.06);border-color:#7a2626;}
+  .result-card .rlabel{font-size:12px;color:var(--text-1);font-family:var(--mono);}
+  .result-card .rvalue{font-size:22px;font-weight:700;color:var(--green);font-family:var(--mono);}
+  .result-card.warn .rvalue{color:var(--red);}
+
+  .step{
+    font-family:var(--mono);font-size:12px;color:var(--text-2);
+    padding:4px 0;border-bottom:1px dashed var(--line);
+  }
+  .step:last-child{border-bottom:none;}
+  .step .eq{color:var(--text-1);}
+  .step .ans{color:var(--cyan);font-weight:600;}
+
+  /* ---------- Strip visual ---------- */
+  .strip-visual{
+    display:flex;align-items:center;justify-content:center;padding:14px 0;
+  }
+
+  /* ---------- Dashboard ---------- */
+  .dash-card{
+    background:linear-gradient(180deg, var(--navy-2), var(--navy-1));
+    border:1px solid var(--line);border-radius:6px;padding:16px;
+    text-align:center;position:relative;overflow:hidden;
+  }
+  .dash-card .dicon{font-size:20px;margin-bottom:6px;}
+  .dash-card .dlabel{font-size:10.5px;color:var(--text-2);font-family:var(--mono);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:6px;}
+  .dash-card .dvalue{font-size:21px;font-weight:700;color:var(--cyan);font-family:var(--mono);}
+  .dash-card .dunit{font-size:11px;color:var(--text-2);}
+
+  .verdict-banner{
+    border-radius:6px;padding:18px 24px;display:flex;align-items:center;gap:16px;
+    margin-bottom:20px;border:1px solid;font-family:var(--mono);
+  }
+  .verdict-banner.safe{background:rgba(61,220,132,0.08);border-color:#1f7a4a;}
+  .verdict-banner.unsafe{background:rgba(255,92,92,0.08);border-color:#7a2626;}
+  .verdict-banner .vicon{font-size:28px;}
+  .verdict-banner .vtitle{font-size:18px;font-weight:700;}
+  .verdict-banner.safe .vtitle{color:var(--green);}
+  .verdict-banner.unsafe .vtitle{color:var(--red);}
+  .verdict-banner .vsub{font-size:12px;color:var(--text-1);margin-top:2px;}
+
+  /* ---------- Bar comparison ---------- */
+  .bar-compare{margin-top:14px;}
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .bar-row .blabel{width:110px;font-size:11px;color:var(--text-2);font-family:var(--mono);flex-shrink:0;}
+  .bar-track{flex:1;background:var(--navy-3);border-radius:3px;height:16px;overflow:hidden;border:1px solid var(--line);}
+  .bar-fill{height:100%;border-radius:3px;transition:width .3s;}
+  .bar-row .bval{width:70px;text-align:right;font-size:11px;font-family:var(--mono);color:var(--text-1);flex-shrink:0;}
+
+  /* ---------- Reference table ---------- */
+  table.ref-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;}
+  table.ref-table th{
+    text-align:left;color:var(--amber);font-weight:600;padding:8px 10px;
+    border-bottom:1px solid var(--line);font-size:11px;letter-spacing:0.03em;text-transform:uppercase;
+  }
+  table.ref-table td{padding:8px 10px;border-bottom:1px solid rgba(35,48,83,0.5);color:var(--text-1);}
+  table.ref-table tr.clickable{cursor:pointer;transition:background .12s;}
+  table.ref-table tr.clickable:hover{background:rgba(0,217,255,0.06);}
+  table.ref-table tr.active-row{background:rgba(0,217,255,0.1);}
+  table.ref-table tr.active-row td:first-child{color:var(--cyan);}
+
+  /* ---------- Tabs ---------- */
+  .tabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap;}
+  .tab-btn{
+    background:var(--navy-3);border:1px solid var(--line);color:var(--text-2);
+    padding:8px 14px;border-radius:4px;font-family:var(--mono);font-size:11.5px;
+    cursor:pointer;transition:all .15s;
+  }
+  .tab-btn.active{background:rgba(0,217,255,0.1);border-color:var(--cyan-dim);color:var(--cyan);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  footer{
+    max-width:1400px;margin:0 auto;padding:20px 28px 50px;
+    color:var(--text-2);font-size:11.5px;font-family:var(--mono);line-height:1.8;
+    border-top:1px solid var(--line);margin-top:20px;
+  }
+  footer .refs{margin-top:10px;}
+  footer .refs span{display:inline-block;margin-right:18px;}
+
+  .section-title{
+    font-size:13px;color:var(--text-2);text-transform:uppercase;letter-spacing:0.1em;
+    font-family:var(--mono);margin:36px 0 14px;display:flex;align-items:center;gap:10px;
+  }
+  .section-title::after{content:'';flex:1;height:1px;background:var(--line);}
+
+  .info-note{
+    background:rgba(255,176,32,0.05);border:1px solid var(--amber-dim);border-left:3px solid var(--amber);
+    border-radius:4px;padding:10px 14px;font-size:11.5px;color:var(--text-1);margin-top:10px;
+    font-family:var(--mono);line-height:1.6;
+  }
+
+  input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{opacity:0.6;}
+
+  .pill{
+    display:inline-block;font-family:var(--mono);font-size:10px;padding:2px 8px;
+    border-radius:20px;background:rgba(0,217,255,0.1);color:var(--cyan);border:1px solid var(--cyan-dim);
+    margin-left:8px;vertical-align:middle;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <svg viewBox="0 0 48 48" fill="none">
+        <path d="M24 4 L40 11 V22 C40 33 33 41 24 44 C15 41 8 33 8 22 V11 Z" stroke="#00d9ff" stroke-width="2" fill="rgba(0,217,255,0.06)"/>
+        <path d="M24 15 V27 M17 32 H31 M19 36 H29 M21 40 H27" stroke="#ffb020" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="24" cy="15" r="2.4" fill="#00d9ff"/>
+      </svg>
+      <div class="brand-text">
+        <div class="eyebrow">Apna Electromechanic Service — Engineering Tools Suite</div>
+        <h1>Earthing System Design Simulator</h1>
+        <div class="sub">Grid resistance · strip sizing · electrode network · IEEE 80 touch &amp; step check</div>
+      </div>
+    </div>
+    <div class="std-badge">IS 3043:2018 · IEC 60364 · IEEE 80</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ VERDICT BANNER ============ -->
+  <div id="verdictBanner" class="verdict-banner safe">
+    <div class="vicon">✅</div>
+    <div>
+      <div class="vtitle" id="verdictTitle">DESIGN IS SAFE — Rg = 0.1125 Ω</div>
+      <div class="vsub" id="verdictSub">Overall earthing grid resistance is within the target threshold. Adjust any parameter below to recompute live.</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- ============ PANEL 1: EARTH STRIP SIZE ============ -->
+    <div class="panel" data-accent="cyan">
+      <div class="panel-head">
+        <div class="panel-num">1</div>
+        <div class="panel-title">Earth Strip Size Calculation<span class="clause">IS 3043:2018, Clause 9.2.2 — thermal withstand sizing</span></div>
+      </div>
+      <div class="panel-body">
+        <div class="formula-box">
+          <div class="flabel">Formula</div>
+          <div class="formula-main">S = (I × √t) / K</div>
+          <div class="formula-legend">
+            <b>S</b> = min. conductor cross-section (mm²) &nbsp;·&nbsp; <b>I</b> = earth fault current (A) &nbsp;·&nbsp;
+            <b>t</b> = fault clearing time (s) &nbsp;·&nbsp; <b>K</b> = material constant
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Fault current, I <span class="val" id="lblIf">36</span> kA</label>
+            <input type="range" id="rIf" min="1" max="63" step="0.5" value="36">
+            <input type="number" id="nIf" min="0.1" max="200" step="0.1" value="36" style="margin-top:6px;">
+          </div>
+          <div class="field">
+            <label>Fault duration, t <span class="val" id="lblT">1.0</span> s</label>
+            <input type="range" id="rT" min="0.1" max="5" step="0.1" value="1.0">
+            <input type="number" id="nT" min="0.05" max="10" step="0.05" value="1.0" style="margin-top:6px;">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Conductor material</label>
+          <select id="material">
+            <option value="80">Galvanised Iron (GI) — K = 80</option>
+            <option value="143">Copper — K = 143</option>
+            <option value="126">Aluminium — K = 126</option>
+            <option value="115">Mild Steel — K = 115</option>
+          </select>
+        </div>
+
+        <div class="step" id="stepArea"></div>
+
+        <div class="result-card" id="areaResultCard" style="margin-top:12px;">
+          <span class="rlabel">Required area, S</span>
+          <span class="rvalue" id="requiredArea">450 mm²</span>
+        </div>
+
+        <div class="field" style="margin-top:16px;">
+          <label>Selected standard strip</label>
+          <select id="stripSize"></select>
+        </div>
+
+        <div class="strip-visual">
+          <svg id="stripSvg" width="220" height="70" viewBox="0 0 220 70"></svg>
+        </div>
+
+        <div class="result-card" id="stripCheckCard">
+          <span class="rlabel">Selected area vs required</span>
+          <span class="rvalue" id="stripCheckValue">500 mm² — OK</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PANEL 2: ELECTRODE RESISTANCE ============ -->
+    <div class="panel" data-accent="green">
+      <div class="panel-head">
+        <div class="panel-num">2</div>
+        <div class="panel-title">Earth Electrode Resistance<span class="clause">Single rod resistance, combined into a grid of N electrodes</span></div>
+      </div>
+      <div class="panel-body">
+        <div class="formula-box">
+          <div class="flabel">Formula</div>
+          <div class="formula-main">Rₑ = (100ρ / 2πL) × ln(2L / d)</div>
+          <div class="formula-legend">
+            <b>Rₑ</b> = resistance of one electrode (Ω) &nbsp;·&nbsp; <b>ρ</b> = soil resistivity (Ω·m) &nbsp;·&nbsp;
+            <b>L</b> = electrode length (cm) &nbsp;·&nbsp; <b>d</b> = electrode diameter (cm)
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Soil resistivity, ρ <span class="val" id="lblRho">58</span> Ω·m</label>
+            <input type="range" id="rRho" min="1" max="1000" step="1" value="58">
+            <input type="number" id="nRho" min="0.5" max="10000" step="1" value="58" style="margin-top:6px;">
+          </div>
+          <div class="field">
+            <label>Electrode length, L <span class="val" id="lblLen">300</span> cm</label>
+            <input type="range" id="rLen" min="50" max="600" step="10" value="300">
+            <input type="number" id="nLen" min="30" max="3000" step="10" value="300" style="margin-top:6px;">
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Electrode diameter, d <span class="val" id="lblDia">40</span> mm</label>
+            <input type="range" id="rDia" min="12" max="76" step="1" value="40">
+            <input type="number" id="nDia" min="8" max="150" step="1" value="40" style="margin-top:6px;">
+          </div>
+          <div class="field">
+            <label>No. of electrodes, N <span class="val" id="lblN">20</span></label>
+            <input type="range" id="rN" min="1" max="100" step="1" value="20">
+            <input type="number" id="nN" min="1" max="500" step="1" value="20" style="margin-top:6px;">
+          </div>
+        </div>
+
+        <div class="step" id="stepRe1"></div>
+        <div class="step" id="stepRe2"></div>
+
+        <div class="result-card" style="margin-top:12px;">
+          <span class="rlabel">Single electrode, Rₑ</span>
+          <span class="rvalue" id="singleRe">8.3367 Ω</span>
+        </div>
+        <div class="result-card" style="margin-top:8px;">
+          <span class="rlabel">Combined, R_earth = Rₑ / N</span>
+          <span class="rvalue" id="combinedRe">0.4168 Ω</span>
+        </div>
+
+        <div class="info-note">
+          The simple Rₑ/N rule (as used in the reference sheet) assumes fully independent, widely-spaced rods. In a real grid the electrodes are close enough to interact ("mutual resistance"), so actual combined resistance is typically 15–40% higher than this ideal value. Use IEEE 80 grid formulas or measured fall-of-potential tests to confirm before finalising a critical design.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="grid-2">
+
+    <!-- ============ PANEL 3: STRIP RESISTANCE ============ -->
+    <div class="panel" data-accent="amber">
+      <div class="panel-head">
+        <div class="panel-num">3</div>
+        <div class="panel-title">Earth Strip (Grid Conductor) Resistance<span class="clause">Buried horizontal strip, depth ≥ 0.5 m</span></div>
+      </div>
+      <div class="panel-body">
+        <div class="formula-box">
+          <div class="flabel">Formula</div>
+          <div class="formula-main">Rₛ = (100ρ / 2πL) × ln(4L / w)</div>
+          <div class="formula-legend">
+            <b>Rₛ</b> = resistance of earth strip (Ω) &nbsp;·&nbsp; <b>ρ</b> = soil resistivity (Ω·m) &nbsp;·&nbsp;
+            <b>L</b> = strip length (cm) &nbsp;·&nbsp; <b>w</b> = strip width (cm)
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Strip length, L <span class="val" id="lblSLen">650</span> m</label>
+            <input type="range" id="rSLen" min="10" max="2000" step="10" value="650">
+            <input type="number" id="nSLen" min="1" max="10000" step="10" value="650" style="margin-top:6px;">
+          </div>
+          <div class="field">
+            <label>Strip width, w <span class="val" id="lblSW">5</span> cm</label>
+            <input type="range" id="rSW" min="2" max="15" step="0.5" value="5">
+            <input type="number" id="nSW" min="1" max="30" step="0.5" value="5" style="margin-top:6px;">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Burial depth check</label>
+          <input type="range" id="rDepth" min="0.3" max="1.5" step="0.05" value="0.5">
+          <div class="field-note">Depth = <span id="lblDepth">0.50</span> m &nbsp;— <span id="depthVerdict" style="color:var(--green);">≥ 0.5 m, OK per IS 3043</span></div>
+        </div>
+
+        <div class="step" id="stepRs"></div>
+
+        <div class="result-card" style="margin-top:12px;">
+          <span class="rlabel">Strip resistance, Rₛ</span>
+          <span class="rvalue" id="stripRes">0.1541 Ω</span>
+        </div>
+
+        <div style="margin-top:14px;">
+          <svg id="burialSvg" width="100%" height="90" viewBox="0 0 400 90" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PANEL 4: TOTAL GRID RESISTANCE ============ -->
+    <div class="panel" data-accent="red">
+      <div class="panel-head">
+        <div class="panel-num">4</div>
+        <div class="panel-title">Total Grid Resistance<span class="clause">Electrode network || strip conductor, in parallel</span></div>
+      </div>
+      <div class="panel-body">
+        <div class="formula-box">
+          <div class="flabel">Formula</div>
+          <div class="formula-main">R_g = (R_earth × Rₛ) / (R_earth + Rₛ)</div>
+          <div class="formula-legend">
+            <b>R_g</b> = total grid resistance (Ω) &nbsp;·&nbsp; <b>R_earth</b> = electrode network resistance (Ω) &nbsp;·&nbsp;
+            <b>Rₛ</b> = strip resistance (Ω)
+          </div>
+        </div>
+
+        <div class="step" id="stepRg1"></div>
+        <div class="step" id="stepRg2"></div>
+
+        <div class="result-card" id="rgCard" style="margin-top:14px;padding:20px;">
+          <span class="rlabel">Overall earthing grid resistance, R_g</span>
+          <span class="rvalue" id="rgValue" style="font-size:28px;">0.1125 Ω</span>
+        </div>
+
+        <div class="field" style="margin-top:18px;">
+          <label>Target maximum grid resistance <span class="val" id="lblTarget">1.0</span> Ω</label>
+          <input type="range" id="rTarget" min="0.1" max="10" step="0.1" value="1.0">
+          <div class="field-note">Typical targets: 1 Ω (large power stations), 2 Ω (substations), 5–8 Ω (distribution transformers / LT installations) — per IS 3043 &amp; utility practice.</div>
+        </div>
+
+        <div class="bar-compare">
+          <div class="bar-row">
+            <div class="blabel">R_g (actual)</div>
+            <div class="bar-track"><div class="bar-fill" id="barRg" style="background:var(--cyan);width:10%;"></div></div>
+            <div class="bval" id="barRgVal">0.11 Ω</div>
+          </div>
+          <div class="bar-row">
+            <div class="blabel">Target limit</div>
+            <div class="bar-track"><div class="bar-fill" id="barTarget" style="background:var(--amber);width:100%;"></div></div>
+            <div class="bval" id="barTargetVal">1.00 Ω</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ FINAL DESIGN SUMMARY DASHBOARD ============ -->
+  <div class="section-title">Final Design Summary</div>
+  <div class="grid-4">
+    <div class="dash-card"><div class="dicon">⚡</div><div class="dlabel">Fault Current</div><div class="dvalue" id="dIf">36</div><div class="dunit">kA</div></div>
+    <div class="dash-card"><div class="dicon">⏱</div><div class="dlabel">Fault Duration</div><div class="dvalue" id="dT">1.0</div><div class="dunit">sec</div></div>
+    <div class="dash-card"><div class="dicon">▭</div><div class="dlabel">Earth Strip</div><div class="dvalue" id="dStrip" style="font-size:15px;">50×10mm GI</div><div class="dunit" id="dStripArea">500 mm²</div></div>
+    <div class="dash-card"><div class="dicon">⏚</div><div class="dlabel">Earth Pits</div><div class="dvalue" id="dN">20</div><div class="dunit">nos.</div></div>
+    <div class="dash-card"><div class="dicon">🌐</div><div class="dlabel">Electrode Resistance</div><div class="dvalue" id="dRe">0.4168</div><div class="dunit">Ω</div></div>
+    <div class="dash-card"><div class="dicon">➖</div><div class="dlabel">Strip Resistance</div><div class="dvalue" id="dRs">0.1541</div><div class="dunit">Ω</div></div>
+    <div class="dash-card" style="border-color:var(--cyan-dim);"><div class="dicon">🎯</div><div class="dlabel">Total Grid Resistance</div><div class="dvalue" id="dRg" style="color:var(--green);font-size:24px;">0.1125</div><div class="dunit">Ω</div></div>
+    <div class="dash-card"><div class="dicon">🛡</div><div class="dlabel">Verdict</div><div class="dvalue" id="dVerdict" style="color:var(--green);font-size:16px;">SAFE</div><div class="dunit">vs target</div></div>
+  </div>
+
+  <!-- ============ BONUS: IEEE 80 TOUCH & STEP VOLTAGE ============ -->
+  <div class="section-title">Bonus module — Touch &amp; Step Voltage Check <span class="pill">IEEE 80 simplified</span></div>
+  <div class="panel" data-accent="cyan">
+    <div class="panel-head">
+      <div class="panel-num">5</div>
+      <div class="panel-title">Tolerable Touch &amp; Step Potential<span class="clause">IEEE Std 80-2013, simplified 50 kg body-weight equations — screening check only, not a substitute for full grid analysis</span></div>
+    </div>
+    <div class="panel-body">
+      <div class="grid-2" style="gap:20px;">
+        <div>
+          <div class="formula-box">
+            <div class="flabel">Tolerable limits (50 kg body weight)</div>
+            <div class="formula-main" style="font-size:14px;">E_touch50 = (1000 + 1.5·Cs·ρs) × 0.116/√ts</div>
+            <div class="formula-main" style="font-size:14px;">E_step50 = (1000 + 6·Cs·ρs) × 0.116/√ts</div>
+            <div class="formula-legend">
+              <b>Cs</b> = surface derating factor (≈1 if no crushed-rock layer) &nbsp;·&nbsp;
+              <b>ρs</b> = surface layer resistivity (Ω·m) &nbsp;·&nbsp; <b>ts</b> = shock duration (s), taken = fault duration t
+            </div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label>Surface layer resistivity, ρs <span class="val" id="lblRhoS">2500</span> Ω·m</label>
+              <input type="range" id="rRhoS" min="0" max="5000" step="50" value="2500">
+              <div class="field-note">0 = no gravel/crushed-stone layer (bare soil). 2000–3000 typical for 100–150mm crushed stone.</div>
+            </div>
+            <div class="field">
+              <label>Surface derating factor, Cs <span class="val" id="lblCs">0.7</span></label>
+              <input type="range" id="rCs" min="0.1" max="1" step="0.01" value="0.7">
+              <div class="field-note">Cs = 1 if no derating layer used. Typically 0.6–0.8 with a crushed-stone surface.</div>
+            </div>
+          </div>
+
+          <div class="step" id="stepTouch"></div>
+          <div class="step" id="stepStep"></div>
+        </div>
+
+        <div>
+          <div class="result-card" style="margin-bottom:10px;">
+            <span class="rlabel">Tolerable touch voltage, E_touch50</span>
+            <span class="rvalue" id="eTouch">—</span>
+          </div>
+          <div class="result-card">
+            <span class="rlabel">Tolerable step voltage, E_step50</span>
+            <span class="rvalue" id="eStep">—</span>
+          </div>
+          <div class="info-note" style="margin-top:16px;">
+            This module gives the <b>tolerable voltage limits</b> a person can safely withstand — it does not compute your grid's actual mesh/step voltage (that needs full IEEE 80 grid geometry: mesh spacing, conductor spacing, corner correction factors Km/Ks/Ki). Use this to sanity-check that your grid design target is realistic, then verify actual touch/step potentials with dedicated grounding-grid software or a licensed design review before energising.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ REFERENCE DATA ============ -->
+  <div class="section-title">Reference data</div>
+  <div class="grid-2">
+    <div class="panel" data-accent="cyan">
+      <div class="panel-head">
+        <div class="panel-num">i</div>
+        <div class="panel-title">Typical Soil Resistivity<span class="clause">IS 3043:2018, Table 6 (indicative — always use a measured value on site)</span></div>
+      </div>
+      <div class="panel-body">
+        <table class="ref-table" id="soilTable">
+          <thead><tr><th>Soil type</th><th>ρ range (Ω·m)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="field-note" style="margin-top:10px;">Click a row to load its midpoint value into the electrode &amp; strip resistivity fields above.</div>
+      </div>
+    </div>
+
+    <div class="panel" data-accent="amber">
+      <div class="panel-head">
+        <div class="panel-num">ii</div>
+        <div class="panel-title">Material Constant K<span class="clause">IS 3043:2018 Table 4 / IEC 60364-5-54, for 1s adiabatic sizing</span></div>
+      </div>
+      <div class="panel-body">
+        <table class="ref-table" id="kTable">
+          <thead><tr><th>Material</th><th>K (A·s^0.5/mm²)</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Copper (bare)</td><td>143</td><td>Highest conductivity, most compact size</td></tr>
+            <tr><td>Copper (tinned)</td><td>153</td><td>Improved corrosion resistance</td></tr>
+            <tr><td>Aluminium</td><td>126</td><td>Lighter, avoid direct soil contact (corrosion)</td></tr>
+            <tr><td>Galvanised Iron / Steel</td><td>80</td><td>Most common for Indian earthing, cost-effective</td></tr>
+            <tr><td>Mild Steel</td><td>115</td><td>Where GI unavailable</td></tr>
+            <tr><td>Stainless Steel</td><td>78</td><td>Highly corrosion resistant, premium</td></tr>
+          </tbody>
+        </table>
+        <div class="info-note">Values assume an initial temperature of 30°C rising to the material's max permissible temperature in 1 second (adiabatic condition per IEC 60364-5-54 Table 54.1). Consult the standard for your exact end temperature and insulation class.</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  All calculations follow the worked methodology and formulas shown on the reference design sheet (Earthing System Design Calculations, IS 3043:2018). This tool is for preliminary design, training, and estimation use — final earthing designs for critical installations (substations, power stations) should be verified by a licensed electrical engineer against measured soil resistivity, full IEEE 80 grid analysis, and local statutory requirements. Works fully offline, no data leaves this device.
+  <div class="refs">
+    <span>IS 3043:2018 — Code of Practice for Earthing</span>
+    <span>IEC 60364-5-54 — Earthing arrangements and protective conductors</span>
+    <span>IEEE Std 80-2013 — Guide for Safety in AC Substation Grounding</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+
+  // ---------- Standard strip sizes (mm) : [thickness, width] ----------
+  const stripSizes = [
+    {label:"25 x 3 mm GI", w:25, t:3},
+    {label:"25 x 6 mm GI", w:25, t:6},
+    {label:"40 x 6 mm GI", w:40, t:6},
+    {label:"50 x 6 mm GI", w:50, t:6},
+    {label:"50 x 10 mm GI", w:50, t:10},
+    {label:"65 x 10 mm GI", w:65, t:10},
+    {label:"75 x 10 mm GI", w:75, t:10},
+    {label:"100 x 10 mm GI", w:100, t:10},
+  ];
+
+  const soilData = [
+    {type:"Wet marshy / swampy ground", lo:1, hi:30},
+    {type:"Sea water / sea shore", lo:0.1, hi:1},
+    {type:"Clay, loam, wet soil", lo:10, hi:100},
+    {type:"Clay & sand mixture", lo:40, hi:250},
+    {type:"Damp / wet sand", lo:20, hi:200},
+    {type:"Dry sand", lo:200, hi:2500},
+    {type:"Gravel (dry)", lo:600, hi:5000},
+    {type:"Concrete (wet to dry)", lo:100, hi:600},
+    {type:"Rock, stony ground", lo:1000, hi:10000},
+  ];
+
+  const $ = id => document.getElementById(id);
+
+  function fmt(n, d=4){
+    if(!isFinite(n)) return "—";
+    return Number(n.toFixed(d)).toString();
+  }
+
+  // ---------- sync a slider+number pair ----------
+  function link(rangeId, numId, lblId, onChange, decimals){
+    const r = $(rangeId), n = $(numId), l = lblId ? $(lblId) : null;
+    function setVal(v, from){
+      v = parseFloat(v);
+      if(isNaN(v)) return;
+      if(from !== 'range') r.value = v;
+      if(from !== 'num') n.value = v;
+      if(l) l.textContent = decimals !== undefined ? v.toFixed(decimals) : v;
+      onChange();
+    }
+    r.addEventListener('input', ()=> setVal(r.value, 'range'));
+    n.addEventListener('input', ()=> setVal(n.value, 'num'));
+    return setVal;
+  }
+
+  // populate strip size dropdown
+  const stripSel = $('stripSize');
+  stripSizes.forEach((s,i)=>{
+    const o = document.createElement('option');
+    o.value = i; o.textContent = `${s.label} (Area = ${s.w*s.t} mm²)`;
+    stripSel.appendChild(o);
+  });
+  stripSel.value = 4; // 50x10
+
+  // populate soil table
+  const soilTbody = document.querySelector('#soilTable tbody');
+  soilData.forEach(s=>{
+    const tr = document.createElement('tr');
+    tr.className = 'clickable';
+    tr.innerHTML = `<td>${s.type}</td><td>${s.lo} – ${s.hi}</td>`;
+    tr.addEventListener('click', ()=>{
+      const mid = Math.round((s.lo+s.hi)/2);
+      setRho(mid,'ext'); setRho2(mid,'ext');
+      document.querySelectorAll('#soilTable tr').forEach(x=>x.classList.remove('active-row'));
+      tr.classList.add('active-row');
+    });
+    soilTbody.appendChild(tr);
+  });
+
+  function drawStrip(w, t){
+    const svg = $('stripSvg');
+    const scale = 3.2;
+    const rectW = Math.min(w*scale, 200);
+    const rectH = Math.max(t*scale, 6);
+    svg.innerHTML = `
+      <rect x="${110-rectW/2}" y="${35-rectH/2}" width="${rectW}" height="${rectH}" rx="2"
+            fill="rgba(0,217,255,0.15)" stroke="#00d9ff" stroke-width="1.5"/>
+      <text x="110" y="60" text-anchor="middle" fill="#a9b8d8" font-family="IBM Plex Mono" font-size="10">${w} x ${t} mm</text>
+    `;
+  }
+
+  function drawBurial(depth){
+    const svg = $('burialSvg');
+    const maxD = 1.5, groundY = 20, floor = 80;
+    const y = groundY + (depth/maxD)*(floor-groundY);
+    svg.innerHTML = `
+      <rect x="0" y="0" width="400" height="${groundY}" fill="#0a0f1c"/>
+      <rect x="0" y="${groundY}" width="400" height="${floor-groundY+10}" fill="rgba(160,120,60,0.12)"/>
+      <line x1="0" y1="${groundY}" x2="400" y2="${groundY}" stroke="#3ddc84" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="6" y="14" fill="#3ddc84" font-family="IBM Plex Mono" font-size="10">GROUND LEVEL</text>
+      <rect x="30" y="${y-3}" width="340" height="6" fill="#ffb020" rx="2"/>
+      <line x1="15" y1="${groundY}" x2="15" y2="${y}" stroke="#6d7ea6" stroke-width="1"/>
+      <text x="20" y="${(groundY+y)/2+4}" fill="#a9b8d8" font-family="IBM Plex Mono" font-size="10">${depth.toFixed(2)}m</text>
+    `;
+  }
+
+  let vals = {If:36,t:1.0,K:80, rho:58, len:300, dia:40, N:20, sLen:650, sW:5, depth:0.5, target:1.0, rhoS:2500, Cs:0.7};
+
+  function recompute(){
+    // ---- 1. Strip sizing ----
+    const I_A = vals.If*1000;
+    const S = (I_A*Math.sqrt(vals.t))/vals.K;
+    $('stepArea').innerHTML = `<span class="eq">S = (${vals.If*1000} × √${vals.t}) / ${vals.K}</span> = <span class="ans">${fmt(S,1)} mm²</span>`;
+    $('requiredArea').textContent = fmt(S,1) + " mm²";
+
+    const chosen = stripSizes[parseInt(stripSel.value)];
+    const chosenArea = chosen.w*chosen.t;
+    drawStrip(chosen.w, chosen.t);
+    const ok = chosenArea >= S;
+    $('stripCheckCard').className = 'result-card' + (ok?'':' warn');
+    $('stripCheckValue').textContent = `${chosenArea} mm² — ${ok?'OK, Selected':'INSUFFICIENT'}`;
+    $('areaResultCard').className = 'result-card' + (ok? '' : '');
+
+    $('dStrip').textContent = chosen.label;
+    $('dStripArea').textContent = chosenArea + " mm²";
+    $('dIf').textContent = vals.If;
+    $('dT').textContent = vals.t.toFixed(1);
+
+    // ---- 2. Electrode resistance ----
+    const L_cm = vals.len, d_cm = vals.dia/10; // dia entered in mm -> cm
+    const Re = (100*vals.rho/(2*Math.PI*L_cm)) * Math.log((2*L_cm)/d_cm);
+    const Rearth = Re/vals.N;
+    $('stepRe1').innerHTML = `<span class="eq">Rₑ = (100×${vals.rho} / (2π×${L_cm})) × ln(2×${L_cm}/${d_cm.toFixed(2)})</span>`;
+    $('stepRe2').innerHTML = `<span class="eq">Rₑ = </span><span class="ans">${fmt(Re)} Ω</span> &nbsp;·&nbsp; <span class="eq">R_earth = ${fmt(Re)} / ${vals.N} = </span><span class="ans">${fmt(Rearth)} Ω</span>`;
+    $('singleRe').textContent = fmt(Re) + " Ω";
+    $('combinedRe').textContent = fmt(Rearth) + " Ω";
+    $('dN').textContent = vals.N;
+    $('dRe').textContent = fmt(Rearth);
+
+    // ---- 3. Strip resistance ----
+    const Ls_cm = vals.sLen*100, w_cm = vals.sW;
+    const Rs = (100*vals.rho/(2*Math.PI*Ls_cm)) * Math.log((4*Ls_cm)/w_cm);
+    $('stepRs').innerHTML = `<span class="eq">Rₛ = (100×${vals.rho} / (2π×${Ls_cm})) × ln(4×${Ls_cm}/${w_cm})</span> = <span class="ans">${fmt(Rs)} Ω</span>`;
+    $('stripRes').textContent = fmt(Rs) + " Ω";
+    $('dRs').textContent = fmt(Rs);
+    const depthOk = vals.depth >= 0.5;
+    $('depthVerdict').textContent = depthOk ? "≥ 0.5 m, OK per IS 3043" : "< 0.5 m — increase burial depth";
+    $('depthVerdict').style.color = depthOk ? 'var(--green)' : 'var(--red)';
+    drawBurial(vals.depth);
+
+    // ---- 4. Total grid resistance ----
+    const Rg = (Rearth*Rs)/(Rearth+Rs);
+    $('stepRg1').innerHTML = `<span class="eq">R_g = (${fmt(Rearth)} × ${fmt(Rs)}) / (${fmt(Rearth)} + ${fmt(Rs)})</span>`;
+    $('stepRg2').innerHTML = `<span class="eq">R_g = ${fmt(Rearth*Rs)} / ${fmt(Rearth+Rs)} = </span><span class="ans">${fmt(Rg)} Ω</span>`;
+    $('rgValue').textContent = fmt(Rg) + " Ω";
+    $('dRg').textContent = fmt(Rg);
+
+    const safe = Rg <= vals.target;
+    $('rgCard').className = 'result-card' + (safe?'':' warn');
+    $('dVerdict').textContent = safe ? "SAFE" : "UNSAFE";
+    $('dVerdict').style.color = safe ? 'var(--green)' : 'var(--red)';
+
+    const banner = $('verdictBanner');
+    banner.className = 'verdict-banner ' + (safe?'safe':'unsafe');
+    $('verdictTitle').innerHTML = (safe? "✅ DESIGN IS SAFE" : "⚠ DESIGN EXCEEDS TARGET") + ` — R_g = ${fmt(Rg)} Ω (target ≤ ${vals.target.toFixed(1)} Ω)`;
+    banner.querySelector('.vicon').textContent = safe ? "✅" : "⚠";
+    $('verdictSub').textContent = safe
+      ? "Overall earthing grid resistance is within the target threshold. Adjust any parameter below to recompute live."
+      : "Grid resistance exceeds the selected target. Increase electrode count/length, reduce spacing, add strip length, or treat soil (bentonite/GEM backfill) to lower resistivity.";
+
+    // bar compare
+    const maxBar = Math.max(Rg, vals.target)*1.15 || 1;
+    $('barRg').style.width = Math.min(100,(Rg/maxBar)*100) + "%";
+    $('barRg').style.background = safe ? 'var(--cyan)' : 'var(--red)';
+    $('barRgVal').textContent = fmt(Rg,3) + " Ω";
+    $('barTarget').style.width = Math.min(100,(vals.target/maxBar)*100) + "%";
+    $('barTargetVal').textContent = vals.target.toFixed(2) + " Ω";
+
+    // ---- 5. Touch/step voltage (uses t and rhoS, Cs) ----
+    const ts = vals.t;
+    const Etouch = (1000 + 1.5*vals.Cs*vals.rhoS) * (0.116/Math.sqrt(ts));
+    const Estep = (1000 + 6*vals.Cs*vals.rhoS) * (0.116/Math.sqrt(ts));
+    $('stepTouch').innerHTML = `<span class="eq">E_touch50 = (1000 + 1.5×${vals.Cs.toFixed(2)}×${vals.rhoS}) × 0.116/√${ts.toFixed(1)}</span> = <span class="ans">${fmt(Etouch,1)} V</span>`;
+    $('stepStep').innerHTML = `<span class="eq">E_step50 = (1000 + 6×${vals.Cs.toFixed(2)}×${vals.rhoS}) × 0.116/√${ts.toFixed(1)}</span> = <span class="ans">${fmt(Estep,1)} V</span>`;
+    $('eTouch').textContent = fmt(Etouch,1) + " V";
+    $('eStep').textContent = fmt(Estep,1) + " V";
+  }
+
+  // ---- wire up panel 1 ----
+  const setIf = link('rIf','nIf','lblIf', ()=>{vals.If=parseFloat($('nIf').value); recompute();});
+  const setT = link('rT','nT','lblT', ()=>{vals.t=parseFloat($('nT').value); recompute();}, 1);
+  $('material').addEventListener('change', ()=>{vals.K=parseFloat($('material').value); recompute();});
+  stripSel.addEventListener('change', recompute);
+
+  // ---- panel 2 ----
+  const setRho = link('rRho','nRho','lblRho', ()=>{vals.rho=parseFloat($('nRho').value); recompute();});
+  const setLen = link('rLen','nLen','lblLen', ()=>{vals.len=parseFloat($('nLen').value); recompute();});
+  const setDia = link('rDia','nDia','lblDia', ()=>{vals.dia=parseFloat($('nDia').value); recompute();});
+  const setN = link('rN','nN','lblN', ()=>{vals.N=parseFloat($('nN').value); recompute();});
+
+  // ---- panel 3 ----
+  const setSLen = link('rSLen','nSLen','lblSLen', ()=>{vals.sLen=parseFloat($('nSLen').value); recompute();});
+  const setSW = link('rSW','nSW','lblSW', ()=>{vals.sW=parseFloat($('nSW').value); recompute();});
+  $('rDepth').addEventListener('input', ()=>{vals.depth=parseFloat($('rDepth').value); $('lblDepth').textContent=vals.depth.toFixed(2); recompute();});
+
+  // second resistivity slider (used by strip panel) shares same value as panel2's rho — using a helper alias
+  function setRho2(v){ /* strip resistivity uses same vals.rho */ }
+
+  // ---- panel 4 ----
+  $('rTarget').addEventListener('input', ()=>{vals.target=parseFloat($('rTarget').value); $('lblTarget').textContent=vals.target.toFixed(1); recompute();});
+
+  // ---- panel 5 ----
+  $('rRhoS').addEventListener('input', ()=>{vals.rhoS=parseFloat($('rRhoS').value); $('lblRhoS').textContent=vals.rhoS; recompute();});
+  $('rCs').addEventListener('input', ()=>{vals.Cs=parseFloat($('rCs').value); $('lblCs').textContent=vals.Cs.toFixed(2); recompute();});
+
+  recompute();
+})();
+</script>
+
+</body>
+</html>
