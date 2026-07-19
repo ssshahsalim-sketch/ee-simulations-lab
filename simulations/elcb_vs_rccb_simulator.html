@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ELCB vs RCCB — Interactive Fault Simulator | Apna Electromechanic Service</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  :root{
+    --navy-0:#060912; --navy-1:#0a0f1c; --navy-2:#0f1626; --navy-3:#151d33; --navy-4:#1c263f;
+    --line:#233053;
+    --cyan:#00d9ff; --cyan-dim:#0891a8;
+    --amber:#ffb020; --amber-dim:#a3720f;
+    --green:#3ddc84;
+    --red:#ff5c5c;
+    --purple:#b98bff;
+    --text-0:#eaf2ff; --text-1:#a9b8d8; --text-2:#6d7ea6;
+    --mono:'IBM Plex Mono', monospace; --sans:'IBM Plex Sans', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--navy-0); color:var(--text-0); font-family:var(--sans);
+    background-image:linear-gradient(rgba(35,48,83,0.35) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(35,48,83,0.35) 1px, transparent 1px);
+    background-size:32px 32px; min-height:100vh;
+  }
+  ::selection{background:var(--cyan);color:var(--navy-0);}
+
+  header{
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(15,22,38,0.9), rgba(10,15,28,0.6));
+    backdrop-filter:blur(6px); padding:22px 28px; position:sticky; top:0; z-index:50;
+  }
+  .header-inner{max-width:1440px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;}
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand svg{width:40px;height:40px;flex-shrink:0;}
+  .brand-text .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:0.14em;color:var(--amber);text-transform:uppercase;margin-bottom:2px;}
+  .brand-text h1{font-size:19px;margin:0;font-weight:700;}
+  .brand-text .sub{font-size:12px;color:var(--text-2);font-family:var(--mono);}
+  .std-badge{font-family:var(--mono);font-size:11px;color:var(--cyan);border:1px solid var(--cyan-dim);border-radius:3px;padding:6px 12px;background:rgba(0,217,255,0.06);letter-spacing:0.04em;}
+
+  main{max-width:1440px;margin:0 auto;padding:28px;}
+
+  .section-title{font-size:13px;color:var(--text-2);text-transform:uppercase;letter-spacing:0.1em;font-family:var(--mono);margin:36px 0 14px;display:flex;align-items:center;gap:10px;}
+  .section-title::after{content:'';flex:1;height:1px;background:var(--line);}
+  .section-title:first-of-type{margin-top:0;}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  @media(max-width:980px){.grid-2{grid-template-columns:1fr;}}
+
+  .panel{
+    background:linear-gradient(180deg, var(--navy-2), var(--navy-1));
+    border:1px solid var(--line); border-radius:6px; margin-bottom:20px; overflow:hidden; position:relative;
+  }
+  .panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg, var(--accent,var(--cyan)), transparent 70%);}
+  .panel[data-accent="amber"]::before{background:linear-gradient(90deg, var(--amber), transparent 70%);}
+  .panel[data-accent="green"]::before{background:linear-gradient(90deg, var(--green), transparent 70%);}
+  .panel[data-accent="purple"]::before{background:linear-gradient(90deg, var(--purple), transparent 70%);}
+  .panel-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(255,255,255,0.015);}
+  .panel-icon{width:30px;height:30px;border-radius:4px;display:flex;align-items:center;justify-content:center;background:rgba(0,217,255,0.1);color:var(--cyan);border:1px solid var(--cyan-dim);flex-shrink:0;font-size:15px;}
+  .panel[data-accent="amber"] .panel-icon{background:rgba(255,176,32,0.1);color:var(--amber);border-color:var(--amber-dim);}
+  .panel[data-accent="green"] .panel-icon{background:rgba(61,220,132,0.1);color:var(--green);border-color:#1f7a4a;}
+  .panel[data-accent="purple"] .panel-icon{background:rgba(185,139,255,0.1);color:var(--purple);border-color:#5c3f99;}
+  .panel-title{font-size:15px;font-weight:700;}
+  .panel-title .clause{display:block;font-family:var(--mono);font-size:10.5px;color:var(--text-2);font-weight:400;margin-top:2px;}
+  .panel-body{padding:20px;}
+  .panel-body p{font-size:13px;line-height:1.7;color:var(--text-1);margin:0 0 10px;}
+  .panel-body p:last-child{margin-bottom:0;}
+  .panel-body b{color:var(--text-0);}
+
+  /* ---------- comparison table ---------- */
+  table.cmp{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.cmp th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);color:var(--text-2);}
+  table.cmp th.hd-elcb{color:var(--purple);}
+  table.cmp th.hd-rccb{color:var(--cyan);}
+  table.cmp td{padding:10px 14px;border-bottom:1px solid rgba(35,48,83,0.5);color:var(--text-1);vertical-align:top;line-height:1.55;}
+  table.cmp td.param{color:var(--amber);font-family:var(--mono);font-size:11.5px;white-space:nowrap;}
+  table.cmp tr:hover td{background:rgba(255,255,255,0.015);}
+
+  /* ---------- scenario selector ---------- */
+  .scenario-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px;}
+  @media(max-width:1100px){.scenario-grid{grid-template-columns:repeat(2,1fr);}}
+  .scenario-btn{
+    background:var(--navy-3);border:1px solid var(--line);color:var(--text-1);
+    padding:12px 10px;border-radius:5px;font-family:var(--mono);font-size:11px;text-align:left;
+    cursor:pointer;transition:all .15s;line-height:1.5;
+  }
+  .scenario-btn .snum{color:var(--text-2);font-size:10px;}
+  .scenario-btn.active{background:rgba(0,217,255,0.08);border-color:var(--cyan-dim);color:var(--text-0);box-shadow:0 0 0 1px var(--cyan-dim) inset;}
+  .scenario-btn.active .snum{color:var(--cyan);}
+  .scenario-btn:hover{border-color:var(--cyan-dim);}
+
+  /* ---------- controls row ---------- */
+  .controls-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+  @media(max-width:980px){.controls-row{grid-template-columns:repeat(2,1fr);}}
+  .field label{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;color:var(--text-1);margin-bottom:6px;font-family:var(--mono);}
+  .field label .val{color:var(--cyan);font-weight:600;}
+  .field input[type="range"]{width:100%;accent-color:var(--cyan);height:4px;cursor:pointer;}
+  .field select{width:100%;background:var(--navy-3);border:1px solid var(--line);color:var(--text-0);padding:8px 10px;border-radius:4px;font-family:var(--mono);font-size:12.5px;}
+  .field-note{font-size:10.5px;color:var(--text-2);margin-top:4px;font-family:var(--mono);line-height:1.5;}
+  .field.disabled{opacity:0.35;pointer-events:none;}
+
+  .apply-btn{
+    background:linear-gradient(180deg, var(--red), #b83a3a); border:none; color:#fff;
+    font-family:var(--mono); font-weight:700; font-size:13px; letter-spacing:0.04em;
+    padding:13px 28px; border-radius:5px; cursor:pointer; width:100%;
+    text-transform:uppercase; transition:transform .1s;
+  }
+  .apply-btn:hover{transform:translateY(-1px);}
+  .apply-btn:active{transform:translateY(0);}
+
+  /* ---------- dual circuit display ---------- */
+  .dual-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px;}
+  @media(max-width:900px){.dual-grid{grid-template-columns:1fr;}}
+  .device-col{background:var(--navy-3);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  .device-col-head{
+    padding:12px 16px;display:flex;justify-content:space-between;align-items:center;
+    border-bottom:1px solid var(--line);
+  }
+  .device-col-head .dname{font-family:var(--mono);font-weight:700;font-size:14px;}
+  .device-col[data-dev="elcb"] .device-col-head{background:rgba(185,139,255,0.06);}
+  .device-col[data-dev="elcb"] .dname{color:var(--purple);}
+  .device-col[data-dev="rccb"] .device-col-head{background:rgba(0,217,255,0.06);}
+  .device-col[data-dev="rccb"] .dname{color:var(--cyan);}
+  .full-tag{font-family:var(--mono);font-size:9.5px;color:var(--text-2);}
+
+  .svg-wrap{padding:10px 14px 0;display:flex;justify-content:center;}
+
+  .verdict-strip{
+    margin:12px 14px 16px;padding:12px 14px;border-radius:5px;border:1px solid;
+    font-family:var(--mono);font-size:12px;
+  }
+  .verdict-strip.pending{background:rgba(255,255,255,0.02);border-color:var(--line);color:var(--text-2);}
+  .verdict-strip.tripped{background:rgba(61,220,132,0.08);border-color:#1f7a4a;color:var(--green);}
+  .verdict-strip.danger{background:rgba(255,92,92,0.08);border-color:#7a2626;color:var(--red);}
+  .verdict-strip .vv-title{font-weight:700;font-size:13px;margin-bottom:4px;}
+  .verdict-strip .vv-note{color:var(--text-1);font-size:11.5px;line-height:1.6;}
+
+  @keyframes shockPulse{
+    0%,100%{ opacity:1; transform:translateX(0); }
+    25%{ opacity:0.4; transform:translateX(-1.5px); }
+    50%{ opacity:1; transform:translateX(1.5px); }
+    75%{ opacity:0.5; transform:translateX(-1px); }
+  }
+  .shocking{animation:shockPulse 0.15s infinite;}
+
+  @keyframes dashFlow{ to{ stroke-dashoffset:-24; } }
+  .flow-line{stroke-dasharray:6 4; animation:dashFlow 0.5s linear infinite;}
+
+  @keyframes sparkFlicker{ 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .spark{animation:sparkFlicker 0.3s infinite;}
+
+  /* ---------- legend ---------- */
+  .legend{display:flex;gap:18px;flex-wrap:wrap;padding:10px 14px 16px;font-family:var(--mono);font-size:10.5px;color:var(--text-2);}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend .sw{width:16px;height:3px;display:inline-block;border-radius:2px;}
+
+  /* ---------- body current effects table ---------- */
+  .zone-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;}
+  .zone-table td, .zone-table th{padding:9px 12px;border-bottom:1px solid rgba(35,48,83,0.5);}
+  .zone-table th{color:var(--amber);text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--line);}
+  .zone-table tr.active-zone td{background:rgba(255,92,92,0.1);}
+  .zone-table tr.active-zone td:first-child{color:var(--red);font-weight:700;}
+  .zone-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;}
+
+  .info-note{background:rgba(255,176,32,0.05);border:1px solid var(--amber-dim);border-left:3px solid var(--amber);border-radius:4px;padding:10px 14px;font-size:11.5px;color:var(--text-1);margin-top:10px;font-family:var(--mono);line-height:1.6;}
+
+  footer{max-width:1440px;margin:0 auto;padding:20px 28px 50px;color:var(--text-2);font-size:11.5px;font-family:var(--mono);line-height:1.8;border-top:1px solid var(--line);margin-top:20px;}
+  footer .refs span{display:inline-block;margin-right:18px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <svg viewBox="0 0 48 48" fill="none">
+        <path d="M24 4 L40 11 V22 C40 33 33 41 24 44 C15 41 8 33 8 22 V11 Z" stroke="#00d9ff" stroke-width="2" fill="rgba(0,217,255,0.06)"/>
+        <path d="M16 24 L22 24 L20 30 L28 20 L26 26 L32 26" stroke="#ffb020" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <div class="brand-text">
+        <div class="eyebrow">Apna Electromechanic Service — Engineering Tools Suite</div>
+        <h1>ELCB vs RCCB — Interactive Fault Simulator</h1>
+        <div class="sub">Concept, comparison, and live shock-scenario simulation with body-current behaviour</div>
+      </div>
+    </div>
+    <div class="std-badge">IS/IEC 61008 · IEC 60479-1 · IS 3043</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ CONCEPT CARDS ============ -->
+  <div class="section-title">The concept</div>
+  <div class="grid-2">
+    <div class="panel" data-accent="purple">
+      <div class="panel-head">
+        <div class="panel-icon">V</div>
+        <div class="panel-title">ELCB — Earth Leakage Circuit Breaker<span class="clause">Voltage-operated protection (older generation)</span></div>
+      </div>
+      <div class="panel-body">
+        <p>An ELCB is a <b>voltage-operated</b> device. Its coil sits between the installation's earth wire and a separate reference earth electrode driven into the ground some distance away. Under a fault, current flows from a live part into the earth wire and out through the earth electrode's resistance, which raises the electrode's voltage above true remote earth.</p>
+        <p>If that voltage rise crosses the device's trip setting — usually <b>~50 V</b> — the relay operates and disconnects supply. Critically, the ELCB can only "see" fault current that returns to earth <b>through the specific earth wire it monitors</b>.</p>
+      </div>
+    </div>
+
+    <div class="panel" data-accent="cyan">
+      <div class="panel-head">
+        <div class="panel-icon">I</div>
+        <div class="panel-title">RCCB — Residual Current Circuit Breaker<span class="clause">Current-operated protection (modern standard, aka RCD/ELCB-current-type)</span></div>
+      </div>
+      <div class="panel-body">
+        <p>An RCCB is a <b>current-operated</b> device. A toroidal current transformer encircles the live and neutral conductors together and continuously compares the current going out (L) with the current coming back (N).</p>
+        <p>In a healthy circuit these are exactly equal, so the net magnetic flux is zero. The moment any current leaks away — through a person's body, a damaged appliance, wet insulation, <i>anything</i> — an imbalance appears. If that imbalance exceeds the rated sensitivity (typically <b>30 mA</b> for shock protection), the device trips within milliseconds — regardless of where the leaked current actually went.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ COMPARISON TABLE ============ -->
+  <div class="panel" data-accent="amber">
+    <div class="panel-head">
+      <div class="panel-icon">⇄</div>
+      <div class="panel-title">Side-by-side comparison</div>
+    </div>
+    <div class="panel-body" style="padding:0 20px 20px;">
+      <table class="cmp">
+        <thead><tr><th>Parameter</th><th class="hd-elcb">ELCB (voltage-operated)</th><th class="hd-rccb">RCCB (current-operated)</th></tr></thead>
+        <tbody>
+          <tr><td class="param">Sensing principle</td><td>Voltage rise on the earth conductor relative to a separate reference electrode</td><td>Magnetic imbalance between live &amp; neutral current (differential/residual current)</td></tr>
+          <tr><td class="param">Depends on</td><td>Earth electrode resistance, a functioning earth wire, and a separate reference spike</td><td>Only the L–N conductors passing through its core — no dependency on earth wiring</td></tr>
+          <tr><td class="param">Protects a person touching a live part directly (bypassing the appliance earth wire)?</td><td style="color:var(--red);">No — that current never flows through the monitored earth conductor, so the device cannot detect it</td><td style="color:var(--green);">Yes — any current that doesn't return via neutral is detected instantly, including through a person's body</td></tr>
+          <tr><td class="param">Works with broken/missing earth wire?</td><td style="color:var(--red);">No — the sensing loop itself is broken, so the device is completely blind</td><td style="color:var(--green);">Yes — protection is independent of the earth conductor's condition</td></tr>
+          <tr><td class="param">False/nuisance tripping</td><td>Can trip from unrelated earth potential shifts (lightning, other equipment's earth faults) or fail to trip with a good low-resistance earth</td><td>Rare; mainly from genuine leakage (long cable runs, multiple appliances, moisture)</td></tr>
+          <tr><td class="param">Typical sensitivity</td><td>~50 V trip voltage (fault current needed to trip varies with earth resistance)</td><td>10 / 30 / 100 / 300 / 500 mA fixed, independent of resistance</td></tr>
+          <tr><td class="param">Installation requirement</td><td>Needs its own dedicated earth electrode, separate from the general installation earth</td><td>No extra electrode — just wired in the L-N path like a normal breaker</td></tr>
+          <tr><td class="param">Current status</td><td>Obsolete for shock protection; withdrawn from most wiring codes worldwide (still occasionally seen in older Indian installations)</td><td>Mandated by modern wiring codes (IS 3043, IEC 60364, UK BS 7671, NEC) as the standard for shock protection</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============ SIMULATOR ============ -->
+  <div class="section-title">Danger zone — live fault simulation <span style="color:var(--red);">⚠</span></div>
+
+  <div class="panel" data-accent="red" style="--accent:var(--red);">
+    <div class="panel-head">
+      <div class="panel-icon" style="background:rgba(255,92,92,0.1);color:var(--red);border-color:#7a2626;">⚡</div>
+      <div class="panel-title">Choose a fault scenario, then run it on both devices at once<span class="clause">Same fault, same instant — watch how ELCB and RCCB respond differently</span></div>
+    </div>
+    <div class="panel-body">
+
+      <div class="scenario-grid" id="scenarioGrid"></div>
+
+      <div class="controls-row">
+        <div class="field" id="fieldIf">
+          <label>Leakage / fault / body current, I<sub>f</sub> <span class="val" id="lblIf">50</span> mA</label>
+          <input type="range" id="rIf" min="1" max="2000" step="1" value="50">
+          <div class="field-note">This is the current that actually leaks to earth — through the appliance fault or through the person's body.</div>
+        </div>
+        <div class="field">
+          <label>RCCB sensitivity, I<sub>Δn</sub></label>
+          <select id="selIdn">
+            <option value="10">10 mA (super-sensitive, wet areas)</option>
+            <option value="30" selected>30 mA (standard shock protection)</option>
+            <option value="100">100 mA (fire/equipment protection)</option>
+            <option value="300">300 mA (main incomer, coarse)</option>
+            <option value="500">500 mA (industrial, coarse)</option>
+          </select>
+          <div class="field-note">Per IS/IEC 61008 — 30 mA is the standard for direct-contact shock protection.</div>
+        </div>
+        <div class="field" id="fieldRa">
+          <label>Earth electrode resistance, R<sub>A</sub> <span class="val" id="lblRa">20</span> Ω</label>
+          <input type="range" id="rRa" min="1" max="500" step="1" value="20">
+          <div class="field-note">Good installations target R<sub>A</sub> as <b>low</b> as possible (≤1–10 Ω) — but a lower R<sub>A</sub> makes an ELCB's sensed voltage <i>smaller</i>, making it <i>less</i> likely to trip.</div>
+        </div>
+        <div class="field">
+          <label>ELCB trip voltage threshold</label>
+          <div style="font-family:var(--mono);font-size:20px;color:var(--purple);padding:8px 0;">50 V</div>
+          <div class="field-note">Fixed by device design (typical voltage-operated ELCB setting).</div>
+        </div>
+      </div>
+
+      <button class="apply-btn" id="applyBtn">⚡ Apply fault now</button>
+
+      <div class="dual-grid" id="dualGrid"></div>
+
+      <div class="legend">
+        <span><span class="sw" style="background:#ff5c5c;"></span> Live (L)</span>
+        <span><span class="sw" style="background:#6d7ea6;"></span> Neutral (N)</span>
+        <span><span class="sw" style="background:#3ddc84;"></span> Earth (E)</span>
+        <span><span class="sw" style="background:#ffb020;"></span> Fault / leakage current path</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ BODY CURRENT EFFECTS ============ -->
+  <div class="section-title">Physiological effect of body current <span class="std-badge" style="margin-left:6px;">IEC 60479-1</span></div>
+  <div class="panel" data-accent="green">
+    <div class="panel-head">
+      <div class="panel-icon">♥</div>
+      <div class="panel-title">What the current level in the simulation above would feel like<span class="clause">Approximate zones for AC 50/60 Hz, hand-to-hand or hand-to-foot path, ~1 second exposure</span></div>
+    </div>
+    <div class="panel-body">
+      <table class="zone-table" id="zoneTable">
+        <thead><tr><th>Zone</th><th>Current range</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr data-lo="0" data-hi="0.5"><td><span class="zone-dot" style="background:#3ddc84;"></span>AC-1</td><td>&lt; 0.5 mA</td><td>Usually no sensation at all.</td></tr>
+          <tr data-lo="0.5" data-hi="10"><td><span class="zone-dot" style="background:#8fe3b0;"></span>AC-2</td><td>0.5 – 10 mA</td><td>Perceptible tingling, possible mild involuntary muscle reaction. No harmful physiological effect.</td></tr>
+          <tr data-lo="10" data-hi="30"><td><span class="zone-dot" style="background:#ffb020;"></span>AC-3</td><td>10 – 30 mA</td><td>Strong, painful muscle contraction. This is the "let-go" threshold — the person often cannot voluntarily release their grip. Breathing difficulty possible with longer exposure.</td></tr>
+          <tr data-lo="30" data-hi="500"><td><span class="zone-dot" style="background:#ff8a4c;"></span>AC-4a/b</td><td>30 – 500 mA</td><td>Increasing risk of ventricular fibrillation, the leading cause of electrocution death, with risk rising sharply as current and exposure time increase.</td></tr>
+          <tr data-lo="500" data-hi="999999"><td><span class="zone-dot" style="background:#ff5c5c;"></span>AC-4c</td><td>&gt; 500 mA</td><td>High probability of cardiac arrest, severe burns, and other injury. Frequently fatal without immediate intervention.</td></tr>
+        </tbody>
+      </table>
+      <div class="info-note">This is why 30 mA was chosen internationally as the standard RCCB sensitivity for shock protection — it sits inside the AC-3 "let-go" band, well below the point where AC-4 fibrillation risk begins to climb, and a general-type RCCB clears it in well under 300 ms (usually far faster). A device that doesn't trip in this range — like an ELCB blind to the fault path — leaves a person exposed for as long as the fault persists.</div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  This tool illustrates the underlying physics and typical device behaviour of voltage-operated ELCBs and current-operated RCCBs for training purposes. Trip-time figures are approximations based on general-type IEC 61008 curves and typical electromechanical ELCB relays — always refer to a specific device's datasheet and test certificate for certified performance. Never rely on any protective device as a substitute for safe working practice, proper isolation, and periodic testing (test button monthly). Works fully offline, no data leaves this device.
+  <div class="refs" style="margin-top:10px;">
+    <span>IS/IEC 61008-1 — Residual current operated circuit-breakers (RCCBs)</span>
+    <span>IEC 60479-1 — Effects of current on human beings and livestock</span>
+    <span>IS 3043:2018 — Code of Practice for Earthing</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  const scenarios = [
+    { id:'A', label:'Normal operation', sub:'No fault, no leakage current', person:'none', earth:'intact', forceIf:0 },
+    { id:'B', label:'Person touches live wire directly', sub:'Bare wire contact — bypasses the appliance & its earth wire entirely', person:'wire', earth:'intact' },
+    { id:'C', label:'Appliance earth fault, earth wire intact', sub:'Live touches metal casing; earth wire carries fault current away', person:'none', earth:'intact' },
+    { id:'D', label:'Appliance earth fault, earth wire broken', sub:'Casing is live but nobody has touched it yet', person:'none', earth:'broken', forceIf:0 },
+    { id:'E', label:'Person touches faulty casing, earth wire broken', sub:'The worst case — the person becomes the only path to earth', person:'casing', earth:'broken' },
+  ];
+
+  let state = { scenario:'B', If:50, Idn:30, Ra:20 };
+
+  // ---------- build scenario buttons ----------
+  const grid = $('scenarioGrid');
+  scenarios.forEach((s,i)=>{
+    const b = document.createElement('div');
+    b.className = 'scenario-btn' + (s.id===state.scenario?' active':'');
+    b.innerHTML = `<div class="snum">SCENARIO ${s.id}</div><div style="margin:4px 0;font-weight:600;">${s.label}</div><div style="color:var(--text-2);font-size:10px;">${s.sub}</div>`;
+    b.addEventListener('click', ()=>{
+      state.scenario = s.id;
+      document.querySelectorAll('.scenario-btn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      updateFieldAvailability();
+      renderCircuits(false);
+    });
+    grid.appendChild(b);
+  });
+
+  function currentScenario(){ return scenarios.find(s=>s.id===state.scenario); }
+
+  function updateFieldAvailability(){
+    const sc = currentScenario();
+    const ifField = $('fieldIf');
+    if(sc.forceIf === 0){ ifField.classList.add('disabled'); } else { ifField.classList.remove('disabled'); }
+  }
+
+  // ---------- sliders ----------
+  $('rIf').addEventListener('input', ()=>{ state.If = parseFloat($('rIf').value); $('lblIf').textContent = state.If; renderCircuits(false); });
+  $('selIdn').addEventListener('change', ()=>{ state.Idn = parseFloat($('selIdn').value); renderCircuits(false); });
+  $('rRa').addEventListener('input', ()=>{ state.Ra = parseFloat($('rRa').value); $('lblRa').textContent = state.Ra; renderCircuits(false); });
+
+  // ---------- physics / logic ----------
+  function tripTimeRCCB(ratio){
+    if(ratio < 1) return null;
+    if(ratio >= 5) return 30;
+    if(ratio >= 2) return 120;
+    return 250;
+  }
+
+  function computeResult(devType, sc, If, Idn, Ra){
+    const effIf = (sc.forceIf === 0) ? 0 : If;
+    if(devType === 'rccb'){
+      if(effIf <= 0) return {tripped:false, timeMs:null, flowing:false, reason:'No leakage current present — nothing to detect.'};
+      const ratio = effIf/Idn;
+      const tripped = ratio >= 1;
+      const t = tripped ? tripTimeRCCB(ratio) : null;
+      return {
+        tripped, timeMs:t, flowing:true,
+        reason: tripped
+          ? `Residual current = ${effIf} mA ≥ sensitivity ${Idn} mA (${ratio.toFixed(1)}×) → differential current transformer unbalances and trips.`
+          : `Residual current = ${effIf} mA is below the ${Idn} mA sensitivity — too small for this device to register. Try a lower sensitivity setting.`
+      };
+    } else {
+      // ELCB
+      if(sc.person === 'wire'){
+        return {tripped:false, timeMs:null, flowing: effIf>0, reason:'This fault current returns to earth through the person\u2019s own body, not through the monitored earth conductor. The ELCB\u2019s relay coil never sees any voltage change — it is structurally blind to this fault, no matter how large the current is.'};
+      }
+      if(sc.earth === 'broken'){
+        return {tripped:false, timeMs:null, flowing: effIf>0, reason:'The earth wire — which carries the ELCB\u2019s own sensing loop — is broken. The relay circuit is open, so the device cannot sense anything at all, regardless of fault current.'};
+      }
+      if(effIf <= 0) return {tripped:false, timeMs:null, flowing:false, reason:'No leakage current present — nothing to detect.'};
+      const V = (effIf/1000) * Ra;
+      const tripped = V >= 50;
+      return {
+        tripped, timeMs: tripped ? 35 : null, flowing:true,
+        reason: tripped
+          ? `Sensed voltage = ${effIf} mA × ${Ra} Ω = ${V.toFixed(1)} V ≥ 50 V trip threshold → relay operates.`
+          : `Sensed voltage = ${effIf} mA × ${Ra} Ω = ${V.toFixed(1)} V is below the 50 V trip threshold. Notice: a lower (better) earth resistance makes this number smaller — a well-earthed installation can make the ELCB less likely to trip for the same fault current. Try raising R_A to see it trip.`
+      };
+    }
+  }
+
+  // ---------- SVG builders ----------
+  function personGroup(x,y, shocking, label){
+    const cls = shocking ? 'shocking' : '';
+    const stroke = shocking ? '#ff5c5c' : '#a9b8d8';
+    return `
+    <g class="${cls}" transform="translate(${x},${y})">
+      <circle cx="0" cy="0" r="8" fill="none" stroke="${stroke}" stroke-width="2.4"/>
+      <line x1="0" y1="8" x2="0" y2="30" stroke="${stroke}" stroke-width="2.4"/>
+      <line x1="0" y1="14" x2="-12" y2="8" stroke="${stroke}" stroke-width="2.4" stroke-linecap="round"/>
+      <line x1="0" y1="14" x2="12" y2="22" stroke="${stroke}" stroke-width="2.4" stroke-linecap="round"/>
+      <line x1="0" y1="30" x2="-9" y2="46" stroke="${stroke}" stroke-width="2.4" stroke-linecap="round"/>
+      <line x1="0" y1="30" x2="9" y2="46" stroke="${stroke}" stroke-width="2.4" stroke-linecap="round"/>
+      ${shocking ? `<text x="16" y="0" font-family="IBM Plex Mono" font-size="14" fill="#ff5c5c">⚡</text>` : ''}
+      <text x="0" y="60" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="${stroke}">${label}</text>
+    </g>`;
+  }
+
+  function groundHatch(x,y,w){
+    let lines = '';
+    for(let i=0;i<w;i+=8){
+      lines += `<line x1="${x+i}" y1="${y}" x2="${x+i-6}" y2="${y+10}" stroke="#6d7ea6" stroke-width="1"/>`;
+    }
+    return `<line x1="${x-4}" y1="${y}" x2="${x+w}" y2="${y}" stroke="#6d7ea6" stroke-width="1.5"/>${lines}`;
+  }
+
+  function buildCircuitSVG(devType, sc, result){
+    const flowing = result.flowing && (result.timeMs===null ? true : true); // show animation state
+    const danger = result.flowing && !result.tripped;
+    const safe = result.tripped;
+    const devLabel = devType==='rccb' ? 'RCCB' : 'ELCB';
+    const devColor = devType==='rccb' ? '#00d9ff' : '#b98bff';
+
+    const breakerOpen = result.tripped;
+    const contactColor = breakerOpen ? '#3ddc84' : '#ff5c5c';
+
+    let svg = `<svg width="260" height="330" viewBox="0 0 260 330" xmlns="http://www.w3.org/2000/svg">`;
+
+    // supply
+    svg += `<text x="70" y="14" font-family="IBM Plex Mono" font-size="10" fill="#6d7ea6">SUPPLY 230V</text>`;
+    svg += `<line x1="100" y1="20" x2="100" y2="70" stroke="#ff5c5c" stroke-width="2.2" class="${danger?'flow-line':''}" stroke-dasharray="${danger?'6 4':'0'}"/>`;
+    svg += `<line x1="160" y1="20" x2="160" y2="70" stroke="#6d7ea6" stroke-width="2.2"/>`;
+    svg += `<text x="88" y="34" font-family="IBM Plex Mono" font-size="9" fill="#ff5c5c">L</text>`;
+    svg += `<text x="164" y="34" font-family="IBM Plex Mono" font-size="9" fill="#6d7ea6">N</text>`;
+
+    // breaker box
+    svg += `<rect x="75" y="70" width="110" height="42" rx="4" fill="${devType==='rccb'?'rgba(0,217,255,0.08)':'rgba(185,139,255,0.08)'}" stroke="${devColor}" stroke-width="1.5"/>`;
+    svg += `<text x="130" y="96" text-anchor="middle" font-family="IBM Plex Mono" font-weight="700" font-size="13" fill="${devColor}">${devLabel}</text>`;
+    // contact indicator
+    svg += `<circle cx="90" cy="60" r="0" />`;
+    svg += `<line x1="105" y1="112" x2="${breakerOpen?115:105}" y2="130" stroke="${contactColor}" stroke-width="2.4"/>`;
+    svg += `<text x="185" y="95" font-family="IBM Plex Mono" font-size="9" fill="${breakerOpen?'#3ddc84':(danger?'#ff5c5c':'#6d7ea6')}">${breakerOpen?'OPEN':(danger?'CLOSED — carrying fault':'CLOSED')}</text>`;
+
+    // wires from breaker down to appliance
+    const wireActive = danger; // fault current still flowing visually only if not tripped
+    svg += `<line x1="100" y1="112" x2="100" y2="${sc.person==='wire'?150:190}" stroke="#ff5c5c" stroke-width="2.2" ${wireActive?'class="flow-line"':''}/>`;
+    svg += `<line x1="160" y1="112" x2="160" y2="190" stroke="#6d7ea6" stroke-width="2.2"/>`;
+
+    if(sc.person === 'wire'){
+      // touch point mid-wire
+      svg += `<circle cx="100" cy="150" r="4" fill="${danger?'#ff5c5c':'#a9b8d8'}"/>`;
+      svg += `<line x1="100" y1="150" x2="100" y2="190" stroke="#ff5c5c" stroke-width="2.2" ${wireActive?'class="flow-line"':''}/>`;
+      // person touching wire, off to the side
+      svg += `<line x1="100" y1="150" x2="60" y2="176" stroke="${danger?'#ff5c5c':'#a9b8d8'}" stroke-width="2" stroke-dasharray="${wireActive?'0':'3 2'}" class="${wireActive?'flow-line':''}"/>`;
+      svg += personGroup(52, 186, danger, danger ? 'BEING SHOCKED' : (safe?'RESCUED':'TOUCHING LIVE WIRE'));
+      svg += groundHatch(30, 250, 44);
+      svg += `<line x1="52" y1="232" x2="52" y2="250" stroke="${danger?'#ff5c5c':'#6d7ea6'}" stroke-width="1.5" stroke-dasharray="${danger?'0':'3 2'}"/>`;
+    }
+
+    // appliance box (skip visually de-emphasised if scenario B, still show for context)
+    const applianceLive = (sc.person !== 'wire') && (sc.person !== 'none' || sc.earth==='broken' || sc.id==='C');
+    const casingColor = (sc.id==='C'||sc.id==='D'||sc.id==='E') ? '#ff5c5c' : '#233053';
+    svg += `<rect x="80" y="190" width="100" height="50" rx="3" fill="rgba(255,255,255,0.02)" stroke="${casingColor}" stroke-width="1.6"/>`;
+    svg += `<text x="130" y="219" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="#a9b8d8">APPLIANCE</text>`;
+    if(sc.id==='C'||sc.id==='D'||sc.id==='E'){
+      svg += `<text x="130" y="200" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" fill="#ff5c5c" class="${wireActive?'spark':''}">⚡ fault</text>`;
+    }
+
+    // earth wire
+    const earthBroken = sc.earth === 'broken';
+    if(!earthBroken){
+      svg += `<line x1="100" y1="240" x2="100" y2="280" stroke="#3ddc84" stroke-width="2.2" ${(wireActive && sc.id!=='B')?'class="flow-line"':''}/>`;
+      svg += `<circle cx="100" cy="286" r="7" fill="none" stroke="#3ddc84" stroke-width="1.8"/>`;
+      svg += groundHatch(80, 300, 40);
+      svg += `<text x="118" y="290" font-family="IBM Plex Mono" font-size="8.5" fill="#3ddc84">R_A</text>`;
+    } else {
+      svg += `<line x1="100" y1="240" x2="100" y2="256" stroke="#3ddc84" stroke-width="2.2"/>`;
+      svg += `<line x1="94" y1="256" x2="106" y2="264" stroke="#ff5c5c" stroke-width="2.4"/>`;
+      svg += `<line x1="106" y1="256" x2="94" y2="264" stroke="#ff5c5c" stroke-width="2.4"/>`;
+      svg += `<text x="112" y="264" font-family="IBM Plex Mono" font-size="8.5" fill="#ff5c5c">BROKEN</text>`;
+      svg += `<line x1="100" y1="270" x2="100" y2="280" stroke="#3ddc84" stroke-width="2.2" opacity="0.3"/>`;
+      svg += `<circle cx="100" cy="286" r="7" fill="none" stroke="#3ddc80" stroke-width="1.8" opacity="0.3"/>`;
+      svg += groundHatch(80, 300, 40);
+    }
+
+    if(sc.person === 'casing'){
+      svg += `<line x1="180" y1="210" x2="220" y2="196" stroke="${danger?'#ff5c5c':'#a9b8d8'}" stroke-width="2" stroke-dasharray="${wireActive?'0':'3 2'}" class="${wireActive?'flow-line':''}"/>`;
+      svg += personGroup(228, 210, danger, danger ? 'BEING SHOCKED' : (safe?'RESCUED':'TOUCHING CASING'));
+      svg += groundHatch(206, 250, 44);
+      svg += `<line x1="228" y1="234" x2="228" y2="250" stroke="${danger?'#ff5c5c':'#6d7ea6'}" stroke-width="1.5" stroke-dasharray="${danger?'0':'3 2'}"/>`;
+    }
+
+    if(sc.id === 'A'){
+      svg += `<text x="130" y="270" text-anchor="middle" font-family="IBM Plex Mono" font-size="20" fill="#3ddc84">✓</text>`;
+    }
+
+    svg += `</svg>`;
+    return svg;
+  }
+
+  function verdictHTML(result){
+    if(!result.flowing){
+      return `<div class="verdict-strip pending"><div class="vv-title">STANDBY</div><div class="vv-note">${result.reason}</div></div>`;
+    }
+    if(result.tripped){
+      return `<div class="verdict-strip tripped"><div class="vv-title">✅ TRIPPED in ~${result.timeMs} ms</div><div class="vv-note">${result.reason}</div></div>`;
+    }
+    return `<div class="verdict-strip danger"><div class="vv-title">⚠ NOT TRIPPED — fault persists</div><div class="vv-note">${result.reason}</div></div>`;
+  }
+
+  function renderCircuits(animate){
+    const sc = currentScenario();
+    const rRccb = computeResult('rccb', sc, state.If, state.Idn, state.Ra);
+    const rElcb = computeResult('elcb', sc, state.If, state.Idn, state.Ra);
+
+    const dual = $('dualGrid');
+    dual.innerHTML = `
+      <div class="device-col" data-dev="rccb">
+        <div class="device-col-head"><span class="dname">RCCB</span><span class="full-tag">Residual Current Circuit Breaker</span></div>
+        <div class="svg-wrap">${buildCircuitSVG('rccb', sc, rRccb)}</div>
+        ${verdictHTML(rRccb)}
+      </div>
+      <div class="device-col" data-dev="elcb">
+        <div class="device-col-head"><span class="dname">ELCB</span><span class="full-tag">Voltage-operated Earth Leakage CB</span></div>
+        <div class="svg-wrap">${buildCircuitSVG('elcb', sc, rElcb)}</div>
+        ${verdictHTML(rElcb)}
+      </div>
+    `;
+
+    // update body-current zone highlight if a person is actually in the path
+    const effIf = (sc.forceIf===0) ? 0 : state.If;
+    const personInPath = (sc.person === 'wire' || sc.person === 'casing');
+    document.querySelectorAll('#zoneTable tr').forEach(tr=>{
+      tr.classList.remove('active-zone');
+      if(personInPath){
+        const lo = parseFloat(tr.dataset.lo), hi = parseFloat(tr.dataset.hi);
+        if(effIf >= lo && effIf < hi) tr.classList.add('active-zone');
+      }
+    });
+  }
+
+  $('applyBtn').addEventListener('click', ()=> renderCircuits(true));
+
+  updateFieldAvailability();
+  renderCircuits(false);
+})();
+</script>
+
+</body>
+</html>
