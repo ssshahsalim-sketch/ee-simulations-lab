@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>PanelForge 3D — Electrical Enclosure Designer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg-0:#14181d; --bg-1:#1b2027; --bg-2:#232a33; --bg-3:#2c3542;
+    --line:#333d4a; --text-hi:#eef1f4; --text-lo:#9aa7b5;
+    --blue:#3d8bff; --blue-dim:#274a80; --orange:#ff9d3d; --red:#ff5d5d; --green:#3ddc84;
+    --mono:"SF Mono","Consolas","Cascadia Code",monospace;
+    --ui:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:var(--bg-0);color:var(--text-hi);font-family:var(--ui);font-size:13px;overflow:hidden;}
+  button{font-family:var(--ui);cursor:pointer;}
+  input,select{font-family:var(--mono);}
+  #app{display:grid;grid-template-rows:38px 34px 1fr 150px;height:100vh;}
+
+  /* Ribbon */
+  #ribbon{background:linear-gradient(180deg,var(--bg-2),var(--bg-1));border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 10px;position:relative;z-index:40;}
+  #ribbon .brand{font-weight:700;letter-spacing:.4px;color:var(--blue);margin-right:14px;font-size:13px;}
+  #ribbon .brand span{color:var(--text-lo);font-weight:400;}
+  .ribbon-tab{padding:8px 12px;color:var(--text-lo);font-size:12px;border-radius:4px 4px 0 0;border:1px solid transparent;position:relative;}
+  .ribbon-tab.active{background:var(--bg-3);color:var(--text-hi);border-color:var(--line);border-bottom-color:var(--bg-3);}
+  .ribbon-tab:hover{color:var(--text-hi);cursor:pointer;}
+  #ribbon .spacer{flex:1;}
+  #ribbon .proj-name{color:var(--text-lo);font-size:11px;}
+  .ribbon-menu{position:absolute;top:100%;left:0;min-width:210px;background:var(--bg-2);border:1px solid var(--line);border-radius:0 6px 6px 6px;box-shadow:0 10px 24px rgba(0,0,0,.4);padding:5px;display:none;}
+  .ribbon-tab.active .ribbon-menu{display:block;}
+  .menu-item{padding:7px 10px;border-radius:4px;font-size:12px;color:var(--text-hi);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .menu-item:hover{background:var(--bg-3);}
+  .menu-item .hint{color:var(--text-lo);font-size:10.5px;}
+  .menu-sep{height:1px;background:var(--line);margin:5px 2px;}
+
+  /* Toolbar */
+  #toolbar{background:var(--bg-1);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:4px;padding:0 8px;flex-wrap:wrap;}
+  .tbtn{background:transparent;border:1px solid transparent;color:var(--text-lo);padding:5px 9px;border-radius:4px;font-size:12px;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+  .tbtn:hover{background:var(--bg-3);color:var(--text-hi);}
+  .tbtn.active{background:var(--blue-dim);color:var(--text-hi);border-color:var(--blue);}
+  .tsep{width:1px;align-self:stretch;background:var(--line);margin:6px 4px;}
+  #toolbar .unit-toggle{margin-left:auto;display:flex;gap:0;}
+  #toolbar .unit-toggle button{border:1px solid var(--line);padding:4px 8px;font-size:11px;background:var(--bg-2);color:var(--text-lo);}
+  #toolbar .unit-toggle button.active{background:var(--blue-dim);color:var(--text-hi);}
+  #toolbar .unit-toggle button:first-child{border-radius:4px 0 0 4px;}
+  #toolbar .unit-toggle button:last-child{border-radius:0 4px 4px 0;}
+  #wire-settings{display:none;align-items:center;gap:6px;padding:2px 6px;background:var(--bg-2);border:1px solid var(--line);border-radius:5px;}
+  #wire-settings.show{display:flex;}
+  #wire-settings label{font-size:11px;color:var(--text-lo);}
+  #wire-settings select{background:var(--bg-3);border:1px solid var(--line);color:var(--text-hi);border-radius:4px;padding:3px 6px;font-size:11px;}
+  .swatch{width:16px;height:16px;border-radius:3px;border:2px solid transparent;}
+  .swatch.active{border-color:#fff;}
+
+  /* Main */
+  #main{display:grid;grid-template-columns:230px 1fr 270px;min-height:0;}
+
+  /* Left */
+  #left{background:var(--bg-1);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;}
+  .lib-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:6px;border-bottom:1px solid var(--line);}
+  .lib-tab{font-size:10.5px;padding:4px 7px;border-radius:3px;background:var(--bg-2);color:var(--text-lo);border:1px solid var(--line);}
+  .lib-tab.active{background:var(--blue-dim);color:var(--text-hi);border-color:var(--blue);}
+  #lib-search{margin:8px;padding:6px 8px;background:var(--bg-2);border:1px solid var(--line);border-radius:4px;color:var(--text-hi);font-size:12px;}
+  #lib-list{flex:1;overflow-y:auto;padding:0 8px 8px;}
+  .lib-item{display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:5px;background:var(--bg-2);border:1px solid var(--line);border-radius:5px;cursor:grab;}
+  .lib-item:hover{border-color:var(--blue);background:var(--bg-3);}
+  .lib-swatch{width:26px;height:26px;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;}
+  .lib-meta{min-width:0;}
+  .lib-name{font-size:12px;color:var(--text-hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lib-sub{font-size:10px;color:var(--text-lo);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;gap:5px;align-items:center;}
+  .mount-badge{font-size:8.5px;padding:0 4px;border-radius:3px;background:var(--bg-3);border:1px solid var(--line);text-transform:uppercase;letter-spacing:.3px;}
+
+  /* Viewport */
+  #viewport-wrap{position:relative;min-width:0;min-height:0;background:radial-gradient(ellipse at 50% 30%, #262e38 0%, #171b21 75%);}
+  #viewport{position:absolute;inset:0;}
+  #vp-hud{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:6px;pointer-events:none;}
+  .hud-chip{background:rgba(27,32,39,.85);border:1px solid var(--line);border-radius:5px;padding:4px 9px;font-size:11px;color:var(--text-lo);pointer-events:auto;}
+  #vp-camera{position:absolute;top:10px;right:10px;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;width:230px;}
+  #vp-camera button{background:rgba(27,32,39,.85);border:1px solid var(--line);color:var(--text-lo);padding:5px 8px;border-radius:4px;font-size:10.5px;}
+  #vp-camera button.active{border-color:var(--blue);color:var(--text-hi);}
+  #vp-camera button:hover{color:var(--text-hi);border-color:var(--blue);}
+  #vp-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--text-lo);pointer-events:none;}
+  #vp-empty b{color:var(--text-hi);font-size:15px;}
+  #drop-hint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(27,32,39,.92);border:1px solid var(--blue);color:var(--text-hi);padding:5px 12px;border-radius:5px;font-size:11px;display:none;text-align:center;max-width:70%;}
+  #measure-hint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(27,32,39,.92);border:1px solid var(--orange);color:var(--text-hi);padding:5px 12px;border-radius:5px;font-size:11px;display:none;}
+
+  /* Right */
+  #right{background:var(--bg-1);border-left:1px solid var(--line);overflow-y:auto;padding:10px;}
+  .panel-title{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-lo);margin:14px 0 7px;display:flex;justify-content:space-between;}
+  .panel-title:first-child{margin-top:0;}
+  .field-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+  .field-row label{width:70px;flex-shrink:0;color:var(--text-lo);font-size:11.5px;}
+  .field-row input, .field-row select{flex:1;min-width:0;background:var(--bg-2);border:1px solid var(--line);border-radius:4px;color:var(--text-hi);padding:5px 7px;font-size:12px;}
+  .field-row input:focus, .field-row select:focus{outline:none;border-color:var(--blue);}
+  .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px;}
+  .three-col div{display:flex;flex-direction:column;gap:3px;}
+  .three-col label{font-size:10px;color:var(--text-lo);}
+  .three-col input{background:var(--bg-2);border:1px solid var(--line);border-radius:4px;color:var(--text-hi);padding:5px 6px;font-size:12px;width:100%;}
+  .btn{background:var(--bg-3);border:1px solid var(--line);color:var(--text-hi);padding:7px 10px;border-radius:5px;font-size:12px;width:100%;margin-bottom:6px;}
+  .btn:hover{border-color:var(--blue);}
+  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;}
+  .btn.primary:hover{filter:brightness(1.08);}
+  .btn.danger{color:var(--red);}
+  .btn.danger:hover{border-color:var(--red);}
+  .btn.toggle-on{background:var(--blue-dim);border-color:var(--blue);}
+  .btn-row{display:flex;gap:6px;}
+  .btn-row .btn{flex:1;}
+  #no-selection{color:var(--text-lo);font-size:12px;line-height:1.5;padding:8px 2px;}
+  .prop-readout{font-size:11.5px;color:var(--text-lo);display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--line);}
+  .prop-readout b{color:var(--text-hi);font-weight:500;}
+
+  /* Bottom */
+  #bottom{background:var(--bg-1);border-top:1px solid var(--line);display:flex;flex-direction:column;min-height:0;}
+  #bottom-tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .bt-tab{padding:6px 14px;font-size:11.5px;color:var(--text-lo);border-right:1px solid var(--line);position:relative;}
+  .bt-tab.active{background:var(--bg-2);color:var(--text-hi);}
+  .bt-tab .count{background:var(--bg-3);border-radius:8px;padding:0 6px;margin-left:6px;font-size:10px;color:var(--text-lo);}
+  .bt-tab.err .count{background:rgba(255,93,93,.18);color:var(--red);}
+  .bt-tab.warn .count{background:rgba(255,157,61,.18);color:var(--orange);}
+  #bottom-body{flex:1;overflow-y:auto;padding:6px 10px;}
+  .msg-row{display:flex;gap:8px;align-items:flex-start;padding:4px 2px;font-size:11.5px;border-bottom:1px solid #ffffff08;}
+  .msg-tag{flex-shrink:0;font-size:9.5px;font-weight:700;letter-spacing:.4px;border-radius:3px;padding:1px 6px;text-transform:uppercase;}
+  .msg-tag.error{background:rgba(255,93,93,.15);color:var(--red);}
+  .msg-tag.warn{background:rgba(255,157,61,.15);color:var(--orange);}
+  .msg-tag.ok{background:rgba(61,220,132,.15);color:var(--green);}
+  .msg-tag.info{background:rgba(61,139,255,.15);color:var(--blue);}
+  table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  th{text-align:left;color:var(--text-lo);font-weight:500;padding:5px 8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg-1);}
+  td{padding:5px 8px;border-bottom:1px solid #ffffff08;color:var(--text-hi);}
+  tr.sel-row{background:rgba(61,139,255,.08);}
+  tr:hover td{background:#ffffff05;}
+  .empty-row{color:var(--text-lo);text-align:center;padding:16px;font-style:italic;}
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:5px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  #toast{position:fixed;bottom:160px;left:50%;transform:translateX(-50%);background:var(--bg-3);border:1px solid var(--blue);color:var(--text-hi);padding:8px 16px;border-radius:6px;font-size:12px;opacity:0;pointer-events:none;transition:opacity .25s, bottom .25s;z-index:80;max-width:60%;text-align:center;}
+  #toast.show{opacity:1;bottom:170px;}
+  #toast.warn{border-color:var(--orange);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="ribbon">
+    <div class="brand">PANEL<span style="color:#fff">FORGE</span> <span>3D</span></div>
+    <div class="ribbon-tab" data-tab="project">Project
+      <div class="ribbon-menu">
+        <div class="menu-item" data-action="new">New Project</div>
+        <div class="menu-item" data-action="save">Save Project<span class="hint">.json</span></div>
+        <div class="menu-item" data-action="load">Open Project<span class="hint">.json</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-item" data-action="exportPng">Export View<span class="hint">.png</span></div>
+        <div class="menu-item" data-action="exportBom">Export BOM<span class="hint">.csv</span></div>
+      </div>
+    </div>
+    <div class="ribbon-tab" data-tab="edit">Edit
+      <div class="ribbon-menu">
+        <div class="menu-item" data-action="dup">Duplicate Selected</div>
+        <div class="menu-item" data-action="mirror">Mirror Selected</div>
+        <div class="menu-item" data-action="delete">Delete Selected</div>
+        <div class="menu-item" data-action="deselect">Deselect</div>
+      </div>
+    </div>
+    <div class="ribbon-tab" data-tab="view">View
+      <div class="ribbon-menu">
+        <div class="menu-item" data-action="camFront">Front View</div>
+        <div class="menu-item" data-action="camTop">Top View</div>
+        <div class="menu-item" data-action="camSide">Side View</div>
+        <div class="menu-item" data-action="camIso">Isometric</div>
+        <div class="menu-sep"></div>
+        <div class="menu-item" data-action="toggleDoor">Toggle Door Visibility</div>
+        <div class="menu-item" data-action="toggleShell">Toggle Enclosure Shell</div>
+      </div>
+    </div>
+    <div class="ribbon-tab" data-tab="components">Components
+      <div class="ribbon-menu">
+        <div class="menu-item" data-action="libcat-protection">Protection</div>
+        <div class="menu-item" data-action="libcat-control">Control</div>
+        <div class="menu-item" data-action="libcat-door">Door / HMI</div>
+        <div class="menu-item" data-action="libcat-terminal">Terminals</div>
+        <div class="menu-item" data-action="libcat-mech">Mechanical</div>
+        <div class="menu-sep"></div>
+        <div class="menu-item" data-action="import3d">Import 3D Part… (.obj/.glb/.gltf)</div>
+      </div>
+    </div>
+    <div class="ribbon-tab" data-tab="wiring">Wiring
+      <div class="ribbon-menu">
+        <div class="menu-item" data-action="modeWire">Enable Wire Mode</div>
+        <div class="menu-item" data-action="showWires">Show Wire List</div>
+        <div class="menu-item" data-action="clearWires">Clear All Wires</div>
+      </div>
+    </div>
+    <div class="ribbon-tab" data-tab="reports">Reports
+      <div class="ribbon-menu">
+        <div class="menu-item" data-action="showMessages">Messages</div>
+        <div class="menu-item" data-action="showComponents">Component List</div>
+        <div class="menu-item" data-action="showWires">Wire List</div>
+        <div class="menu-item" data-action="showBom">Bill of Materials</div>
+        <div class="menu-item" data-action="showThermal">Thermal Analysis</div>
+        <div class="menu-sep"></div>
+        <div class="menu-item" data-action="runDrc">Run Design Rule Check</div>
+        <div class="menu-item" data-action="runThermal">Run Thermal Analysis</div>
+      </div>
+    </div>
+    <div class="ribbon-tab" data-tab="tools">Tools
+      <div class="ribbon-menu">
+        <div class="menu-item" data-action="modeSelect">Select Tool</div>
+        <div class="menu-item" data-action="modeMeasure">Measure Tool</div>
+        <div class="menu-item" data-action="import3d">Import 3D Part… (.obj/.glb/.gltf)</div>
+        <div class="menu-item" data-action="runDrc">Run Design Rule Check</div>
+        <div class="menu-item" data-action="runThermal">Run Thermal Analysis</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="proj-name" id="proj-label">Untitled Panel Project — unsaved</div>
+  </div>
+
+  <div id="toolbar">
+    <button class="tbtn" id="btn-new" title="New project">✚ New</button>
+    <button class="tbtn" id="btn-save" title="Save project as JSON">💾 Save</button>
+    <button class="tbtn" id="btn-load" title="Load project JSON">📂 Load</button>
+    <button class="tbtn" id="btn-import" title="Supported formats: .obj (Wavefront) and .glb / .gltf (glTF). STEP (.step/.stp) and IGES (.iges/.igs) are NOT supported — browsers have no built-in CAD kernel to parse them; export your STEP model to glTF or OBJ first (FreeCAD, Blender, or your CAD tool's 'Export' menu can do this).">📥 Import 3D Part (.obj / .glb / .gltf)</button>
+    <input type="file" id="file-load" accept=".json" style="display:none">
+    <input type="file" id="file-import" accept=".obj,.glb,.gltf,.step,.stp,.iges,.igs" style="display:none">
+    <div class="tsep"></div>
+    <button class="tbtn active" id="mode-select" data-mode="select" title="Select / move components">↖ Select</button>
+    <button class="tbtn" id="mode-wire" data-mode="wire" title="Draw a manual wire between two components">⚡ Wire</button>
+    <button class="tbtn" id="mode-measure" data-mode="measure" title="Click two points/surfaces to measure the distance">📏 Measure</button>
+    <div id="wire-settings">
+      <label>Size</label>
+      <select id="wire-size">
+        <option>0.5mm²</option><option selected>1.5mm²</option><option>2.5mm²</option><option>4mm²</option><option>6mm²</option>
+      </select>
+      <label>Color</label>
+      <div id="wire-swatches" style="display:flex;gap:4px;"></div>
+    </div>
+    <div class="tsep"></div>
+    <button class="tbtn" id="btn-drc" title="Checks for component overlaps, edge clearance and heat load, then reports results in the Messages tab below">✓ Run DRC</button>
+    <button class="tbtn" id="btn-thermal" title="Estimates internal temperature rise from component heat loads vs. enclosure surface area, factoring in any cooling fans placed">🌡 Thermal Analysis</button>
+    <button class="tbtn" id="btn-toggle-door" title="Show/hide the enclosure door">🚪 Hide Door</button>
+    <label style="font-size:11px;color:var(--text-lo);display:flex;align-items:center;gap:5px;">Enclosure view
+      <select id="shell-view" title="Change how the enclosure shell/door/sides render">
+        <option value="xray" selected>X-Ray (see-through)</option>
+        <option value="solid">Solid</option>
+        <option value="wireframe">Wireframe</option>
+        <option value="hidden">Hidden</option>
+      </select>
+    </label>
+    <div class="tsep"></div>
+    <button class="tbtn" id="btn-export-png" title="Export current view as PNG">🖼 Export View</button>
+    <button class="tbtn" id="btn-export-bom" title="Export Bill of Materials as CSV">📋 Export BOM</button>
+    <div class="unit-toggle">
+      <button class="active" id="unit-mm">mm</button><button id="unit-in">inch</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="left">
+      <div class="lib-tabs">
+        <div class="lib-tab active" data-cat="all">All</div>
+        <div class="lib-tab" data-cat="protection">Protection</div>
+        <div class="lib-tab" data-cat="control">Control</div>
+        <div class="lib-tab" data-cat="door">Door / HMI</div>
+        <div class="lib-tab" data-cat="terminal">Terminals</div>
+        <div class="lib-tab" data-cat="mech">Mechanical</div>
+      </div>
+      <input id="lib-search" placeholder="Search part / manufacturer…" />
+      <div id="lib-list"></div>
+    </div>
+
+    <div id="viewport-wrap">
+      <div id="viewport"></div>
+      <div id="vp-hud">
+        <div class="hud-chip" id="hud-mode">Mode: Select</div>
+        <div class="hud-chip" id="hud-count">0 components · 0 wires</div>
+      </div>
+      <div id="vp-camera">
+        <button id="cam-front" title="Front view">Front</button>
+        <button id="cam-top" title="Top view">Top</button>
+        <button id="cam-side" title="Side view">Side</button>
+        <button id="cam-iso" title="Isometric">Iso</button>
+        <button id="cam-persp" title="Toggle perspective/orthographic">Persp/Ortho</button>
+      </div>
+      <div id="vp-empty">
+        <b>No enclosure yet</b>
+        <div>Set dimensions on the right and click "Generate Enclosure" to begin.</div>
+      </div>
+      <div id="drop-hint">Drop onto the back plate to place component</div>
+      <div id="measure-hint">Measure mode: click a point on any surface, then click a second point.</div>
+    </div>
+
+    <div id="right">
+      <div id="panel-enclosure">
+        <div class="panel-title">Enclosure Setup</div>
+        <div class="three-col">
+          <div><label>Height (mm)</label><input id="enc-h" type="number" value="1200"></div>
+          <div><label>Width (mm)</label><input id="enc-w" type="number" value="800"></div>
+          <div><label>Depth (mm)</label><input id="enc-d" type="number" value="300"></div>
+        </div>
+        <div class="field-row"><label>Type</label>
+          <select id="enc-type">
+            <option value="single">Single Door</option>
+            <option value="double">Double Door</option>
+            <option value="wall">Wall Mount</option>
+            <option value="floor">Floor Standing</option>
+            <option value="junction">Junction Box</option>
+          </select>
+        </div>
+        <div class="field-row"><label>Material</label>
+          <select id="enc-mat">
+            <option>Mild Steel</option><option>Stainless 304</option><option>Stainless 316</option><option>Polyester GRP</option>
+          </select>
+        </div>
+        <div class="field-row"><label>Custom Color</label>
+          <input id="enc-color" type="color" value="#8a929c" style="padding:2px;height:30px;flex:1;">
+          <button class="btn" id="btn-enc-color-reset" style="width:auto;margin:0;padding:5px 8px;" title="Reset to material default">↺</button>
+        </div>
+        <button class="btn primary" id="btn-gen-enclosure">Generate Enclosure</button>
+      </div>
+
+      <div id="panel-lighting">
+        <div class="panel-title">Lighting</div>
+        <div class="field-row"><label>Azimuth</label><input id="light-azimuth" type="range" min="0" max="360" value="55"></div>
+        <div class="field-row"><label>Elevation</label><input id="light-elevation" type="range" min="10" max="85" value="55"></div>
+        <div class="field-row"><label>Intensity</label><input id="light-intensity" type="range" min="0.2" max="2" step="0.05" value="0.9"></div>
+      </div>
+
+      <div id="panel-selection">
+        <div class="panel-title">Properties<span id="sel-type-badge"></span></div>
+        <div id="no-selection">Nothing selected. Click a component in the viewport, or drag one in from the library on the left.</div>
+        <div id="sel-fields" style="display:none;">
+          <div class="field-row"><label>Name</label><input id="sel-name" type="text"></div>
+          <div class="field-row"><label>Part Number</label><input id="sel-part" type="text"></div>
+          <div class="field-row"><label>Manufacturer</label><input id="sel-mfr" type="text"></div>
+          <div class="field-row"><label>Rating</label><input id="sel-rating" type="text"></div>
+          <div class="field-row"><label>Heat (W)</label><input id="sel-heat" type="number" step="0.5"></div>
+          <div class="field-row"><label>Weight (kg)</label><input id="sel-weight" type="number" step="0.01"></div>
+          <div class="field-row"><label>Color</label><input id="sel-color" type="color" style="padding:2px;height:30px;"></div>
+          <div class="field-row" id="row-fan-power" style="display:none;"><label>Fan Power</label>
+            <select id="sel-fan-power"><option value="on">On (spinning, cooling)</option><option value="off">Off</option></select>
+          </div>
+
+          <div class="panel-title">Mounting</div>
+          <div class="field-row"><label>Surface</label>
+            <select id="sel-surface">
+              <option value="plate">Mounting Plate</option>
+              <option value="door">Door</option>
+              <option value="left">Left Side Panel</option>
+              <option value="right">Right Side Panel</option>
+            </select>
+          </div>
+          <div class="field-row" id="row-side" style="display:none;"><label>Mount Side</label>
+            <select id="sel-side">
+              <option value="outer">Outer (front-facing)</option>
+              <option value="inner">Inner (cabinet-facing)</option>
+            </select>
+          </div>
+          <div class="panel-title" id="row-dims-title">Dimensions (mm)</div>
+          <div class="three-col" id="row-dims">
+            <div><label>Width</label><input id="sel-w" type="number" step="1"></div>
+            <div><label>Height</label><input id="sel-h" type="number" step="1"></div>
+            <div><label>Depth</label><input id="sel-d" type="number" step="1"></div>
+          </div>
+          <div class="field-row" id="row-scale" style="display:none;"><label>Scale ×</label><input id="sel-scale" type="number" step="0.1" min="0.05"></div>
+
+          <div class="panel-title">Position on surface (mm)</div>
+          <div class="three-col">
+            <div><label id="lbl-a">A</label><input id="sel-a" type="number" step="1"></div>
+            <div><label id="lbl-b">B</label><input id="sel-b" type="number" step="1"></div>
+            <div><label>Rot°</label><input id="sel-rot" type="number" step="15"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="btn-dup">⧉ Duplicate</button>
+            <button class="btn" id="btn-mirror">⇋ Mirror</button>
+          </div>
+          <button class="btn danger" id="btn-del">🗑 Delete Component</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bottom">
+    <div id="bottom-tabs">
+      <div class="bt-tab active" data-panel="messages">Messages <span class="count" id="cnt-messages">0</span></div>
+      <div class="bt-tab" data-panel="components">Component List <span class="count" id="cnt-components">0</span></div>
+      <div class="bt-tab" data-panel="wires">Wire List <span class="count" id="cnt-wires">0</span></div>
+      <div class="bt-tab" data-panel="bom">Bill of Materials <span class="count" id="cnt-bom">0</span></div>
+      <div class="bt-tab" data-panel="thermal">Thermal <span class="count" id="cnt-thermal">—</span></div>
+    </div>
+    <div id="bottom-body"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =========================================================================
+   PANELFORGE 3D — foundation electrical enclosure designer (v2)
+   ========================================================================= */
+
+/* ---------------------- Minimal orbit controls (no external deps) ---------------------- */
+class MiniOrbitControls{
+  constructor(camera, domElement){
+    this.camera=camera; this.object=camera; this.domElement=domElement;
+    this.target=new THREE.Vector3(0,0,0);
+    this.enableDamping=true; this.dampingFactor=0.08;
+    this._spherical=new THREE.Spherical();
+    this._sphericalDelta=new THREE.Spherical();
+    this._panOffset=new THREE.Vector3();
+    this._dragging=false; this._panning=false;
+    this._lastX=0; this._lastY=0;
+    this.minDistance=1; this.maxDistance=100;
+    this._bind();
+  }
+  _bind(){
+    const el=this.domElement;
+    el.addEventListener('mousedown', e=>{
+      if(e.button===0) this._dragging=true;
+      else if(e.button===2||e.button===1) this._panning=true;
+      this._lastX=e.clientX; this._lastY=e.clientY;
+    });
+    window.addEventListener('mouseup', ()=>{ this._dragging=false; this._panning=false; });
+    window.addEventListener('mousemove', e=>{
+      const dx=e.clientX-this._lastX, dy=e.clientY-this._lastY;
+      this._lastX=e.clientX; this._lastY=e.clientY;
+      if(this._dragging){
+        this._sphericalDelta.theta-=dx*0.01;
+        this._sphericalDelta.phi-=dy*0.01;
+      } else if(this._panning){
+        const dist=this.camera.position.distanceTo(this.target);
+        const factor=dist*0.0012;
+        const dir=new THREE.Vector3(); this.camera.getWorldDirection(dir);
+        const right=new THREE.Vector3().crossVectors(dir,this.camera.up).normalize();
+        const up=new THREE.Vector3().crossVectors(right,dir).normalize();
+        this._panOffset.add(right.multiplyScalar(-dx*factor));
+        this._panOffset.add(up.multiplyScalar(dy*factor));
+      }
+    });
+    el.addEventListener('wheel', e=>{ e.preventDefault(); this._applyZoom(e.deltaY>0?1.08:0.92); }, {passive:false});
+    el.addEventListener('contextmenu', e=>e.preventDefault());
+  }
+  _applyZoom(factor){
+    const offset=new THREE.Vector3().subVectors(this.camera.position,this.target);
+    let dist=offset.length()*factor;
+    dist=Math.max(this.minDistance,Math.min(this.maxDistance,dist));
+    offset.setLength(dist);
+    this.camera.position.copy(this.target).add(offset);
+  }
+  update(){
+    const offset=new THREE.Vector3().subVectors(this.camera.position,this.target);
+    this._spherical.setFromVector3(offset);
+    const damp=this.enableDamping?this.dampingFactor:1;
+    this._spherical.theta+=this._sphericalDelta.theta*damp;
+    this._spherical.phi+=this._sphericalDelta.phi*damp;
+    this._sphericalDelta.theta*=(1-damp); this._sphericalDelta.phi*=(1-damp);
+    this._spherical.phi=Math.max(0.05,Math.min(Math.PI-0.05,this._spherical.phi));
+    this._spherical.makeSafe();
+    this.target.add(this._panOffset);
+    this._panOffset.multiplyScalar(this.enableDamping?(1-this.dampingFactor):0);
+    const newOffset=new THREE.Vector3().setFromSpherical(this._spherical);
+    this.camera.position.copy(this.target).add(newOffset);
+    this.camera.lookAt(this.target);
+  }
+}
+
+/* ---------------------- Component library ---------------------- */
+/* mount: 'plate' | 'door' | 'side'   variable: has editable length (rail/duct) */
+const LIBRARY = [
+  {id:'mcb1p', cat:'protection', name:'MCB 1P 16A', mfr:'Schneider', part:'A9F74116', w:18,h:80,d:70, rating:'16A / 230V', heat:2.5, weight:0.09, color:'#3d8bff', icon:'⏻', mount:'plate'},
+  {id:'mcb3p', cat:'protection', name:'MCB 3P 32A', mfr:'Schneider', part:'A9F74332', w:54,h:80,d:70, rating:'32A / 400V', heat:6, weight:0.28, color:'#3d8bff', icon:'⏻', mount:'plate'},
+  {id:'mccb', cat:'protection', name:'MCCB 100A', mfr:'ABB', part:'T1N100', w:105,h:130,d:70, rating:'100A / 415V', heat:18, weight:1.2, color:'#2e6fd6', icon:'⏻', mount:'plate'},
+  {id:'contactor', cat:'control', name:'Contactor 25A', mfr:'Siemens', part:'3RT2026-1AP00', w:45,h:80,d:82, rating:'25A / AC3', heat:8, weight:0.31, color:'#3ddc84', icon:'◱', mount:'plate'},
+  {id:'relay', cat:'control', name:'Interface Relay', mfr:'Phoenix Contact', part:'PLC-RSC-24DC', w:12.8,h:83,d:96, rating:'6A / 24VDC', heat:0.9, weight:0.06, color:'#3ddc84', icon:'◱', mount:'plate'},
+  {id:'plc', cat:'control', name:'PLC CPU Module', mfr:'Siemens', part:'S7-1200 1214C', w:110,h:100,d:75, rating:'24VDC / 500mA', heat:4, weight:0.42, color:'#ff9d3d', icon:'▦', mount:'plate'},
+  {id:'vfd', cat:'control', name:'VFD 5.5kW', mfr:'Danfoss', part:'FC-051P5K5', w:120,h:260,d:180, rating:'5.5kW / 400V', heat:120, weight:3.4, color:'#ff9d3d', icon:'▦', mount:'plate'},
+  {id:'smps', cat:'control', name:'SMPS 24V 5A', mfr:'Mean Well', part:'DR-120-24', w:40,h:90,d:100, rating:'24VDC / 5A', heat:12, weight:0.35, color:'#ff9d3d', icon:'▦', mount:'plate'},
+  {id:'hmi', cat:'door', name:'HMI Touch Panel 7"', mfr:'Weintek', part:'MT8071iE', w:200,h:150,d:45, rating:'24VDC', heat:6, weight:0.6, color:'#c86dff', icon:'▢', mount:'door'},
+  {id:'pb', cat:'door', name:'Push Button 22mm', mfr:'Schneider', part:'XB4BA31', w:22,h:22,d:55, rating:'—', heat:0, weight:0.03, color:'#c86dff', icon:'●', mount:'door'},
+  {id:'estop', cat:'door', name:'E-Stop Mushroom', mfr:'Schneider', part:'XB4BS8445', w:30,h:30,d:60, rating:'—', heat:0, weight:0.05, color:'#ff5d5d', icon:'⛔', mount:'door'},
+  {id:'selector', cat:'door', name:'Selector Switch 3-Pos', mfr:'Schneider', part:'XB4BD33', w:22,h:22,d:55, rating:'—', heat:0, weight:0.04, color:'#c86dff', icon:'◐', mount:'door'},
+  {id:'meter', cat:'door', name:'Digital Panel Meter', mfr:'Selec', part:'MFM384', w:96,h:96,d:60, rating:'—', heat:1.5, weight:0.25, color:'#c86dff', icon:'⏱', mount:'door'},
+  {id:'tb', cat:'terminal', name:'Terminal Block 2.5mm²', mfr:'Phoenix Contact', part:'ST 2.5', w:5.2,h:40,d:52, rating:'24A / 800V', heat:0.2, weight:0.01, color:'#7ee787', icon:'▮', mount:'plate'},
+  {id:'tb_gnd', cat:'terminal', name:'Ground Terminal', mfr:'Phoenix Contact', part:'ST 2.5-PE', w:5.2,h:40,d:52, rating:'PE', heat:0, weight:0.01, color:'#7ee787', icon:'⏚', mount:'plate'},
+  {id:'busbar', cat:'terminal', name:'Busbar 3P 63A', mfr:'Schneider', part:'GBB63', w:150,h:20,d:15, rating:'63A', heat:3, weight:0.4, color:'#7ee787', icon:'▬', mount:'plate'},
+  {id:'fan', cat:'mech', name:'Cooling Fan 92mm', mfr:'EBM-Papst', part:'4650N', w:92,h:92,d:38, rating:'24VDC / 0.15A', heat:-15, weight:0.15, color:'#9aa7b5', icon:'✦', mount:'side'},
+  {id:'filter', cat:'mech', name:'Fan Filter 92mm', mfr:'EBM-Papst', part:'FE-092', w:100,h:100,d:15, rating:'—', heat:0, weight:0.05, color:'#9aa7b5', icon:'▦', mount:'side'},
+  {id:'duct40', cat:'mech', name:'Cable Duct 40×40', mfr:'Legrand', part:'Cimalux 4040', w:400,h:40,d:40, rating:'—', heat:0, weight:0.4, color:'#5a6b7d', icon:'▥', mount:'plate', variable:true, isDuct:true, defaultLength:400},
+  {id:'rail', cat:'mech', name:'DIN Rail TS35', mfr:'Weidmuller', part:'TS35x7.5', w:300,h:7.5,d:35, rating:'—', heat:0, weight:0.2, color:'#c9d1d9', icon:'▤', mount:'plate', variable:true, isRail:true, defaultLength:300},
+];
+const MOUNT_LABEL = {plate:'Plate', door:'Door', side:'Side'};
+
+/* ---------------------- Global state ---------------------- */
+const state = {
+  unit:'mm', mode:'select', enclosure:null,
+  placed:[], wires:[], nextUid:1, selectedUid:null,
+  wireFirstUid:null, measureFirst:null, measureMarkers:[],
+  messages:[], activeLibCat:'all', activeBottomTab:'messages',
+  wireSize:'1.5mm²', wireColor:'#3d8bff', doorVisible:true, shellVisible:true,
+  gizmoDrag:null, justDraggedGizmo:false, thermalHeatmapOn:false, ambientC:35,
+};
+const WIRE_COLORS = ['#3d8bff','#ff5d5d','#3ddc84','#ff9d3d','#f2e94e','#c9d1d9','#c86dff'];
+
+const MM = 0.01;
+const toU = mm => mm*MM;
+const toMM = u => u/MM;
+
+/* ---------------------- Three.js scene ---------------------- */
+let scene, camera, orthoCamera, activeCamera, renderer, controls, raycaster, mouse;
+let keyLight, fillLight, gizmo;
+let dropImportedObject = null;
+
+/* ---------------------- Move gizmo (drag-on-axis) ---------------------- */
+function buildArrow(colorHex, axisName){
+  const group = new THREE.Group();
+  const shaftLen=toU(70), shaftR=toU(2.5), headLen=toU(18), headR=toU(6.5);
+  const mat = new THREE.MeshBasicMaterial({color:colorHex, depthTest:false});
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(shaftR,shaftR,shaftLen,10), mat);
+  shaft.position.y = shaftLen/2;
+  const head = new THREE.Mesh(new THREE.ConeGeometry(headR,headLen,12), mat);
+  head.position.y = shaftLen+headLen/2;
+  group.add(shaft); group.add(head);
+  const hit = new THREE.Mesh(new THREE.CylinderGeometry(toU(9),toU(9), shaftLen+headLen, 8), new THREE.MeshBasicMaterial({visible:false}));
+  hit.position.y = (shaftLen+headLen)/2;
+  hit.userData.axis = axisName;
+  group.add(hit);
+  group.userData.axis = axisName;
+  group.userData.hitMesh = hit;
+  group.renderOrder = 999;
+  return group;
+}
+function setArrowDirection(arrowGroup, dir){
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+  arrowGroup.quaternion.copy(q);
+}
+function initGizmo(){
+  gizmo = new THREE.Group();
+  gizmo.visible = false;
+  gizmo.renderOrder = 999;
+  const arrowA = buildArrow(0xff4d4d,'a');
+  const arrowB = buildArrow(0x4ddc7a,'b');
+  gizmo.add(arrowA); gizmo.add(arrowB);
+  gizmo.userData.arrowA = arrowA; gizmo.userData.arrowB = arrowB;
+  gizmo.userData.aAxis = new THREE.Vector3(1,0,0);
+  gizmo.userData.bAxis = new THREE.Vector3(0,1,0);
+  scene.add(gizmo);
+}
+function orientGizmoForEntry(entry){
+  if(!gizmo || !entry) return;
+  const isSide = entry.surface==='left' || entry.surface==='right';
+  const aAxis = isSide ? new THREE.Vector3(0,0,1) : new THREE.Vector3(1,0,0);
+  const bAxis = new THREE.Vector3(0,1,0);
+  setArrowDirection(gizmo.userData.arrowA, aAxis);
+  setArrowDirection(gizmo.userData.arrowB, bAxis);
+  gizmo.userData.aAxis = aAxis; gizmo.userData.bAxis = bAxis;
+}
+function updateGizmoPosition(){
+  if(!gizmo) return;
+  if(state.mode!=='select' || !state.selectedUid){ gizmo.visible=false; return; }
+  const entry = state.placed.find(p=>p.uid===state.selectedUid);
+  if(!entry){ gizmo.visible=false; return; }
+  gizmo.visible = true;
+  gizmo.position.copy(entry.mesh.position);
+}
+function worldToScreen(vec3, rect){
+  const v = vec3.clone().project(activeCamera);
+  return { x: rect.left + (v.x*0.5+0.5)*rect.width, y: rect.top + (-v.y*0.5+0.5)*rect.height };
+}
+function setupGizmoInteraction(dom){
+  dom.addEventListener('mousedown', e=>{
+    if(!gizmo || !gizmo.visible || e.button!==0) return;
+    const rect = dom.getBoundingClientRect();
+    const mx = ((e.clientX-rect.left)/rect.width)*2-1;
+    const my = -((e.clientY-rect.top)/rect.height)*2+1;
+    const rc = new THREE.Raycaster();
+    rc.setFromCamera({x:mx,y:my}, activeCamera);
+    const hits = rc.intersectObjects([gizmo.userData.arrowA.userData.hitMesh, gizmo.userData.arrowB.userData.hitMesh], false);
+    if(hits.length===0) return;
+    const entry = state.placed.find(p=>p.uid===state.selectedUid);
+    if(!entry) return;
+    e.stopImmediatePropagation(); e.preventDefault();
+    const axis = hits[0].object.userData.axis;
+    state.gizmoDrag = { axis, entryUid:entry.uid, axisDir:(axis==='a'?gizmo.userData.aAxis:gizmo.userData.bAxis).clone(), startA:entry.a, startB:entry.b, startMouseX:e.clientX, startMouseY:e.clientY };
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!state.gizmoDrag) return;
+    const entry = state.placed.find(p=>p.uid===state.gizmoDrag.entryUid);
+    if(!entry){ state.gizmoDrag=null; return; }
+    const rect = renderer.domElement.getBoundingClientRect();
+    const origin = entry.mesh.position.clone();
+    const testPoint = origin.clone().add(state.gizmoDrag.axisDir.clone().multiplyScalar(toU(50)));
+    const o = worldToScreen(origin, rect), t = worldToScreen(testPoint, rect);
+    const screenDir = new THREE.Vector2(t.x-o.x, t.y-o.y);
+    const len = screenDir.length();
+    if(len < 1e-3) return;
+    screenDir.normalize();
+    const mouseDelta = new THREE.Vector2(e.clientX-state.gizmoDrag.startMouseX, e.clientY-state.gizmoDrag.startMouseY);
+    const along = mouseDelta.dot(screenDir);
+    const mmPerPixel = 50/len;
+    const deltaMM = along*mmPerPixel;
+    if(state.gizmoDrag.axis==='a') entry.a = state.gizmoDrag.startA + deltaMM;
+    else entry.b = state.gizmoDrag.startB + deltaMM;
+    updateComponentTransform(entry);
+    const fa=document.getElementById('sel-a'), fb=document.getElementById('sel-b');
+    if(fa) fa.value = Math.round(entry.a); if(fb) fb.value = Math.round(entry.b);
+    refreshAll(true);
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(state.gizmoDrag){ state.gizmoDrag=null; state.justDraggedGizmo=true; setTimeout(()=>state.justDraggedGizmo=false, 60); }
+  });
+}
+
+/* ---------------------- Lighting angle control ---------------------- */
+function updateLightPosition(){
+  if(!keyLight) return;
+  const az = (+document.getElementById('light-azimuth').value||55) * Math.PI/180;
+  const el = (+document.getElementById('light-elevation').value||55) * Math.PI/180;
+  const intensity = +document.getElementById('light-intensity').value||0.9;
+  const r = 14;
+  keyLight.position.set(r*Math.cos(el)*Math.cos(az), r*Math.sin(el), r*Math.cos(el)*Math.sin(az));
+  keyLight.intensity = intensity;
+}
+
+function initThree(){
+  const el = document.getElementById('viewport');
+  scene = new THREE.Scene();
+  const w = el.clientWidth, h = el.clientHeight;
+  camera = new THREE.PerspectiveCamera(45, w/h, 0.01, 200);
+  camera.position.set(10,8,14);
+  orthoCamera = new THREE.OrthographicCamera(-8,8,8*h/w,-8*h/w,0.01,200);
+  orthoCamera.position.copy(camera.position);
+  activeCamera = camera;
+
+  renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(w,h);
+  renderer.shadowMap.enabled = true;
+  el.appendChild(renderer.domElement);
+
+  initGizmo();
+  setupGizmoInteraction(renderer.domElement);
+
+  controls = new MiniOrbitControls(activeCamera, renderer.domElement);
+  controls.target.set(0,4,0);
+
+  scene.add(new THREE.AmbientLight(0x8899aa, 0.6));
+  keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
+  keyLight.castShadow=true; keyLight.shadow.mapSize.set(1024,1024);
+  scene.add(keyLight);
+  fillLight = new THREE.DirectionalLight(0x4477ff, 0.25);
+  fillLight.position.set(-6,4,-6);
+  scene.add(fillLight);
+  updateLightPosition();
+
+  scene.add(new THREE.GridHelper(20,40,0x2c3542,0x232a33));
+
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  renderer.domElement.addEventListener('click', onViewportClick);
+  window.addEventListener('resize', onResize);
+  animate();
+}
+function onResize(){
+  const el = document.getElementById('viewport');
+  const w = el.clientWidth, h = el.clientHeight;
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+  const vh = 8*h/w;
+  orthoCamera.left=-8; orthoCamera.right=8; orthoCamera.top=vh; orthoCamera.bottom=-vh;
+  orthoCamera.updateProjectionMatrix();
+  renderer.setSize(w,h);
+}
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  state.placed.forEach(p=>{
+    if(p.def.id==='fan' && p.powered!==false && p.mesh.userData.rotorRef){
+      p.mesh.userData.rotorRef.rotation.z += 0.35;
+    }
+  });
+  updateGizmoPosition();
+  renderer.render(scene, activeCamera);
+}
+
+/* ---------------------- Enclosure generation ---------------------- */
+function generateEnclosure(){
+  const H = +document.getElementById('enc-h').value;
+  const W = +document.getElementById('enc-w').value;
+  const D = +document.getElementById('enc-d').value;
+  const type = document.getElementById('enc-type').value;
+  const mat = document.getElementById('enc-mat').value;
+
+  if(state.enclosure && state.enclosure.group) scene.remove(state.enclosure.group);
+  state.placed.forEach(p=>scene.remove(p.mesh));
+  state.wires.forEach(w=>scene.remove(w.mesh));
+  clearMeasureMarkers();
+  state.placed=[]; state.wires=[]; state.selectedUid=null;
+  state.doorVisible=true; state.thermalHeatmapOn=false;
+  document.getElementById('btn-toggle-door').textContent='🚪 Hide Door';
+  document.getElementById('shell-view').value='xray';
+
+  const group = new THREE.Group();
+  const uW=toU(W), uH=toU(H), uD=toU(D);
+  const steelColor = mat.includes('316')?0xb9c2ca : mat.includes('304')?0xc7d0d8 : mat.includes('GRP')?0xd8d2c2 : 0x8a929c;
+  document.getElementById('enc-color').value = materialDefaultHex(mat);
+
+  const backPlateGeo = new THREE.BoxGeometry(uW*0.92, uH*0.92, toU(3));
+  const backPlateMesh = new THREE.Mesh(backPlateGeo, new THREE.MeshStandardMaterial({color:0x9fb6cc, metalness:0.6, roughness:0.4}));
+  backPlateMesh.position.set(0, uH/2, -uD/2 + toU(20));
+  backPlateMesh.userData.isSurface = 'plate';
+  backPlateMesh.receiveShadow = true;
+  group.add(backPlateMesh);
+
+  const shellMat = new THREE.MeshStandardMaterial({color:steelColor, metalness:0.5, roughness:0.5, transparent:true, opacity:0.16, side:THREE.DoubleSide});
+  shellMat.userData.baseOpacity = 0.16;
+  const shellGeo = new THREE.BoxGeometry(uW,uH,uD);
+  const shell = new THREE.Mesh(shellGeo, shellMat);
+  shell.position.set(0,uH/2,0);
+  group.add(shell);
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(shellGeo), new THREE.LineBasicMaterial({color:0x5a6b7d}));
+  edges.position.copy(shell.position);
+  group.add(edges);
+  const shellGroup = new THREE.Group(); shellGroup.add(shell); shellGroup.add(edges);
+  group.add(shellGroup);
+
+  // side panels (pickable mount surfaces)
+  const sideMat = new THREE.MeshStandardMaterial({color:steelColor, metalness:0.55, roughness:0.45, transparent:true, opacity:0.35});
+  sideMat.userData.baseOpacity = 0.35;
+  const sideGeo = new THREE.BoxGeometry(toU(3), uH*0.9, uD*0.9);
+  const sideLeft = new THREE.Mesh(sideGeo, sideMat.clone());
+  sideLeft.position.set(-uW/2, uH/2, 0);
+  sideLeft.userData.isSurface='left';
+  group.add(sideLeft);
+  const sideRight = new THREE.Mesh(sideGeo.clone(), sideMat.clone());
+  sideRight.position.set(uW/2, uH/2, 0);
+  sideRight.userData.isSurface='right';
+  group.add(sideRight);
+
+  // door(s)
+  const doors = [];
+  const doorCount = type==='double' ? 2 : 1;
+  const dw = uW/doorCount;
+  for(let i=0;i<doorCount;i++){
+    const doorGeo = new THREE.BoxGeometry(dw*0.98, uH*0.98, toU(2));
+    const door = new THREE.Mesh(doorGeo, new THREE.MeshStandardMaterial({color:steelColor, metalness:0.7, roughness:0.35, transparent:true, opacity:0.4}));
+    door.material.userData.baseOpacity = 0.4;
+    door.position.set(-uW/2 + dw*(i+0.5), uH/2, uD/2 + toU(1));
+    door.userData.isSurface='door';
+    door.userData.doorIndex=i;
+    door.userData.xRange=[-uW/2+dw*i, -uW/2+dw*(i+1)];
+    doors.push(door);
+    group.add(door);
+  }
+
+  if(type==='floor'){
+    const base = new THREE.Mesh(new THREE.BoxGeometry(uW*1.05, toU(150), uD*1.05), new THREE.MeshStandardMaterial({color:0x3a4451}));
+    base.position.set(0,-toU(75),0);
+    group.add(base);
+  }
+
+  scene.add(group);
+  state.enclosure = {w:W,h:H,d:D,type,mat,group,backPlateMesh,sideLeft,sideRight,doors,shellGroup,doorWidthMM:W/doorCount};
+  setEnclosureViewMode('xray');
+
+  document.getElementById('vp-empty').style.display='none';
+  document.getElementById('proj-label').textContent = `Untitled Panel Project — ${W}×${H}×${D}mm ${labelForType(type)} — unsaved`;
+
+  controls.target.set(0, uH/2, 0);
+  const dist = Math.max(uW,uH,uD)*1.6+2;
+  activeCamera.position.set(dist*0.6, uH*0.7, dist*0.9);
+
+  logMsg('ok', `Enclosure generated: ${W}×${H}×${D}mm, ${mat}, ${labelForType(type)}. Drag components from the library to place them — each will default to its correct mounting surface (plate / door / side).`);
+  refreshAll();
+}
+function labelForType(t){ return {single:'Single Door', double:'Double Door', wall:'Wall Mount', floor:'Floor Standing', junction:'Junction Box'}[t]||t; }
+
+function setEnclosureViewMode(mode){
+  const e = state.enclosure; if(!e) return;
+  state.enclosureView = mode;
+  const shellMeshes = e.shellGroup.children.filter(c=>c.material); // shell box (edges has LineBasicMaterial too, skip separately)
+  const styledMeshes = [...e.doors, e.sideLeft, e.sideRight, ...e.shellGroup.children.filter(c=>c.isMesh)];
+  if(mode==='hidden'){
+    e.shellGroup.visible = false;
+    e.sideLeft.visible = false; e.sideRight.visible = false;
+    return;
+  }
+  e.shellGroup.visible = true;
+  e.sideLeft.visible = true; e.sideRight.visible = true;
+  styledMeshes.forEach(m=>{
+    const base = (m.material.userData && m.material.userData.baseOpacity!=null) ? m.material.userData.baseOpacity : 0.3;
+    if(mode==='solid'){ m.material.transparent=false; m.material.opacity=1; m.material.wireframe=false; }
+    else if(mode==='wireframe'){ m.material.transparent=true; m.material.opacity=0.25; m.material.wireframe=true; }
+    else { m.material.transparent=true; m.material.opacity=base; m.material.wireframe=false; } // xray
+    m.material.needsUpdate = true;
+  });
+  // door visibility (separate concept from shell view) still respected
+  e.doors.forEach(d=> d.visible = state.doorVisible);
+}
+
+/* ---------------------- Surface helpers ---------------------- */
+function surfaceMeshes(surface){
+  const e = state.enclosure; if(!e) return [];
+  if(surface==='plate') return [e.backPlateMesh];
+  if(surface==='door') return e.doors;
+  if(surface==='left') return [e.sideLeft];
+  if(surface==='right') return [e.sideRight];
+  return [e.backPlateMesh];
+}
+function pickDoorForA(aMM){
+  const e = state.enclosure;
+  if(e.doors.length===1) return e.doors[0];
+  return e.doors.find(d=> aMM>=toMM(d.userData.xRange[0]) && aMM<=toMM(d.userData.xRange[1])) || e.doors[0];
+}
+
+/* ---------------------- Component mesh ---------------------- */
+function buildGenericMesh(def, dims, color){
+  const geo = new THREE.BoxGeometry(toU(dims.w), toU(dims.h), toU(dims.d));
+  const mat = new THREE.MeshStandardMaterial({color, metalness:0.35, roughness:0.55, transparent:def.isDuct, opacity:def.isDuct?0.55:1});
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color:0x000000, transparent:true, opacity:0.35})));
+  return mesh;
+}
+function buildFanMesh(dims, color){
+  const group = new THREE.Group();
+  const w=toU(dims.w), h=toU(dims.h), d=toU(dims.d);
+  const plasticColor = new THREE.Color(color).multiplyScalar(0.55).lerp(new THREE.Color(0x15181c), 0.35);
+  const housing = new THREE.Mesh(new THREE.BoxGeometry(w,h,d*0.55), new THREE.MeshStandardMaterial({color:plasticColor, metalness:0.2, roughness:0.7}));
+  housing.castShadow=true; housing.receiveShadow=true; group.add(housing);
+  const bossMat = new THREE.MeshStandardMaterial({color:0x0d0f12, metalness:0.3, roughness:0.6});
+  const bossR = Math.min(w,h)*0.06;
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sy])=>{
+    const boss = new THREE.Mesh(new THREE.CylinderGeometry(bossR,bossR,d*0.58,10), bossMat);
+    boss.rotation.x = Math.PI/2; boss.position.set(sx*w*0.42, sy*h*0.42, 0);
+    group.add(boss);
+  });
+  const grilleMat = new THREE.MeshStandardMaterial({color:0x0c0e11, metalness:0.4, roughness:0.5, side:THREE.DoubleSide});
+  const outerR = Math.min(w,h)*0.46;
+  for(let i=0;i<3;i++){
+    const rIn = outerR*(0.35+i*0.2), rOut = rIn+outerR*0.035;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(rIn, rOut, 32), grilleMat);
+    ring.position.z = d*0.29;
+    group.add(ring);
+  }
+  const rotor = new THREE.Group();
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(outerR*0.22, outerR*0.22, d*0.25, 16), new THREE.MeshStandardMaterial({color:0x22262c, metalness:0.5, roughness:0.4}));
+  hub.rotation.x = Math.PI/2; rotor.add(hub);
+  const bladeMat = new THREE.MeshStandardMaterial({color:0x33383f, metalness:0.4, roughness:0.5, side:THREE.DoubleSide});
+  for(let i=0;i<7;i++){
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(outerR*0.85, outerR*0.22, d*0.06), bladeMat);
+    blade.rotation.z = (i/7)*Math.PI*2;
+    blade.translateX(outerR*0.42);
+    rotor.add(blade);
+  }
+  rotor.position.z = d*0.2; rotor.userData.isRotor = true;
+  group.add(rotor);
+  const airflow = new THREE.Mesh(new THREE.ConeGeometry(outerR*0.9, d*1.6, 20, 1, true), new THREE.MeshBasicMaterial({color:0x6fd6ff, transparent:true, opacity:0.16, side:THREE.DoubleSide}));
+  airflow.rotation.x = -Math.PI/2; airflow.position.z = d*0.5 + d*0.8; airflow.visible=false; airflow.userData.isAirflow=true;
+  group.add(airflow);
+  group.userData.rotorRef = rotor; group.userData.airflowRef = airflow;
+  return group;
+}
+function buildFilterMesh(dims, color){
+  const group = new THREE.Group();
+  const w=toU(dims.w), h=toU(dims.h), d=toU(dims.d);
+  const frameColor = new THREE.Color(color).lerp(new THREE.Color(0xb9bec4), 0.55);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(w,h,d*0.5), new THREE.MeshStandardMaterial({color:frameColor, metalness:0.15, roughness:0.75}));
+  frame.castShadow=true; group.add(frame);
+  const slatCount = 8;
+  const slatMat = new THREE.MeshStandardMaterial({color:frameColor.clone().multiplyScalar(0.9), metalness:0.1, roughness:0.8});
+  for(let i=0;i<slatCount;i++){
+    const y = -h/2 + h*(i+0.5)/slatCount;
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(w*0.94, h/slatCount*0.5, d*0.35), slatMat);
+    slat.position.set(0,y,d*0.1); slat.rotation.x = 0.5;
+    group.add(slat);
+  }
+  const tabMat = new THREE.MeshStandardMaterial({color:0x2b2f34, metalness:0.2, roughness:0.6});
+  [-1,1].forEach(sx=>{
+    const tab = new THREE.Mesh(new THREE.BoxGeometry(w*0.06, h*0.16, d*0.7), tabMat);
+    tab.position.set(sx*w*0.52, 0, 0);
+    group.add(tab);
+  });
+  return group;
+}
+function makeComponentMesh(def, dimsOverride, colorOverride){
+  let w=def.w, h=def.h, d=Math.min(def.d,150);
+  if(def.variable){
+    if(def.isRail){ w=def.defaultLength; h=7.5; d=35; }
+    if(def.isDuct){ w=def.defaultLength; h=40; d=40; }
+  }
+  const dims = dimsOverride || {w,h,d};
+  const color = colorOverride || def.color;
+  let mesh;
+  if(def.id==='fan') mesh = buildFanMesh(dims, color);
+  else if(def.id==='filter') mesh = buildFilterMesh(dims, color);
+  else mesh = buildGenericMesh(def, dims, color);
+  mesh.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
+  return mesh;
+}
+
+/* ---------------------- Placement ---------------------- */
+function defaultSideFor(def, surface){
+  if(surface==='plate') return 'outer';
+  if(surface==='door') return (def.isDuct||def.isRail) ? 'inner' : 'outer';
+  if(surface==='left'||surface==='right') return (def.id==='fan'||def.id==='filter') ? 'outer' : 'inner';
+  return 'outer';
+}
+function defaultDimsFor(def, length){
+  if(def.isRail) return {w:length||def.defaultLength, h:7.5, d:35};
+  if(def.isDuct) return {w:length||def.defaultLength, h:40, d:40};
+  return {w:def.w, h:def.h, d:Math.min(def.d,150)};
+}
+function placeComponent(def, aMM, bMM, opts={}){
+  if(!state.enclosure){ logMsg('warn','Generate an enclosure before placing components.'); return null; }
+  const uid = state.nextUid++;
+  const surface = opts.surface || def.mount || 'plate';
+  const length = def.variable ? (opts.length||def.defaultLength) : undefined;
+  const dims = opts.dims || defaultDimsFor(def, length);
+  const side = opts.side || defaultSideFor(def, surface);
+  const customProps = opts.customProps || {name:def.name, mfr:def.mfr, part:def.part, rating:def.rating, heat:def.heat, weight:def.weight, color:def.color};
+  const mesh = makeComponentMesh(def, dims, customProps.color);
+  mesh.userData.uid = uid; mesh.userData.isComponent = true;
+  scene.add(mesh);
+  const powered = def.id==='fan' ? (opts.powered!==false) : undefined;
+  const entry = {uid, mesh, def, surface, side, a:aMM, b:bMM, rot:0, length, dims, customProps, powered, scale:opts.scale||1, isImport:!!opts.isImport, importObj:opts.importObj};
+  state.placed.push(entry);
+  updateComponentTransform(entry);
+  if(def.id==='fan' && mesh.userData.airflowRef) mesh.userData.airflowRef.visible = !!powered;
+  logMsg('info', `Placed ${customProps.name} (${customProps.part||'—'}) on ${MOUNT_LABEL[surface]} (${side}) — UID ${uid}.`);
+  refreshAll();
+  return entry;
+}
+
+function updateComponentTransform(entry){
+  const e = state.enclosure; if(!e) return;
+  const dims = entry.dims || defaultDimsFor(entry.def, entry.length);
+  const depthOffset = toU(dims.d)/2 + toU(3);
+  const outer = (entry.side||'outer')==='outer';
+
+  if(entry.surface==='plate'){
+    const ref = e.backPlateMesh;
+    const sign = outer ? 1 : -1; // baseSign(+1) * outer(1)/inner(-1)
+    entry.mesh.rotation.set(0,0,THREE.MathUtils.degToRad(entry.rot));
+    entry.mesh.position.set(ref.position.x+toU(entry.a), ref.position.y+toU(entry.b), ref.position.z+sign*depthOffset);
+  } else if(entry.surface==='door'){
+    const ref = pickDoorForA(entry.a);
+    const sign = outer ? 1 : -1;
+    entry.mesh.rotation.set(0,0,THREE.MathUtils.degToRad(entry.rot));
+    entry.mesh.position.set(toU(entry.a), ref.position.y+toU(entry.b), ref.position.z+sign*depthOffset);
+  } else if(entry.surface==='left' || entry.surface==='right'){
+    const ref = entry.surface==='left' ? e.sideLeft : e.sideRight;
+    const baseSign = entry.surface==='left' ? -1 : 1;
+    const sign = baseSign * (outer ? 1 : -1);
+    entry.mesh.rotation.set(0, Math.PI/2, THREE.MathUtils.degToRad(entry.rot));
+    entry.mesh.position.set(ref.position.x + sign*depthOffset, ref.position.y+toU(entry.b), ref.position.z+toU(entry.a));
+  }
+  if(entry.isImport && entry.mesh.scale) entry.mesh.scale.setScalar(entry.scale||1);
+}
+
+function snapToGrid(mm, size=10){ return Math.round(mm/size)*size; }
+
+/* ---------------------- Selection & properties ---------------------- */
+function selectUid(uid){
+  state.selectedUid = uid;
+  const entry = state.placed.find(p=>p.uid===uid);
+  const noSel = document.getElementById('no-selection');
+  const fields = document.getElementById('sel-fields');
+  if(!entry){ noSel.style.display='block'; fields.style.display='none'; document.getElementById('sel-type-badge').textContent=''; refreshHighlights(); return; }
+  noSel.style.display='none'; fields.style.display='block';
+  const cp = entry.customProps || {name:entry.def.name, mfr:entry.def.mfr, part:entry.def.part, rating:entry.def.rating, heat:entry.def.heat, weight:entry.def.weight, color:entry.def.color};
+  document.getElementById('sel-type-badge').textContent = entry.def.id.startsWith('import_') ? 'Imported' : entry.def.name;
+  document.getElementById('sel-name').value = cp.name||'';
+  document.getElementById('sel-part').value = cp.part||'';
+  document.getElementById('sel-mfr').value = cp.mfr||'';
+  document.getElementById('sel-rating').value = cp.rating||'';
+  document.getElementById('sel-heat').value = cp.heat;
+  document.getElementById('sel-weight').value = cp.weight;
+  document.getElementById('sel-color').value = cp.color && cp.color.startsWith('#') ? cp.color : '#9aa7b5';
+  document.getElementById('sel-surface').value = entry.surface;
+  document.getElementById('sel-a').value = Math.round(entry.a);
+  document.getElementById('sel-b').value = Math.round(entry.b);
+  document.getElementById('sel-rot').value = entry.rot;
+  document.getElementById('lbl-a').textContent = (entry.surface==='left'||entry.surface==='right') ? 'Depth(Z)' : 'X';
+  document.getElementById('lbl-b').textContent = 'Height(Y)';
+  document.getElementById('row-fan-power').style.display = entry.def.id==='fan' ? 'flex' : 'none';
+  if(entry.def.id==='fan') document.getElementById('sel-fan-power').value = entry.powered===false ? 'off' : 'on';
+  orientGizmoForEntry(entry);
+
+  const dims = entry.dims || defaultDimsFor(entry.def, entry.length);
+  document.getElementById('sel-w').value = Math.round(dims.w*10)/10;
+  document.getElementById('sel-h').value = Math.round(dims.h*10)/10;
+  document.getElementById('sel-d').value = Math.round(dims.d*10)/10;
+  document.getElementById('row-dims-title').textContent = entry.def.isRail ? 'Dimensions (mm) — Width = rail length' : entry.def.isDuct ? 'Dimensions (mm) — Width = duct length' : 'Dimensions (mm)';
+  document.getElementById('row-dims').style.display = entry.isImport ? 'none' : 'grid';
+  document.getElementById('row-dims-title').style.display = entry.isImport ? 'none' : 'flex';
+
+  const rowSide = document.getElementById('row-side'), rowScale = document.getElementById('row-scale');
+  if(entry.surface==='door' || entry.surface==='left' || entry.surface==='right'){
+    rowSide.style.display='flex';
+    document.getElementById('sel-side').value = entry.side||'outer';
+  } else rowSide.style.display='none';
+  if(entry.isImport){ rowScale.style.display='flex'; document.getElementById('sel-scale').value = entry.scale||1; } else rowScale.style.display='none';
+  refreshHighlights();
+}
+function refreshHighlights(){
+  state.placed.forEach(p=>{
+    const on = p.uid===state.selectedUid;
+    p.mesh.traverse(o=>{
+      if(!o.isMesh || !o.material) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(m=>{
+        if('emissive' in m){ m.emissive=new THREE.Color(on?0x3d8bff:0x000000); m.emissiveIntensity=on?0.5:0; }
+      });
+    });
+  });
+}
+['sel-a','sel-b','sel-rot'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', e=>{
+    const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry) return;
+    const val = +e.target.value||0;
+    if(id==='sel-a') entry.a=val; if(id==='sel-b') entry.b=val; if(id==='sel-rot') entry.rot=val;
+    updateComponentTransform(entry); refreshAll(true);
+  });
+});
+function ensureCustomProps(entry){
+  if(!entry.customProps) entry.customProps = {name:entry.def.name, mfr:entry.def.mfr, part:entry.def.part, rating:entry.def.rating, heat:entry.def.heat, weight:entry.def.weight, color:entry.def.color};
+  return entry.customProps;
+}
+function pv(entry, key){ return entry.customProps ? entry.customProps[key] : entry.def[key]; }
+[['sel-name','name','text'],['sel-part','part','text'],['sel-mfr','mfr','text'],['sel-rating','rating','text'],['sel-heat','heat','number'],['sel-weight','weight','number']].forEach(([id,key,kind])=>{
+  document.getElementById(id).addEventListener('input', e=>{
+    const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry) return;
+    const cp = ensureCustomProps(entry);
+    cp[key] = kind==='number' ? (+e.target.value||0) : e.target.value;
+    if(key==='name') document.getElementById('sel-type-badge').textContent = cp.name;
+    refreshAll(true);
+  });
+});
+document.getElementById('sel-color').addEventListener('input', e=>{
+  const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry) return;
+  const cp = ensureCustomProps(entry);
+  cp.color = e.target.value;
+  rebuildEntryGeometry(entry);
+});
+document.getElementById('sel-fan-power').addEventListener('change', e=>{
+  const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry || entry.def.id!=='fan') return;
+  entry.powered = e.target.value==='on';
+  if(entry.mesh.userData.airflowRef) entry.mesh.userData.airflowRef.visible = entry.powered;
+  logMsg('info', `${entry.customProps.name} (UID ${entry.uid}) turned ${entry.powered?'ON':'OFF'}.${entry.powered?' Its cooling capacity now counts toward the thermal estimate.':' It no longer contributes cooling capacity.'}`);
+});
+document.getElementById('sel-surface').addEventListener('change', e=>{
+  const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry) return;
+  entry.surface = e.target.value; entry.a=0; entry.b=0;
+  entry.side = defaultSideFor(entry.def, entry.surface);
+  updateComponentTransform(entry); selectUid(entry.uid); refreshAll(true);
+  logMsg('info', `${pv(entry,'name')} (UID ${entry.uid}) moved to ${MOUNT_LABEL[entry.surface]} (${entry.side}).`);
+});
+document.getElementById('sel-side').addEventListener('change', e=>{
+  const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry) return;
+  entry.side = e.target.value;
+  updateComponentTransform(entry); refreshAll(true);
+  logMsg('info', `${pv(entry,'name')} (UID ${entry.uid}) set to ${entry.side} face of the ${MOUNT_LABEL[entry.surface]}.`);
+});
+function rebuildEntryGeometry(entry){
+  const oldMesh = entry.mesh;
+  const newMesh = makeComponentMesh(entry.def, entry.dims, entry.customProps ? entry.customProps.color : entry.def.color);
+  newMesh.userData.uid = entry.uid; newMesh.userData.isComponent = true;
+  scene.remove(oldMesh); scene.add(newMesh);
+  entry.mesh = newMesh;
+  if(entry.def.id==='fan' && newMesh.userData.airflowRef) newMesh.userData.airflowRef.visible = entry.powered!==false;
+  if(entry.def.isRail || entry.def.isDuct) entry.length = entry.dims.w;
+  updateComponentTransform(entry); refreshHighlights(); refreshAll(true);
+}
+['sel-w','sel-h','sel-d'].forEach((id,axis)=>{
+  document.getElementById(id).addEventListener('input', e=>{
+    const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry || entry.isImport) return;
+    const dims = entry.dims || defaultDimsFor(entry.def, entry.length);
+    const val = Math.max(2, +e.target.value || (axis===0?dims.w:axis===1?dims.h:dims.d));
+    entry.dims = {w:axis===0?val:dims.w, h:axis===1?val:dims.h, d:axis===2?val:dims.d};
+    rebuildEntryGeometry(entry);
+  });
+});
+document.getElementById('sel-scale').addEventListener('input', e=>{
+  const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry || !entry.isImport) return;
+  entry.scale = Math.max(0.05, +e.target.value||1);
+  updateComponentTransform(entry);
+});
+
+document.getElementById('btn-del').onclick = ()=>{
+  const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry) return;
+  scene.remove(entry.mesh);
+  state.placed = state.placed.filter(p=>p.uid!==entry.uid);
+  state.wires = state.wires.filter(w=>{ if(w.fromUid===entry.uid||w.toUid===entry.uid){ scene.remove(w.mesh); return false; } return true; });
+  logMsg('warn', `Deleted ${pv(entry,'name')} (UID ${entry.uid}).`);
+  selectUid(null); refreshAll();
+};
+document.getElementById('btn-dup').onclick = ()=>{
+  const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry) return;
+  const n = placeComponent(entry.def, entry.a+30, entry.b-30, {surface:entry.surface, length:entry.length, scale:entry.scale, isImport:entry.isImport, dims:{...entry.dims}, side:entry.side, customProps:entry.customProps?{...entry.customProps}:undefined, powered:entry.powered});
+  if(n) selectUid(n.uid);
+};
+document.getElementById('btn-mirror').onclick = ()=>{
+  const entry = state.placed.find(p=>p.uid===state.selectedUid); if(!entry) return;
+  entry.a = -entry.a; updateComponentTransform(entry); selectUid(entry.uid); refreshAll(true);
+};
+
+/* ---------------------- Wiring (duct-aware routing + size/color) ---------------------- */
+function findRoutingDuct(pa, pb){
+  let best=null, bestScore=Infinity;
+  state.placed.forEach(p=>{
+    if(!p.def.isDuct) return;
+    const box = new THREE.Box3().setFromObject(p.mesh).expandByScalar(toU(50));
+    const score = box.distanceToPoint(pa) + box.distanceToPoint(pb);
+    if(score < bestScore){ bestScore=score; best=p; }
+  });
+  return (best && bestScore < toU(500)) ? best : null;
+}
+function tryWireClick(uid){
+  if(state.wireFirstUid===null){ state.wireFirstUid=uid; logMsg('info', `Wire start: UID ${uid}. Click a second component to complete the wire.`); return; }
+  if(state.wireFirstUid===uid){ state.wireFirstUid=null; return; }
+  const a = state.placed.find(p=>p.uid===state.wireFirstUid);
+  const b = state.placed.find(p=>p.uid===uid);
+  state.wireFirstUid=null;
+  if(!a||!b) return;
+  const pa=a.mesh.position.clone(), pb=b.mesh.position.clone();
+  const duct = findRoutingDuct(pa,pb);
+  let curvePts, lengthMM;
+  if(duct){
+    const box = new THREE.Box3().setFromObject(duct.mesh);
+    const cy = duct.mesh.position.y, cz = duct.mesh.position.z;
+    const wp1 = new THREE.Vector3(THREE.MathUtils.clamp(pa.x, box.min.x, box.max.x), cy, cz);
+    const wp2 = new THREE.Vector3(THREE.MathUtils.clamp(pb.x, box.min.x, box.max.x), cy, cz);
+    curvePts = [pa, wp1, wp2, pb];
+    lengthMM = Math.round(toMM(pa.distanceTo(wp1)+wp1.distanceTo(wp2)+wp2.distanceTo(pb))+80);
+  } else {
+    const mid = pa.clone().lerp(pb,0.5).add(new THREE.Vector3(0,0,toU(15)));
+    curvePts = [pa, mid, pb];
+    lengthMM = Math.round(toMM(pa.distanceTo(pb))+50);
+  }
+  const curve = new THREE.CatmullRomCurve3(curvePts);
+  const geo = new THREE.TubeGeometry(curve, 20, toU(2.2), 6, false);
+  const color = state.wireColor;
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color}));
+  scene.add(mesh);
+  const wireId = `W${String(state.wires.length+1).padStart(3,'0')}`;
+  state.wires.push({id:wireId, fromUid:a.uid, toUid:b.uid, fromName:pv(a,'name'), toName:pv(b,'name'), length:lengthMM, color, size:state.wireSize, mesh, routedViaDuct: !!duct});
+  logMsg('ok', `Wire ${wireId} created: ${pv(a,'name')} → ${pv(b,'name')} (${lengthMM}mm, ${state.wireSize})${duct?' — routed through '+pv(duct,'name')+' (UID '+duct.uid+')':''}.`);
+  refreshAll();
+}
+function renderWireSwatches(){
+  const wrap = document.getElementById('wire-swatches');
+  wrap.innerHTML = WIRE_COLORS.map(c=>`<button class="swatch ${c===state.wireColor?'active':''}" data-color="${c}" style="background:${c}"></button>`).join('');
+  wrap.querySelectorAll('.swatch').forEach(sw=>sw.addEventListener('click', ()=>{ state.wireColor=sw.dataset.color; renderWireSwatches(); }));
+}
+document.getElementById('wire-size').addEventListener('change', e=> state.wireSize = e.target.value);
+
+/* ---------------------- Measurement ---------------------- */
+function clearMeasureMarkers(){
+  state.measureMarkers.forEach(m=>scene.remove(m));
+  state.measureMarkers=[]; state.measureFirst=null;
+  document.getElementById('measure-hint').style.display='none';
+}
+function measureRaycastTargets(){
+  const e = state.enclosure; if(!e) return [];
+  const list = [...state.placed.map(p=>p.mesh), e.backPlateMesh, e.sideLeft, e.sideRight, ...e.doors, e.shellGroup];
+  return list.filter(Boolean);
+}
+function handleMeasureClick(point){
+  const marker = new THREE.Mesh(new THREE.SphereGeometry(toU(6),12,12), new THREE.MeshBasicMaterial({color:0xff9d3d}));
+  marker.position.copy(point);
+  scene.add(marker); state.measureMarkers.push(marker);
+  if(!state.measureFirst){
+    state.measureFirst = point.clone();
+    document.getElementById('measure-hint').style.display='block';
+    document.getElementById('measure-hint').textContent = 'First point set — click a second point to measure.';
+  } else {
+    const d = toMM(state.measureFirst.distanceTo(point));
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([state.measureFirst, point]);
+    const line = new THREE.Line(lineGeo, new THREE.LineDashedMaterial({color:0xff9d3d, dashSize:toU(10), gapSize:toU(6)}));
+    line.computeLineDistances();
+    scene.add(line); state.measureMarkers.push(line);
+    logMsg('info', `Measured distance: ${d.toFixed(1)} mm (${(d/25.4).toFixed(2)} in).`);
+    toast(`Distance: ${d.toFixed(1)} mm`);
+    document.getElementById('measure-hint').textContent = 'Distance: '+d.toFixed(1)+' mm — click again to start a new measurement.';
+    state.measureFirst = null;
+  }
+}
+
+/* ---------------------- Raycasting / click handling ---------------------- */
+function onViewportClick(e){
+  if(state.justDraggedGizmo) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse, activeCamera);
+
+  if(state.mode==='measure'){
+    const hits = raycaster.intersectObjects(measureRaycastTargets(), true);
+    if(hits.length===0) return;
+    handleMeasureClick(hits[0].point);
+    return;
+  }
+
+  const targets = state.placed.map(p=>p.mesh);
+  const hits = raycaster.intersectObjects(targets, true);
+  if(hits.length===0){ if(state.mode==='select') selectUid(null); return; }
+  let obj = hits[0].object;
+  while(obj && !obj.userData.isComponent) obj = obj.parent;
+  if(!obj) return;
+  const uid = obj.userData.uid;
+  if(state.mode==='select') selectUid(uid);
+  else if(state.mode==='wire') tryWireClick(uid);
+}
+
+/* ---------------------- Drag & drop from library ---------------------- */
+function setupDragDrop(){
+  const vp = document.getElementById('viewport-wrap');
+  vp.addEventListener('dragover', e=>{
+    e.preventDefault();
+    const id = e.dataTransfer.types.includes('text/plain');
+    document.getElementById('drop-hint').style.display='block';
+  });
+  vp.addEventListener('dragleave', ()=>{ document.getElementById('drop-hint').style.display='none'; });
+  vp.addEventListener('drop', e=>{
+    e.preventDefault();
+    document.getElementById('drop-hint').style.display='none';
+    const id = e.dataTransfer.getData('text/plain');
+    const def = LIBRARY.find(l=>l.id===id);
+    if(!def || !state.enclosure){ if(!state.enclosure) logMsg('warn','Generate an enclosure before placing components.'); return; }
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+    mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+    raycaster.setFromCamera(mouse, activeCamera);
+    const targetMeshes = surfaceMeshes(def.mount);
+    const hits = raycaster.intersectObjects(targetMeshes, true);
+    if(hits.length===0){
+      logMsg('warn', `${def.name} mounts on the ${MOUNT_LABEL[def.mount]} — drop it over that surface (rotate the view if it's hidden behind the shell).`);
+      toast(`Drop ${def.name} onto the ${MOUNT_LABEL[def.mount]}`);
+      return;
+    }
+    const e0 = state.enclosure;
+    let localA, localB;
+    if(def.mount==='plate' || def.mount==='door'){
+      localA = toMM(hits[0].point.x);
+      localB = toMM(hits[0].point.y - e0.backPlateMesh.position.y);
+    } else {
+      localA = toMM(hits[0].point.z);
+      localB = toMM(hits[0].point.y - e0.sideLeft.position.y);
+    }
+    localA = snapToGrid(localA,10); localB = snapToGrid(localB,10);
+    const entry = placeComponent(def, localA, localB, {surface:def.mount});
+    if(entry) selectUid(entry.uid);
+  });
+}
+
+/* ---------------------- Design Rule Check ---------------------- */
+function runDRC(){
+  state.messages = state.messages.filter(m=>m.source!=='drc');
+  let errCount=0, warnCount=0;
+  const items = state.placed;
+  for(let i=0;i<items.length;i++){
+    for(let j=i+1;j<items.length;j++){
+      const a=items[i], b=items[j];
+      if(a.surface!==b.surface) continue;
+      const box1=new THREE.Box3().setFromObject(a.mesh), box2=new THREE.Box3().setFromObject(b.mesh);
+      if(box1.intersectsBox(box2)){ logMsg('error', `Clash: ${pv(a,'name')} (UID ${a.uid}) overlaps ${pv(b,'name')} (UID ${b.uid}) on the ${MOUNT_LABEL[a.surface]}.`,'drc'); errCount++; }
+    }
+  }
+  if(state.enclosure){
+    const half = state.enclosure.w/2;
+    items.forEach(a=>{
+      if(a.surface==='plate' && Math.abs(a.a)+a.def.w/2 > half-10){
+        logMsg('warn', `${pv(a,'name')} (UID ${a.uid}) is within 10mm of the panel edge — check mounting clearance.`,'drc'); warnCount++;
+      }
+    });
+  }
+  const totalHeat = items.reduce((s,a)=>s+Math.max(0,pv(a,'heat')||0),0);
+  if(totalHeat>150) logMsg('warn', `Estimated total heat load ${totalHeat.toFixed(1)}W — run Thermal Analysis for a full estimate.`,'drc');
+  if(errCount===0 && warnCount===0) logMsg('ok','Design Rule Check passed — no clashes or clearance issues found.','drc');
+  else logMsg('info', `DRC complete: ${errCount} error(s), ${warnCount} warning(s). See rows above for details.`,'drc');
+  state.activeBottomTab='messages';
+  document.querySelectorAll('.bt-tab').forEach(x=>x.classList.toggle('active', x.dataset.panel==='messages'));
+  toast(`DRC complete — ${errCount} error(s), ${warnCount} warning(s)`);
+  refreshAll();
+}
+
+/* ---------------------- Thermal analysis ----------------------
+   Simplified "surface area method" commonly used for a first-pass enclosure
+   sizing estimate: ΔT = P / (k * A), where P is total heat load (W), A is the
+   enclosure's effective free-standing surface area (m²), and k is a heat
+   transfer coefficient (~5.5 W/m²K for natural convection through painted
+   steel, boosted per cooling fan added to approximate forced convection).
+   This is a rough sizing heuristic, not a substitute for a real CFD/thermal
+   simulation. */
+function heatColor(t){
+  t = Math.max(0, Math.min(1,t));
+  let r,g,b;
+  if(t<0.5){ const k=t/0.5; r=Math.round(30+k*(255-30)); g=Math.round(80+k*(210-80)); b=Math.round(220+k*(0-220)); }
+  else { const k=(t-0.5)/0.5; r=255; g=Math.round(210+k*(40-210)); b=0; }
+  return (r<<16)|(g<<8)|b;
+}
+function applyThermalHeatmap(on){
+  state.thermalHeatmapOn = on;
+  if(!on){
+    state.placed.forEach(p=> rebuildEntryGeometry(p));
+    return;
+  }
+  const maxHeat = Math.max(10, ...state.placed.map(p=>Math.max(0,pv(p,'heat')||0)));
+  state.placed.forEach(p=>{
+    const h = pv(p,'heat')||0;
+    const col = h<=0 ? 0x2f6fd6 : heatColor(Math.min(1,h/maxHeat));
+    const pm = p.mesh.isMesh ? p.mesh : p.mesh.children.find(c=>c.isMesh);
+    if(pm && pm.material && 'color' in pm.material) pm.material.color.setHex(col);
+  });
+}
+function computeThermal(){
+  const e = state.enclosure; if(!e) return null;
+  const items = state.placed;
+  const totalHeatW = items.reduce((s,p)=> s + Math.max(0, pv(p,'heat')||0), 0);
+  const fanCount = items.filter(p=>p.def.id==='fan').length;
+  const naturalK = 5.5, forcedBoostPerFan = 8;
+  const effectiveK = naturalK + fanCount*forcedBoostPerFan;
+  const Hm=e.h/1000, Wm=e.w/1000, Dm=e.d/1000;
+  const areaM2 = 1.8*(Hm*(Wm+Dm)) + (Wm*Dm);
+  const ambient = state.ambientC!=null ? state.ambientC : 35;
+  const deltaT = areaM2>0 ? totalHeatW/(effectiveK*areaM2) : 0;
+  const internalTemp = ambient+deltaT;
+  const status = internalTemp>=55 ? 'error' : internalTemp>=40 ? 'warn' : 'ok';
+  return {totalHeatW, fanCount, effectiveK, areaM2, ambient, deltaT, internalTemp, status};
+}
+function runThermalAnalysis(){
+  if(!state.enclosure){ toast('Generate an enclosure first.', true); return; }
+  const r = computeThermal();
+  state.messages = state.messages.filter(m=>m.source!=='thermal');
+  logMsg(r.status==='error'?'error':r.status==='warn'?'warn':'ok',
+    `Thermal estimate: ${r.totalHeatW.toFixed(1)}W total heat load, ${r.fanCount} fan(s) fitted (effective coefficient ${r.effectiveK.toFixed(1)} W/m²K over ${r.areaM2.toFixed(2)}m² of shell area). Estimated internal temperature ≈ ${r.internalTemp.toFixed(1)}°C at ${r.ambient}°C ambient (ΔT ${r.deltaT.toFixed(1)}°C).`, 'thermal');
+  if(r.status==='error') logMsg('error','Internal temperature likely exceeds safe limits for most industrial electronics (~55°C) — add cooling fans, a heat exchanger/AC unit, or a larger enclosure.','thermal');
+  else if(r.status==='warn') logMsg('warn','Internal temperature is elevated — check the temperature ratings of installed components.','thermal');
+  else logMsg('ok','Estimated internal temperature is within a comfortable operating range.','thermal');
+  state.activeBottomTab='thermal';
+  document.querySelectorAll('.bt-tab').forEach(x=>x.classList.toggle('active', x.dataset.panel==='thermal'));
+  toast(`Est. internal temp ≈ ${r.internalTemp.toFixed(1)}°C`);
+  refreshAll();
+}
+
+/* ---------------------- 3D Import (OBJ + GLTF/GLB) ---------------------- */
+function parseOBJ(text){
+  const positions=[]; const faces=[];
+  const lines = text.split('\n');
+  for(const line of lines){
+    const t = line.trim();
+    if(t.startsWith('v ')){
+      const p = t.split(/\s+/).slice(1).map(Number);
+      positions.push(p);
+    } else if(t.startsWith('f ')){
+      const parts = t.split(/\s+/).slice(1).map(tok=>parseInt(tok.split('/')[0],10)-1);
+      for(let i=1;i<parts.length-1;i++) faces.push(parts[0],parts[i],parts[i+1]);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  const verts = new Float32Array(positions.length*3);
+  positions.forEach((p,i)=>{ verts[i*3]=p[0]; verts[i*3+1]=p[1]; verts[i*3+2]=p[2]; });
+  geo.setAttribute('position', new THREE.BufferAttribute(verts,3));
+  geo.setIndex(faces);
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color:0x9aa7b5, metalness:0.3, roughness:0.6, side:THREE.DoubleSide}));
+}
+
+let gltfLoaderPromise = null;
+function ensureGLTFLoader(){
+  if(window.THREE && THREE.GLTFLoader) return Promise.resolve();
+  if(gltfLoaderPromise) return gltfLoaderPromise;
+  gltfLoaderPromise = new Promise((resolve,reject)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+    s.onload = ()=>resolve();
+    s.onerror = ()=>reject(new Error('Could not load the GLTF loader from CDN.'));
+    document.head.appendChild(s);
+  });
+  return gltfLoaderPromise;
+}
+
+function normalizeAndPlaceImport(object, filename){
+  const box = new THREE.Box3().setFromObject(object);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const maxDim = Math.max(size.x,size.y,size.z) || 1;
+  const targetSceneUnits = toU(150); // fit within ~150mm
+  const scaleFactor = targetSceneUnits/maxDim;
+  object.scale.setScalar(scaleFactor);
+  box.setFromObject(object);
+  const center = new THREE.Vector3(); box.getCenter(center);
+  object.position.sub(center);
+
+  const wrapper = new THREE.Group();
+  wrapper.add(object);
+
+  if(!state.enclosure){ logMsg('warn','Generate an enclosure before placing an imported part.'); return; }
+  const uid = state.nextUid++;
+  wrapper.userData = {uid, isComponent:true};
+  scene.add(wrapper);
+  const boxMM = { w: Math.round(toMM(targetSceneUnits)), h: Math.round(toMM(targetSceneUnits)), d: Math.round(toMM(targetSceneUnits)) };
+  const def = {id:'import_'+uid, cat:'mech', name:filename, mfr:'Imported', part:'CUSTOM 3D', w:boxMM.w, h:boxMM.h, d:boxMM.d, rating:'—', heat:0, weight:0.1, color:'#9aa7b5', icon:'⬢', mount:'plate'};
+  const customProps = {name:def.name, mfr:def.mfr, part:def.part, rating:def.rating, heat:def.heat, weight:def.weight, color:def.color};
+  const entry = {uid, mesh:wrapper, def, surface:'plate', side:'outer', a:0, b:0, rot:0, dims:boxMM, customProps, scale:1, isImport:true};
+  state.placed.push(entry);
+  updateComponentTransform(entry);
+  selectUid(uid);
+  logMsg('ok', `Imported "${filename}" and placed on the mounting plate at 1:1 scale (normalized to ~150mm). Adjust the Scale field in Properties if needed.`);
+  refreshAll();
+}
+
+document.getElementById('btn-import').onclick = ()=> document.getElementById('file-import').click();
+document.getElementById('file-import').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const ext = f.name.split('.').pop().toLowerCase();
+  if(ext==='obj'){
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{ const mesh = parseOBJ(reader.result); normalizeAndPlaceImport(mesh, f.name); }
+      catch(err){ logMsg('error','Failed to parse OBJ file: '+err.message); }
+    };
+    reader.readAsText(f);
+  } else if(ext==='glb' || ext==='gltf'){
+    toast('Loading GLTF loader…');
+    ensureGLTFLoader().then(()=>{
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        const loader = new THREE.GLTFLoader();
+        loader.parse(reader.result, '', gltf=>{
+          normalizeAndPlaceImport(gltf.scene, f.name);
+        }, err=>{ logMsg('error','Failed to parse GLTF/GLB file: '+(err.message||err)); });
+      };
+      reader.readAsArrayBuffer(f);
+    }).catch(err=>{ logMsg('error', err.message+' Try an .obj file instead, or check your network settings.'); });
+  } else if(ext==='step'||ext==='stp'||ext==='iges'||ext==='igs'){
+    logMsg('error', `"${f.name}" is a ${ext.toUpperCase()} file. STEP/IGES require a full CAD geometry kernel to parse, which isn't feasible in-browser — this build only reads .obj and .glb/.gltf. Export the part to glTF (.glb) or OBJ from your CAD tool (FreeCAD, SolidWorks "Save As", Blender, etc.) and re-import.`);
+    toast('STEP/IGES not supported — export to .glb or .obj first', true);
+  } else {
+    logMsg('warn','Unsupported file type. Use .obj, .glb, or .gltf.');
+  }
+  e.target.value='';
+});
+
+/* ---------------------- Messages / logging ---------------------- */
+function logMsg(level, text, source='user'){
+  state.messages.unshift({level, text, source, t:new Date().toLocaleTimeString()});
+  if(state.messages.length>300) state.messages.pop();
+  renderBottomPanel();
+}
+
+/* ---------------------- Bottom panel ---------------------- */
+function renderBottomPanel(){
+  const body = document.getElementById('bottom-body');
+  const tab = state.activeBottomTab;
+  document.getElementById('cnt-messages').textContent = state.messages.length;
+  document.getElementById('cnt-components').textContent = state.placed.length;
+  document.getElementById('cnt-wires').textContent = state.wires.length;
+  const bomRows = buildBOM();
+  document.getElementById('cnt-bom').textContent = bomRows.length;
+  const errN = state.messages.filter(m=>m.level==='error').length;
+  const warnN = state.messages.filter(m=>m.level==='warn').length;
+  document.querySelector('.bt-tab[data-panel="messages"]').classList.toggle('err', errN>0);
+  document.querySelector('.bt-tab[data-panel="messages"]').classList.toggle('warn', errN===0 && warnN>0);
+
+  if(tab==='messages'){
+    body.innerHTML = state.messages.length ? state.messages.map(m=>`
+      <div class="msg-row"><span class="msg-tag ${m.level}">${m.level}</span><span>${m.text}</span>
+      <span style="margin-left:auto;color:var(--text-lo);flex-shrink:0;">${m.t}</span></div>`).join('')
+      : `<div class="empty-row">No messages yet.</div>`;
+  } else if(tab==='components'){
+    body.innerHTML = `<table><thead><tr><th>UID</th><th>Component</th><th>Part #</th><th>Surface</th><th>A</th><th>B</th><th>Rot°</th></tr></thead><tbody>
+      ${state.placed.map(p=>`<tr class="${p.uid===state.selectedUid?'sel-row':''}" onclick="selectUid(${p.uid})">
+        <td>${p.uid}</td><td>${pv(p,'name')}</td><td>${pv(p,'part')||'—'}</td><td>${MOUNT_LABEL[p.surface]}</td>
+        <td>${Math.round(p.a)}</td><td>${Math.round(p.b)}</td><td>${p.rot}</td></tr>`).join('') || `<tr><td colspan="7" class="empty-row">No components placed.</td></tr>`}
+    </tbody></table>`;
+  } else if(tab==='wires'){
+    body.innerHTML = `<table><thead><tr><th>Wire ID</th><th>From</th><th>To</th><th>Length (mm)</th><th>Size</th><th>Color</th><th>Routed via duct</th></tr></thead><tbody>
+      ${state.wires.map(w=>`<tr><td>${w.id}</td><td>${w.fromName}</td><td>${w.toName}</td><td>${w.length}</td><td>${w.size}</td>
+        <td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${w.color};vertical-align:middle;margin-right:5px;"></span>${w.color}</td>
+        <td>${w.routedViaDuct?'Yes':'No'}</td></tr>`).join('') || `<tr><td colspan="7" class="empty-row">No wires drawn. Switch to Wire mode and click two components.</td></tr>`}
+    </tbody></table>`;
+  } else if(tab==='bom'){
+    body.innerHTML = `<table><thead><tr><th>Part #</th><th>Description</th><th>Manufacturer</th><th>Qty</th><th>Unit Wt (kg)</th><th>Total Wt (kg)</th></tr></thead><tbody>
+      ${bomRows.map(r=>`<tr><td>${r.part}</td><td>${r.name}</td><td>${r.mfr}</td><td>${r.qty}</td><td>${r.weight}</td><td>${(r.weight*r.qty).toFixed(2)}</td></tr>`).join('') || `<tr><td colspan="6" class="empty-row">No components to list.</td></tr>`}
+    </tbody></table>`;
+  } else if(tab==='thermal'){
+    if(!state.enclosure){ body.innerHTML = `<div class="empty-row">Generate an enclosure first.</div>`; document.getElementById('cnt-thermal').textContent='—'; }
+    else {
+      const r = computeThermal();
+      document.getElementById('cnt-thermal').textContent = r.internalTemp.toFixed(0)+'°C';
+      const statusColor = r.status==='error' ? 'var(--red)' : r.status==='warn' ? 'var(--orange)' : 'var(--green)';
+      body.innerHTML = `
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+          <label style="font-size:11.5px;color:var(--text-lo);">Ambient temperature (°C)</label>
+          <input id="ambient-input" type="number" value="${r.ambient}" style="width:70px;background:var(--bg-2);border:1px solid var(--line);border-radius:4px;color:var(--text-hi);padding:5px 7px;font-size:12px;">
+          <span style="color:var(--text-lo);font-size:11px;">Cooling fans placed: <b style="color:var(--text-hi);">${r.fanCount}</b></span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;">
+          <div style="background:var(--bg-2);border:1px solid var(--line);border-radius:6px;padding:10px;">
+            <div style="font-size:10px;color:var(--text-lo);">TOTAL HEAT LOAD</div>
+            <div style="font-size:18px;font-weight:600;">${r.totalHeatW.toFixed(1)} W</div>
+          </div>
+          <div style="background:var(--bg-2);border:1px solid var(--line);border-radius:6px;padding:10px;">
+            <div style="font-size:10px;color:var(--text-lo);">SHELL SURFACE AREA</div>
+            <div style="font-size:18px;font-weight:600;">${r.areaM2.toFixed(2)} m²</div>
+          </div>
+          <div style="background:var(--bg-2);border:1px solid var(--line);border-radius:6px;padding:10px;">
+            <div style="font-size:10px;color:var(--text-lo);">ESTIMATED ΔT</div>
+            <div style="font-size:18px;font-weight:600;">${r.deltaT.toFixed(1)} °C</div>
+          </div>
+          <div style="background:var(--bg-2);border:1px solid ${statusColor};border-radius:6px;padding:10px;">
+            <div style="font-size:10px;color:var(--text-lo);">EST. INTERNAL TEMP</div>
+            <div style="font-size:18px;font-weight:600;color:${statusColor};">${r.internalTemp.toFixed(1)} °C</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <label style="font-size:11.5px;color:var(--text-lo);display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" id="heatmap-toggle" ${state.thermalHeatmapOn?'checked':''}> Show heat map on components
+          </label>
+        </div>
+        <div id="heatmap-legend" style="display:${state.thermalHeatmapOn?'block':'none'};margin-bottom:12px;">
+          <div style="height:12px;border-radius:4px;background:linear-gradient(to right, #1e50dc, #ffd200, #ff2800);"></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-lo);margin-top:3px;">
+            <span>Cool / fans (0W)</span><span>Hottest part (${Math.max(10,...state.placed.map(p=>Math.max(0,pv(p,'heat')||0))).toFixed(0)}W)</span>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-lo);line-height:1.5;">
+          Simplified surface-area sizing estimate (ΔT = P ⁄ k·A). Each cooling fan placed boosts the effective heat-transfer
+          coefficient to approximate forced convection. This is a first-pass sizing heuristic, not a CFD simulation —
+          use it to flag obviously undersized enclosures, not as a certified thermal report.
+        </div>`;
+      document.getElementById('heatmap-toggle').addEventListener('change', e=>{
+        applyThermalHeatmap(e.target.checked);
+        renderBottomPanel();
+      });
+      document.getElementById('ambient-input').addEventListener('input', e=>{
+        state.ambientC = +e.target.value || 35;
+        renderBottomPanel();
+      });
+    }
+  }
+}
+function buildBOM(){
+  const map={};
+  state.placed.forEach(p=>{
+    const groupKey = pv(p,'part')||pv(p,'name');
+    if(!map[groupKey]) map[groupKey]={part:pv(p,'part')||'—', name:pv(p,'name'), mfr:pv(p,'mfr'), weight:pv(p,'weight'), qty:0};
+    map[groupKey].qty++;
+  });
+  return Object.values(map);
+}
+
+/* ---------------------- Library panel ---------------------- */
+function renderLibrary(){
+  const q = document.getElementById('lib-search').value.toLowerCase();
+  const list = LIBRARY.filter(l=>{
+    const matchCat = state.activeLibCat==='all' || l.cat===state.activeLibCat;
+    const matchQ = !q || l.name.toLowerCase().includes(q) || l.mfr.toLowerCase().includes(q) || l.part.toLowerCase().includes(q);
+    return matchCat && matchQ;
+  });
+  document.getElementById('lib-list').innerHTML = list.map(l=>`
+    <div class="lib-item" draggable="true" data-id="${l.id}" title="${l.mfr} ${l.part} — drag onto the ${MOUNT_LABEL[l.mount]}">
+      <div class="lib-swatch" style="background:${l.color}22;color:${l.color};border:1px solid ${l.color}55;">${l.icon}</div>
+      <div class="lib-meta"><div class="lib-name">${l.name}</div><div class="lib-sub"><span class="mount-badge">${MOUNT_LABEL[l.mount]}</span>${l.mfr} · ${l.part}</div></div>
+    </div>`).join('') || `<div class="empty-row">No matches.</div>`;
+  document.querySelectorAll('.lib-item').forEach(it=>{
+    it.addEventListener('dragstart', e=> e.dataTransfer.setData('text/plain', it.dataset.id));
+  });
+}
+
+/* ---------------------- Refresh / HUD ---------------------- */
+function refreshAll(skipBottom){
+  document.getElementById('hud-mode').textContent = `Mode: ${state.mode[0].toUpperCase()+state.mode.slice(1)}`;
+  document.getElementById('hud-count').textContent = `${state.placed.length} components · ${state.wires.length} wires`;
+  if(!skipBottom) renderBottomPanel();
+}
+
+/* ---------------------- Toast ---------------------- */
+let toastTimer;
+function toast(msg, warn){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.toggle('warn', !!warn); t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ---------------------- Ribbon menus ---------------------- */
+document.querySelectorAll('.ribbon-tab').forEach(t=>{
+  t.addEventListener('click', ev=>{
+    if(ev.target.closest('.menu-item')) return; // handled separately
+    const wasActive = t.classList.contains('active');
+    document.querySelectorAll('.ribbon-tab').forEach(x=>x.classList.remove('active'));
+    if(!wasActive) t.classList.add('active');
+  });
+});
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.ribbon-tab')) document.querySelectorAll('.ribbon-tab').forEach(x=>x.classList.remove('active'));
+});
+document.querySelectorAll('.menu-item').forEach(mi=>{
+  mi.addEventListener('click', e=>{
+    e.stopPropagation();
+    dispatchRibbonAction(mi.dataset.action);
+    document.querySelectorAll('.ribbon-tab').forEach(x=>x.classList.remove('active'));
+  });
+});
+function dispatchRibbonAction(action){
+  if(action.startsWith('libcat-')){
+    const cat = action.replace('libcat-','');
+    state.activeLibCat = cat;
+    document.querySelectorAll('.lib-tab').forEach(x=>x.classList.toggle('active', x.dataset.cat===cat));
+    renderLibrary();
+    return;
+  }
+  const map = {
+    new: ()=>document.getElementById('btn-new').click(),
+    save: ()=>document.getElementById('btn-save').click(),
+    load: ()=>document.getElementById('btn-load').click(),
+    exportPng: ()=>document.getElementById('btn-export-png').click(),
+    exportBom: ()=>document.getElementById('btn-export-bom').click(),
+    dup: ()=>document.getElementById('btn-dup').click(),
+    mirror: ()=>document.getElementById('btn-mirror').click(),
+    delete: ()=>document.getElementById('btn-del').click(),
+    deselect: ()=>selectUid(null),
+    camFront: ()=>document.getElementById('cam-front').click(),
+    camTop: ()=>document.getElementById('cam-top').click(),
+    camSide: ()=>document.getElementById('cam-side').click(),
+    camIso: ()=>document.getElementById('cam-iso').click(),
+    toggleDoor: ()=>document.getElementById('btn-toggle-door').click(),
+    toggleShell: ()=>{
+      const sel = document.getElementById('shell-view');
+      const order = ['xray','solid','wireframe','hidden'];
+      sel.value = order[(order.indexOf(sel.value)+1)%order.length];
+      sel.dispatchEvent(new Event('change'));
+    },
+    runThermal: ()=>document.getElementById('btn-thermal').click(),
+    import3d: ()=>document.getElementById('btn-import').click(),
+    modeWire: ()=>document.getElementById('mode-wire').click(),
+    modeSelect: ()=>document.getElementById('mode-select').click(),
+    modeMeasure: ()=>document.getElementById('mode-measure').click(),
+    clearWires: ()=>{ state.wires.forEach(w=>scene.remove(w.mesh)); state.wires=[]; logMsg('warn','All wires cleared.'); refreshAll(); },
+    showMessages: ()=>document.querySelector('.bt-tab[data-panel="messages"]').click(),
+    showComponents: ()=>document.querySelector('.bt-tab[data-panel="components"]').click(),
+    showWires: ()=>document.querySelector('.bt-tab[data-panel="wires"]').click(),
+    showBom: ()=>document.querySelector('.bt-tab[data-panel="bom"]').click(),
+    showThermal: ()=>document.querySelector('.bt-tab[data-panel="thermal"]').click(),
+    runDrc: ()=>document.getElementById('btn-drc').click(),
+  };
+  if(map[action]) map[action]();
+}
+
+/* ---------------------- Toolbar wiring ---------------------- */
+document.querySelectorAll('#mode-select,#mode-wire,#mode-measure').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('#mode-select,#mode-wire,#mode-measure').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    state.mode = b.dataset.mode;
+    state.wireFirstUid=null;
+    clearMeasureMarkers();
+    document.getElementById('wire-settings').classList.toggle('show', state.mode==='wire');
+    document.getElementById('measure-hint').style.display = state.mode==='measure' ? 'block':'none';
+    if(state.mode==='measure') document.getElementById('measure-hint').textContent='Measure mode: click a point on any surface, then click a second point.';
+    refreshAll(true);
+  });
+});
+document.getElementById('btn-gen-enclosure').onclick = generateEnclosure;
+document.getElementById('btn-drc').onclick = runDRC;
+document.getElementById('btn-thermal').onclick = runThermalAnalysis;
+document.getElementById('btn-toggle-door').onclick = ()=>{
+  if(!state.enclosure) return;
+  state.doorVisible = !state.doorVisible;
+  state.enclosure.doors.forEach(d=>d.visible=state.doorVisible);
+  document.getElementById('btn-toggle-door').textContent = state.doorVisible ? '🚪 Hide Door' : '🚪 Show Door';
+  logMsg('info', state.doorVisible?'Door shown.':'Door hidden.');
+};
+document.getElementById('shell-view').addEventListener('change', e=>{
+  if(!state.enclosure) return;
+  setEnclosureViewMode(e.target.value);
+  const labels = {xray:'X-Ray (see-through)', solid:'Solid', wireframe:'Wireframe', hidden:'Hidden'};
+  logMsg('info', `Enclosure view set to ${labels[e.target.value]}.`);
+});
+
+document.getElementById('unit-mm').onclick = ()=>{ state.unit='mm'; document.getElementById('unit-mm').classList.add('active'); document.getElementById('unit-in').classList.remove('active'); };
+document.getElementById('unit-in').onclick = ()=>{ state.unit='in'; document.getElementById('unit-in').classList.add('active'); document.getElementById('unit-mm').classList.remove('active'); toast('Inch display is cosmetic in this build — internal model stays mm.'); };
+
+['light-azimuth','light-elevation','light-intensity'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', updateLightPosition);
+});
+document.getElementById('enc-color').addEventListener('input', ()=>{ if(state.enclosure) applyEnclosureColor(); });
+document.getElementById('btn-enc-color-reset').onclick = ()=>{
+  document.getElementById('enc-color').value = materialDefaultHex(document.getElementById('enc-mat').value);
+  if(state.enclosure) applyEnclosureColor();
+};
+function materialDefaultHex(mat){
+  return mat.includes('316') ? '#b9c2ca' : mat.includes('304') ? '#c7d0d8' : mat.includes('GRP') ? '#d8d2c2' : '#8a929c';
+}
+function applyEnclosureColor(){
+  const e = state.enclosure; if(!e) return;
+  const hex = document.getElementById('enc-color').value;
+  const col = new THREE.Color(hex);
+  e.shellGroup.children.forEach(c=>{ if(c.isMesh) c.material.color.copy(col); });
+  e.doors.forEach(d=> d.material.color.copy(col));
+  e.sideLeft.material.color.copy(col);
+  e.sideRight.material.color.copy(col);
+  logMsg('info', `Enclosure color set to ${hex}.`);
+}
+document.getElementById('enc-mat').addEventListener('change', e=>{
+  document.getElementById('enc-color').value = materialDefaultHex(e.target.value);
+});
+
+document.querySelectorAll('.lib-tab').forEach(t=>t.addEventListener('click', ()=>{
+  document.querySelectorAll('.lib-tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active'); state.activeLibCat=t.dataset.cat; renderLibrary();
+}));
+document.getElementById('lib-search').addEventListener('input', renderLibrary);
+
+document.querySelectorAll('.bt-tab').forEach(t=>t.addEventListener('click', ()=>{
+  document.querySelectorAll('.bt-tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active'); state.activeBottomTab=t.dataset.panel; renderBottomPanel();
+}));
+
+function setCam(pos, target){ activeCamera.position.set(...pos); controls.target.set(...target); controls.update(); }
+document.getElementById('cam-front').onclick = ()=> setCam([0, state.enclosure?toU(state.enclosure.h)/2:4, 12], [0, state.enclosure?toU(state.enclosure.h)/2:4, 0]);
+document.getElementById('cam-top').onclick = ()=> setCam([0,16,0.01],[0,0,0]);
+document.getElementById('cam-side').onclick = ()=> setCam([12, state.enclosure?toU(state.enclosure.h)/2:4, 0], [0, state.enclosure?toU(state.enclosure.h)/2:4, 0]);
+document.getElementById('cam-iso').onclick = ()=> setCam([9,8,10], [0, state.enclosure?toU(state.enclosure.h)/2:4, 0]);
+document.getElementById('cam-persp').onclick = ()=>{
+  const targetPos = activeCamera.position.clone(), targetLook = controls.target.clone();
+  activeCamera = (activeCamera===camera) ? orthoCamera : camera;
+  activeCamera.position.copy(targetPos);
+  controls.camera = activeCamera; controls.object = activeCamera;
+  controls.target.copy(targetLook);
+  onResize();
+  toast(activeCamera===camera ? 'Perspective view' : 'Orthographic view');
+};
+
+document.getElementById('btn-export-png').onclick = ()=>{
+  renderer.render(scene, activeCamera);
+  const url = renderer.domElement.toDataURL('image/png');
+  const a = document.createElement('a'); a.href=url; a.download='panel-view.png'; a.click();
+  logMsg('ok','Exported current viewport as PNG.');
+};
+document.getElementById('btn-export-bom').onclick = ()=>{
+  const rows = buildBOM();
+  let csv = 'Part Number,Description,Manufacturer,Qty,Unit Weight (kg),Total Weight (kg)\n';
+  rows.forEach(r=> csv += `${r.part},"${r.name}",${r.mfr},${r.qty},${r.weight},${(r.weight*r.qty).toFixed(2)}\n`);
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='bill_of_materials.csv'; a.click();
+  logMsg('ok','Exported Bill of Materials as CSV.');
+};
+
+document.getElementById('btn-save').onclick = ()=>{
+  if(!state.enclosure){ toast('Nothing to save yet.'); return; }
+  const project = {
+    enclosure:{w:state.enclosure.w,h:state.enclosure.h,d:state.enclosure.d,type:state.enclosure.type,mat:state.enclosure.mat},
+    placed: state.placed.filter(p=>!p.isImport).map(p=>({defId:p.def.id, surface:p.surface, side:p.side, a:p.a, b:p.b, rot:p.rot, length:p.length, dims:p.dims, customProps:p.customProps, powered:p.powered})),
+    wires: state.wires.map(w=>({fromUid:w.fromUid,toUid:w.toUid,size:w.size,color:w.color})),
+  };
+  const blob = new Blob([JSON.stringify(project,null,2)],{type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='panel_project.json'; a.click();
+  logMsg('ok','Project saved as JSON. (Imported 3D parts are not included in save files in this build.)');
+};
+document.getElementById('btn-load').onclick = ()=> document.getElementById('file-load').click();
+document.getElementById('file-load').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const p = JSON.parse(reader.result);
+      document.getElementById('enc-h').value=p.enclosure.h;
+      document.getElementById('enc-w').value=p.enclosure.w;
+      document.getElementById('enc-d').value=p.enclosure.d;
+      document.getElementById('enc-type').value=p.enclosure.type;
+      document.getElementById('enc-mat').value=p.enclosure.mat;
+      generateEnclosure();
+      const uidMap = {};
+      (p.placed||[]).forEach(pl=>{
+        const def = LIBRARY.find(l=>l.id===pl.defId); if(!def) return;
+        const entry = placeComponent(def, pl.a, pl.b, {surface:pl.surface, length:pl.length, dims:pl.dims, side:pl.side, customProps:pl.customProps, powered:pl.powered});
+        if(entry){ entry.rot=pl.rot||0; updateComponentTransform(entry); }
+      });
+      (p.wires||[]).forEach(w=>{
+        state.wireSize = w.size||state.wireSize; state.wireColor = w.color||state.wireColor;
+        tryWireClick(w.fromUid); tryWireClick(w.toUid);
+      });
+      logMsg('ok','Project loaded from file.');
+    }catch(err){ logMsg('error','Failed to load project: '+err.message); }
+  };
+  reader.readAsText(f);
+  e.target.value='';
+});
+document.getElementById('btn-new').onclick = ()=>{
+  if(!confirm('Start a new project? Unsaved changes will be lost.')) return;
+  if(state.enclosure) scene.remove(state.enclosure.group);
+  state.placed.forEach(p=>scene.remove(p.mesh));
+  state.wires.forEach(w=>scene.remove(w.mesh));
+  clearMeasureMarkers();
+  state.enclosure=null; state.placed=[]; state.wires=[]; state.messages=[]; state.selectedUid=null;
+  document.getElementById('vp-empty').style.display='flex';
+  document.getElementById('proj-label').textContent='Untitled Panel Project — unsaved';
+  refreshAll();
+};
+
+window.addEventListener('keydown', e=>{
+  if(e.key==='Delete' || e.key==='Backspace'){ if(document.activeElement.tagName==='INPUT') return; document.getElementById('btn-del').click(); }
+  if(e.key==='Escape'){ state.wireFirstUid=null; clearMeasureMarkers(); selectUid(null); }
+});
+
+/* ---------------------- Init ---------------------- */
+initThree();
+setupDragDrop();
+renderLibrary();
+renderWireSwatches();
+generateEnclosure();
+logMsg('info','Welcome to PanelForge 3D. Drag components from the left library — each one now snaps to its correct mounting surface (plate, door, or side panel).');
+</script>
+</body>
+</html>
