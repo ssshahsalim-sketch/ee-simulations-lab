@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Page Arranger — Apna Electromechanic Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+  :root{
+    --navy-0:#060912;
+    --navy-1:#0a0f1e;
+    --navy-2:#0f1626;
+    --navy-3:#161f35;
+    --grid-line: rgba(34,211,238,0.06);
+    --cyan:#22d3ee;
+    --cyan-dim: rgba(34,211,238,0.35);
+    --amber:#f5a524;
+    --amber-dim: rgba(245,165,36,0.35);
+    --text-hi:#e8f1f8;
+    --text-mid:#93a5bd;
+    --text-lo:#5a6b85;
+    --danger:#ef5a6f;
+    --good:#3ddc97;
+    --radius: 6px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0/28px 28px,
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0/28px 28px,
+      radial-gradient(ellipse at top, var(--navy-2), var(--navy-0) 70%);
+    color: var(--text-hi);
+    font-family:'IBM Plex Sans', sans-serif;
+    padding: 20px;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    border-bottom:1px solid rgba(34,211,238,0.2);
+    padding-bottom:14px; margin-bottom:18px;
+  }
+  .brand{ display:flex; flex-direction:column; gap:2px;}
+  .brand .kicker{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:2px; color:var(--amber); text-transform:uppercase;}
+  .brand h1{ margin:0; font-size:20px; font-weight:600; color:var(--text-hi);}
+  .brand .sub{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-lo);}
+  .status-pill{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; padding:5px 10px; border-radius:20px;
+    border:1px solid var(--cyan-dim); color:var(--cyan); background:rgba(34,211,238,0.06);
+  }
+
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;
+    background:var(--navy-2); border:1px solid rgba(34,211,238,0.15); border-radius:var(--radius);
+    padding:12px;
+  }
+  button{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; cursor:pointer;
+    background:var(--navy-3); color:var(--text-hi); border:1px solid rgba(147,165,189,0.25);
+    border-radius:4px; padding:8px 12px; transition:.15s;
+  }
+  button:hover:not(:disabled){ border-color:var(--cyan); color:var(--cyan); }
+  button:disabled{ opacity:.35; cursor:not-allowed; }
+  button.primary{ border-color:var(--cyan-dim); color:var(--cyan); background:rgba(34,211,238,0.08); }
+  button.primary:hover:not(:disabled){ background:rgba(34,211,238,0.16); }
+  button.warn{ border-color:var(--danger); color:var(--danger); }
+  button.warn:hover:not(:disabled){ background:rgba(239,90,111,0.1); }
+  button.gold{ border-color:var(--amber-dim); color:var(--amber); }
+  button.gold:hover:not(:disabled){ background:rgba(245,165,36,0.1); }
+  input[type=file]{ display:none; }
+  .range-inputs{ display:flex; align-items:center; gap:6px; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-mid); }
+  .range-inputs input[type=number]{
+    width:56px; background:var(--navy-1); border:1px solid rgba(147,165,189,0.3); color:var(--text-hi);
+    border-radius:4px; padding:6px; font-family:'IBM Plex Mono',monospace;
+  }
+
+  .panels{ display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+  @media (max-width: 900px){ .panels{ grid-template-columns: 1fr; } }
+
+  .panel{
+    background:var(--navy-2); border:1px solid rgba(34,211,238,0.15); border-radius:var(--radius);
+    padding:14px; min-height:220px;
+  }
+  .panel h2{
+    margin:0 0 10px 0; font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--text-mid); font-family:'IBM Plex Mono',monospace; display:flex; justify-content:space-between; align-items:center;
+  }
+  .panel h2 .count{ color:var(--cyan); }
+
+  .source-card{
+    border:1px solid rgba(147,165,189,0.15); border-radius:4px; margin-bottom:12px; overflow:hidden;
+  }
+  .source-card .src-head{
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+    background:var(--navy-1); padding:8px 10px; font-family:'IBM Plex Mono',monospace; font-size:11px;
+    color:var(--text-mid);
+  }
+  .src-head .src-name{ color:var(--text-hi); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px; }
+  .src-head-actions{ display:flex; gap:4px; }
+  .src-head-actions button{ padding:3px 6px; font-size:10px; }
+
+  .thumb-grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(78px,1fr)); gap:8px; padding:10px;
+  }
+  .thumb{
+    position:relative; cursor:pointer; border:2px solid rgba(147,165,189,0.2); border-radius:3px; overflow:hidden;
+    background:var(--navy-0); transition:.1s;
+  }
+  .thumb img{ width:100%; display:block; }
+  .thumb:hover{ border-color:var(--cyan-dim); }
+  .thumb.selected{ border-color:var(--amber); box-shadow:0 0 0 2px rgba(245,165,36,0.25); }
+  .thumb .pg-label{
+    position:absolute; bottom:0; left:0; right:0; background:rgba(6,9,18,0.85);
+    font-family:'IBM Plex Mono',monospace; font-size:10px; text-align:center; padding:2px 0; color:var(--text-mid);
+  }
+  .thumb .sel-badge{
+    position:absolute; top:2px; right:2px; background:var(--amber); color:var(--navy-0);
+    font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:700; border-radius:50%;
+    width:16px; height:16px; display:flex; align-items:center; justify-content:center;
+  }
+  .thumb.dragging{ opacity:.4; }
+  .thumb.drop-target{ outline:2px dashed var(--cyan); }
+
+  .empty-hint{
+    color:var(--text-lo); font-family:'IBM Plex Mono',monospace; font-size:12px; text-align:center;
+    padding:30px 10px; border:1px dashed rgba(147,165,189,0.2); border-radius:4px;
+  }
+  #dropzone.dragover{ border-color:var(--cyan); background:rgba(34,211,238,0.05); }
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(6,9,18,0.75); display:none; align-items:center; justify-content:center; z-index:50;
+    padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal{
+    background:var(--navy-2); border:1px solid var(--cyan-dim); border-radius:var(--radius);
+    width:min(720px,100%); max-height:85vh; overflow:auto; padding:16px;
+  }
+  .modal h3{ margin:0 0 10px; font-family:'IBM Plex Mono',monospace; font-size:14px; color:var(--cyan); }
+  .modal-footer{ display:flex; justify-content:flex-end; gap:8px; margin-top:14px; border-top:1px solid rgba(147,165,189,0.15); padding-top:12px; }
+
+  .log{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-lo); margin-top:14px;
+    max-height:90px; overflow-y:auto; border-top:1px solid rgba(147,165,189,0.1); padding-top:8px;
+  }
+  .log div.err{ color:var(--danger); }
+  .log div.ok{ color:var(--good); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="kicker">Apna Electromechanic Service — Engineering Tools Suite</div>
+    <h1>PDF Page Arranger</h1>
+    <div class="sub">offline, client-side page remove / replace / insert / reorder — nothing uploaded anywhere</div>
+  </div>
+  <div class="status-pill" id="statusPill">idle</div>
+</header>
+
+<div class="toolbar">
+  <label for="fileInput"><button class="primary" onclick="document.getElementById('fileInput').click()">+ Load PDF(s)</button></label>
+  <input type="file" id="fileInput" accept="application/pdf" multiple>
+
+  <button id="btnAppendSel" class="gold" disabled>Append Library Selection → Working Doc</button>
+  <button id="btnInsertSel" class="gold" disabled>Insert Library Selection at Working-Doc Selection</button>
+
+  <span style="width:1px;background:rgba(147,165,189,0.2);"></span>
+
+  <div class="range-inputs">
+    Select working range
+    <input type="number" id="rangeFrom" min="1" placeholder="from">
+    <input type="number" id="rangeTo" min="1" placeholder="to">
+    <button onclick="selectWorkingRange()">Select</button>
+  </div>
+
+  <button id="btnRemove" class="warn" disabled>Remove Selected Working Pages</button>
+  <button id="btnReplace" class="warn" disabled>Replace Selected Working Pages With Library Selection</button>
+  <button id="btnClearWorkingSel" disabled>Clear Working Selection</button>
+  <button id="btnClearLibSel" disabled>Clear Library Selection</button>
+
+  <span style="width:1px;background:rgba(147,165,189,0.2);"></span>
+
+  <button id="btnExport" class="primary" disabled>Export Assembled PDF</button>
+  <button id="btnResetAll" class="warn">Reset Everything</button>
+</div>
+
+<div class="panels">
+  <div class="panel" id="libraryPanel">
+    <h2>Source Library <span class="count" id="libCount">0 files</span></h2>
+    <div id="libraryBody"><div class="empty-hint">Load one or more PDFs to begin. Click pages to select them (order of clicking matters), then use the toolbar to append or insert them into the working document.</div></div>
+  </div>
+
+  <div class="panel" id="workingPanel">
+    <h2>Working Document <span class="count" id="workCount">0 pages</span></h2>
+    <div id="workingBody"><div class="empty-hint">Your assembled document builds here. Drag thumbnails to reorder. Select a page range above (or click thumbnails) to remove or replace.</div></div>
+  </div>
+</div>
+
+<div class="log" id="log"></div>
+
+<div class="modal-overlay" id="pickerModal">
+  <div class="modal">
+    <h3 id="pickerTitle">Select pages</h3>
+    <div id="pickerBody"></div>
+    <div class="modal-footer">
+      <button onclick="closePicker()">Cancel</button>
+      <button class="primary" onclick="confirmPicker()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const { PDFDocument } = PDFLib;
+
+let sources = [];      // {id, name, bytes(ArrayBuffer), pdfjsDoc, pdfLibDoc, pageCount, thumbs:[dataURL,...]}
+let working = [];      // {uid, sourceId, pageIndex, thumb}
+let uidCounter = 0;
+let sourceIdCounter = 0;
+let libSelection = []; // ordered list of {sourceId, pageIndex}
+let workSelection = new Set(); // set of working[] array indices
+
+const $ = id => document.getElementById(id);
+function log(msg, cls){
+  const d = document.createElement('div');
+  if(cls) d.className = cls;
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  $('log').prepend(d);
+}
+function setStatus(t){ $('statusPill').textContent = t; }
+
+function refreshButtons(){
+  $('btnAppendSel').disabled = libSelection.length === 0;
+  $('btnInsertSel').disabled = !(libSelection.length > 0 && workSelection.size > 0);
+  $('btnRemove').disabled = workSelection.size === 0;
+  $('btnReplace').disabled = !(workSelection.size > 0 && libSelection.length > 0);
+  $('btnClearWorkingSel').disabled = workSelection.size === 0;
+  $('btnClearLibSel').disabled = libSelection.length === 0;
+  $('btnExport').disabled = working.length === 0;
+  $('libCount').textContent = `${sources.length} file${sources.length!==1?'s':''}`;
+  $('workCount').textContent = `${working.length} page${working.length!==1?'s':''}`;
+}
+
+// ---------- LOADING ----------
+$('fileInput').addEventListener('change', async (e) => {
+  for(const file of e.target.files){
+    await loadSourceFile(file);
+  }
+  e.target.value = '';
+});
+
+async function loadSourceFile(file){
+  setStatus('loading ' + file.name);
+  try{
+    const bytes = await file.arrayBuffer();
+    const pdfjsDoc = await pdfjsLib.getDocument({data: bytes.slice(0)}).promise;
+    const pdfLibDoc = await PDFDocument.load(bytes.slice(0));
+    const id = 'src' + (++sourceIdCounter);
+    const src = { id, name: file.name, pdfjsDoc, pdfLibDoc, pageCount: pdfjsDoc.numPages, thumbs: [] };
+    sources.push(src);
+    renderLibrary();
+    // render thumbnails progressively
+    for(let p=1; p<=src.pageCount; p++){
+      const dataUrl = await renderThumb(pdfjsDoc, p);
+      src.thumbs[p-1] = dataUrl;
+      updateSourceThumbImgs(src);
+    }
+    log(`Loaded "${file.name}" — ${src.pageCount} pages`, 'ok');
+  }catch(err){
+    console.error(err);
+    log(`Failed to load ${file.name}: ${err.message}`, 'err');
+  }
+  setStatus('idle');
+  refreshButtons();
+}
+
+async function renderThumb(pdfjsDoc, pageNum){
+  const page = await pdfjsDoc.getPage(pageNum);
+  const viewport = page.getViewport({scale: 1});
+  const scale = 130 / viewport.width;
+  const scaledViewport = page.getViewport({scale});
+  const canvas = document.createElement('canvas');
+  canvas.width = scaledViewport.width;
+  canvas.height = scaledViewport.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({canvasContext: ctx, viewport: scaledViewport}).promise;
+  return canvas.toDataURL('image/jpeg', 0.7);
+}
+
+function updateSourceThumbImgs(src){
+  const grid = document.querySelector(`.source-card[data-src="${src.id}"] .thumb-grid`);
+  if(!grid) return;
+  src.thumbs.forEach((url, i) => {
+    if(!url) return;
+    const img = grid.querySelector(`.thumb[data-page="${i}"] img`);
+    if(img && !img.src) img.src = url;
+  });
+}
+
+// ---------- LIBRARY RENDER ----------
+function renderLibrary(){
+  const body = $('libraryBody');
+  if(sources.length === 0){
+    body.innerHTML = '<div class="empty-hint">Load one or more PDFs to begin. Click pages to select them (order of clicking matters), then use the toolbar to append or insert them into the working document.</div>';
+    return;
+  }
+  body.innerHTML = '';
+  sources.forEach(src => {
+    const card = document.createElement('div');
+    card.className = 'source-card';
+    card.dataset.src = src.id;
+    card.innerHTML = `
+      <div class="src-head">
+        <span class="src-name" title="${src.name}">${src.name} · ${src.pageCount}p</span>
+        <div class="src-head-actions">
+          <button onclick="quickSelectAll('${src.id}')">Select All</button>
+          <button onclick="appendWholeSource('${src.id}')">Add Whole PDF</button>
+          <button onclick="removeSource('${src.id}')">✕</button>
+        </div>
+      </div>
+      <div class="thumb-grid"></div>
+    `;
+    body.appendChild(card);
+    const grid = card.querySelector('.thumb-grid');
+    for(let i=0; i<src.pageCount; i++){
+      const t = document.createElement('div');
+      t.className = 'thumb';
+      t.dataset.page = i;
+      t.innerHTML = `<img src="${src.thumbs[i]||''}"><span class="pg-label">${i+1}</span>`;
+      t.addEventListener('click', () => toggleLibSelect(src.id, i, t));
+      grid.appendChild(t);
+    }
+  });
+  refreshButtons();
+}
+
+function toggleLibSelect(sourceId, pageIndex, el){
+  const idx = libSelection.findIndex(s => s.sourceId===sourceId && s.pageIndex===pageIndex);
+  if(idx >= 0){
+    libSelection.splice(idx,1);
+    el.classList.remove('selected');
+    el.querySelector('.sel-badge')?.remove();
+  } else {
+    libSelection.push({sourceId, pageIndex});
+    el.classList.add('selected');
+    const badge = document.createElement('span');
+    badge.className='sel-badge';
+    badge.textContent = libSelection.length;
+    el.appendChild(badge);
+  }
+  renumberLibBadges();
+  refreshButtons();
+}
+
+function renumberLibBadges(){
+  document.querySelectorAll('#libraryBody .thumb').forEach(t=>{
+    const sourceId = t.closest('.source-card').dataset.src;
+    const pageIndex = parseInt(t.dataset.page);
+    const pos = libSelection.findIndex(s=>s.sourceId===sourceId && s.pageIndex===pageIndex);
+    const badge = t.querySelector('.sel-badge');
+    if(pos>=0 && badge) badge.textContent = pos+1;
+  });
+}
+
+function quickSelectAll(sourceId){
+  const src = sources.find(s=>s.id===sourceId);
+  for(let i=0;i<src.pageCount;i++){
+    if(!libSelection.some(s=>s.sourceId===sourceId && s.pageIndex===i)){
+      libSelection.push({sourceId, pageIndex:i});
+    }
+  }
+  renderLibrary(); // simplest way to refresh selected classes
+  reapplyLibSelectionClasses();
+}
+
+function reapplyLibSelectionClasses(){
+  document.querySelectorAll('#libraryBody .thumb').forEach(t=>{
+    const sourceId = t.closest('.source-card').dataset.src;
+    const pageIndex = parseInt(t.dataset.page);
+    const pos = libSelection.findIndex(s=>s.sourceId===sourceId && s.pageIndex===pageIndex);
+    t.querySelector('.sel-badge')?.remove();
+    if(pos>=0){
+      t.classList.add('selected');
+      const badge=document.createElement('span'); badge.className='sel-badge'; badge.textContent=pos+1;
+      t.appendChild(badge);
+    } else {
+      t.classList.remove('selected');
+    }
+  });
+}
+
+function removeSource(id){
+  sources = sources.filter(s=>s.id!==id);
+  libSelection = libSelection.filter(s=>s.sourceId!==id);
+  renderLibrary();
+  refreshButtons();
+  log('Removed source from library','ok');
+}
+
+function appendWholeSource(sourceId){
+  const src = sources.find(s=>s.id===sourceId);
+  for(let i=0;i<src.pageCount;i++){
+    working.push({uid:++uidCounter, sourceId, pageIndex:i, thumb:src.thumbs[i]});
+  }
+  renderWorking();
+  log(`Added all ${src.pageCount} pages from "${src.name}" to working document`,'ok');
+}
+
+$('btnClearLibSel').addEventListener('click', ()=>{
+  libSelection = [];
+  reapplyLibSelectionClasses();
+  refreshButtons();
+});
+
+// ---------- WORKING DOC RENDER ----------
+function renderWorking(){
+  const body = $('workingBody');
+  if(working.length === 0){
+    body.innerHTML = '<div class="empty-hint">Your assembled document builds here. Drag thumbnails to reorder. Select a page range above (or click thumbnails) to remove or replace.</div>';
+    refreshButtons();
+    return;
+  }
+  body.innerHTML = '<div class="thumb-grid" id="workGrid"></div>';
+  const grid = $('workGrid');
+  working.forEach((w, i) => {
+    const t = document.createElement('div');
+    t.className = 'thumb' + (workSelection.has(i) ? ' selected' : '');
+    t.draggable = true;
+    t.dataset.idx = i;
+    const srcName = sources.find(s=>s.id===w.sourceId)?.name || '?';
+    t.title = `${srcName} — page ${w.pageIndex+1}`;
+    t.innerHTML = `<img src="${w.thumb||''}"><span class="pg-label">${i+1}</span>`;
+    if(workSelection.has(i)){
+      const badge=document.createElement('span'); badge.className='sel-badge'; badge.textContent='✓';
+      t.appendChild(badge);
+    }
+    t.addEventListener('click', () => toggleWorkSelect(i));
+    t.addEventListener('dragstart', onDragStart);
+    t.addEventListener('dragover', onDragOver);
+    t.addEventListener('drop', onDrop);
+    t.addEventListener('dragend', onDragEnd);
+    grid.appendChild(t);
+  });
+  refreshButtons();
+}
+
+function toggleWorkSelect(i){
+  if(workSelection.has(i)) workSelection.delete(i); else workSelection.add(i);
+  renderWorking();
+}
+
+$('btnClearWorkingSel').addEventListener('click', ()=>{ workSelection.clear(); renderWorking(); });
+
+function selectWorkingRange(){
+  const from = parseInt($('rangeFrom').value);
+  const to = parseInt($('rangeTo').value);
+  if(!from || !to || from<1 || to>working.length || from>to){
+    log('Enter a valid range within the current working document','err');
+    return;
+  }
+  workSelection.clear();
+  for(let i=from-1;i<=to-1;i++) workSelection.add(i);
+  renderWorking();
+  log(`Selected working pages ${from}-${to}`,'ok');
+}
+
+// drag reorder
+let dragSrcIdx = null;
+function onDragStart(e){
+  dragSrcIdx = parseInt(e.currentTarget.dataset.idx);
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragOver(e){
+  e.preventDefault();
+  e.currentTarget.classList.add('drop-target');
+}
+function onDrop(e){
+  e.preventDefault();
+  const targetIdx = parseInt(e.currentTarget.dataset.idx);
+  e.currentTarget.classList.remove('drop-target');
+  if(dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+  const moved = working.splice(dragSrcIdx,1)[0];
+  working.splice(targetIdx,0,moved);
+  workSelection.clear();
+  renderWorking();
+  log(`Reordered: moved page to position ${targetIdx+1}`,'ok');
+}
+function onDragEnd(e){
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.drop-target').forEach(el=>el.classList.remove('drop-target'));
+}
+
+// ---------- ACTIONS ----------
+$('btnAppendSel').addEventListener('click', () => {
+  libSelection.forEach(sel => {
+    const src = sources.find(s=>s.id===sel.sourceId);
+    working.push({uid:++uidCounter, sourceId: sel.sourceId, pageIndex: sel.pageIndex, thumb: src.thumbs[sel.pageIndex]});
+  });
+  log(`Appended ${libSelection.length} page(s) to end of working document`,'ok');
+  clearLibSelectionSilently();
+  renderWorking();
+});
+
+$('btnInsertSel').addEventListener('click', () => {
+  const insertAt = Math.min(...workSelection); // insert before earliest selected
+  const newPages = libSelection.map(sel => {
+    const src = sources.find(s=>s.id===sel.sourceId);
+    return {uid:++uidCounter, sourceId: sel.sourceId, pageIndex: sel.pageIndex, thumb: src.thumbs[sel.pageIndex]};
+  });
+  working.splice(insertAt, 0, ...newPages);
+  log(`Inserted ${newPages.length} page(s) before working position ${insertAt+1}`,'ok');
+  workSelection.clear();
+  clearLibSelectionSilently();
+  renderWorking();
+});
+
+$('btnRemove').addEventListener('click', () => {
+  const indices = [...workSelection].sort((a,b)=>b-a);
+  indices.forEach(i => working.splice(i,1));
+  log(`Removed ${indices.length} page(s) from working document`,'ok');
+  workSelection.clear();
+  renderWorking();
+});
+
+$('btnReplace').addEventListener('click', () => {
+  const indices = [...workSelection].sort((a,b)=>a-b);
+  const insertAt = indices[0];
+  // remove selected (descending) then insert new at insertAt
+  [...indices].sort((a,b)=>b-a).forEach(i=>working.splice(i,1));
+  const newPages = libSelection.map(sel => {
+    const src = sources.find(s=>s.id===sel.sourceId);
+    return {uid:++uidCounter, sourceId: sel.sourceId, pageIndex: sel.pageIndex, thumb: src.thumbs[sel.pageIndex]};
+  });
+  working.splice(insertAt, 0, ...newPages);
+  log(`Replaced ${indices.length} working page(s) with ${newPages.length} page(s) from library`,'ok');
+  workSelection.clear();
+  clearLibSelectionSilently();
+  renderWorking();
+});
+
+function clearLibSelectionSilently(){
+  libSelection = [];
+  reapplyLibSelectionClasses();
+}
+
+$('btnResetAll').addEventListener('click', () => {
+  if(!confirm('Clear all loaded PDFs and the working document?')) return;
+  sources = []; working = []; libSelection = []; workSelection.clear();
+  renderLibrary(); renderWorking();
+  log('Reset everything','ok');
+});
+
+// ---------- EXPORT ----------
+$('btnExport').addEventListener('click', async () => {
+  setStatus('assembling PDF...');
+  try{
+    const outDoc = await PDFDocument.create();
+    // group consecutive working entries by source for efficient copyPages calls
+    let i = 0;
+    while(i < working.length){
+      const sourceId = working[i].sourceId;
+      const pageIndices = [];
+      const startI = i;
+      while(i < working.length && working[i].sourceId === sourceId){
+        pageIndices.push(working[i].pageIndex);
+        i++;
+      }
+      const src = sources.find(s=>s.id===sourceId);
+      const copied = await outDoc.copyPages(src.pdfLibDoc, pageIndices);
+      copied.forEach(p => outDoc.addPage(p));
+    }
+    const bytes = await outDoc.save();
+    const blob = new Blob([bytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'assembled-document.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    log(`Exported assembled PDF — ${working.length} pages`,'ok');
+  }catch(err){
+    console.error(err);
+    log('Export failed: ' + err.message, 'err');
+  }
+  setStatus('idle');
+});
+
+// ---------- DRAG & DROP FILE LOADING onto whole page ----------
+document.addEventListener('dragover', e => { e.preventDefault(); });
+document.addEventListener('drop', async e => {
+  e.preventDefault();
+  const files = [...e.dataTransfer.files].filter(f => f.type === 'application/pdf');
+  for(const f of files) await loadSourceFile(f);
+});
+
+refreshButtons();
+</script>
+
+</body>
+</html>
