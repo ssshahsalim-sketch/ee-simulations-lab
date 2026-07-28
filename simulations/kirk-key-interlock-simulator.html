@@ -1,0 +1,1803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Kirk Key Interlock Simulator | Apna Electromechanic Service</title>
+<style>
+/* =========================================================================
+   KIRK KEY INTERLOCK SIMULATOR — DESIGN SYSTEM
+   Deep navy engineering-software look, blueprint grid, cyan/amber accents.
+   ========================================================================= */
+:root{
+  --bg:#060c16;
+  --bg2:#0a1424;
+  --panel:#0e1a2e;
+  --panel2:#122036;
+  --panel3:#16263f;
+  --border:#1f3a5c;
+  --border-soft:#16283f;
+  --text:#dce8f5;
+  --muted:#7d93ad;
+  --muted2:#5a7290;
+  --cyan:#22d3ee;
+  --cyan-dim:#0f6c80;
+  --amber:#ffb020;
+  --amber-dim:#8a5f10;
+  --green:#33d17a;
+  --red:#ff5566;
+  --blue:#4da6ff;
+  --gray:#5b6773;
+  --yellow:#ffd83d;
+  --mono:'IBM Plex Mono','Consolas','SF Mono','Courier New',monospace;
+  --sans:'IBM Plex Sans','Segoe UI',Arial,sans-serif;
+  --dur:0.45s;
+  --radius:10px;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+body.reduced-motion *{ transition-duration:0.001s !important; animation-duration:0.001s !important; }
+
+/* Blueprint grid overlay */
+body::before{
+  content:"";
+  position:fixed; inset:0;
+  pointer-events:none;
+  z-index:0;
+  background-image:
+    linear-gradient(rgba(34,211,238,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34,211,238,0.045) 1px, transparent 1px);
+  background-size:28px 28px;
+}
+
+#app{position:relative; z-index:1; display:flex; flex-direction:column; min-height:100vh;}
+
+::-webkit-scrollbar{width:10px; height:10px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+::-webkit-scrollbar-thumb{background:var(--border); border-radius:6px;}
+::-webkit-scrollbar-thumb:hover{background:var(--cyan-dim);}
+
+/* ---------------- TOP BAR ---------------- */
+#topbar{
+  display:flex; align-items:center; gap:16px;
+  padding:10px 18px;
+  background:linear-gradient(180deg,#0b1728,#08111f);
+  border-bottom:1px solid var(--border);
+  box-shadow:0 2px 14px rgba(0,0,0,0.4);
+  position:sticky; top:0; z-index:50;
+  flex-wrap:wrap;
+}
+.brand{display:flex; align-items:center; gap:10px;}
+.brand-mark{
+  width:34px; height:34px; border-radius:8px;
+  background:radial-gradient(circle at 30% 30%, var(--cyan), #0b4a5c 70%);
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; box-shadow:0 0 14px rgba(34,211,238,0.5);
+  flex-shrink:0;
+}
+.brand-text .title{font-family:var(--mono); font-weight:700; font-size:15px; letter-spacing:0.5px; color:#fff;}
+.brand-text .sub{font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:1px;}
+#topbar .spacer{flex:1;}
+.clock{font-family:var(--mono); font-size:12px; color:var(--cyan); border:1px solid var(--border-soft); padding:5px 10px; border-radius:6px; background:var(--panel);}
+.top-btn{
+  font-family:var(--mono); font-size:11px; color:var(--muted);
+  background:var(--panel2); border:1px solid var(--border-soft);
+  padding:6px 10px; border-radius:6px; cursor:pointer; white-space:nowrap;
+}
+.top-btn:hover{color:var(--cyan); border-color:var(--cyan-dim);}
+.top-btn.on{color:var(--bg); background:var(--cyan); border-color:var(--cyan);}
+#speedRange{accent-color:var(--cyan); vertical-align:middle;}
+
+/* ---------------- LAYOUT ---------------- */
+#body-row{display:flex; flex:1; min-height:0;}
+#sidebar{
+  width:230px; flex-shrink:0;
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  padding:14px 10px 30px;
+  overflow-y:auto;
+}
+.nav-group-title{
+  font-family:var(--mono); font-size:10px; letter-spacing:1.5px;
+  color:var(--muted2); margin:16px 8px 6px; text-transform:uppercase;
+}
+.nav-group-title:first-child{margin-top:2px;}
+.nav-btn{
+  display:flex; align-items:center; gap:9px;
+  width:100%; text-align:left; background:transparent; border:1px solid transparent;
+  color:var(--muted); font-family:var(--sans); font-size:12.5px;
+  padding:8px 9px; border-radius:7px; cursor:pointer; margin-bottom:2px;
+}
+.nav-btn .ic{width:18px; text-align:center; font-size:13px; flex-shrink:0;}
+.nav-btn:hover{background:var(--panel2); color:var(--text);}
+.nav-btn.active{background:linear-gradient(90deg, rgba(34,211,238,0.16), transparent); color:var(--cyan); border-color:var(--cyan-dim); font-weight:600;}
+
+#content{flex:1; min-width:0; overflow-y:auto; padding:22px 26px 60px;}
+.view{display:none;}
+.view.active{display:block; animation:fadein 0.25s ease;}
+@keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+.page-head{margin-bottom:18px;}
+.page-eyebrow{font-family:var(--mono); font-size:11px; color:var(--amber); letter-spacing:1.5px; text-transform:uppercase;}
+.page-title{font-size:23px; font-weight:700; color:#fff; margin:4px 0 6px;}
+.page-desc{color:var(--muted); max-width:820px; font-size:13px;}
+
+/* ---------------- PANELS / CARDS ---------------- */
+.panel{
+  background:linear-gradient(180deg, var(--panel), var(--panel2));
+  border:1px solid var(--border-soft);
+  border-radius:var(--radius);
+  padding:16px 18px;
+  margin-bottom:16px;
+}
+.panel h3{margin-top:0; font-size:14px; color:var(--cyan); font-family:var(--mono); letter-spacing:0.5px;}
+.grid-cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px;}
+.dash-card{
+  background:linear-gradient(160deg, var(--panel3), var(--panel));
+  border:1px solid var(--border-soft);
+  border-radius:12px; padding:16px; cursor:pointer;
+  position:relative; overflow:hidden;
+  transition:transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.dash-card::after{
+  content:""; position:absolute; inset:0; border-radius:12px;
+  background:radial-gradient(circle at 85% -10%, rgba(34,211,238,0.16), transparent 55%);
+  opacity:0; transition:opacity 0.25s ease;
+}
+.dash-card:hover{transform:translateY(-4px); border-color:var(--cyan-dim); box-shadow:0 10px 26px rgba(0,0,0,0.45);}
+.dash-card:hover::after{opacity:1;}
+.dash-card .ic{
+  width:40px; height:40px; border-radius:9px; margin-bottom:10px;
+  display:flex; align-items:center; justify-content:center; font-size:19px;
+  background:rgba(34,211,238,0.1); border:1px solid var(--cyan-dim); color:var(--cyan);
+}
+.dash-card .ic.amber{background:rgba(255,176,32,0.1); border-color:var(--amber-dim); color:var(--amber);}
+.dash-card h4{margin:0 0 5px; font-size:14px; color:#fff;}
+.dash-card p{margin:0; font-size:11.5px; color:var(--muted); line-height:1.45;}
+.dash-card .tag{
+  position:absolute; top:12px; right:12px; font-family:var(--mono); font-size:9px;
+  color:var(--muted2); border:1px solid var(--border-soft); padding:2px 6px; border-radius:20px;
+}
+
+/* buttons */
+.btn{
+  font-family:var(--mono); font-size:11.5px; color:var(--text);
+  background:var(--panel3); border:1px solid var(--border-soft);
+  padding:8px 13px; border-radius:7px; cursor:pointer; transition:all .15s ease;
+}
+.btn:hover:not(:disabled){border-color:var(--cyan); color:var(--cyan);}
+.btn:disabled{opacity:0.32; cursor:not-allowed;}
+.btn.primary{background:linear-gradient(180deg,var(--cyan),#0e93ab); color:#03141a; border-color:var(--cyan); font-weight:700;}
+.btn.primary:hover:not(:disabled){filter:brightness(1.08);}
+.btn.warn{border-color:var(--amber-dim); color:var(--amber);}
+.btn.warn:hover:not(:disabled){border-color:var(--amber);}
+.btn.danger{border-color:#7a2430; color:var(--red);}
+.btn.danger:hover:not(:disabled){border-color:var(--red);}
+.btn.small{padding:5px 9px; font-size:10.5px;}
+
+/* ---------------- LOCK UNIT (SVG mechanism) ---------------- */
+.lock-card{
+  background:var(--bg2); border:1px solid var(--border-soft); border-radius:10px;
+  padding:10px 12px 12px; min-width:280px; flex:1;
+}
+.lock-card .lock-title{
+  font-family:var(--mono); font-size:12px; color:#fff; display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;
+}
+.lock-card .lock-title .led{width:9px; height:9px; border-radius:50%; box-shadow:0 0 6px currentColor; display:inline-block;}
+.lock-svg-wrap{position:relative;}
+.lock-svg-wrap svg{width:100%; height:auto; display:block;}
+.status-line{
+  font-family:var(--mono); font-size:10.5px; color:var(--muted); min-height:15px; margin-top:2px;
+}
+.lock-controls{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px;}
+
+/* svg transitionable parts */
+.anim-tr{transition:transform var(--dur) cubic-bezier(.4,0,.2,1);}
+.anim-fill{transition:fill 0.3s ease, opacity 0.3s ease;}
+.anim-op{transition:opacity var(--dur) ease, transform var(--dur) ease;}
+
+@keyframes shake{
+  0%,100%{transform:translateX(0);} 20%{transform:translateX(-4px);} 40%{transform:translateX(4px);}
+  60%{transform:translateX(-3px);} 80%{transform:translateX(3px);}
+}
+.jam{animation:shake 0.4s ease 2;}
+@keyframes pulseRed{ 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+.pulse-red{animation:pulseRed 0.8s ease-in-out infinite;}
+
+/* log panel */
+.log-panel{
+  background:#050b13; border:1px solid var(--border-soft); border-radius:8px;
+  font-family:var(--mono); font-size:11.5px; padding:10px 12px; height:220px; overflow-y:auto;
+}
+.log-line{padding:3px 0; border-bottom:1px dashed rgba(255,255,255,0.05);}
+.log-line.ok{color:var(--green);}
+.log-line.bad{color:var(--red);}
+.log-line.info{color:var(--muted);}
+.log-line .t{color:var(--muted2); margin-right:6px;}
+
+.badge{display:inline-block; font-family:var(--mono); font-size:10px; padding:2px 8px; border-radius:20px; border:1px solid var(--border-soft);}
+.badge.valid{color:var(--green); border-color:#1f6b3f;}
+.badge.invalid{color:var(--red); border-color:#7a2430;}
+
+.two-col{display:grid; grid-template-columns:1.6fr 1fr; gap:16px; align-items:start;}
+.three-col{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+@media(max-width:980px){.two-col,.three-col{grid-template-columns:1fr;}}
+
+.chip-row{display:flex; flex-wrap:wrap; gap:8px; margin:10px 0;}
+.chip{
+  font-family:var(--mono); font-size:11px; padding:4px 10px; border-radius:20px;
+  border:1px solid var(--border-soft); background:var(--panel2); color:var(--muted); cursor:pointer;
+}
+.chip.active{color:var(--cyan); border-color:var(--cyan-dim); background:rgba(34,211,238,0.08);}
+
+table.spectable{width:100%; border-collapse:collapse; font-size:12px;}
+table.spectable th,table.spectable td{border:1px solid var(--border-soft); padding:7px 9px; text-align:left;}
+table.spectable th{background:var(--panel3); color:var(--cyan); font-family:var(--mono); font-size:11px;}
+table.spectable td{color:var(--muted);}
+table.spectable tr:nth-child(even) td{background:rgba(255,255,255,0.015);}
+
+.legend-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border-soft);}
+.legend-dot{width:14px; height:14px; border-radius:50%; box-shadow:0 0 8px currentColor; flex-shrink:0;}
+
+.ref-card{background:var(--panel2); border:1px solid var(--border-soft); border-radius:9px; padding:12px 14px;}
+.ref-card h5{margin:0 0 6px; color:#fff; font-size:13px; display:flex; align-items:center; gap:7px;}
+.ref-card p{margin:2px 0; font-size:11.5px; color:var(--muted);}
+.ref-glyph{width:26px; height:26px; flex-shrink:0;}
+
+.stepper{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:14px 0;}
+.step-dot{
+  width:30px; height:30px; border-radius:50%; border:1px solid var(--border-soft);
+  display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:12px;
+  color:var(--muted); background:var(--panel2);
+}
+.step-dot.active{color:var(--bg); background:var(--cyan); border-color:var(--cyan); font-weight:700;}
+.step-dot.done{color:var(--green); border-color:#1f6b3f;}
+.step-arrow{color:var(--muted2);}
+
+.qa-card{background:var(--panel2); border:1px solid var(--border-soft); border-radius:9px; padding:14px; margin-bottom:12px;}
+.qa-opt{display:block; padding:8px 10px; border:1px solid var(--border-soft); border-radius:7px; margin:6px 0; cursor:pointer; font-size:12.5px;}
+.qa-opt:hover{border-color:var(--cyan-dim);}
+.qa-opt.selected{border-color:var(--cyan); background:rgba(34,211,238,0.07);}
+.qa-opt.correct{border-color:var(--green); background:rgba(51,209,122,0.1); color:var(--green);}
+.qa-opt.incorrect{border-color:var(--red); background:rgba(255,85,102,0.1); color:var(--red);}
+
+.searchbox{width:100%; padding:10px 14px; font-family:var(--mono); font-size:13px; background:var(--panel2); border:1px solid var(--border-soft); border-radius:8px; color:var(--text);}
+.search-result{padding:10px 12px; border-bottom:1px solid var(--border-soft); cursor:pointer;}
+.search-result:hover{background:var(--panel2);}
+.search-result .rtitle{color:var(--cyan); font-family:var(--mono); font-size:12.5px;}
+.search-result .rview{color:var(--muted2); font-size:10.5px;}
+
+footer.appfoot{
+  text-align:center; font-family:var(--mono); font-size:10.5px; color:var(--muted2);
+  padding:18px 0 6px;
+}
+
+select.eng-select, input.eng-input{
+  font-family:var(--mono); background:var(--panel2); border:1px solid var(--border-soft);
+  color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;
+}
+
+@media print{
+  #topbar,#sidebar,.no-print{display:none !important;}
+  #content{padding:0; overflow:visible;}
+  body{background:#fff; color:#000;}
+  .view{display:none !important;}
+  #printArea{display:block !important; color:#000;}
+}
+#printArea{display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============================= TOP BAR ============================= -->
+  <header id="topbar">
+    <div class="brand">
+      <div class="brand-mark">🔑</div>
+      <div class="brand-text">
+        <div class="title">KIRK KEY INTERLOCK SIMULATOR</div>
+        <div class="sub">APNA ELECTROMECHANIC SERVICE — ENGINEERING TOOLS SUITE</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <label class="top-btn" style="cursor:default;">SPEED
+      <input type="range" id="speedRange" min="0.4" max="2.2" step="0.2" value="1" style="margin-left:6px;">
+    </label>
+    <button class="top-btn" id="motionToggle">⏸ REDUCE MOTION</button>
+    <button class="top-btn" id="voiceToggle">🔈 NARRATION: OFF</button>
+    <div class="clock" id="clock">--:--:--</div>
+  </header>
+
+  <div id="body-row">
+    <!-- ============================= SIDEBAR ============================= -->
+    <nav id="sidebar">
+      <div class="nav-group-title">Overview</div>
+      <button class="nav-btn" data-view="dashboard"><span class="ic">▦</span>Dashboard</button>
+      <button class="nav-btn" data-view="legend"><span class="ic">◐</span>Indicator Legend</button>
+      <button class="nav-btn" data-view="search"><span class="ic">⌕</span>Search</button>
+
+      <div class="nav-group-title">Learn</div>
+      <button class="nav-btn" data-view="learn-basics"><span class="ic">◆</span>What is a Kirk Key?</button>
+      <button class="nav-btn" data-view="key-types"><span class="ic">🗝</span>Key Types</button>
+      <button class="nav-btn" data-view="lock-types"><span class="ic">🔒</span>Lock &amp; Cylinder Types</button>
+      <button class="nav-btn" data-view="blocks"><span class="ic">▣</span>Transfer Block &amp; Exchange Box</button>
+      <button class="nav-btn" data-view="industry"><span class="ic">🏭</span>Industrial Practice</button>
+
+      <div class="nav-group-title">Mechanism Lab</div>
+      <button class="nav-btn" data-view="cylinder-lab"><span class="ic">⚙</span>Cylinder Lab (Single Lock)</button>
+
+      <div class="nav-group-title">Interlock Simulators</div>
+      <button class="nav-btn" data-view="main-main"><span class="ic">⇄</span>Main–Main</button>
+      <button class="nav-btn" data-view="main-tie-main"><span class="ic">⇋</span>Main–Tie–Main</button>
+      <button class="nav-btn" data-view="app-2pos"><span class="ic">◫</span>Bus/Sync/Transformer/Earth</button>
+      <button class="nav-btn" data-view="custom-designer"><span class="ic">✎</span>Custom Interlock Designer</button>
+
+      <div class="nav-group-title">Training</div>
+      <button class="nav-btn" data-view="step-mode"><span class="ic">▶</span>Step-by-Step Mode</button>
+      <button class="nav-btn" data-view="troubleshoot"><span class="ic">⚠</span>Troubleshooting Mode</button>
+      <button class="nav-btn" data-view="quiz"><span class="ic">?</span>Quiz Mode</button>
+
+      <div class="nav-group-title">Output</div>
+      <button class="nav-btn" data-view="print-export"><span class="ic">⎙</span>Print / Export</button>
+    </nav>
+
+    <!-- ============================= MAIN CONTENT ============================= -->
+    <main id="content">
+
+      <!-- ======================= DASHBOARD ======================= -->
+      <section class="view active" id="view-dashboard">
+        <div class="page-head">
+          <div class="page-eyebrow">Home</div>
+          <div class="page-title">Interactive Kirk Key Interlock Simulator</div>
+          <p class="page-desc">A trapped-key (mechanical) interlocking trainer for LVMCC, PCC, MCC, HT panels, synchronizing panels, DG panels, transformer panels, bus couplers and tie breakers. Every module below is a live, animated simulation — not a slideshow. Pick a card to begin.</p>
+        </div>
+        <div class="grid-cards" id="dashGrid"></div>
+      </section>
+
+      <!-- ======================= LEARN: BASICS ======================= -->
+      <section class="view" id="view-learn-basics">
+        <div class="page-head">
+          <div class="page-eyebrow">Learn</div>
+          <div class="page-title">What is a Kirk Key?</div>
+          <p class="page-desc">The foundation concept behind every simulation in this application.</p>
+        </div>
+        <div class="two-col">
+          <div>
+            <div class="panel">
+              <h3>DEFINITION</h3>
+              <p>A <b>Kirk Key</b> interlock (also called a <b>trapped-key</b> or <b>captive-key</b> interlock) is a purely mechanical safety system that uses uniquely coded keys and matching lock cylinders to force switchgear — breakers, isolators, earth switches, transformer taps, doors — to be operated in one and only one physically permitted sequence.</p>
+              <p>Unlike an electrical interlock (auxiliary contacts + relay logic), a trapped-key interlock cannot be defeated by a control-power failure, a wiring fault, or a software bug. The key itself <i>is</i> the permission token, and it can only exist in one place at a time. That single fact — <b>one key, one place, one permission</b> — is the whole idea. Everything else in this app is a variation on it.</p>
+              <h3 style="margin-top:18px;">WHY IT EXISTS</h3>
+              <p>In switchgear, some combinations of breaker/isolator states are dangerous or destructive: paralleling two unsynchronized sources, energising a bus while its earth switch is closed, back-feeding a transformer, or closing a tie breaker between two live, out-of-phase buses. Electrical interlocks can enforce this in normal operation, but maintenance, testing and emergency conditions need a safety layer that still works with the control supply dead. Kirk key systems provide that layer.</p>
+              <h3 style="margin-top:18px;">HOW A SEQUENCE IS FORCED</h3>
+              <p>Every lock in a scheme is either <b>free</b> (bolt retracted, its equipment may operate, key captive) or <b>blocked</b> (bolt extended into the equipment's mechanism, equipment forced to the safe state, key removable). Moving a key from lock A to lock B is only mechanically possible if the operator first drives lock A to the state that releases the key — which itself typically requires the associated breaker to be open. This is why "Insert → Rotate → Operate → Rotate back → Remove → Transfer" is the universal action sequence you'll use throughout this simulator.</p>
+            </div>
+          </div>
+          <div>
+            <div class="panel">
+              <h3>QUICK FACTS</h3>
+              <table class="spectable">
+                <tr><td>Invented for</td><td>Power-station &amp; switchgear safety, early 1900s</td></tr>
+                <tr><td>Type</td><td>100% mechanical, fail-safe, no electrical supply needed</td></tr>
+                <tr><td>Common brand names</td><td>Kirk Key®, Castell®, Fortress®, Trilock®, DIRAK</td></tr>
+                <tr><td>Used in</td><td>LVMCC, PCC, HT panels, RMUs, GIS, transformers, gensets</td></tr>
+                <tr><td>Core rule</td><td>One key can only occupy one lock at a time</td></tr>
+              </table>
+            </div>
+            <div class="panel">
+              <h3>ADVANTAGES</h3>
+              <p style="font-size:12px;">✔ Works with zero electrical power<br>✔ Cannot be bypassed by software/relay failure<br>✔ Physically obvious to any operator<br>✔ Enforces correct maintenance sequences<br>✔ Auditable — the key location tells you the plant state</p>
+              <h3 style="margin-top:14px;">LIMITATIONS</h3>
+              <p style="font-size:12px;">✘ Slower than electrical interlocking<br>✘ Requires disciplined key custody<br>✘ Lost/duplicated keys defeat the safety intent<br>✘ Needs correct engineering — a wrongly designed scheme can trap the wrong condition</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= KEY TYPES ======================= -->
+      <section class="view" id="view-key-types">
+        <div class="page-head">
+          <div class="page-eyebrow">Learn · Reference</div>
+          <div class="page-title">Key Types</div>
+          <p class="page-desc">Every trapped-key scheme is built from a small set of key roles. Click a card to see it highlighted in the mechanism diagram below.</p>
+        </div>
+        <div class="grid-cards" id="keyTypesGrid"></div>
+        <div class="panel" style="margin-top:16px;">
+          <h3>KEY ANATOMY</h3>
+          <div id="keyAnatomySvg"></div>
+        </div>
+      </section>
+
+      <!-- ======================= LOCK TYPES ======================= -->
+      <section class="view" id="view-lock-types">
+        <div class="page-head">
+          <div class="page-eyebrow">Learn · Reference</div>
+          <div class="page-title">Lock &amp; Cylinder Types</div>
+          <p class="page-desc">The mechanism behind the lock face determines what physical action it forces. Extend/Withdraw are the two families used throughout this simulator; the rest are common variants you will meet on real panels.</p>
+        </div>
+        <div class="grid-cards" id="lockTypesGrid"></div>
+      </section>
+
+      <!-- ======================= TRANSFER BLOCK & EXCHANGE BOX ======================= -->
+      <section class="view" id="view-blocks">
+        <div class="page-head">
+          <div class="page-eyebrow">Learn</div>
+          <div class="page-title">Transfer Block &amp; Key Exchange Box</div>
+          <p class="page-desc">Two hardware items that let trapped-key logic scale beyond simple lock-to-lock pairs.</p>
+        </div>
+        <div class="two-col">
+          <div class="panel">
+            <h3>TRANSFER BLOCK</h3>
+            <div id="transferBlockSvg"></div>
+            <p>A transfer block is a small captive-key unit with <b>two locks free-standing on a wall or panel plate</b> — not attached to any breaker. Its only job is to swap a key's "identity." A key is inserted and trapped in lock 1, which releases a <i>different</i> key from lock 2. This lets a single physical action bridge between two otherwise unrelated key systems, or let one key "stand in" for a state confirmation without being wired to any specific breaker mechanism.</p>
+          </div>
+          <div class="panel">
+            <h3>KEY EXCHANGE BOX</h3>
+            <div id="exchangeBoxSvg"></div>
+            <p>An exchange box (multi-lock box) holds <b>several keys captive simultaneously</b>, and only releases them — usually one at a time, or in a fixed group — once a specific "master" or "release" key has been inserted and rotated. Exchange boxes are the standard way to manage large ring-main or multi-breaker schemes (5–20+ keys) where a simple lock-to-lock chain would be unmanageable. Think of it as a mechanical logic gate for keys.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= INDUSTRIAL PRACTICE ======================= -->
+      <section class="view" id="view-industry">
+        <div class="page-head">
+          <div class="page-eyebrow">Learn</div>
+          <div class="page-title">Industrial Practice &amp; Manufacturers</div>
+          <p class="page-desc">Trapped-key interlocking is a specification requirement, not a single manufacturer's product — panel builders integrate a trapped-key brand into their own switchgear ranges to meet a customer's or consultant's safety philosophy.</p>
+        </div>
+        <div class="grid-cards" id="industryGrid"></div>
+      </section>
+
+      <!-- ======================= LEGEND ======================= -->
+      <section class="view" id="view-legend">
+        <div class="page-head">
+          <div class="page-eyebrow">Reference</div>
+          <div class="page-title">Visual Indicator Legend</div>
+          <p class="page-desc">Every simulation in this application uses these colours consistently.</p>
+        </div>
+        <div class="panel" style="max-width:520px;">
+          <div class="legend-row"><span class="legend-dot" style="color:var(--green); background:var(--green);"></span> Green LED — Breaker CLOSED</div>
+          <div class="legend-row"><span class="legend-dot" style="color:var(--red); background:var(--red);"></span> Red LED — Breaker OPEN</div>
+          <div class="legend-row"><span class="legend-dot" style="color:var(--yellow); background:var(--yellow);"></span> Yellow dot — Key available / removable at this lock</div>
+          <div class="legend-row"><span class="legend-dot" style="color:var(--blue); background:var(--blue);"></span> Blue bolt — Cylinder EXTENDED (mechanically blocking)</div>
+          <div class="legend-row" style="border-bottom:none;"><span class="legend-dot" style="color:var(--gray); background:var(--gray);"></span> Grey bolt — Cylinder RETRACTED (free to operate)</div>
+        </div>
+      </section>
+
+      <!-- ======================= SEARCH ======================= -->
+      <section class="view" id="view-search">
+        <div class="page-head">
+          <div class="page-eyebrow">Utility</div>
+          <div class="page-title">Search</div>
+          <p class="page-desc">Search across every topic, application, lock, key and arrangement in this simulator.</p>
+        </div>
+        <input class="searchbox" id="searchInput" placeholder="Try: withdraw, tie breaker, exchange box, transformer, master key…">
+        <div class="panel" style="margin-top:14px; padding:0;" id="searchResults"></div>
+      </section>
+
+      <!-- ======================= CYLINDER LAB ======================= -->
+      <section class="view" id="view-cylinder-lab">
+        <div class="page-head">
+          <div class="page-eyebrow">Mechanism Lab</div>
+          <div class="page-title">Cylinder Lab — Single Lock, Full Mechanism</div>
+          <p class="page-desc">Operate one lock manually and watch every internal part move: key insertion, rotation, bolt extend/withdraw, spring compression, locking pin, and handle blocking.</p>
+        </div>
+        <div class="two-col">
+          <div class="panel">
+            <div id="labLockHost"></div>
+            <div class="chip-row" id="labControls"></div>
+          </div>
+          <div class="panel">
+            <h3>SEQUENCE EXPLANATION</h3>
+            <div id="labExplain" style="font-size:12.5px; color:var(--muted);"></div>
+            <h3 style="margin-top:16px;">EVENT LOG</h3>
+            <div class="log-panel" id="labLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= MAIN-MAIN ======================= -->
+      <section class="view" id="view-main-main">
+        <div class="page-head">
+          <div class="page-eyebrow">Interlock Simulator</div>
+          <div class="page-title">Main–Main Interlock</div>
+          <p class="page-desc">Two incomer breakers, ONE shared key. The scheme guarantees only one Main can ever be closed at a time — the classic anti-paralleling / single-source-selection interlock.</p>
+        </div>
+        <div class="two-col">
+          <div>
+            <div class="panel" id="mmHost"></div>
+          </div>
+          <div class="panel">
+            <h3>LOGIC TABLE</h3>
+            <table class="spectable">
+              <tr><th>Main A</th><th>Main B</th><th>Valid?</th></tr>
+              <tr><td>CLOSED</td><td>OPEN</td><td style="color:var(--green);">✔ Valid</td></tr>
+              <tr><td>OPEN</td><td>CLOSED</td><td style="color:var(--green);">✔ Valid</td></tr>
+              <tr><td>OPEN</td><td>OPEN</td><td style="color:var(--green);">✔ Valid</td></tr>
+              <tr><td>CLOSED</td><td>CLOSED</td><td style="color:var(--red);">✘ Mechanically impossible</td></tr>
+            </table>
+            <h3 style="margin-top:16px;">EVENT LOG</h3>
+            <div class="log-panel" id="mmLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= MAIN-TIE-MAIN ======================= -->
+      <section class="view" id="view-main-tie-main">
+        <div class="page-head">
+          <div class="page-eyebrow">Interlock Simulator</div>
+          <div class="page-title">Main–Tie–Main Interlock</div>
+          <p class="page-desc">Main A, Tie Breaker, Main B. Two keys (K1, K2). The Tie breaker has two locks of its own and can only close once BOTH keys have been transferred to it — meaning both Mains must first be opened. This prevents paralleling either Main through the Tie and prevents all three breakers being closed together.</p>
+        </div>
+        <div class="two-col">
+          <div>
+            <div class="panel" id="mtmHost"></div>
+          </div>
+          <div class="panel">
+            <h3>LOGIC TABLE</h3>
+            <table class="spectable">
+              <tr><th>Main A</th><th>Tie</th><th>Main B</th><th>Valid?</th></tr>
+              <tr><td>CLOSED</td><td>OPEN</td><td>CLOSED</td><td style="color:var(--green);">✔ Valid — normal running</td></tr>
+              <tr><td>OPEN</td><td>CLOSED</td><td>CLOSED</td><td style="color:var(--red);">✘ Blocked — needs K1 at Tie</td></tr>
+              <tr><td>OPEN</td><td>CLOSED</td><td>OPEN</td><td style="color:var(--green);">✔ Valid — bus-tie feed, both Mains open</td></tr>
+              <tr><td>CLOSED</td><td>CLOSED</td><td>CLOSED</td><td style="color:var(--red);">✘ Mechanically impossible</td></tr>
+            </table>
+            <h3 style="margin-top:16px;">EVENT LOG</h3>
+            <div class="log-panel" id="mtmLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= GENERIC 2-POSITION APPLICATIONS ======================= -->
+      <section class="view" id="view-app-2pos">
+        <div class="page-head">
+          <div class="page-eyebrow">Interlock Simulator</div>
+          <div class="page-title">Bus Coupler / Generator Sync / Transformer / Earth Switch</div>
+          <p class="page-desc">These four common applications all reduce to the same trapped-key primitive as Main–Main (two devices, one travelling key) — only the equipment and the safety reason for the exclusion changes. Choose an application below.</p>
+        </div>
+        <div class="chip-row" id="app2posChips"></div>
+        <div class="two-col">
+          <div><div class="panel" id="app2posHost"></div></div>
+          <div class="panel">
+            <h3 id="app2posWhyTitle">WHY THIS INTERLOCK EXISTS</h3>
+            <p id="app2posWhy" style="font-size:12.5px; color:var(--muted);"></p>
+            <h3 style="margin-top:16px;">EVENT LOG</h3>
+            <div class="log-panel" id="app2posLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= CUSTOM DESIGNER ======================= -->
+      <section class="view" id="view-custom-designer">
+        <div class="page-head">
+          <div class="page-eyebrow">Interlock Simulator</div>
+          <div class="page-title">Custom Interlock Designer</div>
+          <p class="page-desc">Build your own exclusive trapped-key scheme: choose how many breakers share one travelling key (2–6), generate it, and test operating sequences against the logic engine.</p>
+        </div>
+        <div class="panel">
+          <h3>CONFIGURATION</h3>
+          <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+            <label style="font-family:var(--mono); font-size:11.5px; color:var(--muted);">Number of breakers:
+              <input type="number" id="customCount" class="eng-input" min="2" max="6" value="3" style="width:60px; margin-left:6px;">
+            </label>
+            <button class="btn primary" id="customGenBtn">GENERATE SCHEME</button>
+            <span id="customValidBadge"></span>
+          </div>
+        </div>
+        <div class="two-col">
+          <div><div class="panel" id="customHost"></div></div>
+          <div class="panel">
+            <h3>GENERATED LOGIC TABLE</h3>
+            <div id="customLogicTable"></div>
+            <h3 style="margin-top:16px;">EVENT LOG</h3>
+            <div class="log-panel" id="customLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= STEP-BY-STEP MODE ======================= -->
+      <section class="view" id="view-step-mode">
+        <div class="page-head">
+          <div class="page-eyebrow">Training</div>
+          <div class="page-title">Step-by-Step Mode</div>
+          <p class="page-desc">A fully guided walk-through of transferring the shared key in a Main–Main scheme, one mechanical action at a time. Use Next / Previous, or Play for an automatic run.</p>
+        </div>
+        <div class="stepper" id="stepDots"></div>
+        <div class="two-col">
+          <div class="panel" id="stepHost"></div>
+          <div class="panel">
+            <h3 id="stepTitle">STEP 1</h3>
+            <p id="stepDesc" style="font-size:13px; color:var(--text);"></p>
+            <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
+              <button class="btn" id="stepPrev">◀ PREV</button>
+              <button class="btn primary" id="stepNext">NEXT ▶</button>
+              <button class="btn warn" id="stepPlay">▶ AUTOPLAY</button>
+              <button class="btn" id="stepReset">↺ RESET</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= TROUBLESHOOTING ======================= -->
+      <section class="view" id="view-troubleshoot">
+        <div class="page-head">
+          <div class="page-eyebrow">Training</div>
+          <div class="page-title">Troubleshooting Mode</div>
+          <p class="page-desc">Common trapped-key faults, simulated visually. Select a fault to run it and read the cause / consequence / correction.</p>
+        </div>
+        <div class="chip-row" id="faultChips"></div>
+        <div class="two-col">
+          <div class="panel" id="faultHost"></div>
+          <div class="panel">
+            <h3 id="faultTitle">SELECT A FAULT</h3>
+            <div id="faultBody" style="font-size:12.5px; color:var(--muted);"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= QUIZ ======================= -->
+      <section class="view" id="view-quiz">
+        <div class="page-head">
+          <div class="page-eyebrow">Training</div>
+          <div class="page-title">Quiz Mode</div>
+          <p class="page-desc">Ten questions covering the mechanisms, logic, and applications in this simulator.</p>
+        </div>
+        <div id="quizArea"></div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button class="btn primary" id="quizSubmit">SUBMIT ANSWERS</button>
+          <button class="btn" id="quizRestart">↺ RESTART</button>
+          <span id="quizScore" style="font-family:var(--mono); align-self:center; color:var(--cyan);"></span>
+        </div>
+      </section>
+
+      <!-- ======================= PRINT / EXPORT ======================= -->
+      <section class="view" id="view-print-export">
+        <div class="page-head">
+          <div class="page-eyebrow">Output</div>
+          <div class="page-title">Print / Export</div>
+          <p class="page-desc">Generate a printable operating-procedure sheet for the Main–Main and Main–Tie–Main schemes, or export the current custom scheme's logic table as text.</p>
+        </div>
+        <div class="panel">
+          <button class="btn primary" id="btnPrintProcedure">⎙ PRINT MAIN–MAIN / MAIN–TIE–MAIN PROCEDURE</button>
+          <button class="btn" id="btnExportCustom" style="margin-left:8px;">⭳ EXPORT CUSTOM SCHEME (.txt)</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="appfoot no-print">Apna Electromechanic Service — Engineering Tools Suite · Interactive Kirk Key Interlock Simulator · Fully offline, single-file HTML application</footer>
+</div>
+
+<!-- ======================= PRINTABLE PROCEDURE (hidden, shown only on print) ======================= -->
+<div id="printArea"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+   GLOBAL STATE
+   ========================================================================= */
+const COLORS = { green:'#33d17a', red:'#ff5566', blue:'#4da6ff', gray:'#5b6773', yellow:'#ffd83d', amber:'#ffb020', cyan:'#22d3ee' };
+let SPEED = 1;            // animation speed multiplier
+let VOICE_ON = false;
+
+function speak(text){
+  if(!VOICE_ON || !('speechSynthesis' in window)) return;
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.0; u.pitch = 1.0;
+    window.speechSynthesis.speak(u);
+  }catch(e){/* narration optional, ignore errors */}
+}
+
+/* =========================================================================
+   VIEW ROUTER
+   ========================================================================= */
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const el = document.getElementById('view-'+id);
+  if(el) el.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===id));
+  document.getElementById('content').scrollTop = 0;
+}
+document.querySelectorAll('.nav-btn').forEach(b=>{
+  b.addEventListener('click', ()=>showView(b.dataset.view));
+});
+
+/* =========================================================================
+   LOCK UNIT — reusable animated SVG mechanism
+   States: 'blocked-empty' | 'blocked-keyed' | 'free-keyed'
+   ========================================================================= */
+let LOCK_SEQ = 0;
+
+function createLock(label, keyLabel){
+  const uid = 'lk' + (++LOCK_SEQ);
+  const lock = {
+    id: uid,
+    label: label,
+    keyLabel: keyLabel || 'K',
+    state: 'blocked-empty',   // starting state; caller can override
+    group: null,              // set by KeyGroup
+    el: null, svg: null, refs: {}
+  };
+  const wrap = document.createElement('div');
+  wrap.className = 'lock-card';
+  wrap.innerHTML = `
+    <div class="lock-title"><span>LOCK ${escapeHtml(label)}</span><span class="led" id="${uid}-led"></span></div>
+    <div class="lock-svg-wrap">
+      <svg viewBox="0 0 300 150" xmlns="http://www.w3.org/2000/svg">
+        <!-- panel plate -->
+        <rect x="2" y="2" width="296" height="146" rx="10" fill="#0a1424" stroke="#1f3a5c" stroke-width="1"/>
+        <!-- lock body -->
+        <rect x="26" y="30" width="118" height="82" rx="10" fill="#16263f" stroke="#1f3a5c" stroke-width="1.5"/>
+        <text x="85" y="122" text-anchor="middle" font-family="monospace" font-size="9" fill="#5a7290">CYLINDER BODY</text>
+        <!-- barrel -->
+        <circle cx="92" cy="70" r="23" fill="#0e1a2e" stroke="#22d3ee" stroke-width="2"/>
+        <rect x="85" y="61" width="14" height="17" rx="2" fill="#050b13"/>
+        <!-- key group (outer = insertion translate, inner = rotation) -->
+        <g id="${uid}-keyOuter" class="anim-op" style="transform:translateX(-46px); opacity:0;">
+          <g id="${uid}-keyInner" class="anim-tr" style="transform-origin:92px 70px; transform:rotate(0deg);">
+            <rect x="6" y="66" width="80" height="8" rx="2" fill="#ffb020"/>
+            <circle cx="6" cy="70" r="15" fill="#ffb020" stroke="#8a5f10" stroke-width="2"/>
+            <circle cx="6" cy="70" r="6" fill="#0a1424"/>
+            <rect x="78" y="60" width="5" height="6" fill="#ffb020"/>
+            <rect x="86" y="72" width="5" height="6" fill="#ffb020"/>
+            <text x="6" y="74" text-anchor="middle" font-family="monospace" font-size="8" font-weight="700" fill="#0a1424">${escapeHtml(keyLabel||'K')}</text>
+          </g>
+        </g>
+        <!-- spring (behind bolt) -->
+        <g id="${uid}-spring" class="anim-tr" style="transform-origin:150px 70px; transform:scaleX(1);">
+          <polyline points="150,64 156,76 162,64 168,76 174,64 180,76" fill="none" stroke="#5b6773" stroke-width="2"/>
+        </g>
+        <!-- bolt / cylinder -->
+        <rect id="${uid}-bolt" class="anim-tr anim-fill" x="160" y="63" width="46" height="14" rx="3" fill="#4da6ff" style="transform:translateX(0px);"/>
+        <!-- locking pin -->
+        <rect id="${uid}-pin" class="anim-tr" x="176" y="34" width="9" height="22" rx="2" fill="#93a3b3" style="transform:translateY(0px);"/>
+        <!-- breaker bracket (fixed) -->
+        <path d="M215,50 L238,50 L238,60 L230,60 L230,80 L238,80 L238,90 L215,90 Z" fill="none" stroke="#1f3a5c" stroke-width="2"/>
+        <text x="226" y="105" text-anchor="middle" font-family="monospace" font-size="8" fill="#5a7290">BREAKER LATCH</text>
+        <!-- handle -->
+        <g id="${uid}-handlePivot" transform="translate(258,70)">
+          <circle r="6" fill="#16263f" stroke="#1f3a5c"/>
+          <g id="${uid}-handle" class="anim-tr" style="transform:rotate(28deg);">
+            <rect x="-3" y="-34" width="6" height="34" rx="3" fill="#7d93ad"/>
+            <circle cx="0" cy="-34" r="6" fill="#dce8f5"/>
+          </g>
+          <circle id="${uid}-blockIcon" class="anim-op" cx="0" cy="0" r="15" fill="none" stroke="#ff5566" stroke-width="2" style="opacity:0;"/>
+        </g>
+        <!-- key-available yellow dot -->
+        <circle id="${uid}-yeldot" cx="45" cy="42" r="5" fill="#ffd83d" class="anim-op" style="opacity:0;"/>
+        <!-- labels -->
+        <text x="92" y="24" text-anchor="middle" font-family="monospace" font-size="9" fill="#7d93ad">KEYWAY</text>
+        <text x="258" y="112" text-anchor="middle" font-family="monospace" font-size="9" fill="#7d93ad">HANDLE</text>
+      </svg>
+    </div>
+    <div class="status-line" id="${uid}-status">—</div>
+    <div class="lock-controls" id="${uid}-ctrls"></div>
+  `;
+  lock.el = wrap;
+  lock.refs = {
+    led: null, keyOuter: null, keyInner: null, spring: null, bolt: null,
+    pin: null, handle: null, blockIcon: null, status: null, ctrls: null, yeldot: null
+  };
+  requestAnimationFrame(()=>{
+    lock.refs.led = document.getElementById(uid+'-led');
+    lock.refs.keyOuter = document.getElementById(uid+'-keyOuter');
+    lock.refs.keyInner = document.getElementById(uid+'-keyInner');
+    lock.refs.spring = document.getElementById(uid+'-spring');
+    lock.refs.bolt = document.getElementById(uid+'-bolt');
+    lock.refs.pin = document.getElementById(uid+'-pin');
+    lock.refs.handle = document.getElementById(uid+'-handle');
+    lock.refs.blockIcon = document.getElementById(uid+'-blockIcon');
+    lock.refs.status = document.getElementById(uid+'-status');
+    lock.refs.ctrls = document.getElementById(uid+'-ctrls');
+    lock.refs.yeldot = document.getElementById(uid+'-yeldot');
+    renderLock(lock);
+  });
+  return lock;
+}
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Render lock visuals from state. `breakerClosed` optional bool for LED colour.
+function renderLock(lock, breakerClosed){
+  const r = lock.refs;
+  if(!r.bolt) return;
+  const extended = lock.state !== 'free-keyed';
+  const keyPresent = lock.state !== 'blocked-empty';
+
+  r.bolt.style.transform = extended ? 'translateX(0px)' : 'translateX(-40px)';
+  r.bolt.setAttribute('fill', extended ? COLORS.blue : COLORS.gray);
+  r.spring.style.transform = extended ? 'scaleX(1)' : 'scaleX(0.5)';
+  r.pin.style.transform = extended ? 'translateY(14px)' : 'translateY(0px)';
+
+  r.keyOuter.style.opacity = keyPresent ? '1' : '0';
+  r.keyOuter.style.transform = keyPresent ? 'translateX(0px)' : 'translateX(-46px)';
+  r.keyInner.style.transform = (lock.state==='free-keyed') ? 'rotate(-52deg)' : 'rotate(0deg)';
+
+  r.yeldot.style.opacity = (lock.state==='blocked-keyed') ? '1' : '0';
+
+  r.handle.style.transform = breakerClosed ? 'rotate(-28deg)' : 'rotate(28deg)';
+  r.blockIcon.style.opacity = extended ? '1' : '0';
+
+  const led = breakerClosed===undefined ? null : (breakerClosed ? COLORS.green : COLORS.red);
+  if(led){ r.led.style.background = led; r.led.style.color = led; }
+
+  let msg;
+  if(lock.state==='blocked-empty') msg = 'Bolt EXTENDED · key absent · equipment locked in safe state';
+  else if(lock.state==='blocked-keyed') msg = 'Bolt EXTENDED · key inserted, not rotated · rotate to release bolt';
+  else msg = breakerClosed ? 'Bolt RETRACTED · key captive · breaker CLOSED' : 'Bolt RETRACTED · key captive · free to close';
+  r.status.textContent = msg;
+}
+
+/* =========================================================================
+   KEY GROUP LOGIC ENGINE
+   A KeyGroup is an array of locks that share exactly one physical key.
+   Only one lock in the group may be non-'blocked-empty' at any time.
+   ========================================================================= */
+function makeKeyGroup(locks){
+  locks.forEach(l=> l.group = locks);
+  return locks;
+}
+
+function canInsert(lock){
+  if(lock.state !== 'blocked-empty') return {ok:false, reason:'This lock already has a key seated, or its bolt is not in the receiving position.'};
+  const occupied = lock.group.find(l=> l!==lock && l.state!=='blocked-empty');
+  if(occupied) return {ok:false, reason:`The shared key is currently at Lock ${occupied.label} — it must be removed there first.`};
+  return {ok:true};
+}
+function doInsert(lock){
+  const c = canInsert(lock);
+  if(!c.ok) return c;
+  lock.state = 'blocked-keyed';
+  return {ok:true, msg:`Key inserted into Lock ${lock.label}.`};
+}
+function canRotateForward(lock){
+  if(lock.state !== 'blocked-keyed') return {ok:false, reason:'Key must be inserted (and not already rotated) before it can be turned to release the bolt.'};
+  return {ok:true};
+}
+function doRotateForward(lock){
+  const c = canRotateForward(lock);
+  if(!c.ok) return c;
+  lock.state = 'free-keyed';
+  return {ok:true, msg:`Key rotated at Lock ${lock.label} — bolt withdrawn, breaker free to operate.`};
+}
+function canRotateBack(lock, isOpenFn){
+  if(lock.state !== 'free-keyed') return {ok:false, reason:'Bolt is already extended — nothing to rotate back.'};
+  if(!isOpenFn()) return {ok:false, reason:'The associated breaker must be OPEN before the key can be rotated back and released.'};
+  return {ok:true};
+}
+function doRotateBack(lock, isOpenFn){
+  const c = canRotateBack(lock, isOpenFn);
+  if(!c.ok) return c;
+  lock.state = 'blocked-keyed';
+  return {ok:true, msg:`Key rotated back at Lock ${lock.label} — bolt extended, breaker now locked open.`};
+}
+function canRemove(lock){
+  if(lock.state !== 'blocked-keyed') return {ok:false, reason:'Key can only be withdrawn once the bolt is fully extended (rotate back first).'};
+  return {ok:true};
+}
+function doRemove(lock){
+  const c = canRemove(lock);
+  if(!c.ok) return c;
+  lock.state = 'blocked-empty';
+  return {ok:true, msg:`Key removed from Lock ${lock.label} — free to carry / transfer.`};
+}
+function canClose(breaker){
+  const notFree = breaker.locks.find(l=> l.state!=='free-keyed');
+  if(notFree) return {ok:false, reason:`Lock ${notFree.label} is not yet free — its bolt is still extended.`};
+  if(breaker.closed) return {ok:false, reason:'Breaker is already closed.'};
+  return {ok:true};
+}
+function doClose(breaker){
+  const c = canClose(breaker);
+  if(!c.ok) return c;
+  breaker.closed = true;
+  return {ok:true, msg:`${breaker.name} CLOSED.`};
+}
+function canOpen(breaker){
+  if(!breaker.closed) return {ok:false, reason:'Breaker is already open.'};
+  return {ok:true};
+}
+function doOpen(breaker){
+  const c = canOpen(breaker);
+  if(!c.ok) return c;
+  breaker.closed = false;
+  return {ok:true, msg:`${breaker.name} OPENED.`};
+}
+
+/* =========================================================================
+   LOG PANEL HELPER
+   ========================================================================= */
+function logTo(panelId, text, kind){
+  const p = document.getElementById(panelId);
+  if(!p) return;
+  const t = new Date().toLocaleTimeString();
+  const line = document.createElement('div');
+  line.className = 'log-line ' + (kind||'info');
+  line.innerHTML = `<span class="t">${t}</span>${escapeHtml(text)}`;
+  p.appendChild(line);
+  p.scrollTop = p.scrollHeight;
+}
+
+/* =========================================================================
+   GENERIC SCHEME BUILDER — used by Main-Main, 2-position apps, Custom Designer
+   ========================================================================= */
+function buildExclusiveScheme(hostEl, logId, names, initiallyClosedIndex){
+  hostEl.innerHTML = '<h3>MECHANISM VIEW</h3><div class="chip-row" id="'+hostEl.id+'-row" style="display:flex; gap:12px; flex-wrap:wrap;"></div>';
+  const row = document.getElementById(hostEl.id+'-row');
+  const locks = names.map((n, i)=> createLock(n, 'K1'));
+  makeKeyGroup(locks);
+  const breakers = names.map((n,i)=> ({name:'Breaker '+n, closed:false, locks:[locks[i]]}) );
+
+  // initial condition: one breaker closed & free-keyed, rest blocked-empty
+  if(initiallyClosedIndex!=null){
+    locks[initiallyClosedIndex].state = 'free-keyed';
+    breakers[initiallyClosedIndex].closed = true;
+  }
+
+  locks.forEach((lock, i)=>{
+    row.appendChild(lock.el);
+  });
+  requestAnimationFrame(()=>{
+    locks.forEach((lock,i)=> buildLockButtons(lock, breakers[i], logId));
+    refreshAll();
+  });
+
+  function refreshAll(){ locks.forEach((lock,i)=> renderLock(lock, breakers[i].closed)); }
+
+  function buildLockButtons(lock, breaker, logId){
+    const c = lock.refs.ctrls;
+    c.innerHTML = '';
+    const mk = (label, fn, cls)=>{
+      const b = document.createElement('button');
+      b.className = 'btn small' + (cls?(' '+cls):'');
+      b.textContent = label;
+      b.addEventListener('click', ()=>{
+        const res = fn();
+        logTo(logId, (res.ok? '✔ ':'✘ ')+ (res.msg || res.reason), res.ok?'ok':'bad');
+        speak(res.msg || res.reason);
+        refreshAll(); refreshButtons();
+      });
+      c.appendChild(b);
+      return b;
+    };
+    lock._btns = {
+      ins: mk('Insert Key', ()=>doInsert(lock)),
+      rot: mk('Rotate → Unlock', ()=>doRotateForward(lock)),
+      close: mk('Close Breaker', ()=>doClose(breaker), 'primary'),
+      open: mk('Open Breaker', ()=>doOpen(breaker), 'warn'),
+      rotb: mk('Rotate → Lock', ()=>doRotateBack(lock, ()=>!breaker.closed)),
+      rem: mk('Remove Key', ()=>doRemove(lock))
+    };
+    refreshButtons();
+    function refreshButtons(){
+      lock._btns.ins.disabled = !canInsert(lock).ok;
+      lock._btns.rot.disabled = !canRotateForward(lock).ok;
+      lock._btns.close.disabled = !canClose(breaker).ok;
+      lock._btns.open.disabled = !canOpen(breaker).ok;
+      lock._btns.rotb.disabled = !canRotateBack(lock, ()=>!breaker.closed).ok;
+      lock._btns.rem.disabled = !canRemove(lock).ok;
+    }
+    lock._refreshButtons = refreshButtons;
+  }
+  // patch refreshAll to also refresh buttons of all locks (after first build)
+  const origRefresh = refreshAll;
+  return {locks, breakers, refreshAll: ()=>{ origRefresh(); locks.forEach(l=> l._refreshButtons && l._refreshButtons()); }};
+}
+
+/* =========================================================================
+   DASHBOARD CARDS
+   ========================================================================= */
+const DASHBOARD_CARDS = [
+  {ic:'◆', title:'What is Kirk Key?', desc:'Core concept: the trapped-key principle behind every scheme.', view:'learn-basics'},
+  {ic:'⚙', title:'How Mechanical Interlocking Works', desc:'The insert–rotate–operate–rotate–remove sequence, animated.', view:'cylinder-lab'},
+  {ic:'🗝', title:'Key Types', desc:'Single, double, triple, multi, exchange, transfer, sequential, master, override.', view:'key-types'},
+  {ic:'🔒', title:'Cylinder / Lock Types', desc:'Extend, withdraw, bolt, rotary, cam, push, pull, deadbolt and more.', view:'lock-types'},
+  {ic:'▶', title:'Extend Mechanism', desc:'Watch the bolt drive OUT to block equipment.', view:'cylinder-lab', amber:true},
+  {ic:'◀', title:'Withdraw Mechanism', desc:'Watch the bolt pull IN to release equipment.', view:'cylinder-lab', amber:true},
+  {ic:'▣', title:'Transfer Block', desc:'One key trapped releases a different key — identity bridging.', view:'blocks'},
+  {ic:'▦', title:'Exchange Box', desc:'A multi-key captive box acting as a mechanical logic gate.', view:'blocks'},
+  {ic:'⇄', title:'Main–Main', desc:'Two incomers, one key — only one may ever be closed.', view:'main-main'},
+  {ic:'⇋', title:'Main–Tie–Main', desc:'Two Mains + Tie, two keys — full bus-section logic.', view:'main-tie-main'},
+  {ic:'◫', title:'Bus Coupler', desc:'Exclusive interlock between two bus sections.', view:'app-2pos', target:'bus'},
+  {ic:'⏻', title:'Generator Synchronization', desc:'Prevents closing an unsynchronised generator breaker.', view:'app-2pos', target:'sync'},
+  {ic:'⏚', title:'Transformer Interlocking', desc:'HV/LV breaker exclusivity to prevent back-feed.', view:'app-2pos', target:'xfmr'},
+  {ic:'⏚', title:'Earthing Switch Interlock', desc:'Line breaker vs earth switch — the ultimate safety exclusion.', view:'app-2pos', target:'earth'},
+  {ic:'✎', title:'Custom Simulator', desc:'Design your own N-breaker single-key exclusive scheme.', view:'custom-designer', amber:true},
+];
+function buildDashboard(){
+  const grid = document.getElementById('dashGrid');
+  grid.innerHTML = '';
+  DASHBOARD_CARDS.forEach(c=>{
+    const card = document.createElement('div');
+    card.className = 'dash-card';
+    card.innerHTML = `<span class="tag">MODULE</span><div class="ic${c.amber?' amber':''}">${c.ic}</div><h4>${c.title}</h4><p>${c.desc}</p>`;
+    card.addEventListener('click', ()=>{
+      showView(c.view);
+      if(c.target && window.__setApp2pos) window.__setApp2pos(c.target);
+    });
+    grid.appendChild(card);
+  });
+}
+
+/* =========================================================================
+   KEY TYPES REFERENCE
+   ========================================================================= */
+const KEY_TYPES = [
+  {t:'Single Key', d:'One key, one lock. The simplest possible interlock — e.g. a padlock on an earth switch.'},
+  {t:'Double Key', d:'A key that must satisfy two locks (e.g. one on the breaker, one on its truck/isolation position) before release.'},
+  {t:'Triple Key', d:'Used across three interdependent positions — e.g. breaker, earth switch and door, all on one key run.'},
+  {t:'Multi Key', d:'A single key body cut to operate several locks in a defined group, common in ring-main units.'},
+  {t:'Exchange Key', d:'A key whose sole job is to be swapped for a different key inside a Transfer Block or Exchange Box.'},
+  {t:'Transfer Key', d:'The travelling key in schemes like Main–Main: physically carried from one lock to another to move permission.'},
+  {t:'Sequential Key', d:'Numbered/coded so it can only be used in a fixed order — key 1 must free key 2, which frees key 3, and so on.'},
+  {t:'Master Key', d:'Releases an entire exchange box or bypasses a group interlock for authorised maintenance access.'},
+  {t:'Emergency Override', d:'A separately controlled, logged, and usually sealed key used only under documented emergency procedures.'},
+];
+function buildKeyTypes(){
+  const grid = document.getElementById('keyTypesGrid');
+  grid.innerHTML = KEY_TYPES.map(k=>`
+    <div class="ref-card">
+      <h5><span style="color:var(--amber);">🗝</span> ${k.t}</h5>
+      <p>${k.d}</p>
+    </div>`).join('');
+  // key anatomy diagram
+  document.getElementById('keyAnatomySvg').innerHTML = `
+  <svg viewBox="0 0 400 120" style="width:100%; max-width:520px;">
+    <rect x="30" y="48" width="220" height="14" rx="3" fill="#ffb020"/>
+    <circle cx="30" cy="55" r="26" fill="#ffb020" stroke="#8a5f10" stroke-width="3"/>
+    <circle cx="30" cy="55" r="11" fill="#0a1424"/>
+    <rect x="240" y="38" width="8" height="10" fill="#ffb020"/>
+    <rect x="248" y="60" width="8" height="10" fill="#ffb020"/>
+    <text x="30" y="60" text-anchor="middle" font-family="monospace" font-size="10" fill="#0a1424" font-weight="700">K1</text>
+    <text x="30" y="98" text-anchor="middle" font-family="monospace" font-size="10" fill="#7d93ad">Head + code number</text>
+    <text x="140" y="30" text-anchor="middle" font-family="monospace" font-size="10" fill="#7d93ad">Shaft</text>
+    <text x="252" y="30" text-anchor="middle" font-family="monospace" font-size="10" fill="#7d93ad">Cut / bit pattern</text>
+  </svg>`;
+}
+
+/* =========================================================================
+   LOCK TYPES REFERENCE
+   ========================================================================= */
+const LOCK_TYPES = [
+  {t:'Extend Type', d:'Bolt drives OUT of the lock body to physically block equipment — the type used throughout this simulator.'},
+  {t:'Withdraw Type', d:'Bolt is normally OUT (blocking) and is pulled IN by the key to release the equipment — inverse logic to Extend type.'},
+  {t:'Bolt Type', d:'A straight sliding bolt engages a hole or slot in the equipment linkage.'},
+  {t:'Rotary Type', d:'A rotating cam-plate directly blocks a shaft or spindle rather than a sliding bolt.'},
+  {t:'Cam Type', d:'An eccentric cam converts key rotation into a blocking/release stroke on a follower pin.'},
+  {t:'Push Type', d:'Key is pushed axially (not rotated) to actuate the bolt — common on compact panel locks.'},
+  {t:'Pull Type', d:'Key is pulled axially to actuate the bolt — inverse of push type.'},
+  {t:'Deadbolt', d:'No spring return; the bolt stays exactly where the key last left it — required for safety-critical positions.'},
+  {t:'Door Lock', d:'Trapped-key control of an enclosure door, so it can only be opened once the equipment inside is proven safe.'},
+  {t:'Breaker Lock', d:'Mounted directly on a circuit breaker mechanism to force open/closed state.'},
+  {t:'Isolator Lock', d:'Mounted on a disconnector/isolator to enforce isolation before downstream work.'},
+  {t:'Earth Switch Lock', d:'The safety-critical lock ensuring an earth switch cannot close onto a live line, and vice-versa.'},
+];
+function buildLockTypes(){
+  const grid = document.getElementById('lockTypesGrid');
+  grid.innerHTML = LOCK_TYPES.map(k=>`
+    <div class="ref-card">
+      <h5><span style="color:var(--cyan);">🔒</span> ${k.t}</h5>
+      <p>${k.d}</p>
+    </div>`).join('');
+}
+
+/* =========================================================================
+   TRANSFER BLOCK / EXCHANGE BOX DIAGRAMS
+   ========================================================================= */
+function buildBlocksDiagrams(){
+  document.getElementById('transferBlockSvg').innerHTML = `
+  <svg viewBox="0 0 320 130" style="width:100%; max-width:420px;">
+    <rect x="10" y="10" width="300" height="110" rx="10" fill="#0e1a2e" stroke="#1f3a5c"/>
+    <circle cx="90" cy="65" r="26" fill="#16263f" stroke="#22d3ee" stroke-width="2"/>
+    <circle cx="230" cy="65" r="26" fill="#16263f" stroke="#22d3ee" stroke-width="2"/>
+    <text x="90" y="70" text-anchor="middle" font-family="monospace" font-size="10" fill="#dce8f5">IN</text>
+    <text x="230" y="70" text-anchor="middle" font-family="monospace" font-size="10" fill="#dce8f5">OUT</text>
+    <path d="M116,65 L204,65" stroke="#ffb020" stroke-width="2" stroke-dasharray="5,4"/>
+    <polygon points="200,60 210,65 200,70" fill="#ffb020"/>
+    <text x="160" y="105" text-anchor="middle" font-family="monospace" font-size="9" fill="#7d93ad">Insert &amp; trap Key A → Key B releases</text>
+  </svg>`;
+  document.getElementById('exchangeBoxSvg').innerHTML = `
+  <svg viewBox="0 0 320 130" style="width:100%; max-width:420px;">
+    <rect x="10" y="10" width="300" height="110" rx="10" fill="#0e1a2e" stroke="#1f3a5c"/>
+    <rect x="30" y="30" width="60" height="70" rx="6" fill="#16263f" stroke="#22d3ee"/>
+    <rect x="130" y="30" width="60" height="70" rx="6" fill="#16263f" stroke="#22d3ee"/>
+    <rect x="230" y="30" width="60" height="70" rx="6" fill="#16263f" stroke="#22d3ee"/>
+    <text x="60" y="68" text-anchor="middle" font-family="monospace" font-size="10" fill="#ffd83d">K1</text>
+    <text x="160" y="68" text-anchor="middle" font-family="monospace" font-size="10" fill="#ffd83d">K2</text>
+    <text x="260" y="68" text-anchor="middle" font-family="monospace" font-size="10" fill="#ffd83d">K3</text>
+    <text x="160" y="115" text-anchor="middle" font-family="monospace" font-size="9" fill="#7d93ad">Master key release gates K1–K3 together</text>
+  </svg>`;
+}
+
+/* =========================================================================
+   INDUSTRIAL PRACTICE CARDS
+   ========================================================================= */
+const INDUSTRY_CARDS = [
+  {c:'ABB', d:'LV/MV switchgear ranges (e.g. air-insulated and gas-insulated panels) are commonly specified with trapped-key interlocking add-ons to enforce customer safety philosophies on bus couplers and earthing.'},
+  {c:'Siemens', d:'MV/HV switchgear and GIS product lines integrate trapped-key schemes for earth switch and bus-section exclusivity per project specification.'},
+  {c:'Schneider Electric', d:'LV switchboards and RM6-type ring main units are frequently fitted with trapped-key interlocks for source-transfer and earthing safety.'},
+  {c:'Eaton', d:'MV switchgear and generator paralleling gear commonly use trapped-key logic for Main–Tie–Main and genset synchronizing panels.'},
+  {c:'Rockwell Automation', d:'Motor control centers integrating trapped-key options for maintenance bypass and starter isolation sequences.'},
+  {c:'L&T (Larsen & Toubro)', d:'Widely used across Indian LVMCC/PCC panel building practice, integrating captive-key schemes to IS/IEC panel specifications.'},
+  {c:'GE (General Electric / GE Vernova)', d:'MV/HV switchgear platforms offering trapped-key interlocking as an engineered safety option for bus-tie and transformer schemes.'},
+  {c:'Mitsubishi Electric', d:'Switchgear and drive systems in process plants specify trapped-key interlocks for maintenance isolation of VFDs and motor starters.'},
+  {c:'Terasaki', d:'Air circuit breaker ranges frequently paired with trapped-key kits for busbar and earthing safety in marine and industrial panels.'},
+  {c:'Fuji Electric', d:'MV switchgear and RMU products used in Asian utility and industrial networks with captive-key earthing interlocks.'},
+];
+function buildIndustry(){
+  document.getElementById('industryGrid').innerHTML = INDUSTRY_CARDS.map(x=>`
+    <div class="ref-card">
+      <h5>🏭 ${x.c}</h5>
+      <p>${x.d}</p>
+    </div>`).join('') + `<div class="ref-card" style="grid-column:1/-1;"><p style="font-size:11px;">Note: Kirk Key®, Castell®, Fortress® and Trilock® are the principal trapped-key hardware brands; panel builders select and integrate one of these into their own switchgear ranges according to the project's specification — trapped-key logic itself is a generic engineering discipline, not tied to one manufacturer.</p></div>`;
+}
+
+/* =========================================================================
+   CYLINDER LAB
+   ========================================================================= */
+let labLock, labBreaker, labKeyOut=true;
+function buildCylinderLab(){
+  const host = document.getElementById('labLockHost');
+  host.innerHTML = '';
+  labLock = createLock('L1', 'K1');
+  labLock.group = [labLock];
+  labBreaker = {name:'Breaker L1', closed:false, locks:[labLock]};
+  host.appendChild(labLock.el);
+  const ctrlHost = document.getElementById('labControls');
+  ctrlHost.innerHTML = '';
+  const actions = [
+    ['Insert Key', ()=>doInsert(labLock), 'Key slides into the keyway. It cannot yet be turned.'],
+    ['Rotate → Unlock', ()=>doRotateForward(labLock), 'Turning the key retracts the bolt and compresses the return spring — the breaker mechanism is now physically free.'],
+    ['Close Breaker', ()=>doClose(labBreaker), 'With the bolt clear of the latch bracket, the handle is free to swing closed.'],
+    ['Open Breaker', ()=>doOpen(labBreaker), 'Opening is always mechanically permitted — safety never restricts making equipment safe.'],
+    ['Rotate → Lock', ()=>doRotateBack(labLock, ()=>!labBreaker.closed), 'With the breaker open, the key can be rotated back — the bolt drives out again, re-engaging the latch bracket.'],
+    ['Remove Key', ()=>doRemove(labLock), 'Only once the bolt is fully extended can the key be withdrawn — it is now free to be carried elsewhere.'],
+  ];
+  actions.forEach(([label,fn,explain])=>{
+    const b = document.createElement('button');
+    b.className='btn'; b.textContent=label;
+    b.addEventListener('click', ()=>{
+      const res = fn();
+      logTo('labLog', (res.ok?'✔ ':'✘ ')+(res.msg||res.reason), res.ok?'ok':'bad');
+      document.getElementById('labExplain').textContent = res.ok ? explain : ('Blocked: '+res.reason);
+      speak(res.msg||res.reason);
+      renderLock(labLock, labBreaker.closed);
+      refreshLabButtons();
+    });
+    ctrlHost.appendChild(b);
+    b._action = label;
+  });
+  refreshLabButtons();
+  renderLock(labLock, labBreaker.closed);
+  function refreshLabButtons(){
+    const map = {
+      'Insert Key': canInsert(labLock).ok,
+      'Rotate → Unlock': canRotateForward(labLock).ok,
+      'Close Breaker': canClose(labBreaker).ok,
+      'Open Breaker': canOpen(labBreaker).ok,
+      'Rotate → Lock': canRotateBack(labLock, ()=>!labBreaker.closed).ok,
+      'Remove Key': canRemove(labLock).ok,
+    };
+    [...ctrlHost.children].forEach(btn=> btn.disabled = !map[btn._action]);
+  }
+}
+
+/* =========================================================================
+   MAIN - MAIN
+   ========================================================================= */
+function buildMainMain(){
+  const host = document.getElementById('mmHost');
+  document.getElementById('mmLog').innerHTML = '';
+  host.innerHTML = '<h3>MECHANISM VIEW</h3><div style="display:flex; gap:14px; flex-wrap:wrap;" id="mmRow"></div>';
+  const row = document.getElementById('mmRow');
+  const lockA = createLock('A','K1'), lockB = createLock('B','K1');
+  makeKeyGroup([lockA, lockB]);
+  const brkA = {name:'Main A', closed:true, locks:[lockA]};
+  const brkB = {name:'Main B', closed:false, locks:[lockB]};
+  lockA.state = 'free-keyed';
+  row.appendChild(lockA.el); row.appendChild(lockB.el);
+  requestAnimationFrame(()=>{
+    wireLock(lockA, brkA); wireLock(lockB, brkB);
+    refresh();
+  });
+  function wireLock(lock, brk){
+    const c = lock.refs.ctrls; c.innerHTML='';
+    const mk=(label,fn,cls)=>{ const b=document.createElement('button'); b.className='btn small'+(cls?' '+cls:''); b.textContent=label;
+      b.addEventListener('click', ()=>{ const res=fn(); logTo('mmLog', (res.ok?'✔ ':'✘ ')+(res.msg||res.reason), res.ok?'ok':'bad'); speak(res.msg||res.reason); refresh(); });
+      c.appendChild(b); return b; };
+    lock._btns = {
+      ins: mk('Insert Key', ()=>doInsert(lock)),
+      rot: mk('Rotate → Unlock', ()=>doRotateForward(lock)),
+      close: mk('Close', ()=>doClose(brk), 'primary'),
+      open: mk('Open', ()=>doOpen(brk), 'warn'),
+      rotb: mk('Rotate → Lock', ()=>doRotateBack(lock, ()=>!brk.closed)),
+      rem: mk('Remove Key', ()=>doRemove(lock)),
+    };
+  }
+  function refresh(){
+    renderLock(lockA, brkA.closed); renderLock(lockB, brkB.closed);
+    [[lockA,brkA],[lockB,brkB]].forEach(([lock,brk])=>{
+      if(!lock._btns) return;
+      lock._btns.ins.disabled = !canInsert(lock).ok;
+      lock._btns.rot.disabled = !canRotateForward(lock).ok;
+      lock._btns.close.disabled = !canClose(brk).ok;
+      lock._btns.open.disabled = !canOpen(brk).ok;
+      lock._btns.rotb.disabled = !canRotateBack(lock, ()=>!brk.closed).ok;
+      lock._btns.rem.disabled = !canRemove(lock).ok;
+    });
+  }
+  logTo('mmLog','Scheme initialised: Main A closed (key captive at A), Main B locked open.','info');
+}
+
+/* =========================================================================
+   MAIN - TIE - MAIN
+   ========================================================================= */
+function buildMainTieMain(){
+  const host = document.getElementById('mtmHost');
+  document.getElementById('mtmLog').innerHTML='';
+  host.innerHTML = '<h3>MECHANISM VIEW</h3><div style="display:flex; gap:12px; flex-wrap:wrap;" id="mtmRow"></div>';
+  const row = document.getElementById('mtmRow');
+  const lockA = createLock('A','K1');
+  const tie1 = createLock('TIE-1','K1');
+  const tie2 = createLock('TIE-2','K2');
+  const lockB = createLock('B','K2');
+  makeKeyGroup([lockA, tie1]);
+  makeKeyGroup([tie2, lockB]);
+  const brkA = {name:'Main A', closed:true, locks:[lockA]};
+  const brkB = {name:'Main B', closed:true, locks:[lockB]};
+  const brkTie = {name:'Tie Breaker', closed:false, locks:[tie1, tie2]};
+  lockA.state='free-keyed'; lockB.state='free-keyed';
+  [lockA, tie1, tie2, lockB].forEach(l=> row.appendChild(l.el));
+  requestAnimationFrame(()=>{
+    wire(lockA, brkA); wire(tie1, brkTie); wire(tie2, brkTie); wire(lockB, brkB);
+    refresh();
+  });
+  function wire(lock, brk){
+    const c = lock.refs.ctrls; c.innerHTML='';
+    const mk=(label,fn,cls)=>{ const b=document.createElement('button'); b.className='btn small'+(cls?' '+cls:''); b.textContent=label;
+      b.addEventListener('click', ()=>{ const res=fn(); logTo('mtmLog', (res.ok?'✔ ':'✘ ')+(res.msg||res.reason), res.ok?'ok':'bad'); speak(res.msg||res.reason); refresh(); });
+      c.appendChild(b); return b; };
+    lock._btns = {
+      ins: mk('Insert', ()=>doInsert(lock)),
+      rot: mk('Rotate→Unlock', ()=>doRotateForward(lock)),
+      close: mk('Close Bkr', ()=>doClose(brk), 'primary'),
+      open: mk('Open Bkr', ()=>doOpen(brk), 'warn'),
+      rotb: mk('Rotate→Lock', ()=>doRotateBack(lock, ()=>!brk.closed)),
+      rem: mk('Remove', ()=>doRemove(lock)),
+    };
+  }
+  function refresh(){
+    renderLock(lockA, brkA.closed); renderLock(lockB, brkB.closed);
+    renderLock(tie1, brkTie.closed); renderLock(tie2, brkTie.closed);
+    [[lockA,brkA],[tie1,brkTie],[tie2,brkTie],[lockB,brkB]].forEach(([lock,brk])=>{
+      if(!lock._btns) return;
+      lock._btns.ins.disabled = !canInsert(lock).ok;
+      lock._btns.rot.disabled = !canRotateForward(lock).ok;
+      lock._btns.close.disabled = !canClose(brk).ok;
+      lock._btns.open.disabled = !canOpen(brk).ok;
+      lock._btns.rotb.disabled = !canRotateBack(lock, ()=>!brk.closed).ok;
+      lock._btns.rem.disabled = !canRemove(lock).ok;
+    });
+  }
+  logTo('mtmLog','Scheme initialised: Main A and Main B closed, Tie locked open (needs both K1 and K2).','info');
+}
+
+/* =========================================================================
+   GENERIC 2-POSITION APPLICATIONS (Bus Coupler / Sync / Transformer / Earth)
+   ========================================================================= */
+const APP2POS = {
+  bus:  {names:['Bus-1 Feed','Bus-2 Feed'], why:'A bus coupler must never let two independently-sourced bus sections be paralleled without a synchronism check. The trapped key forces one side open before the other side\'s breaker can be released, exactly like Main–Main but applied to bus sections rather than incomers.'},
+  sync: {names:['Generator Breaker','Grid Breaker'], why:'Closing a generator breaker onto an energised bus without matching voltage, frequency and phase can cause severe mechanical and electrical damage. The trapped key ensures the generator breaker\'s lock can only be freed once the grid-side breaker\'s key has confirmed the correct isolation/synchronising sequence has been followed.'},
+  xfmr: {names:['HV Breaker','LV Breaker'], why:'Certain transformer maintenance and testing conditions require that only one side of the transformer can be energised at a time, preventing an unintended back-feed through the transformer windings into de-energised, "isolated for work" equipment.'},
+  earth:{names:['Line Breaker','Earth Switch'], why:'The single most safety-critical trapped-key application: an earth switch must never be closable while its line breaker/isolator could still be live, and the line cannot be re-energised while the earth switch is closed. The key is only released from the line breaker once it is confirmed open and isolated.'},
+};
+let app2posCurrent = 'bus';
+function buildApp2posChips(){
+  const chipHost = document.getElementById('app2posChips');
+  chipHost.innerHTML = '';
+  Object.keys(APP2POS).forEach(k=>{
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (k===app2posCurrent?' active':'');
+    chip.textContent = {bus:'Bus Coupler', sync:'Generator Sync', xfmr:'Transformer', earth:'Earthing Switch'}[k];
+    chip.addEventListener('click', ()=> setApp2pos(k));
+    chipHost.appendChild(chip);
+  });
+}
+function setApp2pos(key){
+  app2posCurrent = key;
+  buildApp2posChips();
+  document.getElementById('app2posWhyTitle').textContent = 'WHY THIS INTERLOCK EXISTS';
+  document.getElementById('app2posWhy').textContent = APP2POS[key].why;
+  document.getElementById('app2posLog').innerHTML = '';
+  const host = document.getElementById('app2posHost');
+  host.innerHTML = '<h3>MECHANISM VIEW</h3><div style="display:flex; gap:14px; flex-wrap:wrap;" id="app2posRow"></div>';
+  const scheme = buildGenericPair(document.getElementById('app2posRow'), 'app2posLog', APP2POS[key].names);
+}
+window.__setApp2pos = (k)=>{ showView('app-2pos'); setApp2pos(k); };
+
+function buildGenericPair(row, logId, names){
+  const lockA = createLock(names[0], 'K1'), lockB = createLock(names[1], 'K1');
+  makeKeyGroup([lockA, lockB]);
+  const brkA = {name:names[0], closed:true, locks:[lockA]};
+  const brkB = {name:names[1], closed:false, locks:[lockB]};
+  lockA.state='free-keyed';
+  row.appendChild(lockA.el); row.appendChild(lockB.el);
+  requestAnimationFrame(()=>{ wire(lockA,brkA); wire(lockB,brkB); refresh(); });
+  function wire(lock, brk){
+    const c = lock.refs.ctrls; c.innerHTML='';
+    const mk=(label,fn,cls)=>{ const b=document.createElement('button'); b.className='btn small'+(cls?' '+cls:''); b.textContent=label;
+      b.addEventListener('click', ()=>{ const res=fn(); logTo(logId, (res.ok?'✔ ':'✘ ')+(res.msg||res.reason), res.ok?'ok':'bad'); speak(res.msg||res.reason); refresh(); });
+      c.appendChild(b); return b; };
+    lock._btns = { ins:mk('Insert',()=>doInsert(lock)), rot:mk('Rotate→Unlock',()=>doRotateForward(lock)),
+      close:mk('Close',()=>doClose(brk),'primary'), open:mk('Open',()=>doOpen(brk),'warn'),
+      rotb:mk('Rotate→Lock',()=>doRotateBack(lock,()=>!brk.closed)), rem:mk('Remove',()=>doRemove(lock)) };
+  }
+  function refresh(){
+    renderLock(lockA, brkA.closed); renderLock(lockB, brkB.closed);
+    [[lockA,brkA],[lockB,brkB]].forEach(([lock,brk])=>{
+      if(!lock._btns) return;
+      lock._btns.ins.disabled = !canInsert(lock).ok;
+      lock._btns.rot.disabled = !canRotateForward(lock).ok;
+      lock._btns.close.disabled = !canClose(brk).ok;
+      lock._btns.open.disabled = !canOpen(brk).ok;
+      lock._btns.rotb.disabled = !canRotateBack(lock, ()=>!brk.closed).ok;
+      lock._btns.rem.disabled = !canRemove(lock).ok;
+    });
+  }
+  logTo(logId, `Scheme initialised: ${names[0]} closed (key captive), ${names[1]} locked open.`,'info');
+  return {lockA, lockB, brkA, brkB};
+}
+
+/* =========================================================================
+   CUSTOM INTERLOCK DESIGNER
+   ========================================================================= */
+function buildCustomDesigner(n){
+  const host = document.getElementById('customHost');
+  document.getElementById('customLog').innerHTML = '';
+  host.innerHTML = '<h3>MECHANISM VIEW</h3><div style="display:flex; gap:12px; flex-wrap:wrap;" id="customRow"></div>';
+  const names = Array.from({length:n}, (_,i)=> String.fromCharCode(65+i));
+  const row = document.getElementById('customRow');
+  const locks = names.map(nm=> createLock(nm,'K1'));
+  makeKeyGroup(locks);
+  const breakers = names.map(nm=> ({name:'Breaker '+nm, closed:false, locks:[]}));
+  breakers.forEach((b,i)=> b.locks=[locks[i]]);
+  locks[0].state='free-keyed'; breakers[0].closed=true;
+  locks.forEach(l=> row.appendChild(l.el));
+  requestAnimationFrame(()=>{
+    locks.forEach((lock,i)=> wire(lock, breakers[i]));
+    refresh();
+  });
+  function wire(lock, brk){
+    const c = lock.refs.ctrls; c.innerHTML='';
+    const mk=(label,fn,cls)=>{ const b=document.createElement('button'); b.className='btn small'+(cls?' '+cls:''); b.textContent=label;
+      b.addEventListener('click', ()=>{ const res=fn(); logTo('customLog', (res.ok?'✔ ':'✘ ')+(res.msg||res.reason), res.ok?'ok':'bad'); speak(res.msg||res.reason); refresh(); });
+      c.appendChild(b); return b; };
+    lock._btns = { ins:mk('Insert',()=>doInsert(lock)), rot:mk('Rotate→Unlock',()=>doRotateForward(lock)),
+      close:mk('Close',()=>doClose(brk),'primary'), open:mk('Open',()=>doOpen(brk),'warn'),
+      rotb:mk('Rotate→Lock',()=>doRotateBack(lock,()=>!brk.closed)), rem:mk('Remove',()=>doRemove(lock)) };
+  }
+  function refresh(){
+    locks.forEach((lock,i)=> renderLock(lock, breakers[i].closed));
+    locks.forEach((lock,i)=>{
+      const brk=breakers[i]; if(!lock._btns) return;
+      lock._btns.ins.disabled = !canInsert(lock).ok;
+      lock._btns.rot.disabled = !canRotateForward(lock).ok;
+      lock._btns.close.disabled = !canClose(brk).ok;
+      lock._btns.open.disabled = !canOpen(brk).ok;
+      lock._btns.rotb.disabled = !canRotateBack(lock, ()=>!brk.closed).ok;
+      lock._btns.rem.disabled = !canRemove(lock).ok;
+    });
+  }
+  logTo('customLog', `Custom scheme generated for ${n} breakers (${names.join(', ')}). ${names[0]} starts CLOSED.`, 'info');
+
+  // logic table
+  const rows = [];
+  rows.push(`<tr><th>${names.join('</th><th>')}</th><th>Valid?</th></tr>`);
+  names.forEach((nm,i)=>{
+    const row = names.map((_,j)=> j===i?'CLOSED':'open').join('</td><td>');
+    rows.push(`<tr><td>${row}</td><td style="color:var(--green);">✔ Valid</td></tr>`);
+  });
+  rows.push(`<tr><td colspan="${n}">Any 2 or more CLOSED simultaneously</td><td style="color:var(--red);">✘ Mechanically impossible</td></tr>`);
+  document.getElementById('customLogicTable').innerHTML = `<table class="spectable">${rows.join('')}</table>`;
+  document.getElementById('customValidBadge').innerHTML = `<span class="badge valid">${n}-breaker · 1 shared key · exclusive scheme</span>`;
+  window.__customScheme = {names, n};
+}
+document.getElementById('customGenBtn').addEventListener('click', ()=>{
+  let n = parseInt(document.getElementById('customCount').value,10);
+  if(isNaN(n)) n=3;
+  n = Math.max(2, Math.min(6, n));
+  document.getElementById('customCount').value = n;
+  buildCustomDesigner(n);
+});
+
+/* =========================================================================
+   STEP-BY-STEP MODE
+   ========================================================================= */
+const STEPS = [
+  {title:'STEP 1 — INITIAL STATE', desc:'Main A is CLOSED. The shared key sits captive (rotated) inside Lock A. Main B is locked open — its bolt is extended and its lock is empty.', action:null},
+  {title:'STEP 2 — OPEN MAIN A', desc:'Before the key can be freed, Main A must be opened. Opening is always mechanically permitted.', action:'openA'},
+  {title:'STEP 3 — ROTATE KEY BACK AT LOCK A', desc:'With Main A open, the key is rotated back. The bolt drives out and re-engages Main A\'s latch, locking it open.', action:'rotbA'},
+  {title:'STEP 4 — REMOVE KEY FROM LOCK A', desc:'The bolt is now fully extended, so the key can be withdrawn. It is now "in hand," free to be carried to Lock B.', action:'remA'},
+  {title:'STEP 5 — INSERT KEY INTO LOCK B', desc:'The operator carries the key across to Main B\'s lock and inserts it into the empty keyway.', action:'insB'},
+  {title:'STEP 6 — ROTATE KEY AT LOCK B', desc:'Turning the key retracts Lock B\'s bolt. Main B\'s mechanism is now mechanically free to close.', action:'rotB'},
+  {title:'STEP 7 — CLOSE MAIN B', desc:'With the bolt clear, the breaker handle can swing closed. The key remains captive in Lock B for as long as Main B stays closed — completing the exclusive transfer.', action:'closeB'},
+];
+let stepIdx = 0, stepLockA, stepLockB, stepBrkA, stepBrkB, stepPlaying=false;
+function buildStepMode(){
+  stepIdx = 0;
+  const host = document.getElementById('stepHost');
+  host.innerHTML = '<h3>MECHANISM VIEW</h3><div style="display:flex; gap:14px; flex-wrap:wrap;" id="stepRow"></div>';
+  const row = document.getElementById('stepRow');
+  stepLockA = createLock('A','K1'); stepLockB = createLock('B','K1');
+  makeKeyGroup([stepLockA, stepLockB]);
+  stepBrkA = {name:'Main A', closed:true, locks:[stepLockA]};
+  stepBrkB = {name:'Main B', closed:false, locks:[stepLockB]};
+  stepLockA.state='free-keyed';
+  row.appendChild(stepLockA.el); row.appendChild(stepLockB.el);
+  requestAnimationFrame(()=>{ renderLock(stepLockA, stepBrkA.closed); renderLock(stepLockB, stepBrkB.closed); });
+  buildStepDots(); showStep(0);
+}
+function buildStepDots(){
+  const dots = document.getElementById('stepDots');
+  dots.innerHTML = '';
+  STEPS.forEach((s,i)=>{
+    if(i>0){ const arrow=document.createElement('span'); arrow.className='step-arrow'; arrow.textContent='→'; dots.appendChild(arrow); }
+    const d = document.createElement('div'); d.className='step-dot'; d.textContent=(i+1);
+    d.addEventListener('click', ()=> jumpToStep(i));
+    dots.appendChild(d);
+  });
+}
+function jumpToStep(target){
+  // replay actions up to target from a reset state
+  stepLockA.state='free-keyed'; stepBrkA.closed=true;
+  stepLockB.state='blocked-empty'; stepBrkB.closed=false;
+  for(let i=1;i<=target;i++) applyStepAction(STEPS[i].action, true);
+  stepIdx = target;
+  renderLock(stepLockA, stepBrkA.closed); renderLock(stepLockB, stepBrkB.closed);
+  showStep(stepIdx);
+}
+function applyStepAction(action, silent){
+  let res;
+  switch(action){
+    case 'openA': res = doOpen(stepBrkA); break;
+    case 'rotbA': res = doRotateBack(stepLockA, ()=>!stepBrkA.closed); break;
+    case 'remA': res = doRemove(stepLockA); break;
+    case 'insB': res = doInsert(stepLockB); break;
+    case 'rotB': res = doRotateForward(stepLockB); break;
+    case 'closeB': res = doClose(stepBrkB); break;
+    default: res = {ok:true, msg:'Initial state.'};
+  }
+  if(!silent){
+    renderLock(stepLockA, stepBrkA.closed); renderLock(stepLockB, stepBrkB.closed);
+  }
+  return res;
+}
+function showStep(i){
+  stepIdx = i;
+  document.getElementById('stepTitle').textContent = STEPS[i].title;
+  document.getElementById('stepDesc').textContent = STEPS[i].desc;
+  document.querySelectorAll('#stepDots .step-dot').forEach((d,idx)=>{
+    d.classList.toggle('active', idx===i);
+    d.classList.toggle('done', idx<i);
+  });
+  document.getElementById('stepPrev').disabled = (i===0);
+  document.getElementById('stepNext').disabled = (i===STEPS.length-1);
+  speak(STEPS[i].title.replace(/^STEP \d+\s*—\s*/,'') + '. ' + STEPS[i].desc);
+}
+document.getElementById('stepNext').addEventListener('click', ()=>{
+  if(stepIdx>=STEPS.length-1) return;
+  const next = stepIdx+1;
+  applyStepAction(STEPS[next].action);
+  showStep(next);
+});
+document.getElementById('stepPrev').addEventListener('click', ()=>{
+  if(stepIdx<=0) return;
+  jumpToStep(stepIdx-1);
+});
+document.getElementById('stepReset').addEventListener('click', ()=> jumpToStep(0));
+document.getElementById('stepPlay').addEventListener('click', function(){
+  if(stepPlaying) return;
+  stepPlaying = true;
+  jumpToStep(0);
+  let i = 0;
+  const iv = setInterval(()=>{
+    i++;
+    if(i>=STEPS.length){ clearInterval(iv); stepPlaying=false; return; }
+    applyStepAction(STEPS[i].action);
+    showStep(i);
+    if(i>=STEPS.length-1){ clearInterval(iv); stepPlaying=false; }
+  }, 1600/SPEED);
+});
+
+/* =========================================================================
+   TROUBLESHOOTING MODE
+   ========================================================================= */
+const FAULTS = [
+  {id:'wrongkey', title:'Wrong Key Inserted', body:`
+    <p><b>Cause:</b> An operator attempts to insert a key coded for a different lock group (e.g. a Main–Tie–Main K2 key into a Main–Main lock).</p>
+    <p><b>What happens:</b> The key's cut profile does not match the barrel — it will not seat, and cannot be turned.</p>
+    <p><b>Consequence if forced:</b> Forcing a mismatched key can shear pins inside the barrel, jamming the lock permanently and requiring the whole lock body to be drilled out and replaced.</p>
+    <p><b>Correction:</b> Verify key number against the interlock schedule / drawing before attempting insertion. Never force a key that does not seat freely.</p>`},
+  {id:'missingkey', title:'Key Missing From Custody', body:`
+    <p><b>Cause:</b> A key has been removed from the scheme and not logged, or has been taken off-site.</p>
+    <p><b>What happens:</b> The associated breaker/isolator cannot be released — the scheme fails SAFE (it blocks operation rather than allowing an unsafe one).</p>
+    <p><b>Consequence:</b> Operational delay, and in an emergency, a real risk of "workarounds" (duplicate keys, forcing locks) that defeat the entire safety intent.</p>
+    <p><b>Correction:</b> Maintain a formal key register / key cabinet with sign-out logging. Investigate and locate the key before any override is even considered.</p>`},
+  {id:'jam', title:'Cylinder Jam (Bolt Stuck Mid-Travel)', body:`
+    <p><b>Cause:</b> Corrosion, dirt ingress, or physical damage prevents the bolt from completing its stroke.</p>
+    <p><b>What happens:</b> The key can be partially turned but will not reach the end position — the breaker mechanism remains ambiguous (neither confirmed blocked nor confirmed free).</p>
+    <p><b>Consequence:</b> The interlock can no longer be trusted; the equipment must be treated as unsafe until the lock is repaired.</p>
+    <p><b>Correction:</b> Withdraw from service, lubricate/clean or replace the cylinder, and re-verify full bolt travel before returning to service.</p>`},
+  {id:'spring', title:'Spring Failure', body:`
+    <p><b>Cause:</b> The return spring that holds the bolt in position fatigues or breaks after years of cycling.</p>
+    <p><b>What happens:</b> The bolt may not stay fully extended or fully retracted under vibration, allowing partial, unintended movement.</p>
+    <p><b>Consequence:</b> A false "locked" indication while the bolt is not actually fully engaged — a serious latent hazard.</p>
+    <p><b>Correction:</b> Periodic mechanical inspection/preventive maintenance of all trapped-key hardware, not just electrical interlocks.</p>`},
+  {id:'broken', title:'Broken Lock Body', body:`
+    <p><b>Cause:</b> Physical impact, over-torque, or an attempted forced entry damages the lock casing.</p>
+    <p><b>What happens:</b> The bolt may no longer be reliably held in either position.</p>
+    <p><b>Consequence:</b> Total loss of the interlock's safety function at that point in the scheme.</p>
+    <p><b>Correction:</b> Immediately isolate and tag the affected equipment manually (e.g. padlock + tag) until the lock is replaced and the scheme re-validated.</p>`},
+  {id:'sequence', title:'Wrong Operating Sequence Attempted', body:`
+    <p><b>Cause:</b> An operator tries to skip a step — e.g. attempting to remove a key before rotating it back, or trying to close a breaker while its bolt is still extended.</p>
+    <p><b>What happens:</b> The mechanism physically refuses the action (this simulator shows this as a disabled button / INVALID result with a reason).</p>
+    <p><b>Consequence:</b> None, if respected — this is the interlock working as intended. Consequence appears only if the operator tries to force it.</p>
+    <p><b>Correction:</b> Follow the schedule's documented sequence: Insert → Rotate → Operate → Rotate back → Remove → Transfer.</p>`},
+  {id:'bothclosed', title:'Two Breakers Closed Simultaneously (Attempted)', body:`
+    <p><b>Cause:</b> An operator attempts to close Main B while Main A is still closed and its key still captive there.</p>
+    <p><b>What happens:</b> Lock B's bolt is still extended (no key present/rotated) — Main B's handle is mechanically blocked from closing. This simulator flags the attempt as INVALID with the reason shown.</p>
+    <p><b>Consequence if it were somehow forced:</b> Two unsynchronised sources paralleled onto the same bus — severe fault currents, equipment damage, and personnel risk.</p>
+    <p><b>Correction:</b> This is precisely the condition the scheme exists to prevent. No override should exist for this condition except a documented, engineered emergency procedure.</p>`},
+  {id:'tiewrong', title:'Tie Closed Incorrectly', body:`
+    <p><b>Cause:</b> An attempt to close the Tie breaker while only one of the two required keys (K1 or K2) has reached the Tie's locks.</p>
+    <p><b>What happens:</b> One of the Tie's two locks remains bolt-extended, so the Tie handle is mechanically blocked.</p>
+    <p><b>Consequence if forced:</b> Could parallel a live Main through the Tie into the other bus section without confirmation the other Main is open — risk of paralleling unsynchronised sources.</p>
+    <p><b>Correction:</b> Both Mains must be opened and both keys correctly transferred to the Tie's locks before the Tie can legitimately close.</p>`},
+];
+function buildFaults(){
+  const chipHost = document.getElementById('faultChips');
+  chipHost.innerHTML = '';
+  FAULTS.forEach(f=>{
+    const chip = document.createElement('div');
+    chip.className='chip';
+    chip.textContent = f.title;
+    chip.addEventListener('click', ()=> runFault(f));
+    chipHost.appendChild(chip);
+  });
+}
+let faultLock;
+function runFault(f){
+  document.querySelectorAll('#faultChips .chip').forEach(c=> c.classList.toggle('active', c.textContent===f.title));
+  document.getElementById('faultTitle').textContent = f.title;
+  document.getElementById('faultBody').innerHTML = f.body;
+  const host = document.getElementById('faultHost');
+  host.innerHTML = '<h3>FAULT VISUALISATION</h3><div id="faultLockHost"></div>';
+  faultLock = createLock('FAULT', 'K?');
+  faultLock.group=[faultLock];
+  document.getElementById('faultLockHost').appendChild(faultLock.el);
+  requestAnimationFrame(()=>{
+    faultLock.refs.ctrls.innerHTML='';
+    renderLock(faultLock, false);
+    setTimeout(()=> animateFault(f.id), 150);
+  });
+}
+function animateFault(id){
+  const r = faultLock.refs;
+  if(!r.bolt) return;
+  if(id==='jam' || id==='broken'){
+    r.bolt.style.transform = 'translateX(-20px)';
+    r.bolt.setAttribute('fill', COLORS.amber);
+    faultLock.el.querySelector('svg').classList.add('jam');
+    faultLock.refs.status.textContent = 'FAULT: bolt stuck mid-travel — cannot confirm locked or free.';
+    setTimeout(()=> faultLock.el.querySelector('svg').classList.remove('jam'), 900/SPEED);
+  } else if(id==='wrongkey'){
+    r.keyOuter.style.opacity='1';
+    r.keyOuter.style.transform = 'translateX(-18px)';
+    faultLock.el.querySelector('svg').classList.add('jam');
+    faultLock.refs.status.textContent = 'FAULT: key profile mismatch — will not seat in barrel.';
+    setTimeout(()=> faultLock.el.querySelector('svg').classList.remove('jam'), 900/SPEED);
+  } else if(id==='missingkey'){
+    r.yeldot.style.opacity='0';
+    r.bolt.setAttribute('fill', COLORS.red);
+    r.bolt.classList.add('pulse-red');
+    faultLock.refs.status.textContent = 'FAULT: key not in custody — equipment held locked, cannot verify location.';
+  } else if(id==='spring'){
+    r.spring.style.transform='scaleX(1.3)';
+    r.bolt.style.transform='translateX(-14px)';
+    r.bolt.setAttribute('fill', COLORS.amber);
+    faultLock.refs.status.textContent = 'FAULT: spring fatigued — bolt not fully seated, false status possible.';
+  } else if(id==='sequence'){
+    faultLock.refs.status.textContent = 'INVALID attempted: action rejected by logic engine before any physical motion occurred.';
+  } else if(id==='bothclosed' || id==='tiewrong'){
+    r.bolt.setAttribute('fill', COLORS.red);
+    r.bolt.classList.add('pulse-red');
+    r.blockIcon.style.opacity='1';
+    faultLock.refs.status.textContent = 'INVALID attempted: handle mechanically blocked by extended bolt — operation refused.';
+  }
+}
+
+/* =========================================================================
+   QUIZ MODE
+   ========================================================================= */
+const QUIZ = [
+  {q:'In a trapped-key interlock, when can a key normally be removed from its lock?', o:['Any time','Only when the bolt is fully extended','Only while the breaker is closed','Only during an emergency'], a:1},
+  {q:'What does a BLUE bolt indicate in this simulator\'s legend?', o:['Breaker closed','Cylinder extended (blocking)','Key available','Cylinder retracted'], a:1},
+  {q:'In the Main–Main scheme, if Main A is closed, what is the state of Lock B?', o:['Free-keyed, key present','Blocked-empty, no key','Blocked-keyed, key present','Free, no bolt'], a:1},
+  {q:'What must happen before Main A\'s key can be rotated back to the locked position?', o:['Main A must be closed','Main A must be open','Main B must be closed','Nothing, any time works'], a:1},
+  {q:'What is the purpose of a Transfer Block?', o:['Store 10+ keys','Trap one key to release a different key','House a breaker','Provide electrical interlocking'], a:1},
+  {q:'In Main–Tie–Main, how many keys are typically used?', o:['One','Two','Three','Four'], a:1},
+  {q:'For the Tie breaker to close in the simulator\'s Main–Tie–Main scheme, what must be true?', o:['Only Main A open', 'Only Main B open', 'Both K1 and K2 present and rotated at the Tie', 'Neither Main needs to be open'], a:2},
+  {q:'Which lock type has the bolt normally OUT, released by turning the key to pull it IN?', o:['Extend type','Withdraw type','Cam type','Deadbolt'], a:1},
+  {q:'Why can an electrical interlock alone be insufficient for switchgear safety?', o:['It is too fast','It fails if control power is lost','It costs less','It requires no maintenance'], a:1},
+  {q:'What is the correct universal action sequence used throughout this simulator to move a key from one lock to another?', o:['Remove → Insert → Rotate → Close','Insert → Rotate → Operate → Rotate back → Remove → Transfer','Close → Open → Insert','Rotate → Remove → Insert → Rotate'], a:1},
+];
+let quizAnswers = new Array(QUIZ.length).fill(null);
+function buildQuiz(){
+  quizAnswers = new Array(QUIZ.length).fill(null);
+  const area = document.getElementById('quizArea');
+  area.innerHTML = QUIZ.map((item,i)=>`
+    <div class="qa-card" data-qi="${i}">
+      <div style="font-weight:600; margin-bottom:6px;">${i+1}. ${item.q}</div>
+      ${item.o.map((opt,oi)=>`<div class="qa-opt" data-oi="${oi}">${opt}</div>`).join('')}
+    </div>`).join('');
+  area.querySelectorAll('.qa-card').forEach(card=>{
+    const qi = parseInt(card.dataset.qi,10);
+    card.querySelectorAll('.qa-opt').forEach(opt=>{
+      opt.addEventListener('click', ()=>{
+        card.querySelectorAll('.qa-opt').forEach(o=> o.classList.remove('selected'));
+        opt.classList.add('selected');
+        quizAnswers[qi] = parseInt(opt.dataset.oi,10);
+      });
+    });
+  });
+  document.getElementById('quizScore').textContent='';
+}
+document.getElementById('quizSubmit').addEventListener('click', ()=>{
+  let score = 0;
+  document.querySelectorAll('.qa-card').forEach(card=>{
+    const qi = parseInt(card.dataset.qi,10);
+    const correct = QUIZ[qi].a;
+    card.querySelectorAll('.qa-opt').forEach(opt=>{
+      const oi = parseInt(opt.dataset.oi,10);
+      opt.classList.remove('correct','incorrect');
+      if(oi===correct) opt.classList.add('correct');
+      else if(oi===quizAnswers[qi] && oi!==correct) opt.classList.add('incorrect');
+    });
+    if(quizAnswers[qi]===correct) score++;
+  });
+  document.getElementById('quizScore').textContent = `SCORE: ${score} / ${QUIZ.length}`;
+});
+document.getElementById('quizRestart').addEventListener('click', buildQuiz);
+
+/* =========================================================================
+   SEARCH
+   ========================================================================= */
+const SEARCH_INDEX = [
+  {t:'What is a Kirk Key?', v:'learn-basics', k:'trapped key captive definition'},
+  {t:'Key Types', v:'key-types', k:'single double triple multi exchange transfer sequential master emergency override'},
+  {t:'Lock & Cylinder Types', v:'lock-types', k:'extend withdraw bolt rotary cam push pull deadbolt door breaker isolator earth switch lock'},
+  {t:'Transfer Block & Exchange Box', v:'blocks', k:'transfer block exchange box multi-lock master release'},
+  {t:'Industrial Practice', v:'industry', k:'ABB Siemens Schneider Eaton Rockwell L&T GE Mitsubishi Terasaki Fuji'},
+  {t:'Cylinder Lab', v:'cylinder-lab', k:'single lock mechanism insert rotate spring pin handle bolt'},
+  {t:'Main–Main', v:'main-main', k:'two incomers exclusive one key'},
+  {t:'Main–Tie–Main', v:'main-tie-main', k:'tie breaker two keys bus section'},
+  {t:'Bus Coupler', v:'app-2pos', k:'bus coupler paralleling'},
+  {t:'Generator Synchronization', v:'app-2pos', k:'generator sync grid breaker'},
+  {t:'Transformer Interlocking', v:'app-2pos', k:'transformer HV LV back-feed'},
+  {t:'Earthing Switch Interlock', v:'app-2pos', k:'earth switch line breaker safety'},
+  {t:'Custom Interlock Designer', v:'custom-designer', k:'N breakers custom scheme generator logic'},
+  {t:'Step-by-Step Mode', v:'step-mode', k:'guided sequence transfer walkthrough'},
+  {t:'Troubleshooting Mode', v:'troubleshoot', k:'wrong key missing jam spring broken sequence fault'},
+  {t:'Quiz Mode', v:'quiz', k:'questions scoring test knowledge'},
+  {t:'Indicator Legend', v:'legend', k:'green red yellow blue gray colours'},
+];
+function buildSearch(){
+  const input = document.getElementById('searchInput');
+  const results = document.getElementById('searchResults');
+  function render(q){
+    const ql = q.trim().toLowerCase();
+    const matches = ql ? SEARCH_INDEX.filter(x=> (x.t+' '+x.k).toLowerCase().includes(ql)) : SEARCH_INDEX;
+    results.innerHTML = matches.map(m=>`<div class="search-result" data-v="${m.v}"><div class="rtitle">${m.t}</div><div class="rview">→ ${m.v}</div></div>`).join('') || '<div style="padding:14px; color:var(--muted);">No matches.</div>';
+    results.querySelectorAll('.search-result').forEach(el=> el.addEventListener('click', ()=> showView(el.dataset.v)));
+  }
+  input.addEventListener('input', ()=> render(input.value));
+  render('');
+}
+
+/* =========================================================================
+   PRINT / EXPORT
+   ========================================================================= */
+document.getElementById('btnPrintProcedure').addEventListener('click', ()=>{
+  const pa = document.getElementById('printArea');
+  pa.innerHTML = `
+    <h1>Kirk Key Interlock — Standard Operating Procedure</h1>
+    <h2>Main–Main Key Transfer Sequence</h2>
+    <ol>${STEPS.map(s=>`<li><b>${s.title}</b> — ${s.desc}</li>`).join('')}</ol>
+    <h2>Main–Tie–Main Logic Table</h2>
+    <table border="1" cellpadding="6" style="border-collapse:collapse; width:100%;">
+      <tr><th>Main A</th><th>Tie</th><th>Main B</th><th>Valid?</th></tr>
+      <tr><td>CLOSED</td><td>OPEN</td><td>CLOSED</td><td>Valid — normal running</td></tr>
+      <tr><td>OPEN</td><td>CLOSED</td><td>CLOSED</td><td>Blocked — needs K1 at Tie</td></tr>
+      <tr><td>OPEN</td><td>CLOSED</td><td>OPEN</td><td>Valid — bus-tie feed</td></tr>
+      <tr><td>CLOSED</td><td>CLOSED</td><td>CLOSED</td><td>Mechanically impossible</td></tr>
+    </table>
+    <p style="margin-top:20px; font-size:11px;">Generated by Interactive Kirk Key Interlock Simulator — Apna Electromechanic Service, Engineering Tools Suite.</p>
+  `;
+  window.print();
+});
+document.getElementById('btnExportCustom').addEventListener('click', ()=>{
+  const s = window.__customScheme;
+  if(!s){ alert('Generate a custom scheme first (Custom Interlock Designer).'); return; }
+  let txt = `KIRK KEY CUSTOM INTERLOCK SCHEME EXPORT\n`;
+  txt += `Breakers: ${s.names.join(', ')}\nType: Single shared key, exclusive (only one breaker may be closed at a time)\n\n`;
+  txt += `LOGIC TABLE:\n`;
+  s.names.forEach((nm,i)=>{
+    const row = s.names.map((_,j)=> j===i?'CLOSED':'open').join(' | ');
+    txt += `${row}  -> VALID\n`;
+  });
+  txt += `\nAny 2+ breakers CLOSED simultaneously -> MECHANICALLY IMPOSSIBLE\n`;
+  const blob = new Blob([txt], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'kirk-key-custom-scheme.txt';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+/* =========================================================================
+   TOP BAR CONTROLS
+   ========================================================================= */
+document.getElementById('speedRange').addEventListener('input', function(){
+  SPEED = parseFloat(this.value);
+  document.documentElement.style.setProperty('--dur', (0.45/SPEED)+'s');
+});
+document.getElementById('motionToggle').addEventListener('click', function(){
+  document.body.classList.toggle('reduced-motion');
+  this.classList.toggle('on');
+  this.textContent = document.body.classList.contains('reduced-motion') ? '▶ MOTION ON' : '⏸ REDUCE MOTION';
+});
+document.getElementById('voiceToggle').addEventListener('click', function(){
+  VOICE_ON = !VOICE_ON;
+  this.classList.toggle('on', VOICE_ON);
+  this.textContent = VOICE_ON ? '🔊 NARRATION: ON' : '🔈 NARRATION: OFF';
+  if(!VOICE_ON && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+});
+function tickClock(){
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}
+setInterval(tickClock, 1000); tickClock();
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+buildDashboard();
+buildKeyTypes();
+buildLockTypes();
+buildBlocksDiagrams();
+buildIndustry();
+buildCylinderLab();
+buildMainMain();
+buildMainTieMain();
+buildApp2posChips();
+setApp2pos('bus');
+buildCustomDesigner(3);
+buildStepMode();
+buildFaults();
+buildQuiz();
+buildSearch();
+</script>
+</body>
+</html>
