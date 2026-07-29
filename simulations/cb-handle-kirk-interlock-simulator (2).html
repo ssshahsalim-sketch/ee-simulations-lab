@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CB Handle + Kirk Key Escutcheon Interlock Simulator</title>
+<style>
+:root{
+  --bg:#060c16; --bg2:#0a1424; --panel:#0e1a2e; --panel2:#122036; --panel3:#16263f;
+  --border:#1f3a5c; --text:#dce8f5; --muted:#7d93ad; --muted2:#5a7290;
+  --cyan:#22d3ee; --cyan-dim:#0f6c80; --amber:#ffb020; --amber-dim:#8a5f10;
+  --green:#33d17a; --red:#ff5566; --gray:#5b6773;
+  --mono:'IBM Plex Mono','Consolas','Courier New',monospace;
+  --sans:'IBM Plex Sans','Segoe UI',Arial,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--bg); color:var(--text); font-family:var(--sans); font-size:14px; line-height:1.5;}
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:linear-gradient(rgba(34,211,238,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.045) 1px, transparent 1px);
+  background-size:28px 28px;
+}
+#app{position:relative; z-index:1; max-width:1300px; margin:0 auto; padding:20px 22px 60px;}
+header{margin-bottom:14px;}
+.eyebrow{font-family:var(--mono); font-size:11px; color:var(--amber); letter-spacing:1.5px; text-transform:uppercase;}
+h1{font-size:22px; margin:4px 0 6px; color:#fff;}
+.sub{color:var(--muted); font-size:13px; max-width:900px;}
+.tabbar{display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 16px;}
+.tab{font-family:var(--mono); font-size:12px; padding:9px 14px; border-radius:8px; background:var(--panel2); border:1px solid var(--border); color:var(--muted); cursor:pointer;}
+.tab:hover{color:var(--text); border-color:var(--cyan-dim);}
+.tab.active{color:#03141a; background:linear-gradient(180deg,var(--cyan),#0e93ab); border-color:var(--cyan); font-weight:700;}
+
+.panel{background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:16px;}
+.panel h3{margin-top:0; font-size:13px; color:var(--cyan); font-family:var(--mono); letter-spacing:0.5px;}
+.panel p{color:var(--muted); font-size:12.5px;}
+.howto{font-family:var(--mono); font-size:11.5px; background:var(--panel3); border:1px solid var(--border); border-radius:7px; padding:8px 10px; color:var(--amber); margin-top:8px;}
+
+.units-row{display:flex; gap:22px; flex-wrap:wrap; justify-content:center; align-items:flex-start;}
+.unit{background:#e9e5da; border:1px solid #cabf9f; border-radius:10px; padding:10px 12px 14px; width:280px;}
+.unit .name{font-family:var(--mono); font-size:12px; font-weight:700; color:#222; text-align:center; margin-bottom:2px;}
+.unit svg{width:100%; height:auto; display:block; touch-action:none;}
+.status{font-family:var(--mono); font-size:10.5px; color:#222; text-align:center; margin:6px 0 8px; background:#fff; border:1px solid #cabf9f; border-radius:6px; padding:6px;}
+.ctrl-grid{display:flex; flex-wrap:wrap; gap:5px; justify-content:center;}
+.btn{font-family:var(--mono); font-size:10.5px; color:#111; background:#fff; border:1px solid #b9b09a; padding:6px 9px; border-radius:6px; cursor:pointer;}
+.btn:hover:not(:disabled){border-color:#0f4d7a; color:#0f4d7a;}
+.btn:disabled{opacity:0.32; cursor:not-allowed;}
+.btn.op{background:#0f4d7a; color:#fff; border-color:#0f4d7a; width:100%; margin-top:6px; padding:8px; font-size:11px;}
+.btn.op:hover:not(:disabled){filter:brightness(1.15);}
+.keytrack{font-family:var(--mono); font-size:11.5px; background:var(--panel3); border:1px solid var(--border); border-radius:7px; padding:8px 10px; margin-bottom:12px; color:var(--amber);}
+.keytrack div{padding:2px 0;}
+.tray{display:flex; gap:14px; align-items:center; flex-wrap:wrap; background:var(--panel3); border:1px dashed var(--cyan-dim); border-radius:8px; padding:10px 14px; margin-bottom:14px; min-height:52px;}
+.tray-label{font-family:var(--mono); font-size:11px; color:var(--muted);}
+.tray-chip{display:flex; flex-direction:column; align-items:center; cursor:grab; user-select:none; touch-action:none;}
+.tray-chip .ic{font-size:24px;}
+.tray-chip .lb{font-family:var(--mono); font-size:9.5px; color:var(--amber);}
+
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px;}
+@media(max-width:900px){.two-col{grid-template-columns:1fr;}}
+.log-panel{background:#050b13; border:1px solid var(--border); border-radius:8px; font-family:var(--mono); font-size:11.5px; padding:10px 12px; height:220px; overflow-y:auto;}
+.log-line{padding:3px 0; border-bottom:1px dashed rgba(255,255,255,0.05);}
+.log-line.ok{color:var(--green);} .log-line.bad{color:var(--red);} .log-line.info{color:var(--muted);}
+.log-line .t{color:var(--muted2); margin-right:6px;}
+table.spectable{width:100%; border-collapse:collapse; font-size:12px;}
+table.spectable th,table.spectable td{border:1px solid var(--border); padding:6px 9px; text-align:left;}
+table.spectable th{background:var(--panel3); color:var(--cyan); font-family:var(--mono); font-size:11px;}
+table.spectable td{color:var(--muted);}
+footer{text-align:center; font-family:var(--mono); font-size:10.5px; color:var(--muted2); padding:14px 0 4px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="eyebrow">Apna Electromechanic Service — Engineering Tools Suite</div>
+    <h1>🔒 CB Handle + Kirk Key Escutcheon Interlock Simulator</h1>
+    <p class="sub">Direct-manipulation version: tap a key to rotate it, press-and-drag a free key to carry it to another lock (or drop it in open space to just set it down), and press-and-drag the black handle to slide it between ON and OFF. Buttons remain underneath as a reliable fallback.</p>
+  </header>
+
+  <div class="tabbar" id="tabbar"></div>
+  <div id="stage"></div>
+
+  <footer>Apna Electromechanic Service · KIRK "E-type" trapped-key rule: bolt extended = key free, bolt withdrawn = key trapped. Main–Tie–Main now uses 3 locks and 2 keys, with the Tie's single lock accepting either key.</footer>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   MECHANISM MODEL
+   Locks now hold a KEY ID (or null), not just a boolean — this lets one
+   lock (the Tie) accept more than one key type (K1 or K2 — "both keys are
+   the same" in the sense that either operates the Tie's single cylinder).
+   ========================================================================= */
+function newLock(name, accepts, handle, bolt, seatedKey){
+  return {name, accepts, handle, bolt, seatedKey};
+}
+function newKeyRegistry(ids, initialLocations){
+  const KEYS = {};
+  ids.forEach(id => KEYS[id] = {id, at: initialLocations[id] || 'hand'});
+  return KEYS;
+}
+function canInsert(lock, keyId, KEYS){
+  if(!lock.accepts.includes(keyId)) return {ok:false, reason:`${lock.name}: this cylinder does not accept key ${keyId}.`};
+  if(lock.seatedKey!==null) return {ok:false, reason:`${lock.name}: a key is already seated in this lock.`};
+  if(KEYS[keyId].at!=='hand') return {ok:false, reason:`Key ${keyId} is currently at ${KEYS[keyId].at} — remove it there first.`};
+  return {ok:true};
+}
+function doInsert(lock, keyId, KEYS){
+  KEYS[keyId].at = lock.name;
+  lock.seatedKey = keyId;
+  return {ok:true, msg:`${lock.name}: key ${keyId} inserted.`};
+}
+function canExtend(lock){
+  if(!lock.seatedKey) return {ok:false, reason:`${lock.name}: no key seated — nothing to turn.`};
+  if(lock.bolt==='extended') return {ok:false, reason:`${lock.name}: bolt is already extended.`};
+  if(lock.handle!=='OFF') return {ok:false, reason:`${lock.name}: the handle must be pulled to OFF first — the plunger notch only lines up there.`};
+  return {ok:true};
+}
+function doExtend(lock){
+  lock.bolt = 'extended';
+  return {ok:true, msg:`${lock.name}: key ${lock.seatedKey} turned — plunger drives into the handle notch, locking the handle at OFF. Key now free to remove.`};
+}
+function canRetract(lock){
+  if(lock.bolt!=='extended') return {ok:false, reason:`${lock.name}: bolt is already withdrawn.`};
+  if(!lock.seatedKey) return {ok:false, reason:`${lock.name}: no key seated — nothing to turn.`};
+  return {ok:true};
+}
+function doRetract(lock){
+  lock.bolt = 'withdrawn';
+  return {ok:true, msg:`${lock.name}: key ${lock.seatedKey} turned back — plunger withdraws, freeing the handle. Key now trapped.`};
+}
+function canRemove(lock){
+  if(!lock.seatedKey) return {ok:false, reason:`${lock.name}: no key seated here.`};
+  if(lock.bolt!=='extended') return {ok:false, reason:`${lock.name}: key is trapped while the bolt is withdrawn — extend the bolt first.`};
+  return {ok:true};
+}
+function doRemoveKey(lock, KEYS){
+  const k = lock.seatedKey;
+  KEYS[k].at = 'hand';
+  lock.seatedKey = null;
+  return {ok:true, msg:`${lock.name}: key ${k} removed — free to carry.`, keyId:k};
+}
+function canMoveHandle(lock){
+  if(lock.bolt==='extended') return {ok:false, reason:`${lock.name}: the plunger is engaged — handle is mechanically trapped at OFF.`};
+  return {ok:true};
+}
+function setHandle(lock, target){
+  const c = canMoveHandle(lock);
+  if(!c.ok) return c;
+  if(lock.handle===target) return {ok:true, msg:`${lock.name}: handle already ${target}.`, nochange:true};
+  lock.handle = target;
+  return {ok:true, msg:`${lock.name}: handle moved to ${target}.`};
+}
+
+/* =========================================================================
+   GEOMETRY (shared by every lock's SVG)
+   ========================================================================= */
+const ON_POS = 45, OFF_POS = 220, BAR_H = 140, NOTCH_LOCAL = 110;
+const PLUNGER_Y = OFF_POS + NOTCH_LOCAL; // 330
+const TRACK_CX = 145;
+
+function keyGlyphAngled(cx, cy, angleDeg, keyId, color){
+  return `<g data-key-visual="1" style="transform-origin:${cx}px ${cy}px; transform:rotate(${angleDeg}deg);">
+    <rect x="${cx-4}" y="${cy}" width="8" height="46" rx="2" fill="${color}" stroke="#5c3d0a" stroke-width="1"/>
+    <circle cx="${cx}" cy="${cy-4}" r="12" fill="${color}" stroke="#5c3d0a" stroke-width="1.6"/>
+    <circle cx="${cx}" cy="${cy-4}" r="4.5" fill="#e9e5da"/>
+    <text x="${cx}" y="${cy-1}" text-anchor="middle" font-family="monospace" font-size="7" font-weight="700" fill="#333">${keyId}</text>
+    <rect x="${cx+4}" y="${cy+34}" width="6" height="5" fill="${color}"/>
+    <rect x="${cx+4}" y="${cy+44}" width="6" height="5" fill="${color}"/>
+  </g>`;
+}
+
+function renderLockSVG(lock){
+  const barY = lock.handle==='ON' ? ON_POS : OFF_POS;
+  const boltLen = lock.bolt==='extended' ? 95 : 22;
+  const boltColor = lock.bolt==='extended' ? '#4da6ff' : '#8a8f96';
+  const keyColor = '#f2c14e';
+  const keyPresent = !!lock.seatedKey;
+  const removable = keyPresent && lock.bolt==='extended';
+  const gid = 'g'+lock.name.replace(/[^a-zA-Z0-9]/g,'');
+  return `<svg viewBox="0 0 260 400" xmlns="http://www.w3.org/2000/svg" data-lockname="${lock.name}">
+    <defs>
+      <linearGradient id="plate-${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#dcdcdc"/><stop offset="100%" stop-color="#b8b8b8"/></linearGradient>
+      <linearGradient id="box-${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f3d35a"/><stop offset="100%" stop-color="#c9a52a"/></linearGradient>
+    </defs>
+
+    <rect x="${TRACK_CX-28}" y="15" width="56" height="380" rx="12" fill="url(#plate-${gid})" stroke="#6b6b6b" stroke-width="2"/>
+    <rect x="${TRACK_CX-27}" y="18" width="54" height="42" rx="5" fill="#c9302c" stroke="#7a1a17" stroke-width="1.5"/>
+    <text x="${TRACK_CX}" y="35" text-anchor="middle" font-family="monospace" font-size="10" font-weight="700" fill="#fff">ON</text>
+    <text x="${TRACK_CX}" y="50" text-anchor="middle" font-family="monospace" font-size="12" font-weight="700" fill="#fff">I</text>
+    <rect x="${TRACK_CX-27}" y="340" width="54" height="42" rx="5" fill="#2e7d46" stroke="#154023" stroke-width="1.5"/>
+    <text x="${TRACK_CX}" y="357" text-anchor="middle" font-family="monospace" font-size="9" font-weight="700" fill="#fff">OFF</text>
+    <text x="${TRACK_CX}" y="373" text-anchor="middle" font-family="monospace" font-size="12" font-weight="700" fill="#fff">O</text>
+    <rect x="${TRACK_CX-25}" y="35" width="50" height="330" rx="8" fill="#1b1b1b"/>
+
+    <g data-handle="${lock.name}" transform="translate(0,${barY-ON_POS})" style="cursor:${lock.bolt==='extended'?'not-allowed':'grab'};">
+      <rect x="${TRACK_CX-17}" y="${ON_POS}" width="34" height="${BAR_H}" rx="6" fill="#111" stroke="#000" stroke-width="1.5"/>
+      <circle cx="${TRACK_CX}" cy="${ON_POS+NOTCH_LOCAL}" r="7" fill="#3a3a3a" stroke="#000" stroke-width="1"/>
+    </g>
+    <text x="${TRACK_CX}" y="10" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#555">ESCUTCHEON PLATE</text>
+
+    <rect x="10" y="${PLUNGER_Y-35}" width="72" height="70" rx="8" fill="url(#box-${gid})" stroke="#7a5c0a" stroke-width="2"/>
+    <circle cx="24" cy="${PLUNGER_Y-22}" r="4" fill="#7a5c0a"/><circle cx="68" cy="${PLUNGER_Y-22}" r="4" fill="#7a5c0a"/>
+    <circle cx="24" cy="${PLUNGER_Y+22}" r="4" fill="#7a5c0a"/><circle cx="68" cy="${PLUNGER_Y+22}" r="4" fill="#7a5c0a"/>
+    <circle cx="46" cy="${PLUNGER_Y}" r="19" fill="#2a2a2a" stroke="#111" stroke-width="2"/>
+    <circle cx="46" cy="${PLUNGER_Y}" r="7" fill="none" stroke="#ccc" stroke-width="2"/>
+    <rect x="44" y="${PLUNGER_Y+2}" width="4" height="10" fill="#ccc"/>
+    <circle class="drop-zone" data-lock="${lock.name}" cx="46" cy="${PLUNGER_Y}" r="30" fill="transparent"/>
+    ${keyPresent ? `<g data-key="${lock.name}" style="cursor:${removable?'grab':'pointer'};">${keyGlyphAngled(46, PLUNGER_Y-4, lock.bolt==='extended'?0:35, lock.seatedKey, keyColor)}</g>` : ''}
+    <rect x="82" y="${PLUNGER_Y-6}" width="${boltLen}" height="12" rx="3" fill="${boltColor}" stroke="#333" stroke-width="1.2" style="transition:width 0.5s ease, x 0.5s ease;"/>
+    <text x="46" y="${PLUNGER_Y-46}" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#555">${lock.name}</text>
+  </svg>`;
+}
+
+/* =========================================================================
+   POINTER GEOMETRY HELPER
+   ========================================================================= */
+function svgPoint(svg, evt){
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  const ctm = svg.getScreenCTM();
+  if(!ctm) return {x:0,y:0};
+  const p = pt.matrixTransform(ctm.inverse());
+  return {x:p.x, y:p.y};
+}
+function makeGhost(){
+  const g = document.createElement('div');
+  g.textContent = '🗝';
+  g.style.cssText = 'position:fixed; font-size:26px; pointer-events:none; z-index:9999; transform:translate(-50%,-50%);';
+  document.body.appendChild(g);
+  return g;
+}
+
+/* =========================================================================
+   LOGGING
+   ========================================================================= */
+function logTo(panelId, text, kind){
+  const p = document.getElementById(panelId);
+  if(!p) return;
+  const t = new Date().toLocaleTimeString();
+  const line = document.createElement('div');
+  line.className = 'log-line ' + (kind||'info');
+  line.innerHTML = `<span class="t">${t}</span>${String(text).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}`;
+  p.appendChild(line);
+  p.scrollTop = p.scrollHeight;
+}
+function statusText(lock){
+  return `HANDLE: ${lock.handle}  ·  BOLT: ${lock.bolt.toUpperCase()}  ·  KEY: ${!lock.seatedKey ? 'NONE' : lock.seatedKey+' ('+(lock.bolt==='extended'?'FREE':'TRAPPED')+')'}`;
+}
+
+/* =========================================================================
+   UNIT CARD — renders one lock, wires buttons AND gestures
+   ========================================================================= */
+function buildUnitCard(lock, KEYS, allLocks, logId, refreshAll){
+  const card = document.createElement('div');
+  card.className = 'unit';
+  card.innerHTML = `<div class="name">${lock.name}</div><div class="svgHost"></div><div class="status"></div>`;
+  const svgHost = card.querySelector('.svgHost');
+  const statusEl = card.querySelector('.status');
+
+  function view(){
+    svgHost.innerHTML = renderLockSVG(lock);
+    statusEl.textContent = statusText(lock);
+    const svg = svgHost.querySelector('svg');
+
+    /* ---- gesture: click empty keyway to auto-insert a matching key from hand ---- */
+    const dropZone = svg.querySelector(`.drop-zone[data-lock="${lock.name}"]`);
+    if(dropZone && !lock.seatedKey){
+      dropZone.style.cursor = 'pointer';
+      dropZone.addEventListener('click', ()=>{
+        const candidates = lock.accepts.filter(id=> KEYS[id] && KEYS[id].at==='hand');
+        if(candidates.length===0){
+          logTo(logId, `✘ ${lock.name}: no matching key currently in hand.`, 'bad');
+          return;
+        }
+        const keyId = candidates[0];
+        doInsert(lock, keyId, KEYS);
+        logTo(logId, `✔ Key ${keyId} clicked into ${lock.name}.${candidates.length>1?' (multiple keys were in hand — drag the other one manually if this was not the one you meant.)':''}`, 'ok');
+        refreshAll();
+      });
+    }
+
+    /* ---- gesture: handle drag ---- */
+    const handleGrp = svg.querySelector(`[data-handle="${lock.name}"]`);
+    if(handleGrp){
+      handleGrp.addEventListener('pointerdown', (evt)=>{
+        if(lock.bolt==='extended'){
+          logTo(logId, `✘ ${lock.name}: handle is locked — plunger engaged, cannot slide.`, 'bad');
+          return;
+        }
+        evt.preventDefault();
+        handleGrp.setPointerCapture(evt.pointerId);
+        const startP = svgPoint(svg, evt);
+        const startBarY = lock.handle==='ON' ? ON_POS : OFF_POS;
+        function onMove(mv){
+          const p = svgPoint(svg, mv);
+          let newY = startBarY + (p.y - startP.y);
+          newY = Math.max(ON_POS, Math.min(OFF_POS, newY));
+          handleGrp.setAttribute('transform', `translate(0,${newY-ON_POS})`);
+        }
+        function onUp(up){
+          handleGrp.releasePointerCapture(evt.pointerId);
+          handleGrp.removeEventListener('pointermove', onMove);
+          handleGrp.removeEventListener('pointerup', onUp);
+          const p = svgPoint(svg, up);
+          let newY = startBarY + (p.y - startP.y);
+          newY = Math.max(ON_POS, Math.min(OFF_POS, newY));
+          const mid = (ON_POS+OFF_POS)/2;
+          const target = newY < mid ? 'ON' : 'OFF';
+          const res = setHandle(lock, target);
+          logTo(logId, (res.ok?'✔ ':'✘ ')+(res.msg||res.reason), res.ok?(res.nochange?'info':'ok'):'bad');
+          refreshAll();
+        }
+        handleGrp.addEventListener('pointermove', onMove);
+        handleGrp.addEventListener('pointerup', onUp);
+      });
+    }
+
+    /* ---- gesture: key tap-to-rotate / drag-to-move ---- */
+    const keyGrp = svg.querySelector(`[data-key="${lock.name}"]`);
+    if(keyGrp){
+      keyGrp.addEventListener('pointerdown', (evt)=>{
+        evt.preventDefault();
+        keyGrp.setPointerCapture(evt.pointerId);
+        const startX = evt.clientX, startY = evt.clientY;
+        let dragging = false, ghost = null;
+        function onMove(mv){
+          const dx = mv.clientX-startX, dy = mv.clientY-startY;
+          if(!dragging && Math.hypot(dx,dy) > 8 && canRemove(lock).ok){
+            dragging = true;
+            ghost = makeGhost();
+          }
+          if(dragging && ghost){ ghost.style.left = mv.clientX+'px'; ghost.style.top = mv.clientY+'px'; }
+        }
+        function onUp(up){
+          keyGrp.releasePointerCapture(evt.pointerId);
+          keyGrp.removeEventListener('pointermove', onMove);
+          keyGrp.removeEventListener('pointerup', onUp);
+          if(dragging){
+            if(ghost) ghost.remove();
+            const els = document.elementsFromPoint(up.clientX, up.clientY);
+            const dz = els.find(e=> e.classList && e.classList.contains('drop-zone'));
+            const targetName = dz ? dz.getAttribute('data-lock') : null;
+            const removeRes = doRemoveKey(lock, KEYS);
+            const keyId = removeRes.keyId;
+            if(targetName && targetName !== lock.name){
+              const targetLock = allLocks.find(l=>l.name===targetName);
+              const chk = targetLock ? canInsert(targetLock, keyId, KEYS) : {ok:false, reason:'No such lock.'};
+              if(chk.ok){
+                doInsert(targetLock, keyId, KEYS);
+                logTo(logId, `✔ Key ${keyId} dragged from ${lock.name} to ${targetLock.name}.`, 'ok');
+              } else {
+                logTo(logId, `✘ Key ${keyId} removed from ${lock.name} — could not seat at ${targetName}: ${chk.reason} It is now in hand.`, 'bad');
+              }
+            } else {
+              logTo(logId, `Key ${keyId} removed from ${lock.name} — now in hand.`, 'info');
+            }
+            refreshAll();
+          } else {
+            let res;
+            if(lock.bolt==='withdrawn'){
+              res = canExtend(lock).ok ? doExtend(lock) : canExtend(lock);
+            } else {
+              res = canRetract(lock).ok ? doRetract(lock) : canRetract(lock);
+            }
+            logTo(logId, (res.ok?'✔ ':'✘ ')+(res.msg||res.reason), res.ok?'ok':'bad');
+            refreshAll();
+          }
+        }
+        keyGrp.addEventListener('pointermove', onMove);
+        keyGrp.addEventListener('pointerup', onUp);
+      });
+    }
+
+  }
+  card._refresh = view;
+  view();
+  return card;
+}
+
+/* =========================================================================
+   KEY TRAY (keys currently "in hand")
+   ========================================================================= */
+function buildTray(trayEl, KEYS, allLocks, logId, refreshAll){
+  trayEl.innerHTML = '<span class="tray-label">🖐 Keys in hand (press &amp; drag onto a lock):</span>';
+  Object.values(KEYS).forEach(k=>{
+    if(k.at!=='hand') return;
+    const chip = document.createElement('div');
+    chip.className = 'tray-chip';
+    chip.innerHTML = `<span class="ic">🗝</span><span class="lb">${k.id}</span>`;
+    chip.addEventListener('pointerdown', (evt)=>{
+      evt.preventDefault();
+      chip.setPointerCapture(evt.pointerId);
+      const ghost = makeGhost();
+      ghost.style.left = evt.clientX+'px'; ghost.style.top = evt.clientY+'px';
+      function onMove(mv){ ghost.style.left = mv.clientX+'px'; ghost.style.top = mv.clientY+'px'; }
+      function onUp(up){
+        chip.releasePointerCapture(evt.pointerId);
+        chip.removeEventListener('pointermove', onMove);
+        chip.removeEventListener('pointerup', onUp);
+        ghost.remove();
+        const els = document.elementsFromPoint(up.clientX, up.clientY);
+        const dz = els.find(e=> e.classList && e.classList.contains('drop-zone'));
+        const targetName = dz ? dz.getAttribute('data-lock') : null;
+        if(targetName){
+          const targetLock = allLocks.find(l=>l.name===targetName);
+          const chk = targetLock ? canInsert(targetLock, k.id, KEYS) : {ok:false, reason:'No such lock.'};
+          if(chk.ok){
+            doInsert(targetLock, k.id, KEYS);
+            logTo(logId, `✔ Key ${k.id} dragged into ${targetLock.name}.`, 'ok');
+          } else {
+            logTo(logId, `✘ Key ${k.id}: ${chk.reason}`, 'bad');
+          }
+        }
+        refreshAll();
+      }
+      chip.addEventListener('pointermove', onMove);
+      chip.addEventListener('pointerup', onUp);
+    });
+    trayEl.appendChild(chip);
+  });
+}
+
+/* =========================================================================
+   TABS
+   ========================================================================= */
+const TABS = [
+  {key:'single', label:'Single Handle Demo'},
+  {key:'mainmain', label:'Main–Main (2 Handles, 1 Key)'},
+  {key:'mtm', label:'Main–Tie–Main (3 Locks, 2 Keys)'},
+];
+let currentTab = 'single';
+function buildTabs(){
+  const bar = document.getElementById('tabbar');
+  bar.innerHTML = '';
+  TABS.forEach(t=>{
+    const el = document.createElement('div');
+    el.className = 'tab' + (t.key===currentTab?' active':'');
+    el.textContent = t.label;
+    el.addEventListener('click', ()=>{ currentTab=t.key; buildTabs(); buildStage(); });
+    bar.appendChild(el);
+  });
+}
+function buildStage(){
+  const stage = document.getElementById('stage');
+  stage.innerHTML = '';
+  if(currentTab==='single') buildSingle(stage);
+  else if(currentTab==='mainmain') buildMainMain(stage);
+  else buildMTM(stage);
+}
+
+/* ---------------- SINGLE DEMO ---------------- */
+function buildSingle(stage){
+  const panel = document.createElement('div'); panel.className='panel';
+  panel.innerHTML = `<h3>SINGLE HANDLE + KIRK LOCK</h3><p>Click the empty keyway to seat the key from hand. Click a seated key to turn it — extends the plunger (frees the handle-lock) or retracts it back, depending on its current position. Press-and-drag a free (extended) key to pull it out and carry it — drop it in open space to just set it down. Drag the handle up/down — it refuses to move while the plunger is engaged.</p>
+    <div class="howto">🖐 Click empty keyway = insert. Click seated key = turn (extend/retract). Press &amp; drag a free key = pull out and carry. Press &amp; drag handle = slide ON/OFF.</div>`;
+  const trayEl = document.createElement('div'); trayEl.className='tray';
+  const row = document.createElement('div'); row.className='units-row';
+  const KEYS = newKeyRegistry(['K'], {K:'Breaker'});
+  const lock = newLock('Breaker', ['K'], 'ON', 'withdrawn', 'K');
+  const locks = [lock];
+  const logWrap = document.createElement('div'); logWrap.className='panel';
+  logWrap.innerHTML = `<h3>EVENT LOG</h3><div class="log-panel" id="logSingle"></div>`;
+  let card;
+  function refreshAll(){ card._refresh(); buildTray(trayEl, KEYS, locks, 'logSingle', refreshAll); }
+  card = buildUnitCard(lock, KEYS, locks, 'logSingle', refreshAll);
+  row.appendChild(card);
+  panel.appendChild(trayEl);
+  panel.appendChild(row);
+  stage.appendChild(panel);
+  stage.appendChild(logWrap);
+  refreshAll();
+  logTo('logSingle', 'Initial: handle ON, bolt withdrawn, key K trapped (captive while running).', 'info');
+}
+
+/* ---------------- MAIN - MAIN ---------------- */
+function buildMainMain(stage){
+  const panel = document.createElement('div'); panel.className='panel';
+  panel.innerHTML = `<h3>MAIN–MAIN: TWO INCOMER HANDLES, ONE SHARED KEY</h3><p>Main A is running (ON). To switch to Main B: drag Main A's handle down to OFF → click its key once to extend the plunger (frees the key) → press-and-drag that key straight onto Main B's empty keyway (or drop it in the tray, then click the empty keyway at B to seat it) → click it at B to retract (unlocks B's handle) → drag Main B's handle up to ON.</p>
+    <div class="howto">🖐 Click empty keyway = insert. Click seated key = turn (extend/retract). Press &amp; drag a free key = pull out and carry directly to another lock. Press &amp; drag handle = slide ON/OFF.</div>`;
+  const trayEl = document.createElement('div'); trayEl.className='tray';
+  const keyTrackWrap = document.createElement('div'); keyTrackWrap.className='keytrack';
+  const row = document.createElement('div'); row.className='units-row';
+
+  const KEYS = newKeyRegistry(['K'], {K:'MAIN A'});
+  const a = newLock('MAIN A', ['K'], 'ON', 'withdrawn', 'K');
+  const b = newLock('MAIN B', ['K'], 'OFF', 'extended', null);
+  const locks = [a,b];
+
+  const logWrap = document.createElement('div'); logWrap.className='panel';
+  logWrap.innerHTML = `<h3>EVENT LOG</h3><div class="log-panel" id="logMM"></div>
+    <h3 style="margin-top:12px;">LOGIC TABLE</h3>
+    <table class="spectable">
+      <tr><th>Main A</th><th>Main B</th><th>Valid?</th></tr>
+      <tr><td>ON</td><td>OFF</td><td style="color:var(--green);">✔ Valid</td></tr>
+      <tr><td>OFF</td><td>ON</td><td style="color:var(--green);">✔ Valid</td></tr>
+      <tr><td>OFF</td><td>OFF</td><td style="color:var(--green);">✔ Valid</td></tr>
+      <tr><td>ON</td><td>ON</td><td style="color:var(--red);">✘ Mechanically impossible (only one key exists)</td></tr>
+    </table>`;
+  let cardA, cardB;
+  function refreshAll(){
+    cardA._refresh(); cardB._refresh();
+    const holder = locks.find(l=>l.seatedKey==='K');
+    keyTrackWrap.innerHTML = `<div>🔑 Shared key K is currently ${holder? 'seated at: <b>'+holder.name+'</b>' : '<b>IN HAND</b> (with the operator)'}</div>`;
+    buildTray(trayEl, KEYS, locks, 'logMM', refreshAll);
+  }
+  cardA = buildUnitCard(a, KEYS, locks, 'logMM', refreshAll);
+  cardB = buildUnitCard(b, KEYS, locks, 'logMM', refreshAll);
+  row.appendChild(cardA); row.appendChild(cardB);
+  panel.appendChild(keyTrackWrap);
+  panel.appendChild(trayEl);
+  panel.appendChild(row);
+  stage.appendChild(panel);
+  stage.appendChild(logWrap);
+  refreshAll();
+  logTo('logMM','Initial: Main A ON (key K trapped there), Main B OFF and locked (plunger engaged, no key).','info');
+}
+
+/* ---------------- MAIN - TIE - MAIN (3 locks, 2 keys, Tie takes either) ---------------- */
+function buildMTM(stage){
+  const panel = document.createElement('div'); panel.className='panel';
+  panel.innerHTML = `<h3>MAIN–TIE–MAIN: 3 LOCKS, 2 KEYS (TIE ACCEPTS EITHER)</h3>
+    <p>Main A holds key K1, Main B holds key K2 — both running (ON). The Tie has a single lock that will accept <b>either</b> K1 or K2. Drag Main A's handle down to OFF, click K1 to extend it, press-and-drag K1 straight onto the Tie's keyway, click it there to retract, then drag the Tie handle up to ON — now Main B is backfeeding Main A's bus through the Tie while Main A stays open. The same works in reverse with K2 from Main B. Because the Tie's one keyway can only ever hold one key, K1 and K2 can never both sit at the Tie together, and whichever Main gave up its key stays physically locked open the whole time — so all three can never be ON together.</p>
+    <div class="howto">🖐 Click empty keyway = insert. Click seated key = turn (extend/retract). Press &amp; drag a free key = carry it (Main A's key only fits Main A or Tie; Main B's key only fits Main B or Tie). Press &amp; drag handle = slide ON/OFF.</div>`;
+  const trayEl = document.createElement('div'); trayEl.className='tray';
+  const keyTrackWrap = document.createElement('div'); keyTrackWrap.className='keytrack';
+  const row = document.createElement('div'); row.className='units-row';
+
+  const KEYS = newKeyRegistry(['K1','K2'], {K1:'MAIN A', K2:'MAIN B'});
+  const a = newLock('MAIN A', ['K1'], 'ON', 'withdrawn', 'K1');
+  const tie = newLock('TIE', ['K1','K2'], 'OFF', 'extended', null);
+  const b = newLock('MAIN B', ['K2'], 'ON', 'withdrawn', 'K2');
+  const locks = [a, tie, b];
+
+  const logId = 'logMTM';
+  let cardA, cardTie, cardB;
+  function refreshAll(){
+    cardA._refresh(); cardTie._refresh(); cardB._refresh();
+    const h1 = locks.find(l=>l.seatedKey==='K1');
+    const h2 = locks.find(l=>l.seatedKey==='K2');
+    keyTrackWrap.innerHTML =
+      `<div>🔑 Key K1 is currently ${h1?'seated at: <b>'+h1.name+'</b>':'<b>IN HAND</b>'}</div>`+
+      `<div>🔑 Key K2 is currently ${h2?'seated at: <b>'+h2.name+'</b>':'<b>IN HAND</b>'}</div>`;
+    buildTray(trayEl, KEYS, locks, logId, refreshAll);
+  }
+  cardA = buildUnitCard(a, KEYS, locks, logId, refreshAll);
+  cardTie = buildUnitCard(tie, KEYS, locks, logId, refreshAll);
+  cardB = buildUnitCard(b, KEYS, locks, logId, refreshAll);
+  row.appendChild(cardA); row.appendChild(cardTie); row.appendChild(cardB);
+  panel.appendChild(keyTrackWrap);
+  panel.appendChild(trayEl);
+  panel.appendChild(row);
+
+  const logWrap = document.createElement('div'); logWrap.className='panel';
+  logWrap.innerHTML = `<h3>EVENT LOG</h3><div class="log-panel" id="${logId}"></div>
+    <h3 style="margin-top:12px;">LOGIC TABLE</h3>
+    <table class="spectable">
+      <tr><th>Main A</th><th>Tie</th><th>Main B</th><th>Valid?</th></tr>
+      <tr><td>ON</td><td>OFF</td><td>ON</td><td style="color:var(--green);">✔ Valid — normal running, both Mains feeding their own bus</td></tr>
+      <tr><td>OFF</td><td>ON (K1)</td><td>ON</td><td style="color:var(--green);">✔ Valid — Main B backfeeds Main A's bus via Tie</td></tr>
+      <tr><td>ON</td><td>ON (K2)</td><td>OFF</td><td style="color:var(--green);">✔ Valid — Main A backfeeds Main B's bus via Tie</td></tr>
+      <tr><td>OFF</td><td>OFF</td><td>OFF</td><td style="color:var(--green);">✔ Valid — everything open</td></tr>
+      <tr><td>ON</td><td>ON</td><td>ON</td><td style="color:var(--red);">✘ Mechanically impossible — Tie's key can only have come from an open Main</td></tr>
+    </table>`;
+  stage.appendChild(panel);
+  stage.appendChild(logWrap);
+  refreshAll();
+  logTo(logId, 'Initial: Main A ON (K1 trapped), Main B ON (K2 trapped). Tie OFF, empty, plunger engaged.', 'info');
+}
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+buildTabs();
+buildStage();
+</script>
+</body>
+</html>
