@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KIRK SD Series Interlock — E/W Configuration Simulator</title>
+<style>
+:root{
+  --bg:#060c16; --bg2:#0a1424; --panel:#0e1a2e; --panel2:#122036; --panel3:#16263f;
+  --border:#1f3a5c; --text:#dce8f5; --muted:#7d93ad; --muted2:#5a7290;
+  --cyan:#22d3ee; --cyan-dim:#0f6c80; --amber:#ffb020; --amber-dim:#8a5f10;
+  --green:#33d17a; --red:#ff5566; --gray:#5b6773;
+  --mono:'IBM Plex Mono','Consolas','Courier New',monospace;
+  --sans:'IBM Plex Sans','Segoe UI',Arial,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--bg); color:var(--text); font-family:var(--sans); font-size:14px; line-height:1.5;}
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:linear-gradient(rgba(34,211,238,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.045) 1px, transparent 1px);
+  background-size:28px 28px;
+}
+#app{position:relative; z-index:1; max-width:1200px; margin:0 auto; padding:20px 22px 60px;}
+header{margin-bottom:16px;}
+.eyebrow{font-family:var(--mono); font-size:11px; color:var(--amber); letter-spacing:1.5px; text-transform:uppercase;}
+h1{font-size:22px; margin:4px 0 6px; color:#fff;}
+.sub{color:var(--muted); font-size:13px; max-width:820px;}
+.tabbar{display:flex; gap:8px; flex-wrap:wrap; margin:18px 0 16px;}
+.tab{
+  font-family:var(--mono); font-size:12px; padding:9px 14px; border-radius:8px;
+  background:var(--panel2); border:1px solid var(--border); color:var(--muted); cursor:pointer;
+}
+.tab:hover{color:var(--text); border-color:var(--cyan-dim);}
+.tab.active{color:#03141a; background:linear-gradient(180deg,var(--cyan),#0e93ab); border-color:var(--cyan); font-weight:700;}
+
+.panel{background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:16px;}
+.panel h3{margin-top:0; font-size:13px; color:var(--cyan); font-family:var(--mono); letter-spacing:0.5px;}
+
+/* Drawing-sheet look, echoing the manual pages */
+.sheet{
+  background:#f4f1ea; color:#111; border-radius:8px; padding:16px 18px; border:1px solid #cfc9ba;
+}
+.sheet h3{color:#0f4d7a; font-family:var(--mono); font-size:12px; letter-spacing:1px; margin-top:0;}
+.sheet .capline{font-family:var(--mono); font-size:11px; color:#333; text-align:center; margin-top:4px;}
+.ref-row{display:flex; gap:22px; flex-wrap:wrap; justify-content:center; align-items:flex-start;}
+.ref-item{text-align:center;}
+.ref-item svg{width:170px; height:auto;}
+
+.two-col{display:grid; grid-template-columns:1.3fr 1fr; gap:16px; align-items:start;}
+@media(max-width:940px){.two-col{grid-template-columns:1fr;}}
+
+.big-lock-wrap{display:flex; justify-content:center;}
+.big-lock-wrap svg{width:100%; max-width:420px; height:auto;}
+
+.cyl-controls{display:flex; flex-direction:column; gap:10px; margin-top:14px;}
+.cyl-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:#eae5d8; border:1px solid #cfc9ba; border-radius:7px; padding:8px 12px;
+}
+.cyl-row .lbl{font-family:var(--mono); font-size:12px; color:#111; font-weight:700;}
+.cyl-row .st{font-family:var(--mono); font-size:10.5px;}
+.cyl-row .st.free{color:#1f7a3f;}
+.cyl-row .st.trap{color:#9c1f2e;}
+.btn{
+  font-family:var(--mono); font-size:11px; color:#111; background:#fff; border:1px solid #b9b09a;
+  padding:6px 11px; border-radius:6px; cursor:pointer;
+}
+.btn:hover:not(:disabled){border-color:#0f4d7a; color:#0f4d7a;}
+.btn:disabled{opacity:0.35; cursor:not-allowed;}
+.btn.op{
+  font-family:var(--mono); font-size:12.5px; font-weight:700; color:#fff;
+  background:linear-gradient(180deg,#1663a6,#0f4d7a); border:1px solid #0f4d7a; padding:10px 16px; border-radius:7px; cursor:pointer;
+  width:100%; margin-top:6px;
+}
+.btn.op:hover:not(:disabled){filter:brightness(1.1);}
+.btn.op:disabled{opacity:0.35; cursor:not-allowed;}
+
+.status-line{font-family:var(--mono); font-size:12px; text-align:center; margin-top:8px; padding:8px; border-radius:6px; background:#eae5d8; border:1px solid #cfc9ba; color:#111;}
+
+.log-panel{background:#050b13; border:1px solid var(--border); border-radius:8px; font-family:var(--mono); font-size:11.5px; padding:10px 12px; height:190px; overflow-y:auto;}
+.log-line{padding:3px 0; border-bottom:1px dashed rgba(255,255,255,0.05);}
+.log-line.ok{color:var(--green);} .log-line.bad{color:var(--red);} .log-line.info{color:var(--muted);}
+.log-line .t{color:var(--muted2); margin-right:6px;}
+
+.notebox{font-size:12px; color:var(--muted); margin-top:6px;}
+.notebox b{color:var(--text);}
+footer{text-align:center; font-family:var(--mono); font-size:10.5px; color:var(--muted2); padding:14px 0 4px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="eyebrow">Apna Electromechanic Service — Engineering Tools Suite</div>
+    <h1>🔑 KIRK SD Series Interlock — E/W Configuration Simulator</h1>
+    <p class="sub">Animated, interactive reproduction of the five standard SD-Series trapped-key configurations from the KIRK Interlock Instruction Manual (IB/B-T/06, page 2): <b>1 Cylinder (E)</b>, <b>2 Cylinders (EE)</b>, <b>2 Cylinders (EW)</b>, <b>3 Cylinders (EWW)</b>, and <b>3 Cylinders (EEW)</b>. Insert keys, then operate the shared bolt to watch it extend or withdraw and see exactly which keys become trapped or released — per the manual's own rule.</p>
+  </header>
+
+  <div class="tabbar" id="tabbar"></div>
+
+  <div id="stage"></div>
+
+  <footer>Apna Electromechanic Service · KIRK SD Series is a trademark of Kirk Key Interlock Company / Sentric Group — recreated here for training purposes only, no logos reproduced.</footer>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   CONFIGURATIONS — exactly as documented on manual page 2
+   =========================================================================
+   Rule (from manual): "Key interlocks with multiple cylinders require the
+   insertion of all keys before the lock bolt can be extended or withdrawn
+   allowing release of the previously held keys."
+   Per-cylinder type:
+     E = key removable when bolt EXTENDED (trapped when bolt WITHDRAWN)
+     W = key removable when bolt WITHDRAWN (trapped when bolt EXTENDED)
+*/
+const CONFIGS = {
+  e1:  {label:'1 Cylinder · E',      types:['E'],           caption:'Single Cylinder Interlock — Key Removable Extended (E)'},
+  ee2: {label:'2 Cylinders · EE',    types:['E','E'],       caption:'Two Cylinder Interlock — Keys Removable Extended (EE)'},
+  ew2: {label:'2 Cylinders · EW',    types:['E','W'],       caption:'Two Cylinder Interlock — Keys Removable (EW)'},
+  eww3:{label:'3 Cylinders · EWW',   types:['E','W','W'],   caption:'Three Cylinder Interlock — Keys Removable (EWW)'},
+  eew3:{label:'3 Cylinders · EEW',   types:['E','E','W'],   caption:'Three Cylinder Interlock — Keys Removable (EEW)'},
+};
+let currentKey = 'e1';
+
+/* =========================================================================
+   TAB BAR
+   ========================================================================= */
+function buildTabs(){
+  const bar = document.getElementById('tabbar');
+  bar.innerHTML = '';
+  Object.entries(CONFIGS).forEach(([key,cfg])=>{
+    const t = document.createElement('div');
+    t.className = 'tab' + (key===currentKey?' active':'');
+    t.textContent = cfg.label;
+    t.addEventListener('click', ()=>{ currentKey = key; buildTabs(); buildStage(); });
+    bar.appendChild(t);
+  });
+}
+
+/* =========================================================================
+   SVG HELPERS
+   ========================================================================= */
+function keyGlyph(x, y, rotateDeg, color){
+  // simple bit-key shape: head + shaft + two teeth, pointing left into the cylinder
+  return `<g class="anim-tr" style="transform-origin:${x}px ${y}px; transform:rotate(${rotateDeg}deg); transition:transform 0.5s ease, opacity 0.4s ease;">
+    <rect x="${x-58}" y="${y-4}" width="52" height="8" rx="2" fill="${color}"/>
+    <circle cx="${x-58}" cy="${y}" r="13" fill="${color}" stroke="#5c3d0a" stroke-width="2"/>
+    <circle cx="${x-58}" cy="${y}" r="5" fill="#f4f1ea"/>
+    <rect x="${x-14}" y="${y-10}" width="5" height="6" fill="${color}"/>
+    <rect x="${x-6}" y="${y+4}" width="5" height="6" fill="${color}"/>
+  </g>`;
+}
+
+function miniHousingSVG(n, boltExtended, types, freeMap){
+  // small static reference diagram, echoing manual page-2 style
+  const cylSpace = 34, r=13;
+  const h = n*cylSpace + 26;
+  const w = 150;
+  const boltLen = boltExtended ? 34 : 10;
+  let cyls = '';
+  for(let i=0;i<n;i++){
+    const cy = 18 + i*cylSpace + r;
+    const cx = 95;
+    const t = types[i];
+    const free = freeMap[i];
+    cyls += `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff" stroke="#111" stroke-width="1.6"/>
+      <circle cx="${cx}" cy="${cy}" r="4" fill="none" stroke="#111" stroke-width="1.3"/>
+      <rect x="${cx-1.3}" y="${cy+2}" width="2.6" height="6" fill="#111"/>
+      <text x="${cx+r+7}" y="${cy+4}" font-family="monospace" font-size="11" font-weight="700" fill="#111">${t}</text>
+      ${free ? `<circle cx="${cx-r-8}" cy="${cy}" r="3.4" fill="#1f7a3f"/>` : `<circle cx="${cx-r-8}" cy="${cy}" r="3.4" fill="none" stroke="#9c1f2e" stroke-width="1.6"/>`}
+    `;
+  }
+  return `<svg viewBox="0 0 150 ${h+10}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="60" y="8" width="70" height="${h}" rx="6" fill="#e8e2d0" stroke="#111" stroke-width="1.6"/>
+    <rect x="${60-boltLen}" y="${h/2+8-6}" width="${boltLen}" height="12" fill="#c9c2ac" stroke="#111" stroke-width="1.4"/>
+    ${cyls}
+  </svg>`;
+}
+
+/* =========================================================================
+   BUILD STAGE (reference pair + interactive simulator) FOR CURRENT CONFIG
+   ========================================================================= */
+let LOCK_STATE = null;
+
+function initLockState(types){
+  return {
+    types: types.slice(),
+    boltPosition: 'extended', // 'extended' | 'withdrawn'
+    cylinders: types.map(t => ({
+      type: t,
+      present: true,                 // key currently seated in cylinder?
+      // isFree computed on the fly from type + boltPosition
+    }))
+  };
+}
+function isFree(cyl, boltPosition){
+  return (cyl.type === 'E') ? (boltPosition === 'extended') : (boltPosition === 'withdrawn');
+}
+function canOperate(state){
+  const notPresent = state.cylinders.find(c => !c.present);
+  if(notPresent) return {ok:false, reason:`All ${state.cylinders.length} key(s) must be inserted before the shared bolt can move. At least one cylinder is empty.`};
+  return {ok:true};
+}
+function doOperate(state){
+  const c = canOperate(state);
+  if(!c.ok) return c;
+  const from = state.boltPosition;
+  state.boltPosition = (state.boltPosition==='extended') ? 'withdrawn' : 'extended';
+  const freedTypes = state.boltPosition==='extended' ? 'E' : 'W';
+  const trappedTypes = state.boltPosition==='extended' ? 'W' : 'E';
+  return {ok:true, msg:`All keys turned together — bolt driven from ${from.toUpperCase()} to ${state.boltPosition.toUpperCase()}. ${freedTypes}-type key(s) now RELEASED; ${trappedTypes}-type key(s) now TRAPPED.`};
+}
+function canInsert(cyl){
+  if(cyl.present) return {ok:false, reason:'A key is already seated in this cylinder.'};
+  return {ok:true};
+}
+function doInsert(cyl, idx){
+  const c = canInsert(cyl);
+  if(!c.ok) return c;
+  cyl.present = true;
+  return {ok:true, msg:`Key ${idx+1} (${cyl.type}) inserted.`};
+}
+function canRemove(cyl, boltPosition){
+  if(!cyl.present) return {ok:false, reason:'No key is currently seated in this cylinder.'};
+  if(!isFree(cyl, boltPosition)) return {ok:false, reason:`This ${cyl.type}-type key is TRAPPED while the bolt is ${boltPosition.toUpperCase()} — it cannot be withdrawn until the bolt is operated to the other position.`};
+  return {ok:true};
+}
+function doRemove(cyl, boltPosition, idx){
+  const c = canRemove(cyl, boltPosition);
+  if(!c.ok) return c;
+  cyl.present = false;
+  return {ok:true, msg:`Key ${idx+1} (${cyl.type}) removed — free to carry.`};
+}
+
+function buildStage(){
+  const cfg = CONFIGS[currentKey];
+  LOCK_STATE = initLockState(cfg.types);
+  const stage = document.getElementById('stage');
+  stage.innerHTML = `
+    <div class="panel sheet">
+      <h3>REFERENCE — ${cfg.caption.toUpperCase()}</h3>
+      <div class="ref-row" id="refRow"></div>
+      <p class="capline">Filled dot = key currently removable (released). Hollow dot = key currently trapped (held).</p>
+    </div>
+    <div class="two-col">
+      <div class="panel sheet">
+        <h3>INTERACTIVE MECHANISM</h3>
+        <div class="big-lock-wrap"><div id="bigLockHost"></div></div>
+        <div class="status-line" id="boltStatus"></div>
+        <div class="cyl-controls" id="cylControls"></div>
+        <button class="btn op" id="operateBtn">TURN ALL KEYS &amp; OPERATE BOLT</button>
+        <div class="notebox"><b>Rule:</b> the bolt is a single shared mechanism — <b>every</b> cylinder must have its key inserted before any key can be turned and the bolt driven to its other position. Doing so releases the keys typed for the new position and traps the keys typed for the old one.</div>
+      </div>
+      <div class="panel">
+        <h3>EVENT LOG</h3>
+        <div class="log-panel" id="lockLog"></div>
+        <h3 style="margin-top:14px;">THIS CONFIGURATION</h3>
+        <p style="font-size:12px; color:var(--muted);">${describeConfig(cfg.types)}</p>
+      </div>
+    </div>
+  `;
+  buildReferenceRow(cfg);
+  renderBigLock();
+  logTo('lockLog', `Loaded configuration: ${cfg.caption}. Bolt starts EXTENDED.`, 'info');
+}
+
+function describeConfig(types){
+  const nE = types.filter(t=>t==='E').length;
+  const nW = types.filter(t=>t==='W').length;
+  if(types.length===1) return 'A single cylinder, always type E: the key is removable only while the bolt is extended, and trapped whenever the bolt is withdrawn. This is the simplest possible KIRK SD interlock.';
+  if(nW===0) return `All ${types.length} cylinders are type E and behave identically: every key releases together when the bolt extends, and all are trapped together when the bolt withdraws.`;
+  if(nE===1 && nW===1) return 'One E cylinder and one W cylinder behave as opposites: whichever position the bolt is driven to, exactly one key is released while the other is trapped — a classic hand-to-hand key exchange lock.';
+  return `${nE} cylinder(s) are type E and ${nW} cylinder(s) are type W. The E group and W group always release on opposite bolt positions, so this interlock hands off a key (or keys) between two groups every time it is operated.`;
+}
+
+function buildReferenceRow(cfg){
+  const row = document.getElementById('refRow');
+  row.innerHTML = '';
+  const n = cfg.types.length;
+  // Extended reference
+  const freeExt = cfg.types.map(t => t==='E');
+  const freeWd  = cfg.types.map(t => t==='W');
+  const capExt = `Lock Bolt Extended<br>${cfg.types.every(t=>t==='E') ? 'Key(s) Released' : cfg.types.filter(t=>t==='E').length ? 'E ' + (cfg.types.filter(t=>t==='E').length>1?'Keys':'Key') + ' Released, W ' + (cfg.types.filter(t=>t==='W').length>1?'Keys':'Key') + ' Trapped' : 'Key(s) Trapped'}`;
+  const capWd  = `Lock Bolt Withdrawn<br>${cfg.types.every(t=>t==='E') ? 'Key(s) Trapped' : cfg.types.filter(t=>t==='W').length ? 'W ' + (cfg.types.filter(t=>t==='W').length>1?'Keys':'Key') + ' Released, E ' + (cfg.types.filter(t=>t==='E').length>1?'Keys':'Key') + ' Trapped' : 'Key(s) Released'}`;
+  const item1 = document.createElement('div'); item1.className='ref-item';
+  item1.innerHTML = miniHousingSVG(n, true, cfg.types, freeExt) + `<div class="capline">${capExt}</div>`;
+  const item2 = document.createElement('div'); item2.className='ref-item';
+  item2.innerHTML = miniHousingSVG(n, false, cfg.types, freeWd) + `<div class="capline">${capWd}</div>`;
+  row.appendChild(item1); row.appendChild(item2);
+}
+
+/* =========================================================================
+   BIG INTERACTIVE LOCK
+   ========================================================================= */
+function renderBigLock(){
+  const host = document.getElementById('bigLockHost');
+  const n = LOCK_STATE.types.length;
+  const cylSpace = 78, r=30;
+  const h = n*cylSpace + 60;
+  const cx = 230, topY = 40;
+  const boltExtended = LOCK_STATE.boltPosition === 'extended';
+  const boltLen = boltExtended ? 90 : 24;
+
+  let cylsSvg = '';
+  LOCK_STATE.cylinders.forEach((cyl, i)=>{
+    const cy = topY + i*cylSpace + r + 6;
+    const free = isFree(cyl, LOCK_STATE.boltPosition);
+    const ringColor = !cyl.present ? '#9aa5b0' : (free ? '#33d17a' : '#ff5566');
+    const keyColor = cyl.type==='E' ? '#ffb020' : '#4da6ff';
+    const keyRotate = !cyl.present ? 0 : (free ? 0 : -22);
+    cylsSvg += `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#eae5d8" stroke="${ringColor}" stroke-width="4"/>
+      <circle cx="${cx}" cy="${cy}" r="9" fill="none" stroke="#333" stroke-width="2"/>
+      <rect x="${cx-3}" y="${cy+4}" width="6" height="14" fill="#333"/>
+      <text x="${cx}" y="${cy-r-10}" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#111">${cyl.type}${i+1}</text>
+      ${cyl.present ? keyGlyph(cx, cy, keyRotate, keyColor) : ''}
+    `;
+  });
+
+  host.innerHTML = `<svg viewBox="0 0 340 ${h}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="160" y="${topY-14}" width="140" height="${n*cylSpace+20}" rx="10" fill="#e8e2d0" stroke="#111" stroke-width="2"/>
+    <text x="230" y="${topY + n*cylSpace + 24}" text-anchor="middle" font-family="monospace" font-size="10" fill="#555">SD SERIES HOUSING</text>
+    <g class="anim-tr" style="transform-origin:160px 0px; transform:translateX(0px); transition:transform 0.5s ease;">
+      <rect x="${160-boltLen}" y="${topY + (n*cylSpace)/2 - 10}" width="${boltLen}" height="20" rx="4" fill="${boltExtended?'#4da6ff':'#5b6773'}" stroke="#111" stroke-width="1.5"/>
+    </g>
+    ${cylsSvg}
+  </svg>`;
+
+  document.getElementById('boltStatus').textContent = `LOCK BOLT: ${LOCK_STATE.boltPosition.toUpperCase()}`;
+
+  const ctrlHost = document.getElementById('cylControls');
+  ctrlHost.innerHTML = '';
+  LOCK_STATE.cylinders.forEach((cyl, i)=>{
+    const row = document.createElement('div'); row.className='cyl-row';
+    const free = isFree(cyl, LOCK_STATE.boltPosition);
+    const stTxt = !cyl.present ? 'REMOVED — in hand' : (free ? 'RELEASED — removable' : 'TRAPPED — held');
+    const stCls = !cyl.present ? '' : (free ? 'free' : 'trap');
+    row.innerHTML = `<span class="lbl">Cylinder ${i+1} (${cyl.type})</span><span class="st ${stCls}">${stTxt}</span>`;
+    const insBtn = document.createElement('button'); insBtn.className='btn'; insBtn.textContent='Insert Key';
+    insBtn.disabled = !canInsert(cyl).ok;
+    insBtn.addEventListener('click', ()=>{
+      const res = doInsert(cyl, i);
+      logTo('lockLog', (res.ok?'✔ ':'✘ ')+(res.msg||res.reason), res.ok?'ok':'bad');
+      renderBigLock();
+    });
+    const remBtn = document.createElement('button'); remBtn.className='btn'; remBtn.textContent='Remove Key';
+    remBtn.disabled = !canRemove(cyl, LOCK_STATE.boltPosition).ok;
+    remBtn.addEventListener('click', ()=>{
+      const res = doRemove(cyl, LOCK_STATE.boltPosition, i);
+      logTo('lockLog', (res.ok?'✔ ':'✘ ')+(res.msg||res.reason), res.ok?'ok':'bad');
+      renderBigLock();
+    });
+    row.appendChild(insBtn); row.appendChild(remBtn);
+    ctrlHost.appendChild(row);
+  });
+
+  const opBtn = document.getElementById('operateBtn');
+  opBtn.disabled = !canOperate(LOCK_STATE).ok;
+  opBtn.onclick = ()=>{
+    const res = doOperate(LOCK_STATE);
+    logTo('lockLog', (res.ok?'✔ ':'✘ ')+(res.msg||res.reason), res.ok?'ok':'bad');
+    renderBigLock();
+    buildReferenceRow(CONFIGS[currentKey]); // refresh which reference pose is "current" indicator-wise (static, informative only)
+  };
+}
+
+/* =========================================================================
+   LOG
+   ========================================================================= */
+function logTo(panelId, text, kind){
+  const p = document.getElementById(panelId);
+  if(!p) return;
+  const t = new Date().toLocaleTimeString();
+  const line = document.createElement('div');
+  line.className = 'log-line ' + (kind||'info');
+  line.innerHTML = `<span class="t">${t}</span>${text.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}`;
+  p.appendChild(line);
+  p.scrollTop = p.scrollHeight;
+}
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+buildTabs();
+buildStage();
+</script>
+</body>
+</html>
