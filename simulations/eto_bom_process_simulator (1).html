@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETO BOM Process Simulator — Apna Electromechanic Service</title>
+<style>
+  @font-face {
+    font-family: 'IBM Plex Mono Fallback';
+    src: local('Consolas'), local('Menlo'), local('monospace');
+  }
+  :root{
+    --navy-950:#060b14;
+    --navy-900:#0a1120;
+    --navy-800:#101a2e;
+    --navy-700:#16233d;
+    --grid-line: rgba(56,189,248,0.06);
+    --cyan:#22d3ee;
+    --cyan-dim: rgba(34,211,238,0.35);
+    --amber:#f5a623;
+    --amber-dim: rgba(245,166,35,0.35);
+    --green:#34d399;
+    --red:#f87171;
+    --text-hi:#e6f1ff;
+    --text-mid:#8fa3c0;
+    --text-dim:#526078;
+    --font-mono: 'IBM Plex Mono', 'Consolas', 'SFMono-Regular', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0/34px 34px,
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0/34px 34px,
+      radial-gradient(ellipse at top, #0d1830 0%, var(--navy-950) 55%);
+    background-color: var(--navy-950);
+    color: var(--text-hi);
+    font-family: var(--font-mono);
+    min-height:100vh;
+    padding: 28px 16px 80px;
+  }
+  .wrap{ max-width: 880px; margin: 0 auto; }
+
+  /* Header */
+  .hdr{
+    border: 1px solid var(--cyan-dim);
+    background: linear-gradient(180deg, rgba(34,211,238,0.06), transparent);
+    border-radius: 10px;
+    padding: 18px 22px;
+    position: relative;
+    overflow:hidden;
+    margin-bottom: 22px;
+  }
+  .hdr::before{
+    content:"";
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(90deg, transparent 0 38px, rgba(34,211,238,0.05) 38px 39px);
+    pointer-events:none;
+  }
+  .eyebrow{
+    color:var(--amber); font-size:11px; letter-spacing:2.5px; text-transform:uppercase;
+    display:flex; align-items:center; gap:8px; margin-bottom:6px;
+  }
+  .eyebrow::before{ content:""; width:7px;height:7px;background:var(--amber);border-radius:1px; box-shadow:0 0 8px var(--amber); }
+  h1{ margin:0 0 4px; font-size: clamp(19px,4vw,26px); color:var(--text-hi); letter-spacing:0.5px; }
+  .sub{ color: var(--text-mid); font-size:12.5px; }
+
+  /* Progress rail */
+  .rail{
+    display:flex; align-items:center; gap:4px; margin: 20px 0 26px;
+    overflow-x:auto; padding-bottom:4px;
+  }
+  .node{
+    flex:1; min-width:34px; height:34px; border-radius:50%;
+    border:1px solid var(--text-dim); display:flex; align-items:center; justify-content:center;
+    font-size:12px; color:var(--text-dim); position:relative; background:var(--navy-900); flex-shrink:0;
+    transition: all .25s ease;
+  }
+  .node.active{ border-color:var(--cyan); color:var(--cyan); box-shadow:0 0 0 4px rgba(34,211,238,0.12), 0 0 14px rgba(34,211,238,0.4); }
+  .node.done{ border-color:var(--green); background:rgba(52,211,153,0.12); color:var(--green); }
+  .track{ flex:1.4; height:2px; background:var(--text-dim); position:relative; min-width:14px; }
+  .track.done{ background:var(--green); }
+  .progress-label{ text-align:right; font-size:11px; color:var(--text-mid); margin-bottom:8px; }
+
+  /* Step cards */
+  .step{
+    border:1px solid var(--navy-700);
+    background: var(--navy-900);
+    border-radius:10px;
+    margin-bottom:14px;
+    overflow:hidden;
+    transition: border-color .2s ease, box-shadow .2s ease, opacity .2s ease;
+  }
+  .step.locked{ opacity:0.45; }
+  .step.active{ border-color: var(--cyan-dim); box-shadow: 0 0 0 1px rgba(34,211,238,0.08), 0 8px 24px -12px rgba(34,211,238,0.25); }
+  .step.complete{ border-color: rgba(52,211,153,0.35); }
+  .step-hd{
+    display:flex; align-items:center; gap:12px; padding:14px 16px;
+    border-bottom:1px solid var(--navy-700);
+  }
+  .badge-num{
+    width:28px;height:28px;border-radius:6px;border:1px solid var(--text-dim);
+    display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-mid);flex-shrink:0;
+  }
+  .step.active .badge-num{ border-color:var(--cyan); color:var(--cyan); }
+  .step.complete .badge-num{ border-color:var(--green); color:var(--green); background:rgba(52,211,153,0.1); }
+  .step-title{ font-size:14.5px; color:var(--text-hi); font-weight:600; letter-spacing:0.2px; }
+  .tcode{
+    font-size:10.5px; color:var(--amber); border:1px solid var(--amber-dim); border-radius:4px;
+    padding:2px 7px; letter-spacing:0.5px; white-space:nowrap; background:rgba(245,166,35,0.06);
+  }
+  .status-chip{ margin-left:auto; font-size:10.5px; padding:3px 9px; border-radius:20px; white-space:nowrap; }
+  .status-chip.locked{ color:var(--text-dim); border:1px solid var(--text-dim); }
+  .status-chip.active{ color:var(--cyan); border:1px solid var(--cyan-dim); }
+  .status-chip.complete{ color:var(--green); border:1px solid rgba(52,211,153,0.4); background:rgba(52,211,153,0.08); }
+
+  .step-body{ padding:16px; }
+  .desc{ font-size:12.5px; color:var(--text-mid); line-height:1.6; margin-bottom:14px; }
+
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:11px; color:var(--text-mid); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+  .file-drop{
+    border:1px dashed var(--text-dim); border-radius:8px; padding:14px; font-size:12px; color:var(--text-mid);
+    display:flex; align-items:center; gap:10px; cursor:pointer; background:var(--navy-800);
+    transition: border-color .2s;
+  }
+  .file-drop:hover{ border-color:var(--cyan-dim); color:var(--text-hi); }
+  .file-drop input{ display:none; }
+  .file-drop .icon{ font-size:16px; }
+
+  .attach-preview{
+    display:flex; align-items:center; gap:10px; margin-top:10px; padding:8px 10px;
+    background:var(--navy-800); border:1px solid var(--navy-700); border-radius:8px; font-size:11.5px; color:var(--text-mid);
+  }
+  .attach-preview img{ width:56px;height:56px;object-fit:cover;border-radius:6px; border:1px solid var(--navy-700); }
+  .attach-preview .file-ic{ width:56px;height:56px;border-radius:6px; background:var(--navy-700); display:flex;align-items:center;justify-content:center; font-size:20px; }
+
+  /* Error gate (used on the error-log step) */
+  .gate{
+    border:1px solid var(--navy-700); background:var(--navy-800); border-radius:8px; padding:14px; margin-bottom:14px;
+  }
+  .gate label.opt{ display:block; }
+  .gate-title{ font-size:11px; color:var(--text-mid); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+  .gate-opts{ display:flex; gap:10px; flex-wrap:wrap; }
+  .gate-btn{
+    flex:1; min-width:150px; padding:10px 14px; border-radius:6px; border:1px solid var(--navy-700);
+    background:var(--navy-900); color:var(--text-mid); font-size:12px; text-align:left; cursor:pointer; transition:.2s;
+  }
+  .gate-btn:hover{ border-color:var(--text-dim); color:var(--text-hi); }
+  .gate-btn.sel-clear{ border-color: rgba(52,211,153,0.5); color:var(--green); background:rgba(52,211,153,0.08); }
+  .gate-btn.sel-found{ border-color: rgba(248,113,113,0.5); color:var(--red); background:rgba(248,113,113,0.08); }
+  .gate-warning{
+    margin-top:12px; padding:10px 12px; border-radius:6px; border:1px solid rgba(248,113,113,0.4);
+    background:rgba(248,113,113,0.07); color:var(--red); font-size:11.5px; line-height:1.5;
+  }
+  .gate-ok{
+    margin-top:12px; padding:10px 12px; border-radius:6px; border:1px solid rgba(52,211,153,0.4);
+    background:rgba(52,211,153,0.07); color:var(--green); font-size:11.5px; line-height:1.5;
+  }
+
+  /* Report attachment image (large, visible) */
+  .rep-att-img{ max-width:220px; max-height:220px; border-radius:8px; border:1px solid var(--navy-700); display:block; margin-bottom:6px; }
+  .rep-att-file{ display:flex; align-items:center; gap:8px; }
+  .rep-att-file .file-ic{ width:40px;height:40px;border-radius:6px; background:var(--navy-800); border:1px solid var(--navy-700); display:flex;align-items:center;justify-content:center; font-size:17px; flex-shrink:0; }
+  .rep-note{ display:block; margin-top:3px; font-size:10.5px; color:var(--text-dim); }
+
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  button{ font-family:var(--font-mono); cursor:pointer; }
+  .btn{
+    background:transparent; border:1px solid var(--cyan-dim); color:var(--cyan);
+    padding:9px 18px; border-radius:6px; font-size:12px; letter-spacing:0.5px; transition:.2s;
+  }
+  .btn:hover:not(:disabled){ background:rgba(34,211,238,0.1); border-color:var(--cyan); }
+  .btn:disabled{ opacity:0.35; cursor:not-allowed; }
+  .btn-ghost{
+    background:transparent; border:1px solid var(--navy-700); color:var(--text-mid); padding:9px 16px; border-radius:6px; font-size:11.5px;
+  }
+  .btn-ghost:hover{ color:var(--text-hi); border-color:var(--text-dim); }
+  .btn-danger{ border-color: rgba(248,113,113,0.4); color:var(--red); }
+  .btn-danger:hover{ background:rgba(248,113,113,0.08); }
+
+  .completed-meta{
+    display:flex; gap:18px; flex-wrap:wrap; font-size:11.5px; color:var(--text-mid); margin-top:4px;
+  }
+  .completed-meta b{ color:var(--green); }
+
+  /* Success banner */
+  .success-banner{
+    display:none; margin: 8px 0 22px; padding:22px; border-radius:10px; text-align:center;
+    border:1px solid rgba(52,211,153,0.4); background:linear-gradient(180deg, rgba(52,211,153,0.1), transparent);
+    position:relative; overflow:hidden;
+  }
+  .success-banner.show{ display:block; animation: pop .4s ease; }
+  @keyframes pop{ from{ transform:scale(0.96); opacity:0;} to{ transform:scale(1); opacity:1;} }
+  .success-banner .big{ font-size:19px; color:var(--green); letter-spacing:0.5px; margin-bottom:4px; }
+  .success-banner .small{ font-size:11.5px; color:var(--text-mid); }
+
+  /* Report */
+  #reportSection{ display:none; }
+  #reportSection.show{ display:block; }
+  .report-card{
+    border:1px solid var(--navy-700); background:var(--navy-900); border-radius:10px; padding:20px; margin-top:10px;
+  }
+  .report-hd{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .report-hd h2{ margin:0; font-size:15px; color:var(--text-hi); letter-spacing:0.4px; }
+  table.rep{ width:100%; border-collapse:collapse; font-size:11.5px; }
+  table.rep th{ text-align:left; color:var(--amber); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--navy-700); text-transform:uppercase; letter-spacing:0.5px; font-size:10px; }
+  table.rep td{ padding:10px; border-bottom:1px solid var(--navy-700); color:var(--text-mid); vertical-align:top; }
+  table.rep td.step-name{ color:var(--text-hi); }
+  table.rep .tcode-cell{ color:var(--amber); }
+  table.rep .ok{ color:var(--green); }
+  table.rep td.att-cell{ min-width:180px; }
+
+  .footer-note{ text-align:center; color:var(--text-dim); font-size:10.5px; margin-top:30px; letter-spacing:0.3px; }
+
+  @media print{
+    body{ background:#fff !important; color:#000 !important; }
+    .step, .hdr, .rail, .actions, #reportBtns, .footer-note, #liveSection { display:none !important; }
+    #reportSection{ display:block !important; }
+    .report-card{ border:1px solid #ccc; }
+    table.rep th{ color:#333; }
+    table.rep td{ color:#111; }
+  }
+
+  ::-webkit-scrollbar{ height:6px; width:6px; }
+  ::-webkit-scrollbar-thumb{ background:var(--navy-700); border-radius:3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hdr">
+    <div class="eyebrow">Apna Electromechanic Service — Engineering Tools Suite</div>
+    <h1>ETO Order BOM Release Process Simulator</h1>
+    <div class="sub">SAP tcode sequence walkthrough — routings, consolidation, sequencing &amp; BOM release</div>
+  </div>
+
+  <div id="liveSection">
+    <div class="progress-label" id="progressLabel">0 / 6 steps complete</div>
+    <div class="rail" id="rail"></div>
+    <div id="stepsContainer"></div>
+  </div>
+
+  <div class="success-banner" id="successBanner">
+    <div class="big">✅ FBOM completed successfully</div>
+    <div class="small">All process steps verified — ETO order BOM has been released. Report generated below.</div>
+  </div>
+
+  <div id="reportSection">
+    <div class="report-card">
+      <div class="report-hd">
+        <h2>Process Completion Report</h2>
+        <div id="reportBtns" class="actions">
+          <button class="btn" onclick="window.print()">🖨 Print Report</button>
+          <button class="btn-ghost btn" onclick="downloadReport()">⬇ Download Report (HTML)</button>
+          <button class="btn-ghost btn btn-danger" onclick="resetSimulation()">↺ Reset Simulation</button>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--text-mid);margin-bottom:12px;" id="reportMeta"></div>
+      <table class="rep">
+        <thead>
+          <tr><th>#</th><th>Step</th><th>TCode</th><th>Status</th><th>Completed At</th><th>Attachment</th></tr>
+        </thead>
+        <tbody id="reportBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer-note">Apna Electromechanic Service &middot; Offline single-file simulation tool &middot; No data leaves this browser</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'eto_bom_sim_state_v1';
+
+const STEPS = [
+  {
+    id:'rtg',
+    title:'Generate SAP Routings',
+    tcode:'Z_PCF_ETO_RTG',
+    desc:'Run the routing generation transaction for the ETO order. The 3D PDF preview box does not need to be green before starting this step.',
+    attachLabel:'Attach routing generation confirmation / screenshot'
+  },
+  {
+    id:'combine',
+    title:'Run SAP BOM Consolidation',
+    tcode:'Z_PCF_ETO_COMBINE',
+    desc:'Consolidate the BOM for orders that require combining across sections/units.',
+    attachLabel:'Attach BOM consolidation output / log'
+  },
+  {
+    id:'errlog',
+    title:'Review BOM Error Log',
+    tcode:'Z_PPD_ETO_BOM_ERR',
+    desc:'Check the error log transaction to confirm there are no unresolved BOM errors before proceeding.',
+    attachLabel:'Attach error log screenshot (or note: no errors found)',
+    errorGate:true
+  },
+  {
+    id:'seq',
+    title:'Run Sequencing (non-combined orders)',
+    tcode:'Z_PCF_LV_SEQ',
+    desc:'For orders that do not need to be combined (unit-only, single section lineups, small MCCs with all UKeyID quantities of 1), run this sequencing transaction.',
+    attachLabel:'Attach sequencing confirmation'
+  },
+  {
+    id:'release',
+    title:'Run SAP BOM Release',
+    tcode:'Z_PPD_ETO_BOM_REL',
+    desc:'Execute the ETO Order BOM Release Utility to release the finalized BOM.',
+    attachLabel:'Attach BOM release confirmation'
+  },
+  {
+    id:'email',
+    title:'Email Plant Contact',
+    tcode:'MANUAL — No SAP tcode',
+    desc:'Email the plant contact to update the order status, noting where the order is being built.',
+    attachLabel:'Attach sent email / confirmation'
+  }
+];
+
+let state = loadState();
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return STEPS.map(s => ({ id:s.id, completed:false, timestamp:null, attachment:null, errorStatus:null, note:null }));
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+}
+
+function fmtDate(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+function render(){
+  renderRail();
+  renderSteps();
+  renderCompletion();
+  saveState();
+}
+
+function renderRail(){
+  const rail = document.getElementById('rail');
+  rail.innerHTML = '';
+  const doneCount = state.filter(s=>s.completed).length;
+  document.getElementById('progressLabel').textContent = doneCount + ' / ' + STEPS.length + ' steps complete';
+
+  STEPS.forEach((s, i) => {
+    const st = state[i];
+    const isActive = !st.completed && (i===0 || state[i-1].completed);
+    const node = document.createElement('div');
+    node.className = 'node' + (st.completed ? ' done' : isActive ? ' active' : '');
+    node.textContent = st.completed ? '✓' : (i+1);
+    node.title = s.title;
+    rail.appendChild(node);
+    if(i < STEPS.length -1){
+      const track = document.createElement('div');
+      track.className = 'track' + (st.completed ? ' done' : '');
+      rail.appendChild(track);
+    }
+  });
+}
+
+function renderSteps(){
+  const container = document.getElementById('stepsContainer');
+  container.innerHTML = '';
+
+  STEPS.forEach((s, i) => {
+    const st = state[i];
+    const unlocked = (i === 0) || state[i-1].completed;
+    const isActive = unlocked && !st.completed;
+
+    const card = document.createElement('div');
+    card.className = 'step ' + (st.completed ? 'complete' : unlocked ? 'active' : 'locked');
+
+    const chipClass = st.completed ? 'complete' : unlocked ? 'active' : 'locked';
+    const chipText = st.completed ? 'COMPLETE' : unlocked ? 'IN PROGRESS' : 'LOCKED';
+
+    card.innerHTML = `
+      <div class="step-hd">
+        <div class="badge-num">${i+1}</div>
+        <div>
+          <div class="step-title">${s.title}</div>
+        </div>
+        <span class="tcode">${s.tcode}</span>
+        <span class="status-chip ${chipClass}">${chipText}</span>
+      </div>
+      <div class="step-body" style="${unlocked ? '' : 'pointer-events:none;'}">
+        <div class="desc">${s.desc}</div>
+        ${ (!st.completed && s.errorGate) ? `
+          <div class="gate">
+            <div class="gate-title">Error Check Result</div>
+            <div class="gate-opts">
+              <button type="button" class="gate-btn ${st.errorStatus==='clear' ? 'sel-clear':''}" id="gate-clear-${s.id}" ${unlocked ? '' : 'disabled'}>✓ No Errors Found</button>
+              <button type="button" class="gate-btn ${st.errorStatus==='found' ? 'sel-found':''}" id="gate-found-${s.id}" ${unlocked ? '' : 'disabled'}>✕ Errors Found</button>
+            </div>
+            ${ st.errorStatus === 'found' ? `<div class="gate-warning">⚠ Errors detected in ${s.tcode}. Resolve the BOM errors (re-run routing / consolidation as needed) before this step can be completed. The next step will stay locked until "No Errors Found" is selected.</div>` : '' }
+            ${ st.errorStatus === 'clear' ? `<div class="gate-ok">No errors found — this step is clear to complete.</div>` : '' }
+          </div>
+        ` : ''}
+        ${ st.completed ? '' : `
+          <div class="field">
+            <label>${s.attachLabel}</label>
+            <label class="file-drop" for="file-${s.id}">
+              <span class="icon">📎</span>
+              <span id="filelabel-${s.id}">${unlocked ? 'Click to choose a file (optional)' : 'Locked — complete previous step first'}</span>
+              <input type="file" id="file-${s.id}" ${unlocked ? '' : 'disabled'} />
+            </label>
+          </div>
+        `}
+        <div id="preview-${s.id}"></div>
+        ${ st.completed ? `
+          <div class="completed-meta">
+            <span>Status: <b>Completed</b></span>
+            <span>TCode: <b style="color:var(--amber)">${s.tcode}</b></span>
+            <span>Timestamp: <b>${fmtDate(st.timestamp)}</b></span>
+            ${ st.note ? `<span>Note: <b>${st.note}</b></span>` : '' }
+          </div>
+          ${ st.attachment ? renderAttachPreview(st.attachment) : '<div class="completed-meta"><span>Attachment: none uploaded</span></div>' }
+        ` : `
+          <div class="actions" style="margin-top:6px;">
+            <button class="btn" id="complete-${s.id}" ${ (unlocked && (!s.errorGate || st.errorStatus==='clear')) ? '' : 'disabled'}>Mark Step Complete</button>
+          </div>
+        `}
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  // wire up events after DOM insert
+  STEPS.forEach((s, i) => {
+    const st = state[i];
+    const unlocked = (i === 0) || state[i-1].completed;
+    if(st.completed) return;
+
+    const fileInput = document.getElementById('file-' + s.id);
+    if(fileInput){
+      fileInput.addEventListener('change', (e) => handleFileSelect(e, s.id, i));
+    }
+    const completeBtn = document.getElementById('complete-' + s.id);
+    if(completeBtn){
+      completeBtn.addEventListener('click', () => completeStep(i));
+    }
+    if(s.errorGate){
+      const clearBtn = document.getElementById('gate-clear-' + s.id);
+      const foundBtn = document.getElementById('gate-found-' + s.id);
+      if(clearBtn) clearBtn.addEventListener('click', () => setErrorStatus(i, 'clear'));
+      if(foundBtn) foundBtn.addEventListener('click', () => setErrorStatus(i, 'found'));
+    }
+  });
+}
+
+let pendingAttachments = {}; // stepId -> {name, type, dataUrl}
+
+function handleFileSelect(e, stepId, idx){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    pendingAttachments[stepId] = { name: file.name, type: file.type, dataUrl: ev.target.result };
+    document.getElementById('filelabel-' + stepId).textContent = '✔ ' + file.name;
+    const preview = document.getElementById('preview-' + stepId);
+    if(preview) preview.innerHTML = renderAttachPreview(pendingAttachments[stepId]);
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderAttachPreview(att){
+  if(!att) return '';
+  const isImg = att.type && att.type.startsWith('image/');
+  return `<div class="attach-preview">
+    ${ isImg ? `<img src="${att.dataUrl}" />` : `<div class="file-ic">📄</div>` }
+    <span>${att.name}</span>
+  </div>`;
+}
+
+function setErrorStatus(idx, status){
+  state[idx].errorStatus = status;
+  render();
+}
+
+function completeStep(idx){
+  const s = STEPS[idx];
+  if(s.errorGate && state[idx].errorStatus !== 'clear'){
+    return; // gated — cannot complete while errors are found or unchecked
+  }
+  state[idx].completed = true;
+  state[idx].timestamp = new Date().toISOString();
+  state[idx].attachment = pendingAttachments[s.id] || null;
+  state[idx].note = s.errorGate ? 'No errors found in ' + s.tcode : null;
+  delete pendingAttachments[s.id];
+  render();
+  if(state.every(st=>st.completed)){
+    setTimeout(showCompletion, 150);
+  }
+}
+
+function renderCompletion(){
+  const allDone = state.every(st=>st.completed);
+  const banner = document.getElementById('successBanner');
+  const report = document.getElementById('reportSection');
+  if(allDone){
+    banner.classList.add('show');
+    report.classList.add('show');
+    buildReportTable();
+  } else {
+    banner.classList.remove('show');
+    report.classList.remove('show');
+  }
+}
+function showCompletion(){ renderCompletion(); document.getElementById('successBanner').scrollIntoView({behavior:'smooth', block:'center'}); }
+
+function buildReportTable(){
+  const tbody = document.getElementById('reportBody');
+  tbody.innerHTML = '';
+  STEPS.forEach((s, i) => {
+    const st = state[i];
+    const tr = document.createElement('tr');
+    const attCell = st.attachment
+      ? (st.attachment.type && st.attachment.type.startsWith('image/')
+          ? `<img class="rep-att-img" src="${st.attachment.dataUrl}" alt="${st.attachment.name}" />${st.attachment.name}`
+          : `<div class="rep-att-file"><div class="file-ic">📄</div><span>${st.attachment.name}</span></div>`)
+      : '—';
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td class="step-name">${s.title}</td>
+      <td class="tcode-cell">${s.tcode}</td>
+      <td class="ok">✓ Completed${ st.note ? `<span class="rep-note">${st.note}</span>` : '' }</td>
+      <td>${fmtDate(st.timestamp)}</td>
+      <td class="att-cell">${attCell}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  const firstTs = state[0].timestamp;
+  const lastTs = state[state.length-1].timestamp;
+  document.getElementById('reportMeta').textContent =
+    `Process started: ${fmtDate(firstTs)}  •  Process finished: ${fmtDate(lastTs)}  •  Order status: FBOM completed successfully`;
+}
+
+function downloadReport(){
+  const reportHtml = document.getElementById('reportSection').outerHTML;
+  const doc = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ETO BOM Completion Report</title>
+  <style>
+    body{font-family:'IBM Plex Mono',monospace;background:#060b14;color:#e6f1ff;padding:24px;}
+    .report-card{border:1px solid #16233d;background:#0a1120;border-radius:10px;padding:20px;}
+    table.rep{width:100%;border-collapse:collapse;font-size:12px;}
+    table.rep th{text-align:left;color:#f5a623;padding:8px 10px;border-bottom:1px solid #16233d;text-transform:uppercase;font-size:10px;}
+    table.rep td{padding:10px;border-bottom:1px solid #16233d;color:#8fa3c0;}
+    table.rep td.step-name{color:#e6f1ff;}
+    table.rep .tcode-cell{color:#f5a623;}
+    table.rep .ok{color:#34d399;}
+    table.rep .rep-att-img{max-width:220px;max-height:220px;border-radius:8px;border:1px solid #16233d;display:block;margin-bottom:6px;}
+    table.rep .rep-att-file{display:flex;align-items:center;gap:8px;}
+    table.rep .rep-att-file .file-ic{width:40px;height:40px;border-radius:6px;background:#101a2e;border:1px solid #16233d;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+    table.rep .rep-note{display:block;margin-top:3px;font-size:10.5px;color:#526078;}
+    h2{color:#e6f1ff;}
+    #reportBtns{display:none;}
+  </style></head><body><h1 style="font-size:16px;">ETO Order BOM — Process Completion Report</h1>${reportHtml}</body></html>`;
+  const blob = new Blob([doc], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ETO_BOM_Completion_Report_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.html';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function resetSimulation(){
+  if(!confirm('Reset the simulation? All step progress and attachments will be cleared.')) return;
+  state = STEPS.map(s => ({ id:s.id, completed:false, timestamp:null, attachment:null }));
+  pendingAttachments = {};
+  saveState();
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+render();
+</script>
+</body>
+</html>
