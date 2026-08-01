@@ -1,0 +1,1942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PowerFlex 520-Series Drive Simulator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --ab-red:#c8102e;
+    --ab-red-dark:#8f0b21;
+    --panel:#1b1e22;
+    --panel2:#232729;
+    --panel3:#15171a;
+    --edge:#33383d;
+    --lcd-bg:#0c2b1a;
+    --lcd-fg:#8ef2a0;
+    --lcd-dim:#3a6b4a;
+    --led-run:#33d17a;
+    --led-fault:#ff3b3b;
+    --led-comm:#3ba7ff;
+    --amber:#ffb020;
+    --text:#d7dadd;
+    --text-dim:#8a9098;
+    --mono: 'Consolas','SFMono-Regular',Menlo,monospace;
+    --sans: 'Segoe UI',Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:#101214; color:var(--text); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:var(--sans); cursor:pointer;}
+  ::-webkit-scrollbar{width:10px; height:10px;}
+  ::-webkit-scrollbar-track{background:var(--panel3);}
+  ::-webkit-scrollbar-thumb{background:#3a3f44; border-radius:5px;}
+
+  /* ---------- HOME SCREEN ---------- */
+  #home{
+    height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:
+      radial-gradient(ellipse at 50% 0%, #1a1d20 0%, #101214 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0 2px, transparent 2px 40px);
+  }
+  .brand-row{display:flex; align-items:center; gap:14px; margin-bottom:6px;}
+  .ab-logo{
+    width:54px; height:54px; background:var(--ab-red); border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:26px; color:#fff; font-family:var(--sans); letter-spacing:-1px;
+    box-shadow:0 0 0 3px #0000, 0 4px 14px rgba(200,16,46,0.35);
+  }
+  .brand-text{line-height:1.05;}
+  .brand-text .b1{font-size:13px; letter-spacing:3px; color:var(--text-dim); font-weight:600;}
+  .brand-text .b2{font-size:26px; font-weight:700; color:#fff; letter-spacing:0.5px;}
+  #home .series{color:var(--text-dim); font-size:14px; margin-top:2px; letter-spacing:2px;}
+  #home .ver{position:absolute; bottom:14px; right:18px; color:#484e54; font-size:11px; font-family:var(--mono);}
+  .select-drive-title{margin-top:46px; font-size:12px; letter-spacing:3px; color:var(--text-dim); font-weight:600;}
+  .drive-cards{display:flex; gap:26px; margin-top:18px;}
+  .drive-card{
+    width:230px; background:linear-gradient(180deg,#1d2023,#171a1c); border:1px solid var(--edge);
+    border-radius:10px; padding:20px; text-align:center; transition:.15s ease; position:relative;
+  }
+  .drive-card:hover{border-color:#565d64; transform:translateY(-3px); box-shadow:0 10px 24px rgba(0,0,0,0.4);}
+  .drive-card .glyph{
+    width:100%; height:110px; margin-bottom:14px; display:flex; align-items:center; justify-content:center;
+  }
+  .drive-card h3{margin:0 0 4px; font-size:20px; color:#fff;}
+  .drive-card p{margin:0; font-size:12px; color:var(--text-dim); line-height:1.5;}
+  .drive-card .badge{
+    display:inline-block; margin-top:10px; font-size:10px; letter-spacing:1.5px; color:var(--amber);
+    border:1px solid rgba(255,176,32,0.4); border-radius:20px; padding:3px 9px;
+  }
+  .drive-card button{
+    margin-top:16px; width:100%; padding:10px; background:var(--ab-red); color:#fff; border:none;
+    border-radius:6px; font-weight:600; font-size:13px; letter-spacing:0.5px;
+  }
+  .drive-card button:hover{background:#e0142f;}
+
+  /* ---------- APP SHELL ---------- */
+  #app{display:none; height:100%; flex-direction:column;}
+  #topbar{
+    height:46px; background:var(--panel3); border-bottom:1px solid var(--edge); display:flex; align-items:center;
+    padding:0 14px; gap:14px; flex-shrink:0;
+  }
+  #topbar .tb-logo{width:26px;height:26px;background:var(--ab-red);border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px;}
+  #topbar .tb-title{font-weight:700; font-size:14px; color:#fff;}
+  #topbar .tb-sub{font-size:11px; color:var(--text-dim); font-family:var(--mono);}
+  #topbar .spacer{flex:1;}
+  .tab-btns{display:flex; gap:4px;}
+  .tab-btn{
+    background:transparent; border:1px solid transparent; color:var(--text-dim); padding:7px 13px;
+    font-size:12px; border-radius:6px; letter-spacing:0.3px; font-weight:600;
+  }
+  .tab-btn:hover{color:#fff;}
+  .tab-btn.active{background:var(--panel2); color:#fff; border-color:var(--edge);}
+  #home-link{background:none;border:1px solid var(--edge);color:var(--text-dim);padding:6px 12px;border-radius:6px;font-size:11px;}
+  #home-link:hover{color:#fff;}
+
+  #main{flex:1; display:flex; overflow:hidden;}
+  .view{display:none; width:100%; height:100%; overflow:auto;}
+  .view.active{display:flex;}
+
+  /* ---------- OPERATE VIEW ---------- */
+  #view-operate{padding:22px; gap:22px; align-items:flex-start; flex-wrap:wrap; justify-content:center;}
+  .drive-unit{
+    background:linear-gradient(180deg,#26292c,#1c1f21); border-radius:10px; padding:18px;
+    width:290px; flex-shrink:0; border:1px solid #34393d; box-shadow:0 12px 30px rgba(0,0,0,0.45);
+  }
+  .drive-unit .du-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .du-top .model{font-weight:800; color:#fff; font-size:15px;}
+  .du-top .abtag{background:var(--ab-red); color:#fff; font-size:9px; font-weight:700; padding:2px 6px; border-radius:3px;}
+
+  .lcd-frame{
+    background:#04140b; border-radius:5px; padding:10px 12px; border:1px solid #06210f;
+    box-shadow:inset 0 0 12px rgba(0,0,0,0.7);
+  }
+  .lcd-screen{
+    background:var(--lcd-bg); color:var(--lcd-fg); font-family:var(--mono); border-radius:2px;
+    padding:8px 10px; min-height:74px; font-size:13px; line-height:1.5; white-space:pre;
+    text-shadow:0 0 4px rgba(142,242,160,0.5);
+  }
+  .lcd-screen .dim{color:var(--lcd-dim);}
+  .lcd-row1{display:flex; justify-content:space-between;}
+  .led-row{display:flex; justify-content:space-between; margin:12px 2px 8px;}
+  .led{display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .led .dot{width:9px; height:9px; border-radius:50%; background:#2a2e31; box-shadow:inset 0 0 2px #000;}
+  .led .dot.on-run{background:var(--led-run); box-shadow:0 0 7px var(--led-run);}
+  .led .dot.on-fault{background:var(--led-fault); box-shadow:0 0 7px var(--led-fault);}
+  .led .dot.on-comm{background:var(--led-comm); box-shadow:0 0 6px var(--led-comm);}
+  .led .dot.on-amber{background:var(--amber); box-shadow:0 0 6px var(--amber);}
+  .led label{font-size:8px; color:var(--text-dim); letter-spacing:0.5px;}
+
+  .keypad{margin-top:10px;}
+  .kp-row{display:flex; gap:6px; margin-bottom:6px;}
+  .kp-btn{
+    flex:1; background:#2b2f33; border:1px solid #3c4247; color:#dfe3e6; border-radius:5px;
+    padding:8px 0; font-size:10.5px; font-weight:600; letter-spacing:0.3px; text-align:center;
+  }
+  .kp-btn:hover{background:#363b40;}
+  .kp-btn:active{background:#1f2226; transform:translateY(1px);}
+  .kp-btn.arrow{font-size:14px; padding:6px 0;}
+  .kp-btn.start{background:#1c5c30; border-color:#227339;}
+  .kp-btn.start:hover{background:#227339;}
+  .kp-btn.stop{background:#6e1c1c; border-color:#8a2222;}
+  .kp-btn.stop:hover{background:#8a2222;}
+  .kp-btn.disabled{opacity:0.35; pointer-events:none;}
+  .fwd-rev-pill{
+    display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; font-size:10px;
+    color:var(--text-dim); letter-spacing:1px;
+  }
+  .fwd-rev-pill .arrow-ind{font-size:13px; color:var(--amber); transition:.15s;}
+
+  /* ---------- side panels (motor + io + trend + faults) ---------- */
+  .panel{
+    background:var(--panel2); border:1px solid var(--edge); border-radius:10px; padding:16px;
+    min-width:300px;
+  }
+  .panel h3{margin:0 0 12px; font-size:12px; letter-spacing:1.5px; color:var(--text-dim); text-transform:uppercase; display:flex; align-items:center; gap:8px;}
+  .panel h3::before{content:''; width:3px; height:13px; background:var(--ab-red); display:inline-block; border-radius:2px;}
+
+  .motor-visual{display:flex; align-items:center; justify-content:center; margin-bottom:10px;}
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; font-size:12px;}
+  .stat-grid .k{color:var(--text-dim);}
+  .stat-grid .v{font-family:var(--mono); color:#fff; text-align:right;}
+
+  .slider-row{margin-top:12px;}
+  .slider-row label{font-size:11px; color:var(--text-dim); display:flex; justify-content:space-between;}
+  .slider-row input[type=range]{width:100%; margin-top:4px; accent-color:var(--ab-red);}
+
+  .io-grid{display:grid; grid-template-columns:52px 1fr; row-gap:8px; column-gap:8px; align-items:center; font-size:11.5px;}
+  .io-grid select{
+    width:100%; background:var(--panel3); color:var(--text); border:1px solid var(--edge); border-radius:5px;
+    padding:5px 6px; font-size:11px;
+  }
+  .term-tag{
+    background:#2a2e31; border:1px solid #3c4247; border-radius:4px; padding:4px 0; text-align:center;
+    font-family:var(--mono); font-size:11px; color:var(--amber); position:relative;
+  }
+  .term-tag.active{background:#2b4a30; border-color:#3f7d47; color:#a6ffb8;}
+
+  .fault-banner{
+    display:none; background:linear-gradient(90deg,#7a1414,#5a0f0f); border:1px solid #a02020; border-radius:8px;
+    padding:10px 14px; margin-bottom:14px; align-items:center; gap:10px; width:100%;
+  }
+  .fault-banner.show{display:flex;}
+  .fault-banner .fcode{font-family:var(--mono); font-weight:800; font-size:16px;}
+  .fault-banner .ftext{font-size:12px; flex:1;}
+  .fault-banner button{background:#fff2; border:1px solid #fff5; color:#fff; border-radius:5px; padding:5px 10px; font-size:11px;}
+
+  #trend-canvas{width:100%; height:130px; display:block; background:var(--panel3); border-radius:6px;}
+  .trend-legend{display:flex; gap:12px; margin-top:8px; font-size:10.5px; flex-wrap:wrap;}
+  .trend-legend span{display:flex; align-items:center; gap:5px; color:var(--text-dim);}
+  .trend-legend i{width:9px; height:9px; border-radius:2px; display:inline-block;}
+
+  .sim-btns{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
+  .sim-btns button{
+    background:var(--panel3); border:1px solid var(--edge); color:var(--text); border-radius:5px;
+    padding:6px 9px; font-size:10.5px;
+  }
+  .sim-btns button:hover{border-color:#565d64; color:#fff;}
+
+  /* ---------- PARAMETERS VIEW ---------- */
+  #view-params{padding:18px 22px; gap:16px; flex-direction:column;}
+  .params-toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .params-toolbar input[type=text]{
+    background:var(--panel2); border:1px solid var(--edge); color:var(--text); padding:8px 12px; border-radius:7px;
+    font-size:13px; width:230px;
+  }
+  .params-toolbar select{background:var(--panel2); border:1px solid var(--edge); color:var(--text); padding:8px 12px; border-radius:7px; font-size:12px;}
+  .params-toolbar button{background:var(--panel2); border:1px solid var(--edge); color:var(--text); padding:8px 12px; border-radius:7px; font-size:12px;}
+  .params-toolbar button:hover{border-color:#565d64;}
+  table.ptable{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.ptable thead th{
+    text-align:left; color:var(--text-dim); font-weight:600; font-size:10.5px; letter-spacing:0.8px;
+    text-transform:uppercase; padding:8px 10px; border-bottom:1px solid var(--edge); position:sticky; top:0; background:#101214;
+  }
+  table.ptable td{padding:7px 10px; border-bottom:1px solid #232629;}
+  table.ptable tr:hover td{background:#1a1d20;}
+  table.ptable .pno{font-family:var(--mono); color:var(--amber); font-weight:700;}
+  table.ptable .pname{color:#fff;}
+  table.ptable .pdesc{color:var(--text-dim); font-size:11.5px;}
+  table.ptable input.pval, table.ptable select.pval{
+    width:100px; background:var(--panel3); border:1px solid var(--edge); color:#fff; padding:5px 7px;
+    border-radius:5px; font-family:var(--mono); font-size:12px;
+  }
+  table.ptable select.pval{width:170px;}
+  .pval.modified{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber) inset;}
+  .ro-tag{font-size:9px; color:#666; letter-spacing:1px;}
+
+  /* ---------- FAULTS VIEW ---------- */
+  #view-faults{padding:20px 24px; flex-direction:column; gap:16px;}
+  .faultlog-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .faultlog-table th{text-align:left; color:var(--text-dim); font-size:10.5px; letter-spacing:0.8px; text-transform:uppercase; padding:8px 10px; border-bottom:1px solid var(--edge);}
+  .faultlog-table td{padding:8px 10px; border-bottom:1px solid #232629;}
+  .faultlog-table .fc{font-family:var(--mono); color:var(--led-fault); font-weight:700;}
+  #fault-ref-list{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px;}
+  .fref-card{background:var(--panel2); border:1px solid var(--edge); border-radius:8px; padding:12px 14px;}
+  .fref-card .code{font-family:var(--mono); color:var(--led-fault); font-weight:800; font-size:13px;}
+  .fref-card .name{color:#fff; font-weight:600; font-size:13px; margin:2px 0 6px;}
+  .fref-card .desc{color:var(--text-dim); font-size:11.5px; line-height:1.5;}
+
+  .hint{color:var(--text-dim); font-size:11.5px; line-height:1.6;}
+
+  /* ---------- WIRING VIEW ---------- */
+  #view-wiring{padding:18px 22px; flex-direction:column; gap:16px;}
+  #wiring-svg{width:100%; height:420px; display:block; cursor:default;}
+  .term-rect{fill:#2b2f33; stroke:#4a5157; stroke-width:1.5; rx:4;}
+  .term-rect.wired{fill:#28422c; stroke:#4c8a54;}
+  .term-label{fill:#dfe3e6; font-family:var(--mono); font-size:11px; text-anchor:middle;}
+  .pin{fill:#111; stroke:#666; stroke-width:1.5; cursor:grab;}
+  .pin.energized{fill:#33d17a; stroke:#5be894;}
+  .pin:hover{stroke:#ffb020;}
+  .dev-body{fill:#26292c; stroke:#3c4247; stroke-width:1.5; cursor:pointer;}
+  .dev-body.tripped{fill:#5a1414; stroke:#8a2222;}
+  .dev-body.active{fill:#1c5c30; stroke:#227339;}
+  .dev-label{fill:#aab0b6; font-family:var(--sans); font-size:10.5px; text-anchor:middle;}
+  .dev-sublabel{fill:#6f7680; font-family:var(--sans); font-size:9px; text-anchor:middle;}
+  .wire-path{fill:none; stroke:#565d64; stroke-width:2.5;}
+  .wire-path.energized{stroke:#3fce7d;}
+  .wire-x{fill:#c8102e; font-size:11px; cursor:pointer;}
+  .ghost-wire{fill:none; stroke:#ffb020; stroke-width:2; stroke-dasharray:4 3;}
+  #wiring-status{font-size:12px; color:var(--text-dim);}
+  #wiring-status.ok{color:var(--led-run);}
+  #wiring-status.warn{color:var(--amber);}
+  .wiring-report{margin-top:10px; display:flex; flex-direction:column; gap:6px;}
+  .wr-item{font-size:11.5px; padding:6px 10px; border-radius:6px; background:var(--panel3); border:1px solid var(--edge);}
+  .wr-item.pass{border-color:#2f6b3c; color:#9adba9;}
+  .wr-item.warn{border-color:#7a5a12; color:#ffcf80;}
+  .wr-item.fail{border-color:#7a2020; color:#ffb0b0;}
+
+  .sto-chgrid{display:flex; gap:26px; margin:12px 0;}
+  .sto-ch{flex:1; background:var(--panel3); border:1px solid var(--edge); border-radius:8px; padding:12px; text-align:center;}
+  .sto-ch .chdot{width:14px; height:14px; border-radius:50%; margin:0 auto 6px; background:#2a2e31;}
+  .sto-ch .chdot.ok{background:var(--led-run); box-shadow:0 0 8px var(--led-run);}
+  .sto-ch .chdot.bad{background:var(--led-fault); box-shadow:0 0 8px var(--led-fault);}
+  .sto-banner{display:none; background:linear-gradient(90deg,#5a4a10,#443a0c); border:1px solid #8a7020; border-radius:8px; padding:10px 14px; align-items:center; gap:10px; margin-bottom:12px;}
+  .sto-banner.show{display:flex;}
+  .sto-banner button{background:#fff2; border:1px solid #fff5; color:#fff; border-radius:5px; padding:5px 10px; font-size:11px;}
+
+  /* ---------- OUTPUTS VIEW ---------- */
+  #view-outputs{padding:18px 22px; gap:22px; flex-wrap:wrap; align-content:flex-start;}
+  .out-select{width:100%; background:var(--panel3); border:1px solid var(--edge); color:var(--text); padding:7px 10px; border-radius:6px; font-size:12px; margin-bottom:14px;}
+  .relay-visual{display:flex; justify-content:center; margin-bottom:10px;}
+  .contact-badges{display:flex; justify-content:center; gap:18px; font-size:11px; color:var(--text-dim); margin-top:4px;}
+  .contact-badges b{color:#fff;}
+  .opto-visual{display:flex; justify-content:center; align-items:center; gap:18px; margin-bottom:10px;}
+  .opto-led{width:26px; height:26px; border-radius:50%; background:#3a1010; box-shadow:inset 0 0 4px #000;}
+  .opto-led.lit{background:#ff5a3a; box-shadow:0 0 14px #ff5a3a;}
+
+  /* ---------- NETWORK VIEW ---------- */
+  #view-network{padding:18px 22px; gap:22px; flex-wrap:wrap; align-content:flex-start;}
+  .net-row{display:flex; gap:10px; align-items:center; margin-bottom:10px; font-size:12px;}
+  .net-row label{width:130px; color:var(--text-dim);}
+  .net-row input[type=text]{flex:1; background:var(--panel3); border:1px solid var(--edge); color:var(--text); padding:6px 9px; border-radius:5px; font-family:var(--mono); font-size:12px;}
+  .net-leds{display:flex; gap:20px; margin:10px 0 4px;}
+  .net-leds .led label{font-size:9px;}
+  .tag-table{width:100%; border-collapse:collapse; font-size:11.5px; margin-top:6px;}
+  .tag-table th{text-align:left; color:var(--text-dim); font-size:10px; text-transform:uppercase; letter-spacing:0.6px; padding:6px 8px; border-bottom:1px solid var(--edge);}
+  .tag-table td{padding:6px 8px; border-bottom:1px solid #232629; font-family:var(--mono);}
+  .ping-result{font-family:var(--mono); font-size:12px; margin-top:8px; color:var(--led-run); min-height:18px;}
+
+  /* ---------- LEARNING VIEW ---------- */
+  #view-learning{padding:18px 22px; flex-direction:column; gap:16px;}
+  .lesson-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px;}
+  .lesson-card{background:var(--panel2); border:1px solid var(--edge); border-radius:10px; padding:16px;}
+  .lesson-card h4{margin:0 0 8px; color:#fff; font-size:14px; display:flex; justify-content:space-between; align-items:center;}
+  .lesson-card .lesson-badge{font-size:9px; padding:2px 8px; border-radius:20px; background:#2a2e31; color:var(--text-dim);}
+  .lesson-card .lesson-badge.done{background:#1c5c30; color:#a6ffb8;}
+  .lesson-step{display:flex; gap:8px; align-items:flex-start; font-size:12px; margin-bottom:7px; color:var(--text-dim);}
+  .lesson-step .chk{width:15px; height:15px; border-radius:4px; border:1px solid #4a5157; flex-shrink:0; margin-top:1px; display:flex; align-items:center; justify-content:center; font-size:10px;}
+  .lesson-step.done{color:#dfe3e6;}
+  .lesson-step.done .chk{background:var(--led-run); border-color:var(--led-run); color:#04140b;}
+  .challenge-card{background:var(--panel2); border:1px solid var(--edge); border-radius:10px; padding:16px; margin-bottom:12px;}
+  .challenge-card h4{margin:0 0 6px; color:#fff; font-size:14px;}
+  .challenge-status{font-size:12px; margin-top:8px; padding:8px 10px; border-radius:6px; background:var(--panel3);}
+  .challenge-status.pass{color:#9adba9; background:#16321d;}
+  .challenge-status.fail{color:#ffb0b0; background:#3a1616;}
+</style>
+</head>
+<body>
+
+<!-- ============ HOME SCREEN ============ -->
+<div id="home">
+  <div class="brand-row">
+    <div class="ab-logo">AB</div>
+    <div class="brand-text">
+      <div class="b1">ALLEN-BRADLEY</div>
+      <div class="b2">Drive Simulator</div>
+    </div>
+  </div>
+  <div class="series">POWERFLEX&nbsp;520&nbsp;SERIES</div>
+
+  <div class="select-drive-title">SELECT DRIVE</div>
+  <div class="drive-cards">
+    <div class="drive-card">
+      <div class="glyph">
+        <svg width="130" height="100" viewBox="0 0 130 100"><rect x="30" y="6" width="70" height="88" rx="6" fill="#26292c" stroke="#3c4247"/><rect x="38" y="16" width="54" height="26" rx="2" fill="#04140b" stroke="#06210f"/><rect x="41" y="19" width="48" height="20" fill="#0c2b1a"/><circle cx="45" cy="50" r="2.4" fill="#33d17a"/><circle cx="55" cy="50" r="2.4" fill="#333"/><circle cx="65" cy="50" r="2.4" fill="#333"/><circle cx="75" cy="50" r="2.4" fill="#3ba7ff"/><rect x="40" y="58" width="50" height="30" rx="3" fill="#2b2f33" stroke="#3c4247"/></svg>
+      </div>
+      <h3>PowerFlex 523</h3>
+      <p>Compact micro-drive. Basic I/O, RS485/DSI, no Ethernet, no Safe Torque Off.</p>
+      <span class="badge">0.4–22 kW CLASS</span>
+      <button onclick="startSim('523')">Open Simulator</button>
+    </div>
+    <div class="drive-card">
+      <div class="glyph">
+        <svg width="130" height="100" viewBox="0 0 130 100"><rect x="30" y="6" width="70" height="88" rx="6" fill="#26292c" stroke="#3c4247"/><rect x="38" y="16" width="54" height="26" rx="2" fill="#04140b" stroke="#06210f"/><rect x="41" y="19" width="48" height="20" fill="#0c2b1a"/><circle cx="42" cy="50" r="2.4" fill="#33d17a"/><circle cx="51" cy="50" r="2.4" fill="#333"/><circle cx="60" cy="50" r="2.4" fill="#333"/><circle cx="69" cy="50" r="2.4" fill="#3ba7ff"/><circle cx="78" cy="50" r="2.4" fill="#ffb020"/><rect x="40" y="58" width="50" height="30" rx="3" fill="#2b2f33" stroke="#3c4247"/></svg>
+      </div>
+      <h3>PowerFlex 525</h3>
+      <p>Embedded EtherNet/IP, Safe Torque Off, encoder feedback, relay + transistor outputs.</p>
+      <span class="badge">0.4–75 kW CLASS</span>
+      <button onclick="startSim('525')">Open Simulator</button>
+    </div>
+  </div>
+  <div class="ver">SIMULATOR v0.1 (Phase 1 core) &middot; based on Rockwell Pub. 520-UM001</div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app">
+  <div id="topbar">
+    <div class="tb-logo">AB</div>
+    <div>
+      <div class="tb-title" id="tb-title">PowerFlex 525</div>
+      <div class="tb-sub" id="tb-sub">FRN 5.xxx &middot; Not Configured</div>
+    </div>
+    <div class="tab-btns">
+      <button class="tab-btn active" data-view="operate" onclick="showView('operate')">Operate</button>
+      <button class="tab-btn" data-view="params" onclick="showView('params')">Parameters</button>
+      <button class="tab-btn" data-view="power" onclick="showView('power')">Power Circuit</button>
+      <button class="tab-btn" data-view="wiring" onclick="showView('wiring')">Wiring</button>
+      <button class="tab-btn" data-view="outputs" onclick="showView('outputs')">Outputs</button>
+      <button class="tab-btn" data-view="network" id="tab-network" onclick="showView('network')">Network</button>
+      <button class="tab-btn" data-view="learning" onclick="showView('learning')">Learning</button>
+      <button class="tab-btn" data-view="faults" onclick="showView('faults')">Faults</button>
+    </div>
+    <div class="spacer"></div>
+    <button id="home-link" onclick="goHome()">&larr; Select Drive</button>
+  </div>
+
+  <div id="main">
+    <!-- OPERATE -->
+    <div id="view-operate" class="view active">
+      <div class="drive-unit">
+        <div class="du-top"><span class="model" id="unit-model">PowerFlex 525</span><span class="abtag">AB</span></div>
+        <div class="lcd-frame">
+          <div class="lcd-screen" id="lcd">
+            <div class="lcd-row1"><span id="lcd-line1">0.0 Hz</span><span class="dim" id="lcd-dir">&#9650;FWD</span></div>
+            <div id="lcd-line2" class="dim">Ready</div>
+          </div>
+        </div>
+        <div class="led-row">
+          <div class="led"><div class="dot" id="led-run"></div><label>RUN</label></div>
+          <div class="led"><div class="dot" id="led-stop"></div><label>STOP</label></div>
+          <div class="led"><div class="dot" id="led-fault"></div><label>FAULT</label></div>
+          <div class="led"><div class="dot" id="led-comm"></div><label>COMM</label></div>
+        </div>
+        <div class="fwd-rev-pill"><span class="arrow-ind" id="dir-arrow">&#9650;</span><span id="dir-label">FORWARD</span></div>
+
+        <div class="keypad">
+          <div class="kp-row">
+            <button class="kp-btn" onclick="kpEsc()">ESC</button>
+            <button class="kp-btn" onclick="kpSel()">SEL</button>
+            <button class="kp-btn" onclick="kpToggleLocalRemote()" id="kp-locrem">LOC</button>
+          </div>
+          <div class="kp-row">
+            <button class="kp-btn arrow" onclick="kpUp()">&#9650;</button>
+            <button class="kp-btn arrow" onclick="kpDown()">&#9660;</button>
+            <button class="kp-btn" onclick="kpEnter()">&#9166; ENT</button>
+          </div>
+          <div class="kp-row">
+            <button class="kp-btn stop" onclick="kpStop()">STOP</button>
+            <button class="kp-btn start" onclick="kpStart()" id="kp-start">START</button>
+          </div>
+          <div class="kp-row">
+            <button class="kp-btn" onclick="kpJog()">JOG</button>
+            <button class="kp-btn" onclick="kpReverse()" id="kp-rev">FWD/REV</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:22px; flex:1; min-width:320px;">
+        <div class="fault-banner" id="fault-banner">
+          <span class="fcode" id="fb-code">F004</span>
+          <span class="ftext" id="fb-text">UnderVoltage &mdash; DC bus voltage fell below minimum value.</span>
+          <button onclick="resetFault()">RESET</button>
+        </div>
+
+        <div style="display:flex; gap:22px; flex-wrap:wrap;">
+          <div class="panel" style="flex:1; min-width:280px;">
+            <h3>Motor</h3>
+            <div class="motor-visual">
+              <svg width="150" height="110" viewBox="0 0 150 110">
+                <rect x="20" y="30" width="80" height="50" rx="6" fill="#2b2f33" stroke="#3c4247"/>
+                <g id="motor-fins">
+                  <line x1="30" y1="30" x2="30" y2="80" stroke="#3c4247" stroke-width="3"/>
+                  <line x1="42" y1="30" x2="42" y2="80" stroke="#3c4247" stroke-width="3"/>
+                  <line x1="54" y1="30" x2="54" y2="80" stroke="#3c4247" stroke-width="3"/>
+                  <line x1="66" y1="30" x2="66" y2="80" stroke="#3c4247" stroke-width="3"/>
+                  <line x1="78" y1="30" x2="78" y2="80" stroke="#3c4247" stroke-width="3"/>
+                  <line x1="90" y1="30" x2="90" y2="80" stroke="#3c4247" stroke-width="3"/>
+                </g>
+                <rect x="100" y="48" width="18" height="14" fill="#1c1f21" stroke="#3c4247"/>
+                <circle cx="130" cy="55" r="16" fill="#1c1f21" stroke="#3c4247"/>
+                <g id="fan-group" style="transform-origin:130px 55px;">
+                  <circle cx="130" cy="55" r="3" fill="#666"/>
+                  <line x1="130" y1="55" x2="130" y2="42" stroke="#888" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="130" y1="55" x2="141" y2="62" stroke="#888" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="130" y1="55" x2="119" y2="62" stroke="#888" stroke-width="3" stroke-linecap="round"/>
+                </g>
+              </svg>
+            </div>
+            <div class="stat-grid">
+              <div class="k">Output Freq</div><div class="v" id="s-freq">0.00 Hz</div>
+              <div class="k">Commanded Freq</div><div class="v" id="s-cmdfreq">0.00 Hz</div>
+              <div class="k">Output RPM</div><div class="v" id="s-rpm">0 RPM</div>
+              <div class="k">Output Current</div><div class="v" id="s-current">0.00 A</div>
+              <div class="k">Output Voltage</div><div class="v" id="s-voltage">0.0 V</div>
+              <div class="k">DC Bus Voltage</div><div class="v" id="s-bus">0.0 V</div>
+              <div class="k">Motor Load</div><div class="v" id="s-load">0 %</div>
+              <div class="k">Drive Status</div><div class="v" id="s-status">Ready</div>
+            </div>
+            <div class="slider-row">
+              <label><span>Shaft Load</span><span id="load-val">40%</span></label>
+              <input type="range" id="load-slider" min="0" max="160" value="40" oninput="onLoadChange(this.value)">
+            </div>
+            <div class="slider-row">
+              <label><span>Speed Reference (Keypad/Pot)</span><span id="ref-val">0.0 Hz</span></label>
+              <input type="range" id="ref-slider" min="0" max="60" step="0.5" value="0" oninput="onRefChange(this.value)">
+            </div>
+          </div>
+
+          <div class="panel" style="flex:1; min-width:280px;">
+            <h3>Trend &mdash; Freq / Current / Bus V</h3>
+            <canvas id="trend-canvas" width="520" height="130"></canvas>
+            <div class="trend-legend">
+              <span><i style="background:#8ef2a0"></i>Output Freq (Hz)</span>
+              <span><i style="background:#ffb020"></i>Output Current (A)</span>
+              <span><i style="background:#3ba7ff"></i>DC Bus (V, /10)</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:22px; flex-wrap:wrap;">
+          <div class="panel" style="flex:1; min-width:280px;">
+            <h3>I/O Terminal Block</h3>
+            <div class="io-grid" id="io-grid"><!-- injected --></div>
+          </div>
+
+          <div class="panel" style="flex:1; min-width:280px;">
+            <h3>Field Condition Simulator</h3>
+            <p class="hint">Force real-world fault conditions to see how the drive reacts &mdash; just like commissioning on the bench.</p>
+            <div class="sim-btns">
+              <button onclick="simFault('F002')">Aux Input Trip</button>
+              <button onclick="simFault('F003')">Phase Loss</button>
+              <button onclick="simFault('F004')">Line Sag (Undervoltage)</button>
+              <button onclick="simFault('F005')">Line Surge (Overvoltage)</button>
+              <button onclick="simFault('F006')">Jam / Stall</button>
+              <button onclick="simFault('F013')">Ground Fault</button>
+              <button onclick="simFault('F048')">Reset Params to Defaults</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POWER CIRCUIT -->
+    <div id="view-power" class="view" style="flex-direction:column; padding:18px 22px; gap:14px;">
+      <div class="panel" style="width:100%;">
+        <h3>Three-Line Power Circuit</h3>
+        <p class="hint">L1/L2/L3 incoming &rarr; circuit breaker &rarr; drive (rectifier / DC bus / IGBT inverter) &rarr; U/V/W &rarr; motor. Current-flow animation and motor rotation reflect live drive state.</p>
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+          <button onclick="toggleBreaker()" id="cb-toggle-btn">Open Breaker</button>
+          <span class="hint" id="cb-status">CB Closed \u2014 line power available</span>
+        </div>
+        <svg id="power-svg" viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:340px; background:var(--panel3); border-radius:8px;"></svg>
+      </div>
+    </div>
+
+    <!-- WIRING -->
+    <div id="view-wiring" class="view">
+      <div class="panel" style="width:100%;">
+        <h3>Control Circuit Wiring</h3>
+        <p class="hint" id="wiring-hint">Drag from a field device's pin (bottom) up to a terminal (top) to wire it. Click a wire's &times; to remove it. Click a device's body to operate it (press a pushbutton, flip a switch).</p>
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+          <button onclick="validateWiring()">Validate Wiring</button>
+          <button onclick="clearWiring()">Clear All Wires</button>
+          <label style="font-size:12px; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="jumper-toggle" checked onchange="onJumperToggle()"> T01 factory jumper installed</label>
+          <span id="wiring-status"></span>
+        </div>
+        <div class="slider-row" style="max-width:320px;">
+          <label><span>Potentiometer Position (speed pot)</span><span id="pot-val">50%</span></label>
+          <input type="range" id="pot-slider" min="0" max="100" value="50" oninput="onPotChange(this.value)">
+        </div>
+        <svg id="wiring-svg" viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="wiring-report" id="wiring-report"></div>
+      </div>
+
+      <div class="panel" id="sto-panel" style="width:100%; display:none;">
+        <h3>Safe Torque Off &mdash; PowerFlex 525</h3>
+        <div class="sto-banner" id="sto-banner">
+          <b>Safe Torque Off Active</b>
+          <span>Both safety channels must be closed before the drive can restart.</span>
+          <button onclick="stoReset()">STO Reset</button>
+        </div>
+        <div class="sto-chgrid">
+          <div class="sto-ch"><div class="chdot" id="sto-cha-dot"></div><div>Channel A (S1)</div><div class="hint" id="sto-cha-txt">Factory jumper (closed)</div></div>
+          <div class="sto-ch"><div class="chdot" id="sto-chb-dot"></div><div>Channel B (S2)</div><div class="hint" id="sto-chb-txt">Factory jumper (closed)</div></div>
+        </div>
+        <p class="hint">Both channels must be closed (healthy) for the drive to run. Opening either channel removes IGBT gating immediately &mdash; the motor coasts to a stop with no ramp, and the drive cannot restart until both channels are closed <em>and</em> STO Reset is pressed.</p>
+      </div>
+    </div>
+
+    <!-- OUTPUTS -->
+    <div id="view-outputs" class="view" style="flex-wrap:wrap; align-content:flex-start;">
+      <div id="outputs-container" style="display:contents;"></div>
+    </div>
+
+    <!-- NETWORK (PF525) -->
+    <div id="view-network" class="view">
+      <div class="panel" style="flex:1; min-width:320px;">
+        <h3>EtherNet/IP Adapter</h3>
+        <div class="net-leds">
+          <div class="led"><div class="dot" id="net-link"></div><label>LINK</label></div>
+          <div class="led"><div class="dot" id="net-mod"></div><label>MOD ST</label></div>
+          <div class="led"><div class="dot" id="net-net"></div><label>NET ST</label></div>
+        </div>
+        <div class="net-row"><label>DHCP Enable</label><input type="checkbox" id="net-dhcp" onchange="onNetDhcpToggle()"></div>
+        <div class="net-row"><label>IP Address</label><input type="text" id="net-ip" value="192.168.1.10"></div>
+        <div class="net-row"><label>Subnet Mask</label><input type="text" id="net-mask" value="255.255.255.0"></div>
+        <div class="net-row"><label>Gateway</label><input type="text" id="net-gw" value="192.168.1.1"></div>
+        <button onclick="netConnect()">Apply &amp; Connect</button>
+        <button onclick="netPing()">Ping Adapter</button>
+        <div class="ping-result" id="ping-result"></div>
+      </div>
+      <div class="panel" style="flex:1; min-width:320px;">
+        <h3>I/O Assembly (Produced / Consumed Tags)</h3>
+        <p class="hint">Simulated cyclic data exchanged with a PLC scanner over EtherNet/IP.</p>
+        <table class="tag-table">
+          <thead><tr><th>Produced (Drive &rarr; PLC)</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Status Word</td><td id="tag-status">0x0000</td></tr>
+            <tr><td>Output Freq</td><td id="tag-freq">0.00 Hz</td></tr>
+            <tr><td>Output Current</td><td id="tag-current">0.00 A</td></tr>
+            <tr><td>Fault Code</td><td id="tag-fault">0</td></tr>
+          </tbody>
+          <thead><tr><th>Consumed (PLC &rarr; Drive)</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Control Word</td><td id="tag-ctrl">0x0000</td></tr>
+            <tr><td>Speed Reference</td><td id="tag-ref">0.00 Hz</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel" style="width:100%;">
+        <h3>PLC Simulator &mdash; Control the Drive Over the Network</h3>
+        <p class="hint">To actually drive the motor from here (just like a PLC would), set <b>P046 [Start Source1] = "5: EtherNet/IP"</b> (or "4: Network Opt") on the Parameters tab, and turn OFF Local mode on the keypad. Then the Run/Stop buttons and reference slider below write the Control Word / Speed Reference tags shown above, exactly like a PLC program would.</p>
+        <div id="net-ctrl-status" class="hint" style="margin-bottom:8px;"></div>
+        <div class="sim-btns" style="margin-bottom:10px;">
+          <button onclick="netRun(true)">Write Control Word: Run</button>
+          <button onclick="netRun(false)">Write Control Word: Stop</button>
+        </div>
+        <div class="slider-row" style="max-width:320px;">
+          <label><span>PLC Speed Reference Tag</span><span id="net-ref-val">0.0 Hz</span></label>
+          <input type="range" id="net-ref-slider" min="0" max="60" step="0.5" value="0" oninput="onNetRefChange(this.value)">
+        </div>
+      </div>
+    </div>
+
+    <!-- LEARNING -->
+    <div id="view-learning" class="view">
+      <div class="panel" style="width:100%;">
+        <h3>Guided Lessons</h3>
+        <div class="lesson-grid" id="lesson-grid"></div>
+      </div>
+      <div class="panel" style="width:100%;">
+        <h3>Troubleshooting Challenges</h3>
+        <div id="challenge-list"></div>
+      </div>
+    </div>
+
+    <!-- PARAMETERS -->
+    <div id="view-params" class="view">
+      <div class="params-toolbar">
+        <input type="text" id="p-search" placeholder="Search parameter number or name..." oninput="renderParamTable()">
+        <select id="p-group" onchange="renderParamTable()">
+          <option value="">All Groups</option>
+        </select>
+        <button onclick="exportParams()">Export</button>
+        <button onclick="factoryReset()">Restore Factory Defaults</button>
+      </div>
+      <div style="flex:1; overflow:auto; border:1px solid var(--edge); border-radius:8px;">
+        <table class="ptable">
+          <thead><tr>
+            <th style="width:70px;">No.</th><th>Name</th><th style="width:260px;">Value</th>
+            <th style="width:130px;">Default</th><th>Description</th>
+          </tr></thead>
+          <tbody id="ptable-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FAULTS -->
+    <div id="view-faults" class="view">
+      <div class="panel">
+        <h3>Fault Log</h3>
+        <table class="faultlog-table">
+          <thead><tr><th style="width:70px;">Code</th><th>Description</th><th style="width:110px;">Sim Time</th></tr></thead>
+          <tbody id="faultlog-body"><tr><td colspan="3" class="hint">No faults logged this session.</td></tr></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h3>Fault Reference &mdash; PowerFlex 520-Series (Pub. 520-UM001)</h3>
+        <div id="fault-ref-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   POWERFLEX 520-SERIES SIMULATOR  —  Phase 1 core engine
+   ============================================================ */
+
+/* ---------- FAULT DATABASE (from Pub. 520-UM001 fault descriptions) ---------- */
+const FAULTS = {
+  F002:{name:'Auxiliary Input', desc:'External trip (Auxiliary) input activated.', action:'Check remote wiring. Verify communications programming for an intentional fault.'},
+  F003:{name:'Power Loss', desc:'Single-phase operation detected with excessive load.', action:'Monitor incoming AC line for low voltage or interruption. Check input fuses. Reduce load.'},
+  F004:{name:'UnderVoltage', desc:'DC bus voltage fell below the minimum value.', action:'Monitor the incoming AC line for low voltage or line power interruption.'},
+  F005:{name:'OverVoltage', desc:'DC bus voltage exceeded the maximum value.', action:'Monitor AC line for high line voltage or transients. Extend Decel Time or add a dynamic brake option.'},
+  F006:{name:'Motor Stalled', desc:'Drive is unable to accelerate or decelerate the motor.', action:'Increase Accel/Decel Time (P041/P042) or reduce load so output current does not exceed the current limit.'},
+  F007:{name:'Motor Overload', desc:'Internal electronic (I\u00b2t) overload trip.', action:'Reduce load. Verify P033 [Motor OL Current] matches the motor nameplate.'},
+  F008:{name:'Heatsink OvrTmp', desc:'Heatsink / power module temperature exceeded a predefined value.', action:'Check for blocked or dirty heat sink fins. Verify ambient temperature rating.'},
+  F009:{name:'CC OvrTmp', desc:'Control module temperature exceeded a predefined value.', action:'Check ambient temperature and enclosure ventilation.'},
+  F012:{name:'HW OverCurrent', desc:'Output current exceeded the hardware current limit.', action:'Check programming. Check for excess load, improper boost setting, or a shorted output.'},
+  F013:{name:'Ground Fault', desc:'A output-to-ground short circuit was detected.', action:'Check motor and wiring for a grounded phase. Megger the motor and cable.'},
+  F048:{name:'Parameters Defaulted', desc:'Parameters were reset to factory defaults (commanded or EEPROM event).', action:'Reprogram the application parameters, then clear the fault.'}
+};
+
+/* ---------- PARAMETER DATABASE (Basic Program Group, Pub. 520-UM001) ---------- */
+/* type: 'num' editable numeric, 'enum' editable list, 'ro' read-only display */
+function baseParams(driveModel){
+  const isPF525 = driveModel === '525';
+  const list = [
+    {no:'P031',name:'Motor NP Volts',group:'Motor',type:'num',min:20,max:600,def:230,unit:'V',desc:'Sets the motor nameplate rated volts.'},
+    {no:'P032',name:'Motor NP Hertz',group:'Motor',type:'num',min:15,max:400,def:60,unit:'Hz',desc:'Sets the motor nameplate rated frequency.'},
+    {no:'P033',name:'Motor OL Current',group:'Motor',type:'num',min:0,max:9999,def:4.8,unit:'A',desc:'Sets the drive electronic motor overload protection current.'},
+    {no:'P034',name:'Motor NP FLA',group:'Motor',type:'num',min:0,max:9999,def:4.8,unit:'A',desc:'Sets the motor nameplate rated full load amps.'},
+    {no:'P035',name:'Motor NP Poles',group:'Motor',type:'num',min:2,max:40,def:4,unit:'',desc:'Sets the number of poles in the motor.'},
+    {no:'P036',name:'Motor NP RPM',group:'Motor',type:'num',min:0,max:60000,def:1725,unit:'RPM',desc:'Sets the rated nameplate RPM. Used to calculate rated slip.'},
+    {no:'P037',name:'Motor NP Power',group:'Motor',type:'num',min:0,max:9999,def:1.0,unit:'HP',desc:'Sets the motor nameplate rated power.'},
+    {no:'P038',name:'Torque Perf Mode',group:'Motor',type:'enum',options:['0: V/Hz No Comp','1: V/Hz Fan/Pump','2: V/Hz','3: SVC','4: SVC + Slip Comp','5: Economizer'],def:'2: V/Hz',desc:'Selects the torque performance mode used by the drive.'},
+    {no:'P039',name:'Autotune',group:'Motor',type:'enum',options:['0: Ready/Idle','1: Static Tune','2: Rotate Tune'],def:'0: Ready/Idle',desc:'Initiates the autotune procedure.'},
+    {no:'P041',name:'Accel Time 1',group:'Speed',type:'num',min:0,max:600,def:10.0,unit:'s',desc:'Sets the time for the drive to accelerate from 0 Hz to Maximum Freq.'},
+    {no:'P042',name:'Decel Time 1',group:'Speed',type:'num',min:0,max:600,def:10.0,unit:'s',desc:'Sets the time for the drive to decelerate from Maximum Freq to 0 Hz.'},
+    {no:'P043',name:'Minimum Freq',group:'Speed',type:'num',min:0,max:400,def:0.0,unit:'Hz',desc:'Sets the lowest frequency the drive will output continuously.'},
+    {no:'P044',name:'Maximum Freq',group:'Speed',type:'num',min:0,max:400,def:60.0,unit:'Hz',desc:'Sets the highest frequency the drive will output.'},
+    {no:'P045',name:'Stop Mode',group:'Control',type:'enum',options:['0: Ramp, CF','1: Coast, CF','2: DC Brake, CF','3: DC Brake, 3-Wire','4: Ramp, 3-Wire','5: Coast, 3-Wire','6: Ramp,CF+EM.B','7: Coast,CF+EM.B'],def:'0: Ramp, CF',desc:'Determines the stopping mode used when a stop is initiated. CF = Clear Fault enabled.'},
+    {no:'P046',name:'Start Source 1',group:'Control',type:'enum',options:['1: Keypad','2: DigIn TrmBlk','3: Serial/DSI','4: Network Opt'].concat(isPF525?['5: EtherNet/IP']:[]),def:'1: Keypad',desc:'Selects the source of the Start/Stop/Direction command. "2: DigIn TrmBlk" hands control to terminals 02/03 as configured by t062/t063.'},
+    {no:'P047',name:'Speed Reference1',group:'Control',type:'enum',options:['1: Keypad','3: Serial/DSI','4: Network Opt','5: 0-10V Input','6: 4-20mA Input','7: Preset Freq'],def:'1: Keypad',desc:'Selects the source of the speed reference command.'},
+    {no:'t062',name:'DigIn TermBlk 02',group:'Terminal Block',type:'enum',options:['0: Not Used','48: 2-Wire FWD (Run FWD)','49: 3-Wire Start'],def:'48: 2-Wire FWD (Run FWD)',desc:'Configures I/O Terminal 02 for 2-Wire (maintained Run FWD) or 3-Wire (momentary Start) control. Only active when P046 [Start Source1] = "2: DigIn TrmBlk".'},
+    {no:'t063',name:'DigIn TermBlk 03',group:'Terminal Block',type:'enum',options:['0: Not Used','50: 2-Wire REV (Run REV)','51: 3-Wire Dir'],def:'50: 2-Wire REV (Run REV)',desc:'Configures I/O Terminal 03 for 2-Wire (maintained Run REV) or 3-Wire (maintained Direction) control.'},
+  ];
+  list.push(
+    {no:'A442',name:'Accel Time 2',group:'Advanced',type:'num',min:0,max:600,def:20.0,unit:'s',desc:'Alternate acceleration ramp, used when the Accel/Decel 2 Select digital input is active.'},
+    {no:'A443',name:'Decel Time 2',group:'Advanced',type:'num',min:0,max:600,def:20.0,unit:'s',desc:'Alternate deceleration ramp, used when the Accel/Decel 2 Select digital input is active.'},
+    {no:'A445',name:'Jog Frequency',group:'Advanced',type:'num',min:0,max:400,def:10.0,unit:'Hz',desc:'Sets the frequency the drive runs at when a Jog command is active.'},
+    {no:'A410',name:'Preset Freq 0',group:'Advanced',type:'num',min:0,max:400,def:15.0,unit:'Hz',desc:'Sets the output frequency used when a Preset Speed Select digital input is active.'},
+    {no:'A439',name:'S Curve %',group:'Advanced',type:'num',min:0,max:100,def:0,unit:'%',desc:'Sets the percentage of S-curve shaping applied to the accel/decel ramps.'},
+    {no:'A452',name:'PWM Frequency',group:'Advanced',type:'num',min:2,max:16,def:4,unit:'kHz',desc:'Sets the PWM output carrier frequency. Higher values reduce motor noise but increase drive heating.'},
+    {no:'A484',name:'Current Limit 1',group:'Advanced',type:'num',min:0,max:600,def:150,unit:'%',desc:'Sets the maximum output current before the drive limits acceleration/output.'},
+    {no:'C123',name:'RS485 Data Rate',group:'Communications',type:'enum',options:['0: 4800','1: 9600','2: 19200','3: 38400','4: 57600','5: 76800','6: 115200'],def:'3: 38400',desc:'Sets the data rate for the RS485 (DSI) port. All nodes on the network must match.'},
+    {no:'C124',name:'RS485 Node Addr',group:'Communications',type:'num',min:0,max:255,def:100,unit:'',desc:'Sets the node address for the drive on the RS485/DSI network. Each node must be unique.'},
+    {no:'C125',name:'Comm Loss Action',group:'Communications',type:'enum',options:['0: Fault','1: Stop','2: Zero Data','3: Hold Last'],def:'0: Fault',desc:'Selects the drive\u2019s response to a communication loss condition.'},
+    {no:'C126',name:'Comm Loss Time',group:'Communications',type:'num',min:0.1,max:400,def:5.0,unit:'s',desc:'Sets the time the drive remains in a comm loss condition before acting on C125.'},
+    {no:'b001',name:'Output Freq',group:'Display',type:'ro',live:'outFreq',unit:'Hz',desc:'Output frequency present at the motor terminals (does not include slip).'},
+    {no:'b002',name:'Commanded Freq',group:'Display',type:'ro',live:'cmdFreq',unit:'Hz',desc:'The frequency commanded by the active speed reference.'},
+    {no:'b007',name:'Fault 1 Code',group:'Display',type:'ro',live:'fault1',unit:'',desc:'The most recent fault code logged by the drive.'},
+    {no:'b013',name:'Elapsed Run Time',group:'Display',type:'ro',live:'simTime',unit:'s',desc:'Total elapsed simulated run time since the drive was powered up.'}
+  );
+  if(isPF525){
+    list.push(
+      {no:'t105',name:'Safety Open Enbl',group:'STO',type:'enum',options:['0: Disabled','1: Enabled'],def:'1: Enabled',desc:'Enables Safe Torque Off monitoring on the safety input terminals (S1/S2).'}
+    );
+  }
+  return list.map(p=>Object.assign({},p,{value:p.def}));
+}
+function refreshLiveParams(){
+  if(!document.getElementById('view-params').classList.contains('active')) return;
+  state.params.filter(p=>p.type==='ro').forEach(p=>{
+    const el = document.getElementById('pval-'+p.no);
+    if(el) el.textContent = liveParamValue(p)+' '+(p.unit||'');
+  });
+}
+function liveParamValue(p){
+  switch(p.live){
+    case 'outFreq': return state.outFreq.toFixed(2);
+    case 'cmdFreq': return state.cmdFreq.toFixed(2);
+    case 'fault1': return state.faultLog.length ? state.faultLog[0].code : 'F000 (None)';
+    case 'simTime': return state.simTime.toFixed(1);
+    default: return '';
+  }
+}
+
+/* ---------- Digital input function options ---------- */
+const DI_FUNCTIONS = ['Not Used','Preset Speed Select','Jog','Fault Reset','Local/Remote','Aux Fault (N.O.)','Accel/Decel 2 Select','Enable','Clear Fault'];
+const DO_FUNCTIONS = ['Ready/Fault (N.O.)','Running','At Frequency','Fault','Alarm','Motor Overload','Reverse','Drive Healthy'];
+
+/* ---------- STATE ---------- */
+let state = null;
+
+function makeState(model){
+  const isPF525 = model==='525';
+  const diTermIds = isPF525 ? ['05','06','07','08'] : ['05','06'];
+  const diDefaults = isPF525 ? ['Preset Speed Select','Not Used','Not Used','Jog'] : ['Preset Speed Select','Not Used'];
+  return {
+    model, isPF525,
+    params: baseParams(model),
+    diTermIds, di: diDefaults.slice(),
+    stopJumper:true, // factory jumper across T01-T11; remove it once you wire a real Stop PB
+    local: true, // Local (keypad) control by default — matches pressing the drive's LOC key
+    jogActive:false, lcdMode:null,
+    running:false, direction:1, // 1 fwd, -1 rev
+    cmdFreq:0, outFreq:0, current:0, busVoltage:325, load:40,
+    fault:null, faultLog:[],
+    lineVoltMult:1.0, phaseOk:true,
+    overloadAccum:0,
+    trend:[], // {t,freq,current,bus}
+    simTime:0,
+    wiring:{}, // terminalId -> deviceId
+    wireDevices:[], // built by buildWiringDiagram()
+    _prevSig:{},
+    stoActive:false,
+    _everSto:false,
+    relay1Fn:'Fault', relay2Fn:'Running', opto1Fn:'Running', opto2Fn:'At Frequency',
+    netConnected:false, netRunCmd:false, netRefCmd:0,
+    potPosition:50,
+    challengeActive:null, challengeResult:null, challengeStart:0,
+  };
+}
+
+/* ---------- BOOTSTRAP ---------- */
+function startSim(model){
+  state = makeState(model);
+  document.getElementById('home').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('unit-model').textContent = 'PowerFlex '+model;
+  document.getElementById('tb-title').textContent = 'PowerFlex '+model;
+  document.getElementById('tb-sub').textContent = (model==='525'?'FRN 5.xxx \u00b7 EtherNet/IP + STO':'FRN 5.xxx \u00b7 Basic I/O') ;
+  document.getElementById('kp-locrem').textContent = state.local ? 'LOC':'REM';
+  buildIoGrid();
+  populateGroupFilter();
+  renderParamTable();
+  renderFaultRef();
+  buildOutputSelects();
+  document.getElementById('tab-network').style.display = state.isPF525 ? '' : 'none';
+  document.getElementById('net-dhcp').checked = false;
+  renderLessons();
+  renderChallenges();
+  showView('operate');
+  requestAnimationFrame(loop);
+}
+function goHome(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('home').style.display='flex';
+  state = null;
+}
+
+/* ---------- VIEW SWITCHING ---------- */
+function showView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(el=>el.classList.toggle('active', el.dataset.view===v));
+  if(v==='power'){
+    buildPowerCircuitDiagram();
+  }
+  if(v==='wiring'){
+    document.getElementById('sto-panel').style.display = state.isPF525 ? 'block':'none';
+    document.getElementById('jumper-toggle').checked = state.stopJumper;
+    document.getElementById('pot-slider').value = state.potPosition;
+    document.getElementById('pot-val').textContent = state.potPosition+'%';
+    buildWiringDiagram();
+  }
+}
+
+/* ---------- I/O GRID ---------- */
+function buildIoGrid(){
+  const grid = document.getElementById('io-grid');
+  grid.innerHTML='';
+  // Terminal 02/03 quick status (governed by t062/t063 — edit in Wiring or Parameters tab)
+  const t02 = document.createElement('div'); t02.className='term-tag'; t02.textContent='T02';
+  grid.appendChild(t02);
+  const t02info = document.createElement('div'); t02info.style.cssText='font-size:11px;color:var(--text-dim);padding:5px 2px;';
+  t02info.textContent = 'Start/Run FWD — mode: '+getParam('t062').value.split(': ')[1];
+  grid.appendChild(t02info);
+  const t03 = document.createElement('div'); t03.className='term-tag'; t03.textContent='T03';
+  grid.appendChild(t03);
+  const t03info = document.createElement('div'); t03info.style.cssText='font-size:11px;color:var(--text-dim);padding:5px 2px;';
+  t03info.textContent = 'Dir/Run REV — mode: '+getParam('t063').value.split(': ')[1];
+  grid.appendChild(t03info);
+
+  // Generic assignable terminals (05, 06, and 07/08 on the 525)
+  const n = state.di.length;
+  for(let i=0;i<n;i++){
+    const termId = state.diTermIds[i];
+    const tag = document.createElement('div');
+    tag.className='term-tag'; tag.id='term-'+termId;
+    tag.textContent = 'T'+termId;
+    grid.appendChild(tag);
+    const sel = document.createElement('select');
+    DI_FUNCTIONS.forEach(f=>{
+      const o=document.createElement('option'); o.value=f; o.textContent=f;
+      if(f===state.di[i]) o.selected=true;
+      sel.appendChild(o);
+    });
+    sel.onchange = ()=>{ state.di[i]=sel.value; };
+    grid.appendChild(sel);
+  }
+
+  // Analog input (speed ref) label row
+  const aTag=document.createElement('div'); aTag.className='term-tag'; aTag.textContent='T13';
+  grid.appendChild(aTag);
+  const aInfo=document.createElement('div'); aInfo.style.cssText='font-size:11px;color:var(--text-dim);padding:5px 2px;';
+  aInfo.textContent = (state.isPF525?'\u00b110V':'0-10V')+' In \u2192 Speed Reference when P047=5 (wire a pot on the Wiring tab, or use the slider below)';
+  grid.appendChild(aInfo);
+
+  if(state.isPF525){
+    const sTag=document.createElement('div'); sTag.className='term-tag'; sTag.textContent='S1/S2';
+    grid.appendChild(sTag);
+    const sInfo=document.createElement('div'); sInfo.style.cssText='font-size:11px;color:var(--text-dim);padding:5px 2px;';
+    sInfo.textContent='Safe Torque Off channels A/B (factory jumper = enabled)';
+    grid.appendChild(sInfo);
+  }
+}
+
+/* ---------- KEYPAD LOGIC ---------- */
+// Real drive precedence: Local override (LOC key) beats everything; otherwise P046 [Start Source1] decides.
+function controlSource(){
+  if(state.local) return 'keypad';
+  const src = getParam('P046').value;
+  if(src.startsWith('1')) return 'keypad';
+  if(src.startsWith('2')) return 'terminal';
+  return 'network'; // 3 Serial/DSI, 4 Network Opt, 5 EtherNet/IP
+}
+function localControl(){ return state.local; }
+
+function kpStart(){
+  if(state.fault || state.stoActive) return;
+  if(controlSource()!=='keypad'){ flashDenied(controlSource()); return; }
+  state.running = true;
+}
+function kpStop(){
+  state.running = false; state.cmdFreq = 0; state.jogActive=false;
+}
+function kpJog(){
+  if(state.fault || state.stoActive) return;
+  if(controlSource()!=='keypad'){ flashDenied(controlSource()); return; }
+  state.jogActive = !state.jogActive;
+  state.running = state.jogActive;
+}
+function kpReverse(){
+  if(controlSource()!=='keypad'){ flashDenied(controlSource()); return; }
+  state.direction *= -1;
+}
+function kpToggleLocalRemote(){
+  state.local = !state.local;
+  document.getElementById('kp-locrem').textContent = state.local?'LOC':'REM';
+}
+function kpUp(){
+  if(state.lcdMode){ cycleLcdMode(1); return; }
+  if(localControl()) bumpRef(1);
+}
+function kpDown(){
+  if(state.lcdMode){ cycleLcdMode(-1); return; }
+  if(localControl()) bumpRef(-1);
+}
+function bumpRef(dir){
+  const s=document.getElementById('ref-slider');
+  let v = parseFloat(s.value)+dir*1; v=Math.max(0,Math.min(60,v));
+  s.value=v; onRefChange(v);
+}
+const LCD_MODES = ['freq','cmdfreq','current','busv','rpm','runtime'];
+function kpEsc(){ state.lcdMode = null; }
+function kpSel(){ state.lcdMode = state.lcdMode===null ? LCD_MODES[0] : null; }
+function cycleLcdMode(dir){
+  let idx = LCD_MODES.indexOf(state.lcdMode);
+  idx = (idx+dir+LCD_MODES.length)%LCD_MODES.length;
+  state.lcdMode = LCD_MODES[idx];
+}
+function kpEnter(){ /* reserved for parameter edit confirm in a full menu system */ }
+function flashDenied(src){
+  const lcd=document.getElementById('lcd-line2');
+  const why = src==='terminal' ? 'Src=Terminal' : (src==='network' ? 'Src=Network' : 'Src');
+  lcd.textContent='Cmd Denied ('+why+')'; lcd.classList.add('dim');
+}
+
+/* Digital input driven start/stop (2-wire / 3-wire) via terminal simulation:
+   Phase 1 keeps DI logic simplified — pressing START/STOP on keypad always
+   works when P047 keypad ref / P046 keypad start is selected; otherwise the
+   Start/Stop buttons simulate the wired field device on DI1/DI2. */
+
+/* ---------- SLIDERS ---------- */
+function onLoadChange(v){ state.load = parseFloat(v); document.getElementById('load-val').textContent=v+'%'; }
+function onRefChange(v){
+  state.refFreq = parseFloat(v);
+  document.getElementById('ref-val').textContent = parseFloat(v).toFixed(1)+' Hz';
+  if(!state.running && parseFloat(v)>0){ /* allow pre-setting ref while stopped */ }
+}
+document.addEventListener('DOMContentLoaded', ()=>{ });
+
+/* ---------- FAULT SIMULATION TRIGGERS ---------- */
+function simFault(code){
+  if(code==='F048'){ factoryReset(); return; }
+  if(code==='F004') state.lineVoltMult = 0.65;
+  if(code==='F005') state.lineVoltMult = 1.5;
+  if(code==='F003'){ state.phaseOk = false; state.load = Math.max(state.load,70); document.getElementById('load-slider').value=state.load; document.getElementById('load-val').textContent=state.load+'%'; }
+  if(code==='F006'){ state.load = 160; document.getElementById('load-slider').value=160; document.getElementById('load-val').textContent='160%'; }
+  triggerFault(code);
+}
+function triggerFault(code){
+  if(state.fault) return;
+  state.fault = code;
+  state.running = false;
+  const f = FAULTS[code];
+  state.faultLog.unshift({code, name:f.name, t:state.simTime.toFixed(1)});
+  renderFaultLog();
+  const banner=document.getElementById('fault-banner');
+  banner.classList.add('show');
+  document.getElementById('fb-code').textContent = code;
+  document.getElementById('fb-text').textContent = f.name+' \u2014 '+f.desc;
+}
+function resetFault(){
+  state.fault=null;
+  document.getElementById('fault-banner').classList.remove('show');
+  state.overloadAccum = 0;
+  state.lineVoltMult = (typeof cbClosed==='undefined' || cbClosed) ? 1.0 : 0;
+  state.phaseOk = true;
+}
+
+/* ---------- PARAMETER HELPERS ---------- */
+function getParam(no){ return state.params.find(p=>p.no===no); }
+function populateGroupFilter(){
+  const sel = document.getElementById('p-group');
+  sel.innerHTML='<option value="">All Groups</option>';
+  const groups=[...new Set(state.params.map(p=>p.group))];
+  groups.forEach(g=>{ const o=document.createElement('option'); o.value=g; o.textContent=g; sel.appendChild(o); });
+}
+function renderParamTable(){
+  const body=document.getElementById('ptable-body');
+  const q=document.getElementById('p-search').value.toLowerCase();
+  const g=document.getElementById('p-group').value;
+  body.innerHTML='';
+  state.params.filter(p=>{
+    if(g && p.group!==g) return false;
+    if(q && !(p.no.toLowerCase().includes(q) || p.name.toLowerCase().includes(q))) return false;
+    return true;
+  }).forEach(p=>{
+    const tr=document.createElement('tr');
+    const modified = p.type!=='ro' && String(p.value)!==String(p.def);
+    let valCell, defCell;
+    if(p.type==='ro'){
+      valCell = `<span id="pval-${p.no}" class="ro-tag" style="font-family:var(--mono); color:#8ef2a0; font-size:12.5px;">${liveParamValue(p)} ${p.unit||''}</span>`;
+      defCell = '<span class="ro-tag">READ ONLY</span>';
+    } else if(p.type==='enum'){
+      valCell = `<select class="pval ${modified?'modified':''}" onchange="setParamValue('${p.no}', this.value)">`+
+        p.options.map(o=>`<option value="${o}" ${o===p.value?'selected':''}>${o}</option>`).join('')+`</select>`;
+      defCell = `${p.def}`;
+    } else {
+      valCell = `<input class="pval ${modified?'modified':''}" type="number" step="any" value="${p.value}" onchange="setParamValue('${p.no}', this.value)"> <span class="ro-tag">${p.unit||''}</span>`;
+      defCell = `${p.def}${p.unit?(' '+p.unit):''}`;
+    }
+    tr.innerHTML = `<td class="pno">${p.no}</td><td class="pname">${p.name}</td><td>${valCell}</td>
+      <td>${defCell}</td><td class="pdesc">${p.desc}</td>`;
+    body.appendChild(tr);
+  });
+}
+function setParamValue(no, val){
+  const p=getParam(no);
+  if(p.type==='num'){
+    let v=parseFloat(val); if(isNaN(v)) v=p.def;
+    v=Math.max(p.min, Math.min(p.max, v));
+    p.value=v;
+  } else { p.value=val; }
+  renderParamTable();
+  if(no==='P046') buildIoGrid();
+}
+function factoryReset(){
+  state.params.forEach(p=>p.value=p.def);
+  renderParamTable();
+  triggerFaultSilent('F048');
+}
+function triggerFaultSilent(code){ triggerFault(code); }
+function exportParams(){
+  const rows = state.params.map(p=>`${p.no}\t${p.name}\t${p.value}${p.unit?(' '+p.unit):''}`).join('\n');
+  const blob = new Blob([rows], {type:'text/plain'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download = 'PowerFlex'+state.model+'_parameters.txt'; a.click();
+}
+
+/* ---------- FAULT LOG / REFERENCE RENDER ---------- */
+function renderFaultLog(){
+  const body=document.getElementById('faultlog-body');
+  if(state.faultLog.length===0){ body.innerHTML='<tr><td colspan="3" class="hint">No faults logged this session.</td></tr>'; return; }
+  body.innerHTML = state.faultLog.map(f=>`<tr><td class="fc">${f.code}</td><td>${f.name}</td><td>${f.t}s</td></tr>`).join('');
+}
+function renderFaultRef(){
+  const el=document.getElementById('fault-ref-list');
+  el.innerHTML = Object.entries(FAULTS).map(([code,f])=>
+    `<div class="fref-card"><div class="code">${code}</div><div class="name">${f.name}</div><div class="desc">${f.desc}<br><em>${f.action}</em></div></div>`
+  ).join('');
+}
+
+/* ============================================================
+   WIRING DIAGRAM  — drag & drop control circuit + STO
+   ============================================================ */
+function wiringTerminals(){
+  const terms=[
+    {id:'01', label:'T01', sub:'Stop'},
+    {id:'02', label:'T02', sub:'Start/FWD'},
+    {id:'03', label:'T03', sub:'Dir/REV'},
+    {id:'04', label:'T04', sub:'Digital Com'},
+  ];
+  state.diTermIds.forEach((tid,i)=> terms.push({id:tid, label:'T'+tid, sub:state.di[i]}));
+  terms.push({id:'11', label:'T11', sub:'+24V DC'});
+  terms.push({id:'12', label:'T12', sub:'+10V DC'});
+  terms.push({id:'13', label:'T13', sub:(state.isPF525?'\u00b110V In':'0-10V In')});
+  terms.push({id:'14', label:'T14', sub:'Analog Com'});
+  if(state.isPF525){
+    terms.push({id:'S1', label:'S1', sub:'Safety Ch.A'});
+    terms.push({id:'S2', label:'S2', sub:'Safety Ch.B'});
+  }
+  return terms;
+}
+function wiringDevices(){
+  const devs=[];
+  const t062 = getParam('t062').value;
+  const t063 = getParam('t063').value;
+  if(t062.startsWith('49')) devs.push({id:'startpb', label:'Start PB', sub:'(N.O. momentary) \u2192 T02', kind:'momentaryNO', pressed:false});
+  else if(t062.startsWith('48')) devs.push({id:'runsel', label:'Run Selector', sub:'(maintained) \u2192 T02', kind:'selector', on:false});
+  devs.push({id:'stoppb', label:'Stop PB', sub:'(N.C.) \u2192 T01', kind:'maintainedNC', tripped:false});
+  if(t063.startsWith('50') || t063.startsWith('51')) devs.push({id:'fwdrev', label:'FWD / REV', sub:'(2-position) \u2192 T03', kind:'toggle', pos:'FWD'});
+  devs.push({id:'estop', label:'E-Stop', sub:'(N.C. latching, safety)', kind:'latchNC', tripped:false});
+  if(state.isPF525) devs.push({id:'doorsw', label:'Safety Door SW', sub:'(N.C. maintained)', kind:'maintainedNC', tripped:false});
+  devs.push({id:'pot-hi', label:'Pot Hi', sub:'\u2192 T12', kind:'potpin'});
+  devs.push({id:'pot-wiper', label:'Pot Wiper', sub:'\u2192 T13 (speed)', kind:'potpin'});
+  devs.push({id:'pot-lo', label:'Pot Lo', sub:'\u2192 T14', kind:'potpin'});
+  devs.push({id:'lamp', label:'Run Lamp', sub:'(pilot light) \u2192 T04', kind:'lamp'});
+  return devs;
+}
+function contactClosed(dev){
+  if(!dev) return true;
+  switch(dev.kind){
+    case 'momentaryNO': return !!dev.pressed;
+    case 'maintainedNC': return !dev.tripped;
+    case 'latchNC': return !dev.tripped;
+    case 'selector': return !!dev.on;
+    default: return true;
+  }
+}
+function potWiredProperly(){
+  return state.wiring['12']==='pot-hi' && state.wiring['13']==='pot-wiper' && state.wiring['14']==='pot-lo';
+}
+function genericDiActive(fnName){
+  const sig = computeFieldSignals();
+  let active=false;
+  state.di.forEach((fn,idx)=>{
+    if(fn===fnName){
+      const termId = state.diTermIds[idx];
+      if(sig[termId]===true) active = true;
+    }
+  });
+  return active;
+}
+function pruneWiring(){
+  const validDevIds = new Set(state.wireDevices.map(d=>d.id));
+  const validTermIds = new Set(wiringTerminals().map(t=>t.id));
+  Object.keys(state.wiring).forEach(termId=>{
+    if(!validTermIds.has(termId) || !validDevIds.has(state.wiring[termId])) delete state.wiring[termId];
+  });
+}
+
+let wiringDrag = null; // {devId, x1, y1}
+function buildWiringDiagram(){
+  const svg = document.getElementById('wiring-svg');
+  const terms = wiringTerminals();
+  state.wireDevices = wiringDevices();
+  pruneWiring();
+
+  const oldDevStates = {};
+  (state._prevWireDevices||[]).forEach(d=>oldDevStates[d.id]=d);
+  state.wireDevices.forEach(d=>{ const o=oldDevStates[d.id]; if(o) Object.assign(d,{pressed:o.pressed,tripped:o.tripped,on:o.on,pos:o.pos}); });
+  state._prevWireDevices = state.wireDevices;
+
+  const tW = 56, tGap = 18, totalTermW = terms.length*(tW+tGap)-tGap;
+  const startX = Math.max(20,(900-totalTermW)/2);
+  terms.forEach((t,i)=>{ t.x = startX + i*(tW+tGap) + tW/2; t.y = 60; });
+
+  const dW = 110, dGap = 30, totalDevW = state.wireDevices.length*(dW+dGap)-dGap;
+  const dStartX = Math.max(20,(900-totalDevW)/2);
+  state.wireDevices.forEach((d,i)=>{ d.x = dStartX + i*(dW+dGap) + dW/2; d.y = 300; d.w=dW; d.h=64; });
+
+  let svgHtml = '';
+  // terminal block backing strip
+  svgHtml += `<rect x="10" y="30" width="880" height="60" rx="6" fill="#1a1d20" stroke="#33383d"/>`;
+  terms.forEach(t=>{
+    svgHtml += `<rect class="term-rect" data-term="${t.id}" x="${t.x-tW/2}" y="${t.y-16}" width="${tW}" height="32" rx="4"></rect>`;
+    svgHtml += `<text class="term-label" x="${t.x}" y="${t.y+4}">${t.label}</text>`;
+    svgHtml += `<circle class="pin term-pin" data-term="${t.id}" cx="${t.x}" cy="${t.y+16}" r="6"></circle>`;
+  });
+  // devices
+  state.wireDevices.forEach(d=>{
+    svgHtml += `<g>
+      <rect class="dev-body" data-dev="${d.id}" x="${d.x-d.w/2}" y="${d.y-d.h/2}" width="${d.w}" height="${d.h}" rx="8"></rect>
+      <text class="dev-label" x="${d.x}" y="${d.y-6}">${d.label}</text>
+      <text class="dev-sublabel" x="${d.x}" y="${d.y+10}">${d.sub}</text>
+      <circle class="pin dev-pin" data-dev="${d.id}" cx="${d.x}" cy="${d.y-d.h/2}" r="7"></circle>
+    </g>`;
+  });
+  svgHtml += `<g id="wires-layer"></g><path id="ghost-wire-path" class="ghost-wire" style="display:none;"></path>`;
+  svg.innerHTML = svgHtml;
+
+  // pointer handlers on device pins (drag source)
+  svg.querySelectorAll('.dev-pin').forEach(pin=>{
+    pin.addEventListener('pointerdown', (e)=>{
+      e.stopPropagation();
+      const devId = pin.dataset.dev;
+      const p = svgPoint(svg, e);
+      wiringDrag = {devId, x1:p.x, y1:p.y};
+      document.getElementById('ghost-wire-path').style.display='block';
+      svg.setPointerCapture(e.pointerId);
+    });
+  });
+  if(!svg.dataset.listenersAttached){
+    svg.addEventListener('pointermove', (e)=>{
+      if(!wiringDrag) return;
+      const p = svgPoint(svg,e);
+      const ghost = document.getElementById('ghost-wire-path');
+      if(ghost) ghost.setAttribute('d', bezierPath(wiringDrag.x1, wiringDrag.y1, p.x, p.y));
+    });
+    svg.addEventListener('pointerup', (e)=>{
+      if(!wiringDrag) return;
+      const p = svgPoint(svg,e);
+      let best=null, bestD=26;
+      wiringTerminals().forEach(t=>{
+        const d = Math.hypot(t.x-p.x, (t.y+16)-p.y);
+        if(d<bestD){ bestD=d; best=t.id; }
+      });
+      if(best){
+        Object.keys(state.wiring).forEach(k=>{ if(state.wiring[k]===wiringDrag.devId && k!==best) delete state.wiring[k]; });
+        state.wiring[best] = wiringDrag.devId;
+        if(best==='01') state.stopJumper = false;
+      }
+      wiringDrag = null;
+      const ghost = document.getElementById('ghost-wire-path');
+      if(ghost) ghost.style.display='none';
+      redrawWires();
+    });
+    svg.dataset.listenersAttached='1';
+  }
+
+  // click on device body = operate it
+  svg.querySelectorAll('.dev-body').forEach(body=>{
+    const devId = body.dataset.dev;
+    const dev = state.wireDevices.find(d=>d.id===devId);
+    if(dev.kind==='momentaryNO'){
+      body.addEventListener('pointerdown', ()=>{ dev.pressed=true; redrawWires(); });
+      body.addEventListener('pointerup', ()=>{ dev.pressed=false; redrawWires(); });
+      body.addEventListener('pointerleave', ()=>{ dev.pressed=false; redrawWires(); });
+    } else if(dev.kind==='maintainedNC'){
+      body.addEventListener('click', ()=>{ dev.tripped=!dev.tripped; redrawWires(); });
+    } else if(dev.kind==='latchNC'){
+      body.addEventListener('click', ()=>{ dev.tripped=!dev.tripped; redrawWires(); });
+    } else if(dev.kind==='selector'){
+      body.addEventListener('click', ()=>{ dev.on=!dev.on; redrawWires(); });
+    } else if(dev.kind==='toggle'){
+      body.addEventListener('click', ()=>{ dev.pos = dev.pos==='FWD'?'REV':'FWD'; redrawWires(); });
+    }
+  });
+
+  redrawWires();
+}
+function svgPoint(svg, evt){
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  const ctm = svg.getScreenCTM().inverse();
+  return pt.matrixTransform(ctm);
+}
+function bezierPath(x1,y1,x2,y2){
+  const midY = (y1+y2)/2;
+  return `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+}
+function redrawWires(){
+  if(!document.getElementById('wiring-svg')) return;
+  const terms = wiringTerminals();
+  const termMap = {}; terms.forEach(t=>termMap[t.id]=t);
+  const devMap = {}; state.wireDevices.forEach(d=>devMap[d.id]=d);
+  const layer = document.getElementById('wires-layer');
+  if(!layer) return;
+  let html='';
+  Object.entries(state.wiring).forEach(([termId, devId])=>{
+    const t = termMap[termId], d = devMap[devId];
+    if(!t||!d) return;
+    const energized = d.kind==='toggle' ? false : contactClosed(d);
+    html += `<path class="wire-path ${energized?'energized':''}" d="${bezierPath(t.x, t.y+16, d.x, d.y-d.h/2)}"></path>`;
+    const midx=(t.x+d.x)/2, midy=(t.y+16+d.y-d.h/2)/2;
+    html += `<text class="wire-x" x="${midx}" y="${midy}" onclick="disconnectTerm('${termId}')" text-anchor="middle">&times;</text>`;
+  });
+  layer.innerHTML = html;
+  document.querySelectorAll('.term-rect').forEach(r=>{
+    r.classList.toggle('wired', !!state.wiring[r.dataset.term]);
+  });
+  document.querySelectorAll('.term-pin, .dev-pin').forEach(p=>{
+    let energized=false;
+    if(p.classList.contains('term-pin')){
+      const devId = state.wiring[p.dataset.term];
+      energized = devId ? contactClosed(devMap[devId]) : false;
+    } else {
+      const dev = devMap[p.dataset.dev];
+      energized = dev ? contactClosed(dev) : false;
+    }
+    p.classList.toggle('energized', energized);
+  });
+  document.querySelectorAll('.dev-body').forEach(b=>{
+    const dev = devMap[b.dataset.dev];
+    b.classList.toggle('tripped', dev && (dev.tripped===true));
+    b.classList.toggle('active', dev && (dev.pressed===true || dev.on===true));
+  });
+}
+function disconnectTerm(termId){ delete state.wiring[termId]; redrawWires(); }
+function clearWiring(){ state.wiring={}; redrawWires(); document.getElementById('wiring-report').innerHTML=''; document.getElementById('wiring-status').textContent=''; }
+function onJumperToggle(){ state.stopJumper = document.getElementById('jumper-toggle').checked; redrawWires(); }
+function onPotChange(v){ state.potPosition = parseFloat(v); document.getElementById('pot-val').textContent = v+'%'; }
+
+function computeFieldSignals(){
+  const sig = {};
+  Object.entries(state.wiring).forEach(([termId, devId])=>{
+    const dev = state.wireDevices.find(d=>d.id===devId);
+    if(!dev) return;
+    sig[termId] = dev.kind==='toggle' ? dev.pos : contactClosed(dev);
+  });
+  return sig;
+}
+function updateFieldWiring(){
+  const sig = computeFieldSignals();
+  const prev = state._prevSig || {};
+  const t01Ok = state.stopJumper ? true : (sig['01']!==undefined ? sig['01'] : false);
+  const t062 = getParam('t062').value;
+  const t063 = getParam('t063').value;
+  let runLevel=false, startPulse=false, dir=1;
+
+  if(t062.startsWith('48')){ // 2-Wire FWD — maintained, level sensitive
+    if(sig['02']===true){ runLevel = true; dir = 1; }
+  } else if(t062.startsWith('49')){ // 3-Wire Start — momentary edge
+    if(sig['02']===true && !prev['02']) startPulse = true;
+  }
+  if(t063.startsWith('50')){ // 2-Wire REV — independent maintained run-reverse
+    if(sig['03']===true){ runLevel = true; dir = -1; }
+  } else if(t063.startsWith('51')){ // 3-Wire Dir — maintained direction selector
+    if(sig['03']==='REV') dir = -1;
+  }
+  state._prevSig = sig;
+  return {t01Ok, runLevel, startPulse, dir, t062, t063};
+}
+function computeSTO(){
+  if(!state.isPF525) return {healthy:true};
+  const chAWired = !!state.wiring['S1'], chBWired = !!state.wiring['S2'];
+  const chA = chAWired ? contactClosed(state.wireDevices.find(d=>d.id===state.wiring['S1'])) : true;
+  const chB = chBWired ? contactClosed(state.wireDevices.find(d=>d.id===state.wiring['S2'])) : true;
+  const healthy = chA && chB;
+  if(!healthy){ state.stoActive = true; state._everSto = true; }
+  // update panel
+  const dotA=document.getElementById('sto-cha-dot'), dotB=document.getElementById('sto-chb-dot');
+  const txtA=document.getElementById('sto-cha-txt'), txtB=document.getElementById('sto-chb-txt');
+  if(dotA){
+    dotA.className='chdot '+(chA?'ok':'bad'); dotB.className='chdot '+(chB?'ok':'bad');
+    txtA.textContent = chAWired ? (chA?'Wired \u2014 closed':'Wired \u2014 OPEN') : 'Factory jumper (closed)';
+    txtB.textContent = chBWired ? (chB?'Wired \u2014 closed':'Wired \u2014 OPEN') : 'Factory jumper (closed)';
+  }
+  document.getElementById('sto-banner')?.classList.toggle('show', !!state.stoActive);
+  return {healthy};
+}
+function stoReset(){
+  const {healthy} = computeSTO();
+  if(healthy) state.stoActive=false;
+}
+function validateWiring(){
+  const report=[];
+  const startSrc = getParam('P046').value;
+  const t062 = getParam('t062').value;
+  const t063 = getParam('t063').value;
+
+  if(state.stopJumper){
+    report.push({level:'pass', text:'T01 Stop is on the factory jumper (closed) — fine for bench testing, but remove it and wire a real Stop PB for a production install.'});
+  } else if(state.wiring['01']==='stoppb'){
+    report.push({level:'pass', text:'Stop PB correctly wired to T01.'});
+  } else {
+    report.push({level:'fail', text:'T01 jumper is removed and nothing is wired to it \u2014 the drive reads this as an open stop circuit and will refuse to start.'});
+  }
+
+  if(!startSrc.startsWith('2')){
+    report.push({level:'warn', text:'P046 [Start Source1] is not "2: DigIn TrmBlk" \u2014 terminal wiring on T02/T03 has no effect on Start/Stop until you set it.'});
+  } else if(t062.startsWith('48')){
+    if(state.wiring['02']==='runsel') report.push({level:'pass', text:'Run Selector correctly wired to T02 for 2-Wire FWD control.'});
+    else report.push({level:'fail', text:'t062 is set to 2-Wire FWD, but the Run Selector isn\u2019t wired to T02.'});
+  } else if(t062.startsWith('49')){
+    if(state.wiring['02']==='startpb') report.push({level:'pass', text:'Start PB correctly wired to T02 for 3-Wire control.'});
+    else report.push({level:'fail', text:'t062 is set to 3-Wire Start, but the Start PB isn\u2019t wired to T02.'});
+  } else {
+    report.push({level:'warn', text:'t062 [DigIn TermBlk 02] is Not Used \u2014 the drive can\u2019t be started from terminals at all.'});
+  }
+
+  if(t063.startsWith('50') || t063.startsWith('51')){
+    if(state.wiring['03']==='fwdrev') report.push({level:'pass', text:'FWD/REV switch correctly wired to T03.'});
+    else report.push({level:'warn', text:'t063 expects a device on T03 for direction control, but nothing is wired there yet.'});
+  }
+
+  if(getParam('P047').value.startsWith('5')){
+    if(potWiredProperly()) report.push({level:'pass', text:'Potentiometer correctly wired: Hi\u2192T12, Wiper\u2192T13, Lo\u2192T14.'});
+    else report.push({level:'fail', text:'P047 [Speed Reference1] = 0-10V Input, but the potentiometer isn\u2019t fully wired (needs Hi\u2192T12, Wiper\u2192T13, Lo\u2192T14).'});
+  }
+
+  if(state.isPF525){
+    if(!state.wiring['S1'] && !state.wiring['S2']) report.push({level:'warn', text:'S1/S2 are running on the factory jumper. Wire E-Stop / Door Switch to S1 and S2 for a real safety circuit.'});
+    else report.push({level:'pass', text:'Safety channels S1/S2 have field devices wired.'});
+  }
+
+  const el = document.getElementById('wiring-report');
+  el.innerHTML = report.map(r=>`<div class="wr-item ${r.level==='pass'?'pass':(r.level==='fail'?'fail':'warn')}">${r.text}</div>`).join('');
+  const anyFail = report.some(r=>r.level==='fail');
+  const statusEl = document.getElementById('wiring-status');
+  statusEl.textContent = anyFail? 'Wiring has issues \u2014 see report below.' : 'Wiring looks correct.';
+  statusEl.className = anyFail? 'warn':'ok';
+}
+
+/* ============================================================
+   OUTPUTS  — relay & opto (transistor) output simulation
+   ============================================================ */
+function outputDefs(){
+  if(state.isPF525){
+    return [
+      {key:'relay1Fn', kind:'relayA', title:'Relay 1 Output (R1/R2)', sub:'Form A \u2014 N.O. + Common', terms:'R1 (N.O.) / R2 (Common)'},
+      {key:'relay2Fn', kind:'relayB', title:'Relay 2 Output (R5/R6)', sub:'Form B \u2014 Common + N.C.', terms:'R5 (Common) / R6 (N.C.)'},
+      {key:'opto1Fn', kind:'opto', title:'Opto Output 1 (T17)', sub:'Transistor, 30V DC 50mA', terms:'T17 / T19 Common'},
+      {key:'opto2Fn', kind:'opto', title:'Opto Output 2 (T18)', sub:'Transistor, 30V DC 50mA', terms:'T18 / T19 Common'},
+    ];
+  }
+  return [
+    {key:'relay1Fn', kind:'relayC', title:'Relay Output (R1/R2/R3)', sub:'Form C \u2014 N.O. + Common + N.C.', terms:'R1 (N.O.) / R2 (Common) / R3 (N.C.)'},
+  ];
+}
+function buildOutputSelects(){
+  const container = document.getElementById('outputs-container');
+  container.innerHTML='';
+  outputDefs().forEach((def,idx)=>{
+    const panel = document.createElement('div');
+    panel.className='panel'; panel.style.cssText='flex:1; min-width:280px;';
+    const isRelay = def.kind.startsWith('relay');
+    panel.innerHTML = `<h3>${def.title}</h3><div class="hint" style="margin-bottom:8px;">${def.sub} &middot; ${def.terms}</div>
+      <select class="out-select" id="outsel-${idx}"></select>
+      ${isRelay ? `
+        <div class="relay-visual"><svg width="220" height="140" viewBox="0 0 220 140">
+          <rect x="10" y="10" width="200" height="120" rx="8" fill="#1c1f21" stroke="#33383d"/>
+          ${def.kind==='relayA' ? `<circle cx="60" cy="45" r="5" fill="#666"/><text x="60" y="30" class="dev-sublabel" fill="#8a9098" font-size="11" text-anchor="middle">NO</text>` : ''}
+          ${def.kind==='relayC' ? `<circle cx="60" cy="45" r="5" fill="#666"/><text x="60" y="30" class="dev-sublabel" fill="#8a9098" font-size="11" text-anchor="middle">NO</text>` : ''}
+          <circle cx="60" cy="95" r="5" fill="#666"/><text x="60" y="120" class="dev-sublabel" fill="#8a9098" font-size="11" text-anchor="middle">NC</text>
+          <circle cx="160" cy="70" r="5" fill="#666"/><text x="160" y="120" class="dev-sublabel" fill="#8a9098" font-size="11" text-anchor="middle">COM</text>
+          <line id="relay-arm-${idx}" x1="160" y1="70" x2="60" y2="95" stroke="#ffb020" stroke-width="3" stroke-linecap="round"/>
+        </svg></div>
+        <div class="contact-badges"><span>State: <b id="relay-state-${idx}">De-energized</b></span></div>
+      ` : `
+        <div class="opto-visual">
+          <div class="opto-led" id="opto-led-${idx}"></div>
+          <svg width="90" height="60" viewBox="0 0 90 60"><rect x="10" y="20" width="70" height="20" rx="4" fill="#2b2f33" stroke="#3c4247"/><text x="45" y="34" fill="#aab0b6" font-size="10" text-anchor="middle">LOAD</text></svg>
+        </div>
+        <div class="stat-grid">
+          <div class="k">Output State</div><div class="v" id="opto-state-${idx}">OFF</div>
+          <div class="k">Load Voltage</div><div class="v" id="opto-v-${idx}">0.0 V</div>
+          <div class="k">Load Current</div><div class="v" id="opto-i-${idx}">0 mA</div>
+        </div>
+      `}`;
+    container.appendChild(panel);
+    const sel = document.getElementById('outsel-'+idx);
+    sel.innerHTML = DO_FUNCTIONS.map(f=>`<option value="${f}">${f}</option>`).join('');
+    sel.value = state[def.key];
+    sel.onchange = ()=>{ state[def.key]=sel.value; };
+  });
+}
+function evalDoFn(fn){
+  const olCur = getParam('P033') ? getParam('P033').value : 4.8;
+  switch(fn){
+    case 'Running': return state.running && !state.fault && !state.stoActive;
+    case 'At Frequency': return state.running && state.cmdFreq>0 && Math.abs(state.outFreq-state.cmdFreq)<0.5;
+    case 'Fault': return !!state.fault;
+    case 'Alarm': return !state.fault && state.overloadAccum>3;
+    case 'Motor Overload': return state.current > olCur*1.1;
+    case 'Reverse': return state.direction<0 && state.outFreq>0.1;
+    case 'Drive Healthy': return !state.fault && !state.stoActive;
+    case 'Ready/Fault (N.O.)': return !state.fault && !state.stoActive;
+    default: return false;
+  }
+}
+let audioCtx=null, relayPrevStates={};
+function playRelayClick(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const t=audioCtx.currentTime;
+    const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+    osc.type='square'; osc.frequency.value=1900;
+    gain.gain.setValueAtTime(0.16,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.045);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t+0.05);
+  }catch(e){ /* audio unavailable — silently skip */ }
+}
+function updateOutputs(){
+  const defs = outputDefs();
+  if(!document.getElementById('outsel-0')) return;
+  defs.forEach((def,idx)=>{
+    const sel = document.getElementById('outsel-'+idx); if(!sel) return;
+    const e = evalDoFn(sel.value);
+    if(def.kind.startsWith('relay')){
+      if(e && !relayPrevStates[idx]) playRelayClick();
+      relayPrevStates[idx]=e;
+      const stateEl=document.getElementById('relay-state-'+idx); if(stateEl) stateEl.textContent = e?'Energized':'De-energized';
+      const arm=document.getElementById('relay-arm-'+idx);
+      if(arm){
+        // Form A (relay1): energized closes NO. Form B (relay2): energized OPENS the NC (de-energized = closed NC).
+        const armToNO = def.kind==='relayC' ? e : (def.kind==='relayA' ? e : !e);
+        arm.setAttribute('y2', armToNO?45:95);
+      }
+    } else {
+      const led=document.getElementById('opto-led-'+idx); if(led) led.classList.toggle('lit', e);
+      const st=document.getElementById('opto-state-'+idx); if(st) st.textContent = e?'ON':'OFF';
+      const v=document.getElementById('opto-v-'+idx); if(v) v.textContent=(e?24.0:0).toFixed(1)+' V';
+      const i=document.getElementById('opto-i-'+idx); if(i) i.textContent=(e?50:0)+' mA';
+    }
+  });
+}
+
+/* ============================================================
+   NETWORK  — EtherNet/IP adapter simulation (PowerFlex 525)
+   ============================================================ */
+function onNetDhcpToggle(){
+  const on = document.getElementById('net-dhcp').checked;
+  ['net-ip','net-mask','net-gw'].forEach(id=>document.getElementById(id).disabled=on);
+  if(on) document.getElementById('net-ip').value = '192.168.1.'+(100+Math.floor(Math.random()*50));
+}
+function netConnect(){
+  state.netConnected = true;
+  ['net-link','net-mod','net-net'].forEach(id=>document.getElementById(id).className='dot on-comm');
+}
+function netPing(){
+  const res=document.getElementById('ping-result');
+  const ip=document.getElementById('net-ip').value;
+  if(!state.netConnected){ res.style.color='#ff8080'; res.textContent='Request timed out (adapter not connected \u2014 click "Apply & Connect" first).'; return; }
+  res.style.color='#8ef2a0'; res.textContent='Pinging '+ip+' ...';
+  setTimeout(()=>{ res.textContent='Reply from '+ip+': time='+(1+Math.floor(Math.random()*3))+'ms TTL=64'; },450);
+}
+function netRun(on){ state.netRunCmd = on; }
+function onNetRefChange(v){ state.netRefCmd = parseFloat(v); document.getElementById('net-ref-val').textContent = parseFloat(v).toFixed(1)+' Hz'; }
+function updateNetworkTags(){
+  if(!state.isPF525) return;
+  const el=document.getElementById('tag-freq'); if(!el) return;
+  document.getElementById('tag-freq').textContent = state.outFreq.toFixed(2)+' Hz';
+  document.getElementById('tag-current').textContent = state.current.toFixed(2)+' A';
+  document.getElementById('tag-fault').textContent = state.fault || '0';
+  let sw=0;
+  if(state.running) sw|=0x0001;
+  if(state.direction<0) sw|=0x0002;
+  if(state.fault) sw|=0x0008;
+  if(state.stoActive) sw|=0x0010;
+  document.getElementById('tag-status').textContent = '0x'+sw.toString(16).padStart(4,'0').toUpperCase();
+  document.getElementById('tag-ctrl').textContent = state.netRunCmd ? '0x0001':'0x0000';
+  document.getElementById('tag-ref').textContent = (state.netRefCmd||0).toFixed(2)+' Hz';
+  const statusEl = document.getElementById('net-ctrl-status');
+  if(statusEl){
+    const src = controlSource();
+    statusEl.textContent = src==='network' ? '\u2713 Drive IS listening to network commands right now.' : ('Drive is NOT listening to the network yet \u2014 current command source: '+src+'.');
+    statusEl.style.color = src==='network' ? '#8ef2a0' : '#ffb0b0';
+  }
+}
+
+/* ============================================================
+   LEARNING MODE  — guided lessons + troubleshooting challenges
+   ============================================================ */
+const LESSONS = [
+  {id:'l2wire', title:'2-Wire Control', model:null, steps:[
+    {text:'Set P046 [Start Source1] to "2: DigIn TrmBlk" (Parameters tab)', check:()=>getParam('P046').value.startsWith('2')},
+    {text:'Confirm t062 [DigIn TermBlk 02] is "2-Wire FWD" (it is by default)', check:()=>getParam('t062').value.startsWith('48')},
+    {text:'On the Wiring tab, drag the Run Selector pin up to T02', check:()=>state.wiring['02']==='runsel'},
+    {text:'Turn OFF Local mode (LOC/REM key), then click the Run Selector ON and confirm the motor ramps up', check:()=>!state.local && state.running && state.outFreq>1}
+  ]},
+  {id:'l3wire', title:'3-Wire Control', model:null, steps:[
+    {text:'Set P046 [Start Source1] to "2: DigIn TrmBlk"', check:()=>getParam('P046').value.startsWith('2')},
+    {text:'Set t062 [DigIn TermBlk 02] to "3-Wire Start"', check:()=>getParam('t062').value.startsWith('49')},
+    {text:'Remove the T01 jumper, then wire the Stop PB to T01 and the Start PB to T02', check:()=>!state.stopJumper && state.wiring['01']==='stoppb' && state.wiring['02']==='startpb'},
+    {text:'Turn OFF Local mode, press the Start PB, and confirm the drive latches Running', check:()=>!state.local && state.running}
+  ]},
+  {id:'lrev', title:'Reversing Direction', model:null, steps:[
+    {text:'Set t063 [DigIn TermBlk 03] to "2-Wire REV" or "3-Wire Dir"', check:()=>getParam('t063').value.startsWith('50')||getParam('t063').value.startsWith('51')},
+    {text:'Wire the FWD/REV switch to T03', check:()=>state.wiring['03']==='fwdrev'},
+    {text:'Flip the switch to REV and confirm the drive direction reverses', check:()=>state.direction===-1}
+  ]},
+  {id:'lpot', title:'Potentiometer Speed Reference', model:null, steps:[
+    {text:'Set P047 [Speed Reference1] to "5: 0-10V Input"', check:()=>getParam('P047').value.startsWith('5')},
+    {text:'Wire the pot: Hi\u2192T12, Wiper\u2192T13, Lo\u2192T14', check:()=>potWiredProperly()},
+    {text:'Move the Pot Position slider and confirm the commanded frequency follows it', check:()=>potWiredProperly() && state.running && Math.abs(state.cmdFreq-(state.potPosition/100)*getParam('P044').value)<0.5 && state.potPosition>5}
+  ]},
+  {id:'lsto', title:'Safe Torque Off (PowerFlex 525)', model:'525', steps:[
+    {text:'Wire the E-Stop to safety terminal S1', check:()=>state.wiring['S1']==='estop'},
+    {text:'Wire the Safety Door Switch to safety terminal S2', check:()=>state.wiring['S2']==='doorsw'},
+    {text:'Trip the E-Stop and confirm "Safe Torque Off Active"', check:()=>state._everSto},
+    {text:'Restore both channels and press STO Reset to clear it', check:()=>state._everSto && !state.stoActive}
+  ]}
+];
+function renderLessons(){
+  const grid=document.getElementById('lesson-grid');
+  if(!grid) return;
+  grid.innerHTML = LESSONS.filter(l=>!l.model || l.model===state.model).map(l=>{
+    const doneSteps = l.steps.map(s=>s.check());
+    const allDone = doneSteps.every(Boolean);
+    return `<div class="lesson-card"><h4>${l.title}<span class="lesson-badge ${allDone?'done':''}">${allDone?'Complete':'In Progress'}</span></h4>`+
+      l.steps.map((s,i)=>`<div class="lesson-step ${doneSteps[i]?'done':''}"><span class="chk">${doneSteps[i]?'\u2713':''}</span><span>${s.text}</span></div>`).join('')+
+      `</div>`;
+  }).join('');
+}
+const CHALLENGES=[
+  {id:'c1', title:'Motor Won\u2019t Start', desc:'A technician wired the Start PB and removed the T01 jumper, but forgot the Stop PB. Diagnose the wiring problem on the Wiring tab, fix it, then get the motor running from the field devices (turn off Local mode first).',
+    setup:()=>{
+      resetFault(); state.stoActive=false; state._everSto=false;
+      setParamValue('P046','2: DigIn TrmBlk');
+      setParamValue('t062','49: 3-Wire Start');
+      state.local = false;
+      document.getElementById('kp-locrem').textContent='REM';
+      buildIoGrid();
+      state.stopJumper = false;
+      state.wiring = {'02':'startpb'};
+      state.running=false; state.outFreq=0; state.refFreq=30;
+      const rs=document.getElementById('ref-slider'); if(rs) rs.value=30;
+      const rv=document.getElementById('ref-val'); if(rv) rv.textContent='30.0 Hz';
+    },
+    check:()=>{ return state.wiring['01']==='stoppb' && state.running; }},
+  {id:'c2', title:'Mystery Trip', desc:'The drive keeps faulting during a production run. Open the Faults tab to identify the code, correct the root cause on the Operate tab, then clear the fault.',
+    setup:()=>{
+      state.load = 170;
+      const ls=document.getElementById('load-slider'); if(ls){ ls.value=170; }
+      const lv=document.getElementById('load-val'); if(lv) lv.textContent='170%';
+      triggerFault('F007');
+    },
+    check:()=>{ return !state.fault && state.load<=100; }}
+];
+function renderChallenges(){
+  const el=document.getElementById('challenge-list');
+  if(!el) return;
+  el.innerHTML = CHALLENGES.map(c=>{
+    const active = state.challengeActive===c.id;
+    const result = state.challengeResult && state.challengeResult.id===c.id ? state.challengeResult : null;
+    return `<div class="challenge-card">
+      <h4>${c.title}</h4><p class="hint">${c.desc}</p>
+      <div class="sim-btns">
+        <button onclick="startChallenge('${c.id}')">${active?'Restart Challenge':'Start Challenge'}</button>
+        ${active?`<button onclick="checkChallenge('${c.id}')">Check My Fix</button>`:''}
+      </div>
+      ${result? `<div class="challenge-status ${result.pass?'pass':'fail'}">${result.pass?('Solved in '+result.time+'s \u2014 nice work!'):'Not fixed yet \u2014 keep looking.'}</div>`:''}
+    </div>`;
+  }).join('');
+}
+function startChallenge(id){
+  const c=CHALLENGES.find(x=>x.id===id);
+  c.setup();
+  state.challengeActive=id; state.challengeStart=state.simTime; state.challengeResult=null;
+  showView('operate');
+  renderChallenges();
+}
+function checkChallenge(id){
+  const c=CHALLENGES.find(x=>x.id===id);
+  const pass = c.check();
+  state.challengeResult = {id, pass, time:(state.simTime-state.challengeStart).toFixed(1)};
+  if(pass) state.challengeActive=null;
+  showView('learning');
+  renderChallenges();
+}
+/* ============================================================
+   POWER CIRCUIT  — three-line diagram (L1/L2/L3 -> CB -> Drive -> U/V/W -> Motor)
+   ============================================================ */
+let powerCircuitBuilt=false, cbClosed=true, motorSpokeAngle=0;
+function toggleBreaker(){
+  cbClosed = !cbClosed;
+  document.getElementById('cb-toggle-btn').textContent = cbClosed ? 'Open Breaker' : 'Close Breaker';
+  document.getElementById('cb-status').textContent = cbClosed ? 'CB Closed \u2014 line power available' : 'CB Open \u2014 no line power (drive will lose the DC bus and fault/coast)';
+  if(!cbClosed){ state.lineVoltMult = 0; } else { state.lineVoltMult = 1.0; }
+}
+function buildPowerCircuitDiagram(){
+  const svg = document.getElementById('power-svg');
+  if(!svg) return;
+  const rows = [60,90,120];
+  const labels=['L1','L2','L3'];
+  let html='';
+  rows.forEach((y,i)=>{
+    html += `<line class="pc-line pc-in" data-row="${i}" x1="20" y1="${y}" x2="190" y2="${y}" stroke="#565d64" stroke-width="3"/>`;
+    html += `<text x="8" y="${y+4}" fill="#8a9098" font-size="12" font-family="monospace">${labels[i]}</text>`;
+    // breaker gap
+    html += `<g class="pc-cb" data-row="${i}"><line x1="190" y1="${y}" x2="205" y2="${y-14}" stroke="#8a9098" stroke-width="3"/><circle cx="190" cy="${y}" r="3" fill="#8a9098"/><circle cx="215" cy="${y}" r="3" fill="#8a9098"/></g>`;
+    html += `<line class="pc-line pc-mid" data-row="${i}" x1="215" y1="${y}" x2="340" y2="${y}" stroke="#565d64" stroke-width="3"/>`;
+  });
+  // drive box
+  html += `<rect x="340" y="30" width="150" height="110" rx="8" fill="#26292c" stroke="#3c4247" stroke-width="2"/>`;
+  html += `<text id="pc-drive-label" x="415" y="20" fill="#dfe3e6" font-size="13" font-weight="700" text-anchor="middle">PowerFlex</text>`;
+  html += `<text x="415" y="52" fill="#8a9098" font-size="10" text-anchor="middle">RECTIFIER</text>`;
+  html += `<line x1="360" y1="60" x2="470" y2="60" stroke="#3c4247" stroke-width="1"/>`;
+  html += `<rect id="pc-dcbus" x="405" y="65" width="20" height="45" fill="#2a4a30" stroke="#4c8a54"/>`;
+  html += `<text x="415" y="122" fill="#8a9098" font-size="9" text-anchor="middle">DC BUS</text>`;
+  html += `<text x="360" y="132" fill="#8a9098" font-size="10" text-anchor="middle">IGBT INV</text>`;
+  html += `<path d="M 445 125 l 6 -10 l 6 10 l 6 -10 l 6 10" stroke="#3ba7ff" stroke-width="1.5" fill="none"/>`;
+  // output lines U V W
+  const outLabels=['U/T1','V/T2','W/T3'];
+  rows.forEach((y,i)=>{
+    html += `<line class="pc-line pc-out" data-row="${i}" x1="490" y1="${y}" x2="650" y2="${y}" stroke="#565d64" stroke-width="3" stroke-dasharray="8 6"/>`;
+    html += `<text x="495" y="${y-8}" fill="#8a9098" font-size="10" font-family="monospace">${outLabels[i]}</text>`;
+  });
+  // motor
+  html += `<circle cx="740" cy="90" r="58" fill="#2b2f33" stroke="#3c4247" stroke-width="3"/>`;
+  html += `<g id="pc-motor-spokes" transform="rotate(0 740 90)">
+      <line x1="740" y1="90" x2="740" y2="45" stroke="#8a9098" stroke-width="4" stroke-linecap="round"/>
+      <line x1="740" y1="90" x2="778" y2="112" stroke="#8a9098" stroke-width="4" stroke-linecap="round"/>
+      <line x1="740" y1="90" x2="702" y2="112" stroke="#8a9098" stroke-width="4" stroke-linecap="round"/>
+    </g>`;
+  html += `<circle cx="740" cy="90" r="8" fill="#565d64"/>`;
+  html += `<text x="740" y="170" fill="#dfe3e6" font-size="12" text-anchor="middle">MOTOR</text>`;
+  html += `<text id="pc-motor-rpm" x="740" y="188" fill="#8a9098" font-size="11" text-anchor="middle">0 RPM</text>`;
+  html += `<line x1="740" y1="148" x2="740" y2="160" stroke="#3c4247" stroke-width="3"/>`;
+  html += `<text x="740" y="215" fill="#6f7680" font-size="9" text-anchor="middle">GND</text>`;
+  svg.innerHTML = html;
+  powerCircuitBuilt = true;
+}
+function updatePowerCircuit(){
+  if(!powerCircuitBuilt) return;
+  const svg = document.getElementById('power-svg');
+  if(!svg) return;
+  document.getElementById('pc-drive-label').textContent = 'PowerFlex '+state.model;
+  const running = state.running && !state.fault && !state.stoActive && cbClosed;
+  // input lines: energized whenever CB closed
+  document.querySelectorAll('.pc-in, .pc-mid').forEach(el=>{ el.setAttribute('stroke', cbClosed?'#3fce7d':'#565d64'); });
+  document.querySelectorAll('.pc-cb g, .pc-cb').forEach(()=>{});
+  document.querySelectorAll('.pc-cb line').forEach(el=>{
+    // rotate the switch blade: closed = flat (no gap), open = angled
+  });
+  document.querySelectorAll('g.pc-cb').forEach(g=>{
+    const row = g.dataset.row;
+    const line = g.querySelector('line');
+    const y = [60,90,120][row];
+    line.setAttribute('x2', cbClosed? '205':'205');
+    line.setAttribute('y2', cbClosed? String(y): String(y-16));
+    line.setAttribute('stroke', cbClosed?'#3fce7d':'#c8102e');
+  });
+  // DC bus fill reflects bus voltage
+  const dcbus = document.getElementById('pc-dcbus');
+  if(dcbus){
+    const nominal = getParam('P031').value*1.414;
+    const frac = Math.max(0, Math.min(1.3, state.busVoltage/Math.max(1,nominal)));
+    dcbus.setAttribute('fill', cbClosed ? (frac>1.2 ? '#7a1414' : '#2a4a30') : '#1c1f21');
+  }
+  // output lines: dashed animation when running, colored by direction
+  const offset = -(state.simTime*(20+state.outFreq*4)) % 28;
+  document.querySelectorAll('.pc-out').forEach(el=>{
+    el.setAttribute('stroke', running? '#8ef2a0':'#565d64');
+    el.setAttribute('stroke-dashoffset', running? offset : 0);
+  });
+  // motor spokes rotation
+  if(running || state.outFreq>0.1){
+    motorSpokeAngle += (state.direction>=0?1:-1) * state.outFreq * 6 * (1/60);
+  }
+  const spokes = document.getElementById('pc-motor-spokes');
+  if(spokes) spokes.setAttribute('transform', `rotate(${motorSpokeAngle} 740 90)`);
+  const rpmEl = document.getElementById('pc-motor-rpm');
+  if(rpmEl) rpmEl.textContent = Math.round(state.rpm||0)+' RPM';
+}
+
+function refreshLearning(){
+  const v=document.getElementById('view-learning');
+  if(v && v.classList.contains('active')) renderLessons();
+}
+
+/* ============================================================
+   SIMULATION LOOP  — motor + drive dynamics
+   ============================================================ */
+let lastT = null;
+function loop(ts){
+  if(!state){ return; }
+  if(lastT===null) lastT=ts;
+  let dt = (ts-lastT)/1000; lastT=ts;
+  dt = Math.min(dt, 0.1);
+  state.simTime += dt;
+  tick(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+function tick(dt){
+  const maxF = getParam('P044').value;
+  const minF = getParam('P043').value;
+
+  // ---- Safe Torque Off (PF525) — evaluated first, overrides everything ----
+  const sto = computeSTO();
+  if(state.stoActive){
+    state.running = false;
+    state.outFreq = 0; // torque removed instantly, no ramp — motor coasts
+    state.cmdFreq = 0;
+  }
+
+  // ---- Start/Stop/Direction command source ----
+  const src = controlSource(); // 'keypad' | 'terminal' | 'network'
+  if(!state.stoActive){
+    if(src==='terminal'){
+      const fw = updateFieldWiring();
+      state.direction = fw.dir;
+      if(!fw.t01Ok){
+        state.running = false; // Terminal 01 stop circuit open — always wins
+      } else if(fw.t062.startsWith('48') || fw.t063.startsWith('50')){
+        if(!state.fault) state.running = fw.runLevel; // 2-Wire: level sensitive
+      } else if(fw.t062.startsWith('49')){
+        if(fw.startPulse && !state.fault) state.running = true; // 3-Wire: momentary start latches
+      }
+    } else if(src==='network'){
+      if(!state.fault) state.running = state.netRunCmd;
+    }
+    // 'keypad' source: state.running already driven by kpStart/kpStop/kpJog
+  }
+
+  // ---- Jog / Preset Speed / Accel-Decel-2 overrides (apply regardless of source) ----
+  const jogOn = state.jogActive || genericDiActive('Jog');
+  const presetOn = !jogOn && genericDiActive('Preset Speed Select');
+  const accelSel2 = genericDiActive('Accel/Decel 2 Select');
+  const accelT = Math.max(0.1, (accelSel2?getParam('A442'):getParam('P041')).value);
+  const decelT = Math.max(0.1, (accelSel2?getParam('A443'):getParam('P042')).value);
+
+  // command frequency
+  let target = 0;
+  if(!state.fault && !state.stoActive && state.running){
+    let ref;
+    if(jogOn){ ref = getParam('A445').value; }
+    else if(presetOn){ ref = getParam('A410').value; }
+    else if(src==='network'){ ref = state.netRefCmd || 0; }
+    else if(getParam('P047').value.startsWith('5') && potWiredProperly()){ ref = (state.potPosition/100)*maxF; }
+    else { ref = state.refFreq || 0; }
+    target = Math.max(minF>0 && ref>0 ? minF : 0, Math.min(maxF, ref));
+    if(target < minF && ref>0) target = minF;
+  }
+  state.cmdFreq = target;
+
+  // ramp
+  const accelRate = maxF/accelT; // Hz/s
+  const decelRate = maxF/decelT;
+  if(state.outFreq < target){
+    state.outFreq = Math.min(target, state.outFreq + accelRate*dt);
+  } else if(state.outFreq > target){
+    state.outFreq = Math.max(target, state.outFreq - decelRate*dt);
+  }
+  if(!state.running && !state.fault && state.outFreq<=0.05){ state.outFreq=0; }
+
+  // regen check -> overvoltage if decelerating a loaded/high-inertia motor too fast (simple heuristic)
+  const decelerating = state.outFreq > target;
+  const regenSpike = decelerating && (maxF/decelT) > (maxF/3) && state.load>90;
+
+  // DC bus voltage model
+  const nominalBus = getParam('P031').value * 1.414; // approx sqrt2 * line volts
+  let bus = nominalBus * state.lineVoltMult;
+  if(regenSpike) bus += 60;
+  state.busVoltage = bus;
+
+  // current model: base magnetizing current + load current, plus inrush during accel
+  const flaRated = getParam('P034').value || 4.8;
+  const loadFrac = state.load/100;
+  const rampingUp = state.outFreq < target - 0.05;
+  const inrush = rampingUp ? 1.25 : 1.0;
+  let current = state.running||state.outFreq>0 ? flaRated*(0.25+0.85*loadFrac)*inrush : 0;
+  if(!state.phaseOk && (state.running||state.outFreq>0)) current *= 1.7;
+  state.current = current;
+
+  // RPM from slip
+  const poles = getParam('P035').value||4;
+  const npRpm = getParam('P036').value||1725;
+  const syncRpmAtFreq = state.outFreq * (120/poles);
+  const npFreq = getParam('P032').value||60;
+  const ratedSlip = npFreq>0 ? (syncRpmAtFreqAtRated(poles,npFreq)-npRpm)/syncRpmAtFreqAtRated(poles,npFreq) : 0;
+  const slipNow = ratedSlip * loadFrac;
+  state.rpm = Math.max(0, syncRpmAtFreq * (1 - slipNow)) * (state.direction>=0?1:-1);
+
+  // ---- Fault evaluation ----
+  if(!state.fault){
+    if(bus < nominalBus*0.78 && (state.running||state.outFreq>0)) triggerFault('F004');
+    else if(bus > nominalBus*1.35){ triggerFault('F005'); }
+    else if(!state.phaseOk && (state.running||state.outFreq>0) && loadFrac>0.6) triggerFault('F003');
+    else {
+      // thermal-style inverse time overload on current vs OL current
+      const olCur = getParam('P033').value||4.8;
+      const ratio = current/olCur;
+      if(ratio>1.5){
+        state.overloadAccum += dt;
+        const tripTime = 60/((ratio*ratio)-1); // simplified inverse-time curve
+        if(state.overloadAccum >= Math.max(2,Math.min(60,tripTime))) triggerFault('F007');
+      } else {
+        state.overloadAccum = Math.max(0, state.overloadAccum - dt*2);
+      }
+      // stall detection: commanded to run, big freq error, current pinned near limit for a while
+      if(state.running && target>5 && Math.abs(state.outFreq-target)>5 && loadFrac>1.45){
+        state._stallT = (state._stallT||0)+dt;
+        if(state._stallT>4) triggerFault('F006');
+      } else state._stallT=0;
+    }
+  }
+
+  // trend buffer
+  state.trend.push({t:state.simTime, freq:state.outFreq, current:state.current, bus:state.busVoltage});
+  if(state.trend.length>240) state.trend.shift();
+}
+function syncRpmAtFreqAtRated(poles, freq){ return freq*120/poles; }
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render(){
+  document.getElementById('s-freq').textContent = state.outFreq.toFixed(2)+' Hz';
+  document.getElementById('s-cmdfreq').textContent = state.cmdFreq.toFixed(2)+' Hz';
+  document.getElementById('s-rpm').textContent = Math.round(state.rpm||0)+' RPM';
+  document.getElementById('s-current').textContent = state.current.toFixed(2)+' A';
+  document.getElementById('s-voltage').textContent = (getParam('P031').value * Math.min(1,state.outFreq/(getParam('P032').value||60))).toFixed(1)+' V';
+  document.getElementById('s-bus').textContent = state.busVoltage.toFixed(1)+' V';
+  document.getElementById('s-load').textContent = state.load+' %';
+  document.getElementById('s-status').textContent = state.stoActive ? 'SAFE TORQUE OFF' : (state.fault ? 'FAULTED' : (state.running? 'Running':'Ready'));
+
+  // LEDs
+  document.getElementById('led-run').className = 'dot'+(state.running && !state.fault && !state.stoActive ? ' on-run':'');
+  document.getElementById('led-stop').className = 'dot'+(!state.running && !state.fault && !state.stoActive ? ' on-amber':'');
+  document.getElementById('led-fault').className = 'dot'+((state.fault||state.stoActive)? ' on-fault':'');
+  document.getElementById('led-comm').className = 'dot on-comm';
+
+  // direction indicator + fan/motor animation
+  const spinning = state.outFreq>0.1;
+  const dirArrow = document.getElementById('dir-arrow');
+  dirArrow.style.transform = state.direction<0 ? 'rotate(180deg)':'rotate(0deg)';
+  document.getElementById('dir-label').textContent = state.direction<0?'REVERSE':'FORWARD';
+  const fan = document.getElementById('fan-group');
+  if(spinning){
+    fanAngle = (fanAngle||0) + state.outFreq*6*(state.direction);
+    fan.setAttribute('transform', `rotate(${fanAngle} 130 55)`);
+  }
+
+  // LCD
+  const l1=document.getElementById('lcd-line1'), l2=document.getElementById('lcd-line2'), dirEl=document.getElementById('lcd-dir');
+  if(state.stoActive){
+    l1.textContent = 'STO ACTIVE';
+    l2.textContent = 'Safe Torque Off Active';
+    l2.classList.remove('dim');
+  } else if(state.fault){
+    l1.textContent = state.fault+' FAULTED';
+    l2.textContent = FAULTS[state.fault].name;
+    l2.classList.remove('dim');
+  } else {
+    l1.textContent = state.outFreq.toFixed(1)+' Hz';
+    l2.textContent = state.running ? ('Run  '+state.current.toFixed(1)+'A') : (state.local?'Ready (Local)':'Ready (Remote)');
+    l2.classList.add('dim');
+  }
+  dirEl.textContent = (state.direction<0?'\u25bc REV':'\u25b2 FWD');
+
+  // Start/stop button availability hint
+  document.getElementById('kp-start').classList.toggle('disabled', !!state.fault || !!state.stoActive);
+  refreshLiveParams();
+  updateOutputs();
+  updateNetworkTags();
+  updatePowerCircuit();
+  refreshLearning();
+
+  drawTrend();
+}
+let fanAngle=0;
+
+function drawTrend(){
+  const cvs=document.getElementById('trend-canvas');
+  const ctx=cvs.getContext('2d');
+  const w=cvs.width,h=cvs.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='#2a2e31'; ctx.lineWidth=1;
+  for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(0,h*i/4); ctx.lineTo(w,h*i/4); ctx.stroke(); }
+  const data=state.trend;
+  if(data.length<2) return;
+  const tMin=data[0].t, tMax=data[data.length-1].t || tMin+1;
+  function xFor(t){ return (t-tMin)/(Math.max(0.001,tMax-tMin))*w; }
+  function plot(key, scale, color){
+    ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=1.6;
+    data.forEach((d,i)=>{
+      const x=xFor(d.t); const y=h - (d[key]/scale)*h;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,Math.max(2,Math.min(h-2,y)));
+    });
+    ctx.stroke();
+  }
+  plot('freq', 70, '#8ef2a0');
+  plot('current', 30, '#ffb020');
+  data.forEach(d=>d._busScaled = d.bus/10);
+  ctx.beginPath(); ctx.strokeStyle='#3ba7ff'; ctx.lineWidth=1.6;
+  data.forEach((d,i)=>{ const x=xFor(d.t); const y=h-(d._busScaled/70)*h; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,Math.max(2,Math.min(h-2,y))); });
+  ctx.stroke();
+}
+</script>
+</body>
+</html>
