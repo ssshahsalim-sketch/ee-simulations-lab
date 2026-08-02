@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lens & Optics Interactive Simulator — Apna Electromechanic Service</title>
+<style>
+  :root{
+    --navy-deep:#050c18;
+    --navy:#0a1628;
+    --navy-panel:#0e1d33;
+    --navy-panel-2:#0c1a2e;
+    --grid-line:rgba(34,211,238,0.07);
+    --cyan:#22d3ee;
+    --cyan-dim:#0e7490;
+    --amber:#fbbf24;
+    --amber-dim:#92650f;
+    --text:#dce8f2;
+    --text-dim:#7c93ab;
+    --red:#ef4444;
+    --green:#34d399;
+    --violet:#a78bfa;
+    --border:#1c3350;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:var(--navy-deep);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size:26px 26px;
+    color:var(--text);
+    font-family:'IBM Plex Mono','Consolas','Courier New',monospace;
+    font-size:13px;
+    min-height:100vh;
+  }
+  header{
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, rgba(14,29,51,0.9), rgba(10,22,40,0.6));
+    padding:14px 20px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .brand{display:flex;flex-direction:column;line-height:1.3;}
+  .brand .top{
+    font-size:10px;
+    letter-spacing:0.14em;
+    color:var(--text-dim);
+    text-transform:uppercase;
+  }
+  .brand .title{
+    font-size:18px;
+    font-weight:700;
+    color:var(--cyan);
+    letter-spacing:0.02em;
+  }
+  .brand .title span{color:var(--amber);}
+  .tabbar{display:flex;gap:6px;}
+  .tabbtn{
+    background:var(--navy-panel-2);
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    padding:9px 16px;
+    font-family:inherit;
+    font-size:12px;
+    letter-spacing:0.04em;
+    cursor:pointer;
+    border-radius:3px;
+    text-transform:uppercase;
+  }
+  .tabbtn.active{
+    color:var(--navy-deep);
+    background:var(--cyan);
+    border-color:var(--cyan);
+    font-weight:700;
+  }
+  .layout{
+    display:grid;
+    grid-template-columns:300px 1fr 300px;
+    gap:14px;
+    padding:14px;
+    align-items:start;
+  }
+  @media (max-width:1100px){
+    .layout{grid-template-columns:1fr;}
+  }
+  .panel{
+    background:var(--navy-panel);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:14px;
+  }
+  .panel h3{
+    margin:0 0 10px 0;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--amber);
+    border-bottom:1px solid var(--border);
+    padding-bottom:7px;
+  }
+  .row{margin-bottom:10px;}
+  .row label{
+    display:flex;
+    justify-content:space-between;
+    font-size:11.5px;
+    color:var(--text-dim);
+    margin-bottom:4px;
+  }
+  .row label .val{color:var(--cyan);font-weight:600;}
+  input[type=range]{
+    width:100%;
+    accent-color:var(--cyan);
+    background:transparent;
+    height:16px;
+  }
+  select, input[type=text], input[type=number]{
+    width:100%;
+    background:var(--navy-panel-2);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:3px;
+    padding:6px 8px;
+    font-family:inherit;
+    font-size:12px;
+  }
+  .checkrow{display:flex;align-items:center;gap:7px;margin-bottom:9px;font-size:12px;color:var(--text-dim);}
+  .checkrow input{accent-color:var(--amber);}
+  .checkrow.active-label{color:var(--text);}
+  .btn{
+    background:var(--navy-panel-2);
+    border:1px solid var(--cyan-dim);
+    color:var(--cyan);
+    padding:7px 10px;
+    border-radius:3px;
+    cursor:pointer;
+    font-family:inherit;
+    font-size:11px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+  }
+  .btn:hover{background:rgba(34,211,238,0.1);}
+  .btn.amber{border-color:var(--amber-dim);color:var(--amber);}
+  .btnrow{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .source-card{
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:8px;
+    margin-bottom:8px;
+    background:var(--navy-panel-2);
+  }
+  .source-card .shead{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:6px;
+  }
+  .swatch{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;}
+  .canvas-wrap{
+    background:radial-gradient(ellipse at 50% 40%, rgba(20,40,66,0.55), rgba(5,12,24,0.9));
+    border:1px solid var(--border);
+    border-radius:6px;
+    overflow:hidden;
+    position:relative;
+  }
+  canvas{display:block;width:100%;height:auto;}
+  .readout{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:4px 10px;
+    font-size:12px;
+    margin-bottom:4px;
+  }
+  .readout .k{color:var(--text-dim);}
+  .readout .v{color:var(--cyan);font-weight:600;text-align:right;}
+  .readout .v.amber{color:var(--amber);}
+  .readout .v.green{color:var(--green);}
+  .readout .v.red{color:var(--red);}
+  .divider{border-top:1px dashed var(--border);margin:10px 0;}
+  .note-box{
+    font-size:11.5px;
+    line-height:1.55;
+    color:var(--text-dim);
+    background:var(--navy-panel-2);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:9px;
+    margin-top:8px;
+  }
+  .note-box b{color:var(--cyan);}
+  .note-box .amber-b{color:var(--amber);}
+  .formula{
+    font-family:inherit;
+    color:var(--amber);
+    background:rgba(251,191,36,0.06);
+    border-left:2px solid var(--amber-dim);
+    padding:5px 8px;
+    margin:6px 0;
+    font-size:12px;
+    overflow-x:auto;
+    white-space:nowrap;
+  }
+  .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:10.5px;color:var(--text-dim);padding:8px 14px;border-top:1px solid var(--border);}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .legend i{width:16px;height:2px;display:inline-block;}
+  .research-toggle{
+    cursor:pointer;
+    color:var(--cyan);
+    font-size:11px;
+    text-decoration:underline;
+    text-underline-offset:3px;
+    margin-top:6px;
+    display:inline-block;
+  }
+  .hidden{display:none !important;}
+  .footer{
+    text-align:center;
+    color:var(--text-dim);
+    font-size:10.5px;
+    padding:16px;
+    letter-spacing:0.03em;
+  }
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  .pillbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  .pill{
+    font-size:10.5px;
+    padding:4px 8px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    color:var(--text-dim);
+    cursor:pointer;
+    background:var(--navy-panel-2);
+  }
+  .pill.on{color:var(--navy-deep);background:var(--amber);border-color:var(--amber);font-weight:700;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="top">Apna Electromechanic Service — Engineering Tools Suite</div>
+    <div class="title">Lens &amp; Optics <span>Interactive Simulator</span></div>
+  </div>
+  <div class="tabbar">
+    <button class="tabbtn active" data-tab="explore">Multi-Source Explorer</button>
+    <button class="tabbtn" data-tab="image">Image Formation</button>
+    <button class="tabbtn" data-tab="notes">Physics &amp; Research Notes</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT PANEL: LENS CONFIG (shared) -->
+  <div class="panel" id="lensPanel">
+    <h3>Lens Configuration</h3>
+
+    <div class="row">
+      <label>Lens Type</label>
+      <select id="lensType">
+        <option value="biconvex">Biconvex (Converging)</option>
+        <option value="planoconvex">Plano-Convex (Converging)</option>
+        <option value="posmeniscus">Positive Meniscus (Converging)</option>
+        <option value="biconcave">Biconcave (Diverging)</option>
+        <option value="planoconcave">Plano-Concave (Diverging)</option>
+        <option value="negmeniscus">Negative Meniscus (Diverging)</option>
+        <option value="custom">Custom (manual R1 / R2)</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label>Material</label>
+      <select id="material">
+        <option value="1.33">Water (n = 1.33)</option>
+        <option value="1.49">Acrylic / PMMA (n = 1.49)</option>
+        <option value="1.52" selected>Crown Glass BK7 (n = 1.52)</option>
+        <option value="1.62">Flint Glass (n = 1.62)</option>
+        <option value="1.76">Sapphire (n = 1.76)</option>
+        <option value="2.42">Diamond (n = 2.42)</option>
+        <option value="custom">Custom index</option>
+      </select>
+    </div>
+
+    <div class="row" id="customNRow" style="display:none;">
+      <label>Refractive Index n<span class="val" id="customNVal">1.52</span></label>
+      <input type="range" id="customN" min="1.10" max="2.60" step="0.01" value="1.52">
+    </div>
+
+    <div class="row">
+      <label>Surface 1 Radius R1 (mm)<span class="val" id="r1Val">120</span></label>
+      <input type="range" id="r1" min="-400" max="400" step="5" value="120">
+    </div>
+    <div class="row">
+      <label>Surface 2 Radius R2 (mm)<span class="val" id="r2Val">-120</span></label>
+      <input type="range" id="r2" min="-400" max="400" step="5" value="-120">
+    </div>
+
+    <div class="row">
+      <label>Center Thickness (mm)<span class="val" id="thickVal">26</span></label>
+      <input type="range" id="thick" min="4" max="100" step="1" value="26">
+    </div>
+    <div class="row">
+      <label>Aperture Diameter (mm)<span class="val" id="apVal">160</span></label>
+      <input type="range" id="ap" min="60" max="260" step="4" value="160">
+    </div>
+
+    <div class="divider"></div>
+    <h3 style="border:none;margin-bottom:6px;">Live Optical Properties</h3>
+    <div class="readout">
+      <div class="k">Effective Focal Length f</div><div class="v" id="outF">--</div>
+      <div class="k">Power P = 1/f</div><div class="v" id="outP">--</div>
+      <div class="k">Lens Behaviour</div><div class="v amber" id="outBehaviour">--</div>
+    </div>
+  </div>
+
+  <!-- CENTER: CANVAS -->
+  <div>
+    <div class="canvas-wrap">
+      <canvas id="stage" width="1000" height="600"></canvas>
+      <div class="legend" id="legendBar"></div>
+    </div>
+
+    <div class="panel" style="margin-top:12px;" id="modeExploreControls">
+      <h3>Light Sources</h3>
+      <div class="row" style="max-width:260px;">
+        <label>Number of Sources<span class="val" id="numSrcVal">2</span></label>
+        <input type="range" id="numSrc" min="1" max="5" step="1" value="2">
+      </div>
+      <div class="pillbar">
+        <div class="pill on" id="toggleDispersion">Chromatic Dispersion</div>
+        <div class="pill on" id="toggleReflection">Surface Reflections (Fresnel)</div>
+        <div class="pill on" id="toggleAngles">Angle Labels</div>
+        <div class="pill" id="toggleNormals">Show Normals</div>
+      </div>
+      <div id="sourceList"></div>
+      <div class="btnrow">
+        <button class="btn" id="randomizeBtn">Randomize Sources</button>
+        <button class="btn amber" id="resetBtn">Reset Defaults</button>
+      </div>
+    </div>
+
+    <div class="panel hidden" style="margin-top:12px;" id="modeImageControls">
+      <h3>Object &amp; Image Formation</h3>
+      <div class="row">
+        <label>Object Distance from Lens (mm)<span class="val" id="objDistVal">280</span></label>
+        <input type="range" id="objDist" min="30" max="500" step="2" value="280">
+      </div>
+      <div class="row">
+        <label>Object Height (mm)<span class="val" id="objHVal">60</span></label>
+        <input type="range" id="objH" min="8" max="150" step="2" value="60">
+      </div>
+      <div class="row" style="max-width:260px;">
+        <label>Traced Rays from Tip<span class="val" id="fanRaysVal">5</span></label>
+        <input type="range" id="fanRays" min="3" max="11" step="2" value="5">
+      </div>
+      <div class="pillbar">
+        <div class="pill on" id="toggleIdeal">Idealised Principal Rays</div>
+        <div class="pill on" id="toggleRealRays">Real Traced Rays</div>
+        <div class="pill" id="toggleAberr">Highlight Spherical Aberration</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: READOUTS -->
+  <div class="panel" id="infoPanel">
+    <h3>Ray &amp; Image Data</h3>
+    <div id="infoExplore">
+      <div class="note-box">Adjust source position, angle and spread on the left. Each source's central ray reports its incidence / refraction / reflection angles here as it strikes the lens.</div>
+      <div id="rayReadouts"></div>
+    </div>
+    <div id="infoImage" class="hidden">
+      <div class="readout">
+        <div class="k">Object Distance (u)</div><div class="v" id="imU">--</div>
+        <div class="k">Image Distance (v)</div><div class="v" id="imV">--</div>
+        <div class="k">Magnification (m)</div><div class="v" id="imM">--</div>
+        <div class="k">Image Height</div><div class="v" id="imH">--</div>
+        <div class="k">Image Type</div><div class="v amber" id="imType">--</div>
+        <div class="k">Orientation</div><div class="v amber" id="imOrient">--</div>
+      </div>
+      <div class="divider"></div>
+      <div class="note-box" id="aberrationNote">Real ray-traced convergence vs. the ideal thin-lens image point differs slightly — that gap is <b>spherical aberration</b>, most visible for wide apertures and short focal lengths.</div>
+    </div>
+
+    <div class="divider"></div>
+    <span class="research-toggle" id="openNotesFromInfo">Open full physics reference →</span>
+  </div>
+
+</div>
+
+<div class="layout hidden" id="notesLayout" style="grid-template-columns:1fr;">
+  <div class="panel">
+    <h3>Physics &amp; Research Notes — What This Simulator Actually Computes</h3>
+    <div class="note-box" style="font-size:12.5px;">
+      This tool does <b>not</b> use idealised thin-lens ray diagrams alone — every ray is geometrically
+      intersected with the real spherical (or flat) lens surfaces and refracted using the vector form of
+      <b>Snell's Law</b>, so genuine effects like spherical aberration, edge-ray bending and chromatic
+      spreading emerge naturally from the geometry, the same way they do in a real lens.
+    </div>
+
+    <h3 style="margin-top:16px;">1. Surface Geometry (Cartesian sign convention)</h3>
+    <div class="note-box">
+      Light travels left → right (+x). For a spherical surface of signed radius R with vertex at x&#8320;,
+      the surface height-to-position relation used for ray intersection is:
+      <div class="formula">x(y) = x&#8320; + R − sign(R)·√(R² − y²)</div>
+      R &gt; 0 means the centre of curvature lies to the right of the vertex (surface bulges toward
+      −x / the incoming light). This single convention correctly generates biconvex, biconcave, plano- and
+      meniscus forms just by choosing the signs and magnitudes of R1 and R2 — no special-casing per lens type.
+    </div>
+
+    <h3 style="margin-top:16px;">2. Refraction — Vector Snell's Law</h3>
+    <div class="note-box">
+      At each surface hit, the local normal <b>N</b> and incident direction <b>d</b> (unit vectors) give the
+      refracted direction directly, without decomposing into 2D angles first:
+      <div class="formula">t = (n1/n2)d + ( (n1/n2)cosθᵢ − cosθₜ )·N</div>
+      <div class="formula">cosθₜ = √(1 − (n1/n2)²(1 − cosθᵢ²))</div>
+      If the term under the root is negative, the ray undergoes <b>Total Internal Reflection (TIR)</b> instead
+      of refracting — this simulator detects that condition at every surface, not just the exit face.
+    </div>
+
+    <h3 style="margin-top:16px;">3. Partial Reflection — Fresnel Equations</h3>
+    <div class="note-box">
+      Every real interface reflects <i>some</i> light even when it isn't totally internally reflected. Rather
+      than the full polarisation-dependent Fresnel equations, this tool uses <b>Schlick's approximation</b>
+      (a well-known 1994 fast approximation used in real-time optics/graphics engines) for unpolarised
+      reflectance, which is accurate to within a fraction of a percent for typical glass/air interfaces:
+      <div class="formula">R0 = ((n1−n2)/(n1+n2))²</div>
+      <div class="formula">R(θ) = R0 + (1−R0)(1−cosθ)⁵</div>
+      Toggle <span class="amber-b">"Surface Reflections"</span> to render these secondary rays — their
+      brightness is scaled by the computed R(θ), and you'll notice reflectance climbing sharply near
+      grazing incidence at the lens edge, exactly as it does on real glass.
+    </div>
+
+    <h3 style="margin-top:16px;">4. Chromatic Dispersion — Cauchy's Equation</h3>
+    <div class="note-box">
+      Refractive index is wavelength-dependent. This tool approximates each material's dispersion with the
+      classic two-term <b>Cauchy equation</b>, calibrated so n(589 nm) equals the material's specified index:
+      <div class="formula">n(λ) = A + B / λ²</div>
+      With <span class="amber-b">"Chromatic Dispersion"</span> on, each ray is split into seven representative
+      visible wavelengths (700 nm red → 400 nm violet); violet light has a higher index and bends more,
+      spreading the beam exactly the way a prism or a real lens edge does.
+    </div>
+
+    <h3 style="margin-top:16px;">5. Lensmaker's Equation (thick-lens form)</h3>
+    <div class="note-box">
+      The focal length readout is not the simplified thin-lens formula — it includes the thickness
+      correction term, valid for real, finitely-thick lenses:
+      <div class="formula">1/f = (n−1) · [ 1/R1 − 1/R2 + ((n−1)·t) / (n·R1·R2) ]</div>
+      A converging lens has f &gt; 0; a diverging lens has f &lt; 0. Power P = 1/f (in mm⁻¹ here; multiply
+      by 1000 for dioptres if f is in metres).
+    </div>
+
+    <h3 style="margin-top:16px;">6. Image Formation</h3>
+    <div class="note-box">
+      The Image Formation tab uses the standard Gaussian thin-lens relation and magnification formula
+      alongside the real ray trace, so you can directly compare the idealised prediction with reality:
+      <div class="formula">1/v − 1/u = 1/f          m = v / u</div>
+      u is negative (object to the left, real object). A positive v places a real, inverted image on the
+      transmission side; a negative v is a virtual, erect image on the same side as the object — exactly
+      what a magnifying glass shows when the object is inside the focal length.
+    </div>
+
+    <h3 style="margin-top:16px;">7. Known Simplifications</h3>
+    <div class="note-box">
+      For clarity this is a 2D meridional cross-section (not a full 3D skew-ray trace), coatings/AR
+      layers are not modelled (so Fresnel reflectance is the bare-glass value), and multiple internal
+      bounces are not iterated beyond one reflection per surface. Aperture, radii and thickness are
+      schematic engineering values, not calibrated to a specific catalogue lens. Sign convention and
+      formulas follow standard optical-engineering references (cf. Hecht, <i>Optics</i>; drawing
+      conventions loosely follow ISO&nbsp;10110 practice for optical components).
+    </div>
+  </div>
+</div>
+
+<div class="footer">Apna Electromechanic Service — Engineering Tools Suite · Offline single-file simulation tool · Lens &amp; Optics Explorer</div>
+
+<script>
+/* ============================================================
+   Lens & Optics Interactive Simulator
+   Real geometric ray tracing through spherical/flat lens surfaces
+   using the vector form of Snell's Law, Fresnel reflectance
+   (Schlick approximation), and Cauchy dispersion.
+   ============================================================ */
+
+(function(){
+"use strict";
+
+// ---------- Canvas / coordinate setup ----------
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const originX = W/2, originY = H/2;
+const scale = 1.55; // px per "mm" physics unit
+
+// physics coords: +x right along axis, +y UP. Convert to screen (y flips).
+function sx(x){ return originX + x*scale; }
+function sy(y){ return originY - y*scale; }
+
+// ---------- State ----------
+let state = {
+  lensType: 'biconvex',
+  n: 1.52,
+  materialMode: '1.52',
+  R1: 120,
+  R2: -120,
+  thickness: 26,
+  aperture: 160,
+  sources: [],
+  numSources: 2,
+  dispersion: true,
+  reflections: true,
+  angleLabels: true,
+  showNormals: false,
+  mode: 'explore',
+  objDist: 280,
+  objH: 60,
+  fanRays: 5,
+  showIdeal: true,
+  showRealRays: true,
+  highlightAberration: false
+};
+
+const LENS_PRESETS = {
+  biconvex:      {R1:120,  R2:-120, thick:26},
+  planoconvex:   {R1:130,  R2:Infinity, thick:18},
+  posmeniscus:   {R1:110,  R2:220,  thick:16},
+  biconcave:     {R1:-140, R2:140,  thick:12},
+  planoconcave:  {R1:Infinity, R2:140, thick:10},
+  negmeniscus:   {R1:220,  R2:110,  thick:10},
+  custom:        {R1:120,  R2:-120, thick:26}
+};
+
+function defaultSources(n){
+  const presets = [
+    {y:0,  angle:0,  spread:2,  rays:5, wl:'white'},
+    {y:40, angle:-8, spread:6,  rays:5, wl:'white'},
+    {y:-40,angle:8,  spread:6,  rays:5, wl:'white'},
+    {y:65, angle:-14,spread:4,  rays:3, wl:'white'},
+    {y:-65,angle:14, spread:4,  rays:3, wl:'white'}
+  ];
+  const arr = [];
+  for(let i=0;i<n;i++){
+    const p = presets[i] || {y:0,angle:0,spread:5,rays:5,wl:'white'};
+    arr.push({x:-340, y:p.y, angle:p.angle, spread:p.spread, rays:p.rays, enabled:true});
+  }
+  return arr;
+}
+state.sources = defaultSources(state.numSources);
+
+// ---------- Vector helpers ----------
+function norm(v){ const m=Math.hypot(v.x,v.y)||1e-9; return {x:v.x/m,y:v.y/m}; }
+function dot(a,b){ return a.x*b.x+a.y*b.y; }
+function sub(a,b){ return {x:a.x-b.x,y:a.y-b.y}; }
+function add(a,b){ return {x:a.x+b.x,y:a.y+b.y}; }
+function mul(a,s){ return {x:a.x*s,y:a.y*s}; }
+
+// ---------- Lens geometry ----------
+function getGeometry(){
+  const t = state.thickness;
+  const xv1 = -t/2, xv2 = t/2;
+  return {xv1, xv2, R1: state.R1, R2: state.R2, apHalf: state.aperture/2};
+}
+
+// surface x position at given height y (for drawing / boundary use only)
+function surfaceX(y, xVertex, R){
+  if(!isFinite(R)) return xVertex;
+  const R2y2 = R*R - y*y;
+  if(R2y2 < 0) return xVertex;
+  return xVertex + R - Math.sign(R)*Math.sqrt(R2y2);
+}
+
+// Intersect a ray (origin O, unit dir D) with a surface (vertex xVertex, radius R, half-aperture apHalf)
+// Returns {point, normal} or null. normal points from glass-side toward the medium the ray is currently in
+// (caller flips as needed) — here we return the *geometric outward* normal (away from centre of curvature
+// for convex-left; consistent orientation is resolved by refract()).
+function intersectSurface(O, D, xVertex, R, apHalf){
+  if(!isFinite(R)){
+    // flat surface: plane x = xVertex
+    if(Math.abs(D.x) < 1e-9) return null;
+    const t = (xVertex - O.x)/D.x;
+    if(t <= 1e-6) return null;
+    const pt = add(O, mul(D,t));
+    if(Math.abs(pt.y) > apHalf) return null;
+    return {point:pt, normal:{x:1,y:0}, t};
+  }
+  const xc = xVertex + R;
+  const C = {x:xc, y:0};
+  const oc = sub(O, C);
+  const a = dot(D,D);
+  const b = 2*dot(oc,D);
+  const c = dot(oc,oc) - R*R;
+  const disc = b*b - 4*a*c;
+  if(disc < 0) return null;
+  const sq = Math.sqrt(disc);
+  const t1 = (-b - sq)/(2*a);
+  const t2 = (-b + sq)/(2*a);
+  const candidates = [t1,t2].filter(t=>t>1e-6);
+  let best = null;
+  for(const t of candidates){
+    const pt = add(O, mul(D,t));
+    if(Math.abs(pt.y) > apHalf) continue;
+    // must lie on the physical cap near the vertex, i.e. within |R| of centre along x is guaranteed;
+    // reject points that are on the "far side" of the sphere (more than one aperture-radius past vertex)
+    if(Math.abs(pt.x - xVertex) > Math.abs(R) + 1) continue;
+    if(best===null || t < best.t) best = {point:pt, t};
+  }
+  if(!best) return null;
+  let normal = norm(sub(best.point, C)); // points away from centre of curvature
+  return {point:best.point, normal, t:best.t};
+}
+
+// Refract using vector Snell's law. dir & normal are unit vectors. normal will be oriented
+// to point against the incident ray (into the medium the ray is coming FROM) inside this function.
+function refract(dir, normal, n1, n2){
+  let N = normal;
+  let cosI = -dot(N, dir);
+  if(cosI < 0){ N = mul(N,-1); cosI = -cosI; }
+  const eta = n1/n2;
+  const sin2T = eta*eta*(1 - cosI*cosI);
+  if(sin2T > 1){
+    return {tir:true};
+  }
+  const cosT = Math.sqrt(1 - sin2T);
+  const t = add(mul(dir, eta), mul(N, eta*cosI - cosT));
+  return {tir:false, dir:norm(t), cosI, cosT, N};
+}
+
+function reflectDir(dir, normal){
+  let N = normal;
+  if(dot(N,dir) > 0) N = mul(N,-1);
+  return norm(sub(dir, mul(N, 2*dot(dir,N))));
+}
+
+// Schlick's approximation for unpolarised Fresnel reflectance
+function fresnelR(cosI, n1, n2){
+  const r0 = Math.pow((n1-n2)/(n1+n2), 2);
+  return r0 + (1-r0)*Math.pow(1-cosI, 5);
+}
+
+// Cauchy two-term dispersion, calibrated so n(589nm) = nBase.
+// B chosen as a representative crown-glass-like dispersion constant scaled by (nBase-1).
+function cauchyN(nBase, lambdaNM){
+  const B = 4200 * (nBase - 1); // nm^2, scaled so higher-index materials disperse more too
+  const A = nBase - B/(589*589);
+  return A + B/(lambdaNM*lambdaNM);
+}
+
+const WAVELENGTHS = [
+  {nm:700, color:'#ff4d4d', label:'red'},
+  {nm:620, color:'#ff9a3d', label:'orange'},
+  {nm:580, color:'#ffe14d', label:'yellow'},
+  {nm:530, color:'#4dff88', label:'green'},
+  {nm:480, color:'#4dc3ff', label:'blue'},
+  {nm:440, color:'#7a6bff', label:'indigo'},
+  {nm:400, color:'#c04dff', label:'violet'}
+];
+
+// ---------- Ray tracing through the lens ----------
+// Traces one ray (origin, dir) through the lens for a given effective index nEff.
+// Returns { segments:[{x1,y1,x2,y2}], reflectSegs:[...], hitData:{...} }
+function traceRay(origin, dir, nEff, opts){
+  opts = opts || {};
+  const geo = getGeometry();
+  const segments = [];
+  const reflectSegs = [];
+  let hitData = null;
+
+  const EDGE = 480;
+
+  // --- hit surface 1 ---
+  const h1 = intersectSurface(origin, dir, geo.xv1, geo.R1, geo.apHalf);
+  if(!h1){
+    // ray misses the lens entirely — draw straight through to edge of stage
+    const t = (EDGE - origin.x)/ (dir.x || 1e-9);
+    const end = t>0 ? add(origin, mul(dir, Math.min(t, 900))) : add(origin, mul(dir, 900));
+    segments.push({x1:origin.x,y1:origin.y,x2:end.x,y2:end.y});
+    return {segments, reflectSegs, hitData:null, missed:true};
+  }
+  segments.push({x1:origin.x,y1:origin.y,x2:h1.point.x,y2:h1.point.y});
+
+  const r1res = refract(dir, h1.normal, 1.0, nEff);
+  const cosI1 = Math.acos(Math.min(1,Math.max(-1, dot(mul(h1.normal, dot(h1.normal,dir)<0?1:-1), mul(dir,-1)))));
+
+  if(opts.reflections){
+    const RcoefA = fresnelR(r1res.cosI!==undefined?r1res.cosI:0.9, 1.0, nEff);
+    const rdir = reflectDir(dir, h1.normal);
+    const rEnd = add(h1.point, mul(rdir, 60 + 140*RcoefA));
+    reflectSegs.push({x1:h1.point.x,y1:h1.point.y,x2:rEnd.x,y2:rEnd.y, strength:RcoefA});
+  }
+
+  hitData = {
+    theta_i1: r1res.cosI!==undefined? Math.acos(Math.min(1,Math.max(-1,r1res.cosI)))*180/Math.PI : null,
+    theta_t1: r1res.tir? null : Math.acos(Math.min(1,Math.max(-1,r1res.cosT)))*180/Math.PI,
+    tir1: r1res.tir,
+    R1coef: opts.reflections? fresnelR(r1res.cosI||0.9,1.0,nEff)*100 : null
+  };
+
+  if(r1res.tir){
+    // total internal reflection at entry face (only happens at extreme grazing) — treat as reflect & stop tracing further into lens
+    const rdir = reflectDir(dir, h1.normal);
+    const end = add(h1.point, mul(rdir, 300));
+    segments.push({x1:h1.point.x,y1:h1.point.y,x2:end.x,y2:end.y, dashed:true});
+    hitData.terminatedTIR = true;
+    return {segments, reflectSegs, hitData};
+  }
+
+  const dirInside = r1res.dir;
+
+  // --- hit surface 2 (from inside the glass) ---
+  const h2 = intersectSurface(h1.point, dirInside, geo.xv2, geo.R2, geo.apHalf);
+  if(!h2){
+    // ray exits through the lens edge/side rather than surface 2 — approximate: draw a short internal
+    // segment then let it continue straight (rare edge case with extreme radii)
+    const end = add(h1.point, mul(dirInside, 400));
+    segments.push({x1:h1.point.x,y1:h1.point.y,x2:end.x,y2:end.y});
+    return {segments, reflectSegs, hitData};
+  }
+  segments.push({x1:h1.point.x,y1:h1.point.y,x2:h2.point.x,y2:h2.point.y});
+
+  const r2res = refract(dirInside, h2.normal, nEff, 1.0);
+
+  hitData.theta_i2 = r2res.cosI!==undefined? Math.acos(Math.min(1,Math.max(-1,r2res.cosI)))*180/Math.PI : null;
+  hitData.theta_t2 = r2res.tir? null : Math.acos(Math.min(1,Math.max(-1,r2res.cosT)))*180/Math.PI;
+  hitData.tir2 = r2res.tir;
+  hitData.R2coef = opts.reflections? fresnelR(r2res.cosI||0.9, nEff, 1.0)*100 : null;
+
+  if(opts.reflections){
+    const Rcoef2 = fresnelR(r2res.cosI!==undefined?r2res.cosI:0.9, nEff, 1.0);
+    const rdir2 = reflectDir(dirInside, h2.normal);
+    const rEnd2 = add(h2.point, mul(rdir2, 50 + 120*Rcoef2));
+    reflectSegs.push({x1:h2.point.x,y1:h2.point.y,x2:rEnd2.x,y2:rEnd2.y, strength:Rcoef2});
+  }
+
+  if(r2res.tir){
+    const rdir2 = reflectDir(dirInside, h2.normal);
+    const end = add(h2.point, mul(rdir2, 300));
+    segments.push({x1:h2.point.x,y1:h2.point.y,x2:end.x,y2:end.y, dashed:true});
+    hitData.terminatedTIR = true;
+    return {segments, reflectSegs, hitData};
+  }
+
+  const dirOut = r2res.dir;
+  const t = (EDGE - h2.point.x)/(dirOut.x || 1e-9);
+  const finalT = t>0 ? Math.min(t, 900) : 900;
+  const end2 = add(h2.point, mul(dirOut, finalT));
+  segments.push({x1:h2.point.x,y1:h2.point.y,x2:end2.x,y2:end2.y});
+
+  hitData.exitPoint = h2.point;
+  hitData.exitDir = dirOut;
+  hitData.entryPoint = h1.point;
+
+  return {segments, reflectSegs, hitData};
+}
+
+// ---------- Lensmaker's equation (thick lens) ----------
+function invR(R){ return isFinite(R) ? 1/R : 0; }
+function computeFocalLength(n, R1, R2, t){
+  const term = (n-1) * ( invR(R1) - invR(R2) + ((n-1)*t)/(n) * invR(R1)*invR(R2) );
+  if(Math.abs(term) < 1e-9) return Infinity;
+  return 1/term;
+}
+
+// ================= UI wiring =================
+const $ = id => document.getElementById(id);
+
+function syncLensFromType(){
+  const t = state.lensType;
+  if(t !== 'custom'){
+    const p = LENS_PRESETS[t];
+    state.R1 = p.R1; state.R2 = p.R2; state.thickness = p.thick;
+    $('r1').value = isFinite(p.R1)?p.R1:400;
+    $('r2').value = isFinite(p.R2)?p.R2:400;
+    $('thick').value = p.thick;
+    $('r1Val').textContent = isFinite(p.R1)? p.R1 : '∞';
+    $('r2Val').textContent = isFinite(p.R2)? p.R2 : '∞';
+    $('thickVal').textContent = p.thick;
+  }
+}
+
+$('lensType').addEventListener('change', e=>{
+  state.lensType = e.target.value;
+  syncLensFromType();
+  redraw();
+});
+
+$('material').addEventListener('change', e=>{
+  state.materialMode = e.target.value;
+  if(e.target.value === 'custom'){
+    $('customNRow').style.display = 'block';
+    state.n = parseFloat($('customN').value);
+  } else {
+    $('customNRow').style.display = 'none';
+    state.n = parseFloat(e.target.value);
+  }
+  redraw();
+});
+$('customN').addEventListener('input', e=>{
+  state.n = parseFloat(e.target.value);
+  $('customNVal').textContent = state.n.toFixed(2);
+  redraw();
+});
+
+function bindRange(id, key, labelId, fmt){
+  $(id).addEventListener('input', e=>{
+    const v = parseFloat(e.target.value);
+    state[key] = v;
+    if(labelId) $(labelId).textContent = fmt? fmt(v) : v;
+    if(id==='r1' || id==='r2' || id==='thick' || id==='ap'){ state.lensType='custom'; $('lensType').value='custom'; }
+    redraw();
+  });
+}
+bindRange('r1','R1','r1Val');
+bindRange('r2','R2','r2Val');
+bindRange('thick','thickness','thickVal');
+bindRange('ap','aperture','apVal');
+
+// ---- Sources ----
+function renderSourceList(){
+  const container = $('sourceList');
+  container.innerHTML = '';
+  state.sources.forEach((s, i)=>{
+    const card = document.createElement('div');
+    card.className = 'source-card';
+    card.innerHTML = `
+      <div class="shead">
+        <span><span class="swatch" style="background:${sourceColor(i)}"></span>Source ${i+1}</span>
+        <label style="margin:0;"><input type="checkbox" data-i="${i}" class="srcEnabled" ${s.enabled?'checked':''}> on</label>
+      </div>
+      <div class="row" style="margin-bottom:6px;">
+        <label>Y Position<span class="val srcYv">${s.y}</span></label>
+        <input type="range" class="srcY" data-i="${i}" min="-140" max="140" step="5" value="${s.y}">
+      </div>
+      <div class="row" style="margin-bottom:6px;">
+        <label>Angle (° from axis)<span class="val srcAv">${s.angle}</span></label>
+        <input type="range" class="srcAngle" data-i="${i}" min="-45" max="45" step="1" value="${s.angle}">
+      </div>
+      <div class="row" style="margin-bottom:6px;">
+        <label>Beam Spread (°)<span class="val srcSv">${s.spread}</span></label>
+        <input type="range" class="srcSpread" data-i="${i}" min="0" max="30" step="1" value="${s.spread}">
+      </div>
+      <div class="row" style="margin-bottom:0;">
+        <label>Ray Count<span class="val srcRv">${s.rays}</span></label>
+        <input type="range" class="srcRays" data-i="${i}" min="1" max="9" step="2" value="${s.rays}">
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.srcEnabled').forEach(el=>el.addEventListener('change', e=>{
+    state.sources[+e.target.dataset.i].enabled = e.target.checked; redraw();
+  }));
+  container.querySelectorAll('.srcY').forEach(el=>el.addEventListener('input', e=>{
+    const i=+e.target.dataset.i; state.sources[i].y = parseFloat(e.target.value);
+    e.target.closest('.source-card').querySelector('.srcYv').textContent = state.sources[i].y;
+    redraw();
+  }));
+  container.querySelectorAll('.srcAngle').forEach(el=>el.addEventListener('input', e=>{
+    const i=+e.target.dataset.i; state.sources[i].angle = parseFloat(e.target.value);
+    e.target.closest('.source-card').querySelector('.srcAv').textContent = state.sources[i].angle;
+    redraw();
+  }));
+  container.querySelectorAll('.srcSpread').forEach(el=>el.addEventListener('input', e=>{
+    const i=+e.target.dataset.i; state.sources[i].spread = parseFloat(e.target.value);
+    e.target.closest('.source-card').querySelector('.srcSv').textContent = state.sources[i].spread;
+    redraw();
+  }));
+  container.querySelectorAll('.srcRays').forEach(el=>el.addEventListener('input', e=>{
+    const i=+e.target.dataset.i; state.sources[i].rays = parseFloat(e.target.value);
+    e.target.closest('.source-card').querySelector('.srcRv').textContent = state.sources[i].rays;
+    redraw();
+  }));
+}
+function sourceColor(i){
+  const cols = ['#22d3ee','#fbbf24','#34d399','#a78bfa','#ff6b6b'];
+  return cols[i % cols.length];
+}
+
+$('numSrc').addEventListener('input', e=>{
+  const n = parseInt(e.target.value);
+  state.numSources = n;
+  $('numSrcVal').textContent = n;
+  const defaults = defaultSources(n);
+  // preserve existing where possible
+  const newSources = [];
+  for(let i=0;i<n;i++) newSources.push(state.sources[i] || defaults[i]);
+  state.sources = newSources;
+  renderSourceList();
+  redraw();
+});
+
+$('randomizeBtn').addEventListener('click', ()=>{
+  state.sources.forEach(s=>{
+    s.y = Math.round((Math.random()*280-140)/5)*5;
+    s.angle = Math.round(Math.random()*90-45);
+    s.spread = Math.round(Math.random()*20);
+    s.rays = [1,3,5,7,9][Math.floor(Math.random()*5)];
+  });
+  renderSourceList();
+  redraw();
+});
+$('resetBtn').addEventListener('click', ()=>{
+  state.sources = defaultSources(state.numSources);
+  renderSourceList();
+  redraw();
+});
+
+function pillToggle(id, key){
+  $(id).addEventListener('click', ()=>{
+    state[key] = !state[key];
+    $(id).classList.toggle('on', state[key]);
+    redraw();
+  });
+}
+pillToggle('toggleDispersion','dispersion');
+pillToggle('toggleReflection','reflections');
+pillToggle('toggleAngles','angleLabels');
+pillToggle('toggleNormals','showNormals');
+pillToggle('toggleIdeal','showIdeal');
+pillToggle('toggleRealRays','showRealRays');
+pillToggle('toggleAberr','highlightAberration');
+
+// ---- Image formation controls ----
+bindRange('objDist','objDist','objDistVal');
+bindRange('objH','objH','objHVal');
+$('fanRays').addEventListener('input', e=>{
+  state.fanRays = parseInt(e.target.value);
+  $('fanRaysVal').textContent = state.fanRays;
+  redraw();
+});
+
+// ---- Tabs ----
+const tabButtons = document.querySelectorAll('.tabbtn');
+tabButtons.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    tabButtons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.querySelector('.layout:not(#notesLayout)').classList.remove('hidden');
+    $('notesLayout').classList.add('hidden');
+    if(tab === 'notes'){
+      document.querySelector('.layout:not(#notesLayout)').classList.add('hidden');
+      $('notesLayout').classList.remove('hidden');
+      return;
+    }
+    state.mode = tab;
+    $('modeExploreControls').classList.toggle('hidden', tab!=='explore');
+    $('modeImageControls').classList.toggle('hidden', tab!=='image');
+    $('infoExplore').classList.toggle('hidden', tab!=='explore');
+    $('infoImage').classList.toggle('hidden', tab!=='image');
+    redraw();
+  });
+});
+$('openNotesFromInfo').addEventListener('click', ()=>{
+  document.querySelector('[data-tab="notes"]').click();
+});
+
+// ================= Rendering =================
+function drawGrid(){
+  ctx.fillStyle = '#050c18';
+  ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle = 'rgba(34,211,238,0.06)';
+  ctx.lineWidth = 1;
+  for(let x=0;x<W;x+=25){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=0;y<H;y+=25){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  // optical axis
+  ctx.strokeStyle = 'rgba(124,147,171,0.5)';
+  ctx.setLineDash([6,5]);
+  ctx.beginPath(); ctx.moveTo(0, sy(0)); ctx.lineTo(W, sy(0)); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawLens(){
+  const geo = getGeometry();
+  ctx.beginPath();
+  const steps = 60;
+  for(let i=0;i<=steps;i++){
+    const yv = -geo.apHalf + (2*geo.apHalf)*(i/steps);
+    const xv = surfaceX(yv, geo.xv1, geo.R1);
+    if(i===0) ctx.moveTo(sx(xv), sy(yv)); else ctx.lineTo(sx(xv), sy(yv));
+  }
+  for(let i=steps;i>=0;i--){
+    const yv = -geo.apHalf + (2*geo.apHalf)*(i/steps);
+    const xv = surfaceX(yv, geo.xv2, geo.R2);
+    ctx.lineTo(sx(xv), sy(yv));
+  }
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(sx(geo.xv1),0,sx(geo.xv2),0);
+  grad.addColorStop(0,'rgba(34,211,238,0.20)');
+  grad.addColorStop(0.5,'rgba(34,211,238,0.32)');
+  grad.addColorStop(1,'rgba(34,211,238,0.20)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = '#67e8f9';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  // focal points
+  const f = computeFocalLength(state.n, state.R1, state.R2, state.thickness);
+  if(isFinite(f)){
+    [-1,1].forEach(sgn=>{
+      const fx = sgn*f;
+      ctx.beginPath();
+      ctx.arc(sx(fx), sy(0), 4, 0, 7);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fill();
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '11px IBM Plex Mono, monospace';
+      ctx.fillText(sgn<0?'F1':'F2', sx(fx)-8, sy(0)+18);
+    });
+  }
+}
+
+function drawSegments(segs, color, width, dashPattern, alpha){
+  ctx.save();
+  ctx.globalAlpha = alpha===undefined?1:alpha;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width||1.4;
+  if(dashPattern) ctx.setLineDash(dashPattern); else ctx.setLineDash([]);
+  segs.forEach(s=>{
+    ctx.beginPath();
+    ctx.moveTo(sx(s.x1), sy(s.y1));
+    ctx.lineTo(sx(s.x2), sy(s.y2));
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawArrow(x1,y1,x2,y2,color){
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(sx(x1),sy(y1)); ctx.lineTo(sx(x2),sy(y2)); ctx.stroke();
+  const ang = Math.atan2(sy(y2)-sy(y1), sx(x2)-sx(x1));
+  const headLen = 10;
+  ctx.beginPath();
+  ctx.moveTo(sx(x2), sy(y2));
+  ctx.lineTo(sx(x2)-headLen*Math.cos(ang-0.4), sy(y2)-headLen*Math.sin(ang-0.4));
+  ctx.lineTo(sx(x2)-headLen*Math.cos(ang+0.4), sy(y2)-headLen*Math.sin(ang+0.4));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function angleLabel(point, txt, color){
+  ctx.fillStyle = color;
+  ctx.font = '10px IBM Plex Mono, monospace';
+  ctx.fillText(txt, sx(point.x)+6, sy(point.y)-6);
+}
+
+// ---------- Explore mode render ----------
+function renderExplore(){
+  const readoutsHTML = [];
+  const legendSet = new Set();
+
+  state.sources.forEach((src, si)=>{
+    if(!src.enabled) return;
+    const baseAngleRad = src.angle * Math.PI/180;
+    const n = Math.max(1, src.rays);
+    for(let k=0;k<n;k++){
+      const frac = n===1 ? 0 : (k/(n-1))*2-1; // -1..1
+      const rayAngleDeg = src.angle + frac*src.spread;
+      const rad = rayAngleDeg * Math.PI/180;
+      const dir = {x:Math.cos(rad), y:Math.sin(rad)};
+      const origin = {x:src.x, y:src.y};
+
+      if(state.dispersion){
+        WAVELENGTHS.forEach((w, wi)=>{
+          const nEff = cauchyN(state.n, w.nm);
+          const res = traceRay(origin, dir, nEff, {reflections: state.reflections && k===Math.floor(n/2) && wi===2});
+          drawSegments(res.segments, w.color, 1.1, null, 0.75);
+          if(state.reflections) drawSegments(res.reflectSegs, w.color, 1, [3,3], 0.35);
+        });
+        legendSet.add('dispersion');
+      } else {
+        const res = traceRay(origin, dir, state.n, {reflections: state.reflections});
+        const col = sourceColor(si);
+        drawSegments(res.segments, col, 1.6, null, 0.9);
+        if(state.reflections && res.reflectSegs.length){
+          drawSegments(res.reflectSegs, '#ffffff', 1.2, [4,3], 0.45);
+        }
+        if(k===Math.floor(n/2) && res.hitData){
+          if(state.angleLabels && res.hitData.theta_i1!==null){
+            angleLabel(origin.x!==undefined?res.hitData.entryPoint||origin:origin, '', col);
+          }
+          const hd = res.hitData;
+          let line = `<div class="readout"><div class="k" style="color:${col}">Source ${si+1} (central ray)</div><div class="v"></div>`;
+          if(hd.theta_i1!==null) line += `<div class="k">&nbsp;&nbsp;θ incidence (S1)</div><div class="v">${hd.theta_i1.toFixed(1)}°</div>`;
+          if(hd.theta_t1!==null) line += `<div class="k">&nbsp;&nbsp;θ refraction (S1)</div><div class="v">${hd.theta_t1.toFixed(1)}°</div>`;
+          if(hd.R1coef!==null && hd.R1coef!==undefined) line += `<div class="k">&nbsp;&nbsp;Fresnel R (S1)</div><div class="v green">${hd.R1coef.toFixed(1)}%</div>`;
+          if(hd.tir1) line += `<div class="k">&nbsp;&nbsp;S1</div><div class="v red">Total Internal Reflection</div>`;
+          if(hd.tir2) line += `<div class="k">&nbsp;&nbsp;S2</div><div class="v red">Total Internal Reflection</div>`;
+          line += `</div>`;
+          readoutsHTML.push(line);
+        }
+      }
+    }
+  });
+
+  $('rayReadouts').innerHTML = readoutsHTML.join('') || '<div class="note-box">Enable at least one source to see live angle data.</div>';
+
+  const legend = $('legendBar');
+  if(state.dispersion){
+    legend.innerHTML = WAVELENGTHS.map(w=>`<span><i style="background:${w.color}"></i>${w.nm}nm ${w.label}</span>`).join('');
+  } else {
+    legend.innerHTML = state.sources.map((s,i)=>s.enabled?`<span><i style="background:${sourceColor(i)}"></i>Source ${i+1}</span>`:'').join('')
+      + `<span><i style="background:#ffffff;opacity:.5;"></i>Fresnel reflection (dashed)</span>`;
+  }
+}
+
+// ---------- Image formation mode render ----------
+function renderImage(){
+  const geo = getGeometry();
+  const f = computeFocalLength(state.n, state.R1, state.R2, state.thickness);
+  const u = -state.objDist; // object to the left => negative
+  const ho = state.objH;
+
+  // object arrow (tip up)
+  drawArrow(u, 0, u, ho, '#34d399');
+  ctx.fillStyle = '#34d399';
+  ctx.font = '11px IBM Plex Mono, monospace';
+  ctx.fillText('Object', sx(u)-14, sy(ho)-10);
+
+  let v = null, m = null, hi = null;
+  if(isFinite(f)){
+    const invV = 1/f + 1/u;
+    v = Math.abs(invV) < 1e-9 ? Infinity : 1/invV;
+    m = v/u;
+    hi = m*ho;
+  }
+
+  // idealised principal rays (paraxial thin-lens construction), drawn from object tip
+  if(state.showIdeal && isFinite(f)){
+    const tip = {x:u, y:ho};
+    // Ray 1: parallel to axis -> through F2 (or appears from F1 if diverging)
+    const p1 = {x:0, y:ho};
+    ctx.save(); ctx.globalAlpha=0.85;
+    drawArrow(tip.x, tip.y, 0, ho, '#fbbf24');
+    if(f>0){
+      const post = {x:400, y: ho + (ho-0)*( (400-0)/(f-0) - 1 ) };
+      // slope from (0,ho) through (f,0)
+      const slope = (0-ho)/(f-0);
+      const yAt400 = ho + slope*(400-0);
+      drawArrow(0, ho, 400, yAt400, '#fbbf24');
+    } else {
+      // diverging: ray bends away as if from F1 on same side
+      const slope = (ho-0)/(0-f); // line from F1(=f,0, f negative) through (0,ho)
+      const yAt400 = ho + slope*(400-0);
+      drawArrow(0, ho, 400, yAt400, '#fbbf24');
+      // dashed virtual backward extension
+      ctx.setLineDash([3,3]);
+      ctx.strokeStyle='#fbbf24'; ctx.globalAlpha=0.5;
+      ctx.beginPath(); ctx.moveTo(sx(0),sy(ho)); ctx.lineTo(sx(f),sy(0)); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+
+    // Ray 2: through centre of lens, undeviated
+    ctx.save(); ctx.globalAlpha=0.85;
+    const slopeC = (0-ho)/(0-u);
+    const yAt400c = ho + slopeC*(400-u);
+    drawArrow(u, ho, 400, yAt400c, '#a78bfa');
+    ctx.restore();
+
+    // Ray 3: through F1, emerges parallel
+    ctx.save(); ctx.globalAlpha=0.85;
+    if(f>0){
+      const F1 = {x:-f,y:0};
+      // line from tip through F1 to lens plane (x=0)
+      const slope31 = (F1.y-ho)/(F1.x-u);
+      const yAtLens = ho + slope31*(0-u);
+      drawArrow(u, ho, 0, yAtLens, '#f472b6');
+      drawArrow(0, yAtLens, 400, yAtLens, '#f472b6');
+    } else {
+      // diverging lens: ray aimed toward F2 (virtual) on far side, refracts parallel-ish approximation skipped for clarity
+      const F2 = {x:f, y:0}; // f negative -> left side is F2 for diverging? keep simple, use directed toward F2 real position on same side as object is not standard; approximate visually
+      const slope31 = (0-ho)/(f-u);
+      const yAtLens = ho + slope31*(0-u);
+      drawArrow(u, ho, 0, yAtLens, '#f472b6');
+      const outSlope = (yAtLens-0)/(0-f);
+      drawArrow(0, yAtLens, 400, yAtLens+outSlope*400, '#f472b6');
+    }
+    ctx.restore();
+  }
+
+  // Real ray-traced rays from tip through actual surfaces (compare to ideal)
+  if(state.showRealRays){
+    const nRays = state.fanRays;
+    for(let k=0;k<nRays;k++){
+      const frac = nRays===1?0:(k/(nRays-1))*2-1;
+      const targetY = frac*geo.apHalf*0.92;
+      const originPt = {x:u, y:ho};
+      const dirVec = norm(sub({x:0,y:targetY}, originPt));
+      const res = traceRay(originPt, dirVec, state.n, {reflections:false});
+      const isCentral = Math.abs(frac) < 0.05;
+      drawSegments(res.segments, isCentral? '#22d3ee' : 'rgba(34,211,238,0.55)', isCentral?1.8:1.1, null, 1);
+    }
+  }
+
+  // image arrow
+  if(isFinite(f) && v!==null && isFinite(v)){
+    const real = v > 0;
+    ctx.save();
+    ctx.globalAlpha = real?0.95:0.55;
+    drawArrow(v, 0, v, hi, real? '#ef4444' : '#ef4444');
+    if(!real) ctx.setLineDash([4,4]);
+    ctx.restore();
+    ctx.fillStyle='#ef4444';
+    ctx.font='11px IBM Plex Mono, monospace';
+    ctx.fillText(real? 'Real Image' : 'Virtual Image', sx(v)-18, sy(hi) + (hi>=0? -10 : 20));
+  }
+
+  // ---- readouts ----
+  $('imU').textContent = Math.abs(u).toFixed(0)+' mm (left)';
+  if(v===null || !isFinite(f)){
+    $('imV').textContent = '—'; $('imM').textContent='—'; $('imH').textContent='—';
+    $('imType').textContent = 'No convergence (f = ∞)'; $('imOrient').textContent='—';
+  } else if(!isFinite(v)){
+    $('imV').textContent = 'at infinity'; $('imM').textContent='—'; $('imH').textContent='—';
+    $('imType').textContent = 'Object at focal point'; $('imOrient').textContent='—';
+  } else {
+    $('imV').textContent = Math.abs(v).toFixed(1)+' mm ('+(v>0?'right':'left')+')';
+    $('imM').textContent = m.toFixed(2)+'×';
+    $('imH').textContent = Math.abs(hi).toFixed(1)+' mm';
+    $('imType').textContent = v>0 ? 'Real' : 'Virtual';
+    $('imOrient').textContent = m<0 ? 'Inverted' : 'Erect';
+  }
+}
+
+function updateLiveProperties(){
+  const f = computeFocalLength(state.n, state.R1, state.R2, state.thickness);
+  $('outF').textContent = isFinite(f) ? f.toFixed(1)+' mm' : '∞ (afocal)';
+  $('outP').textContent = isFinite(f) ? (1000/f).toFixed(2)+' D (per m)' : '0 D';
+  $('outBehaviour').textContent = !isFinite(f) ? 'Afocal / flat window' : (f>0 ? 'Converging' : 'Diverging');
+}
+
+function redraw(){
+  drawGrid();
+  drawLens();
+  updateLiveProperties();
+  if(state.mode === 'explore'){
+    renderExplore();
+  } else if(state.mode === 'image'){
+    renderImage();
+  }
+}
+
+// ---------- init ----------
+renderSourceList();
+syncLensFromType();
+redraw();
+
+})();
+</script>
+</body>
+</html>
