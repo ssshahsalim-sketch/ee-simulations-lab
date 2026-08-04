@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smith Chart Interactive Simulator | Apna Electromechanic Service</title>
+<style>
+:root{
+  --navy-950:#050b16; --navy-900:#0a1428; --navy-800:#0e1c38; --navy-700:#142a4d; --navy-600:#1c3a63;
+  --grid-line: rgba(70,130,180,0.13);
+  --cyan:#33e0ff; --cyan-dim:#1a8aa8; --amber:#ffb648; --amber-dim:#a87322;
+  --green:#5cff9d; --red:#ff5c6c; --violet:#b98bff;
+  --text-hi:#eaf6ff; --text-mid:#9db3cc; --text-lo:#5f7690;
+  --font: 'IBM Plex Mono','Consolas','SFMono-Regular',ui-monospace,monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--navy-950);color:var(--text-hi);font-family:var(--font);min-height:100vh;}
+body{background-image:linear-gradient(var(--grid-line) 1px, transparent 1px),linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);background-size:28px 28px;background-color:var(--navy-950);}
+.wrap{max-width:1400px;margin:0 auto;padding:14px 16px 60px;}
+header.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--navy-600);padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+header.top .brand{font-size:11px;letter-spacing:1px;color:var(--text-lo);text-transform:uppercase;}
+header.top h1{font-size:22px;margin:2px 0 0;color:var(--cyan);text-shadow:0 0 12px rgba(51,224,255,0.35);letter-spacing:0.5px;}
+header.top .tag{font-size:12px;color:var(--text-mid);}
+nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+nav.tabs button{background:var(--navy-800);border:1px solid var(--navy-600);color:var(--text-mid);font-family:var(--font);font-size:12.5px;padding:9px 14px;cursor:pointer;border-radius:3px;transition:all .15s;letter-spacing:0.3px;}
+nav.tabs button:hover{border-color:var(--cyan-dim);color:var(--text-hi);}
+nav.tabs button.active{background:linear-gradient(180deg,var(--navy-700),var(--navy-800));border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 10px rgba(51,224,255,0.15) inset;}
+.panel{display:none;}
+.panel.active{display:block;animation:fadein .25s;}
+@keyframes fadein{from{opacity:0;}to{opacity:1;}}
+.card{background:linear-gradient(180deg, rgba(20,42,77,0.55), rgba(10,20,40,0.55));border:1px solid var(--navy-600);border-radius:6px;padding:14px 16px;margin-bottom:14px;}
+.card h2{font-size:14px;color:var(--amber);margin:0 0 10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px dashed var(--navy-600);padding-bottom:8px;}
+.card h3{font-size:12.5px;color:var(--cyan);margin:14px 0 8px;letter-spacing:0.5px;}
+.grid-2{display:grid;grid-template-columns:1.25fr 1fr;gap:14px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+@media (max-width:900px){.grid-2{grid-template-columns:1fr;} .grid-3{grid-template-columns:1fr;}}
+.controls{display:flex;flex-direction:column;gap:12px;}
+.ctrl-row{display:flex;flex-direction:column;gap:4px;}
+.ctrl-row label{font-size:11.5px;color:var(--text-mid);display:flex;justify-content:space-between;}
+.ctrl-row label span.val{color:var(--cyan);font-weight:bold;}
+input[type=range]{-webkit-appearance:none;width:100%;height:5px;border-radius:3px;background:var(--navy-600);outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px rgba(51,224,255,0.7);cursor:pointer;border:2px solid var(--navy-950);}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px rgba(51,224,255,0.7);cursor:pointer;border:2px solid var(--navy-950);}
+select,input[type=number]{font-family:var(--font);background:var(--navy-800);color:var(--text-hi);border:1px solid var(--navy-600);padding:7px 8px;border-radius:3px;font-size:12px;}
+input[type=number]{width:100%;}
+.toggle-group{display:flex;gap:6px;flex-wrap:wrap;}
+.toggle-group button{background:var(--navy-800);border:1px solid var(--navy-600);color:var(--text-mid);font-family:var(--font);font-size:11.5px;padding:7px 11px;border-radius:3px;cursor:pointer;}
+.toggle-group button.on{background:rgba(51,224,255,0.12);border-color:var(--cyan);color:var(--cyan);}
+canvas{width:100%;display:block;background:radial-gradient(ellipse at 50% 35%, #0c1c38 0%, #050b16 78%);border:1px solid var(--navy-600);border-radius:4px;touch-action:none;cursor:crosshair;}
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:10px;}
+.ro{background:var(--navy-900);border:1px solid var(--navy-600);border-radius:4px;padding:8px 10px;text-align:center;}
+.ro .label{font-size:9.5px;color:var(--text-lo);text-transform:uppercase;letter-spacing:0.5px;}
+.ro .value{font-size:15px;color:var(--green);font-weight:bold;margin-top:2px;}
+.ro .value.amber{color:var(--amber);} .ro .value.cyan{color:var(--cyan);} .ro .value.red{color:var(--red);}
+.note{font-size:11.5px;color:var(--text-mid);line-height:1.55;}
+.note b{color:var(--text-hi);}
+.formula{font-family:var(--font);background:var(--navy-900);border:1px solid var(--navy-600);border-left:3px solid var(--cyan);padding:8px 12px;border-radius:3px;font-size:13px;color:var(--cyan);margin:8px 0;display:inline-block;}
+.pill{display:inline-block;background:var(--navy-800);border:1px solid var(--navy-600);border-radius:20px;padding:3px 10px;font-size:10.5px;color:var(--text-mid);}
+.presets{display:flex;flex-wrap:wrap;gap:6px;}
+.presets button{background:var(--navy-800);border:1px solid var(--navy-600);color:var(--text-mid);font-family:var(--font);font-size:11px;padding:6px 10px;border-radius:3px;cursor:pointer;}
+.presets button:hover{border-color:var(--amber);color:var(--amber);}
+.steplist{display:flex;flex-direction:column;gap:4px;}
+.steplist button{text-align:left;background:var(--navy-800);border:1px solid var(--navy-600);color:var(--text-mid);font-family:var(--font);font-size:11.5px;padding:8px 10px;border-radius:3px;cursor:pointer;}
+.steplist button.on{background:rgba(51,224,255,0.1);border-color:var(--cyan);color:var(--cyan);}
+footer{text-align:center;color:var(--text-lo);font-size:10.5px;margin-top:30px;letter-spacing:0.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <div class="brand">Apna Electromechanic Service &mdash; Engineering Tools Suite</div>
+    <h1>Smith Chart Interactive Simulator</h1>
+    <div class="tag">Impedance &middot; Reflection Coefficient &middot; VSWR &middot; Admittance &middot; Transmission-Line Rotation</div>
+  </div>
+  <div class="pill">Offline &middot; Single-File &middot; No Data Leaves This Page</div>
+</header>
+
+<nav class="tabs">
+  <button data-tab="chart" class="active">1 &middot; Chart &amp; Point Explorer</button>
+  <button data-tab="line">2 &middot; Transmission Line Navigator</button>
+  <button data-tab="guide">3 &middot; How To Read This Chart</button>
+  <button data-tab="notes">4 &middot; Physics Notes</button>
+</nav>
+
+<!-- ===================== TAB 1: CHART & POINT EXPLORER ===================== -->
+<div class="panel active" id="panel-chart">
+  <div class="card">
+    <h2>Interactive Smith Chart</h2>
+    <div class="grid-2">
+      <div>
+        <canvas id="cv-chart" height="520"></canvas>
+        <p class="note">Drag the glowing point directly on the chart, or use the sliders. The chart is the unit circle in the complex reflection-coefficient (&Gamma;) plane, overlaid with a grid of constant-resistance circles and constant-reactance arcs. The outer rim (when enabled) shows the standard peripheral scales: <span style="color:var(--text-hi)">white</span> = angle of &Gamma; in degrees, <span style="color:var(--green)">green</span> = wavelengths toward generator, <span style="color:var(--amber)">amber</span> = wavelengths toward load.</p>
+      </div>
+      <div class="controls">
+        <div class="ctrl-row">
+          <label>System Impedance Z&#8320;</label>
+          <select id="sel-z0">
+            <option value="25">25 &#8486;</option>
+            <option value="50" selected>50 &#8486; (standard RF)</option>
+            <option value="75">75 &#8486; (video/cable)</option>
+            <option value="100">100 &#8486;</option>
+            <option value="custom">Custom&hellip;</option>
+          </select>
+          <input type="number" id="num-z0-custom" style="display:none;margin-top:4px;" min="1" max="2000" value="50">
+        </div>
+        <div class="ctrl-row">
+          <label>Load Resistance R &nbsp;<span class="val" id="lbl-r">50.0 &#8486;</span></label>
+          <input type="range" id="sl-r" min="0" max="1000" value="500">
+        </div>
+        <div class="ctrl-row">
+          <label>Load Reactance X &nbsp;<span class="val" id="lbl-x">0.0 &#8486;</span></label>
+          <input type="range" id="sl-x" min="-1000" max="1000" value="0">
+        </div>
+        <div class="ctrl-row">
+          <label>Quick Presets</label>
+          <div class="presets">
+            <button data-preset="matched">Matched (Z=Z&#8320;)</button>
+            <button data-preset="short">Short (0 &#8486;)</button>
+            <button data-preset="open">Open (&infin;)</button>
+            <button data-preset="halfz0">Z&#8320;/2</button>
+            <button data-preset="doublez0">2&times;Z&#8320;</button>
+            <button data-preset="inductive">Inductive example</button>
+            <button data-preset="capacitive">Capacitive example</button>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <label><input type="checkbox" id="chk-admittance" style="width:auto;accent-color:var(--cyan);"> Show admittance point (Y = 1/Z, 180&deg; rotation)</label>
+        </div>
+        <div class="ctrl-row">
+          <label><input type="checkbox" id="chk-peripheral" checked style="width:auto;accent-color:var(--cyan);"> Show angle &amp; wavelength scale (professional rim, like a printed chart)</label>
+        </div>
+        <div class="readouts">
+          <div class="ro"><div class="label">&Gamma; (rect.)</div><div class="value cyan" id="ro-gamma-rect">&mdash;</div></div>
+          <div class="ro"><div class="label">&Gamma; (polar)</div><div class="value amber" id="ro-gamma-polar">&mdash;</div></div>
+          <div class="ro"><div class="label">VSWR</div><div class="value" id="ro-vswr">&mdash;</div></div>
+          <div class="ro"><div class="label">Return Loss</div><div class="value" id="ro-rl">&mdash;</div></div>
+          <div class="ro"><div class="label">Z&#7565;&#7565; (load)</div><div class="value cyan" id="ro-zin">&mdash;</div></div>
+          <div class="ro"><div class="label">Y&#7565;&#7565; (load)</div><div class="value amber" id="ro-yin">&mdash;</div></div>
+          <div class="ro"><div class="label">Mismatch Loss</div><div class="value" id="ro-mismatch">&mdash;</div></div>
+          <div class="ro"><div class="label">Region</div><div class="value" id="ro-region">&mdash;</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TAB 2: TRANSMISSION LINE NAVIGATOR ===================== -->
+<div class="panel" id="panel-line">
+  <div class="card">
+    <h2>Transmission Line Impedance Rotation</h2>
+    <div class="grid-2">
+      <div>
+        <canvas id="cv-line" height="520"></canvas>
+      </div>
+      <div class="controls">
+        <div class="ctrl-row">
+          <label>Line Characteristic Impedance Z&#8320; &nbsp;<span class="val" id="lbl-lz0">50 &#8486;</span></label>
+          <input type="range" id="sl-lz0" min="10" max="200" value="50">
+        </div>
+        <div class="ctrl-row">
+          <label>Load Resistance R&#7519; &nbsp;<span class="val" id="lbl-lr">25.0 &#8486;</span></label>
+          <input type="range" id="sl-lr" min="0" max="1000" value="250">
+        </div>
+        <div class="ctrl-row">
+          <label>Load Reactance X&#7519; &nbsp;<span class="val" id="lbl-lx">50.0 &#8486;</span></label>
+          <input type="range" id="sl-lx" min="-1000" max="1000" value="500">
+        </div>
+        <div class="ctrl-row">
+          <label>Electrical Length l/&lambda; &nbsp;<span class="val" id="lbl-len">0.000</span></label>
+          <input type="range" id="sl-len" min="0" max="500" value="0">
+        </div>
+        <div class="ctrl-row">
+          <label>Direction</label>
+          <div class="toggle-group">
+            <button data-dir="gen" class="on">Toward Generator (CW)</button>
+            <button data-dir="load">Toward Load (CCW)</button>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <label><input type="checkbox" id="chk-animate-line" style="width:auto;accent-color:var(--cyan);"> Animate (auto-rotate)</label>
+        </div>
+        <div class="ctrl-row">
+          <label><input type="checkbox" id="chk-peripheral-line" checked style="width:auto;accent-color:var(--cyan);"> Show angle &amp; wavelength scale (professional rim)</label>
+        </div>
+        <div class="readouts">
+          <div class="ro"><div class="label">Z(l) at this point</div><div class="value cyan" id="ro-line-z">&mdash;</div></div>
+          <div class="ro"><div class="label">&Gamma;(l)</div><div class="value amber" id="ro-line-gamma">&mdash;</div></div>
+          <div class="ro"><div class="label">VSWR (constant)</div><div class="value" id="ro-line-vswr">&mdash;</div></div>
+          <div class="ro"><div class="label">Dist. to next V&#7615;&#7565;&#7629; (toward gen.)</div><div class="value green" id="ro-line-vmax">&mdash;</div></div>
+          <div class="ro"><div class="label">Dist. to next V&#7565;&#7565;&#7628; (toward gen.)</div><div class="value red" id="ro-line-vmin">&mdash;</div></div>
+        </div>
+        <p class="note">Moving along a lossless line keeps you on a circle of <b>constant |&Gamma;|</b> (constant VSWR) centred on the chart. One full turn = &lambda;/2 of physical line length (the reflection coefficient's phase changes by 2&times; the electrical length because the wave travels the distance twice &mdash; once out, once back). Rotating <b>clockwise</b> moves toward the generator (away from the load); counter-clockwise moves toward the load.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TAB 3: HOW TO READ THIS CHART ===================== -->
+<div class="panel" id="panel-guide">
+  <div class="card">
+    <h2>Guided Walkthrough</h2>
+    <div class="grid-2">
+      <div>
+        <canvas id="cv-guide" height="480"></canvas>
+      </div>
+      <div>
+        <div class="steplist" id="guide-steps"></div>
+        <h3 id="guide-title">&mdash;</h3>
+        <p class="note" id="guide-text">&mdash;</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TAB 4: PHYSICS NOTES ===================== -->
+<div class="panel" id="panel-notes">
+  <div class="card">
+    <h2>Physics &amp; Research Notes</h2>
+
+    <h3>What the chart actually is</h3>
+    <p class="note">A Smith chart is a polar plot of the complex <b>voltage reflection coefficient</b> &Gamma;, mapped so that lines of constant normalised resistance and constant normalised reactance become circles and arcs. It replaces messy complex-number arithmetic for impedance matching and transmission-line problems with a purely graphical (or in this tool, live-computed) procedure.</p>
+
+    <h3>Reflection coefficient</h3>
+    <div class="formula">&Gamma; = (Z &minus; Z&#8320;) / (Z + Z&#8320;)</div>
+    <p class="note">Z is the load (or local line) impedance, Z&#8320; is the system's characteristic impedance. &Gamma; is a complex number with |&Gamma;| &le; 1 for any passive load; |&Gamma;| = 0 means a perfect match (all power absorbed, no reflection), |&Gamma;| = 1 means total reflection (open or short circuit, or any purely reactive load).</p>
+
+    <h3>The chart mapping (why circles and arcs appear)</h3>
+    <div class="formula">z = Z/Z&#8320; = (1 + &Gamma;) / (1 &minus; &Gamma;)</div>
+    <p class="note">Writing z = r + jx (normalised resistance/reactance) and &Gamma; = u + jv, and substituting, the condition "r = constant" algebraically becomes a circle in (u,v): centre (r/(1+r), 0), radius 1/(1+r). The condition "x = constant" becomes an arc of a circle: centre (1, 1/x), radius 1/x, always intersecting the point (1,0). That's the entire chart &mdash; it's just Cartesian resistance/reactance grid lines conformally mapped into the unit disc.</p>
+
+    <h3>VSWR and return loss</h3>
+    <div class="formula">VSWR = (1 + |&Gamma;|) / (1 &minus; |&Gamma;|) &nbsp;&nbsp;&middot;&nbsp;&nbsp; RL(dB) = &minus;20 log&#8321;&#8320;|&Gamma;|</div>
+    <p class="note">Concentric circles centred on the chart's origin are circles of constant |&Gamma;|, which means constant VSWR &mdash; this is exactly the circle a lossless transmission line's impedance traces out as you move along it (Tab 2). A matched load sits at the centre (VSWR = 1, RL = &infin; dB); the outer rim is VSWR = &infin; (0 dB return loss, total reflection).</p>
+
+    <h3>Admittance and the 180&deg; rotation trick</h3>
+    <div class="formula">y = Y/Y&#8320; = 1/z &nbsp;&nbsp;&middot;&nbsp;&nbsp; &Gamma;&#7580; = &minus;&Gamma;&#7627;</div>
+    <p class="note">Because 1/z corresponds to reflecting &Gamma; through the origin, the exact same chart can be read as an <b>admittance</b> chart simply by rotating any impedance point 180&deg; (or equivalently, reading the "impedance" grid upside-down). This is why the classic paper Smith chart often has both an impedance grid and its mirror-image admittance grid printed together &mdash; extremely useful for stub-matching designs that alternate between series (impedance-friendly) and shunt (admittance-friendly) elements.</p>
+
+    <h3>Moving along a transmission line</h3>
+    <div class="formula">&Gamma;(l) = &Gamma;&#7519; &middot; e<sup>&minus;j2&beta;l</sup> &nbsp;&nbsp;,&nbsp;&nbsp; &beta; = 2&pi;/&lambda;</div>
+    <p class="note">For a lossless line of characteristic impedance Z&#8320;, the reflection coefficient at a distance l back from the load has the same magnitude as &Gamma;&#7519; (the wave doesn't attenuate) but a phase that rotates linearly with distance &mdash; because the reflected wave has to travel the extra distance l twice (out to the load's reference plane and back). One full revolution around the chart therefore corresponds to l = &lambda;/2, not a full wavelength. Voltage maxima on the line occur exactly where the chart point crosses the positive real axis (&Gamma; purely real and positive); voltage minima occur at the negative real axis.</p>
+
+    <h3>The printed rim: angle and wavelength scales</h3>
+    <p class="note">A professional paper Smith chart surrounds the unit circle with two extra rings you won't find on a bare impedance grid: an <b>angle-of-&Gamma; scale</b> in degrees, and a pair of <b>wavelength scales</b> &mdash; "wavelengths toward generator" (WTG) and "wavelengths toward load" (WTL) &mdash; both running 0 to 0.5&lambda; from the same zero point (the leftmost, short-circuit end of the real axis) but in opposite directions. This tool draws that same rim (toggle it off if you want a cleaner grid). A handy self-check when reading any real chart: at any point, <b>WTG + WTL = 0.5</b> always &mdash; if your two readings don't add up, you've misread a scale.</p>
+
+    <h3>Reading the halves of the chart</h3>
+    <p class="note">The <b>upper half</b> of the chart (v &gt; 0) is where x &gt; 0 &mdash; <b>inductive</b> reactance. The <b>lower half</b> (v &lt; 0) is where x &lt; 0 &mdash; <b>capacitive</b> reactance. The real axis itself (v = 0) is purely resistive. Three landmark points worth memorising: the centre (1,0 in normalised z, i.e. Z = Z&#8320;) is a perfect match; the rightmost point (r = &infin;) is an open circuit; the leftmost point (r = 0) is a short circuit.</p>
+
+    <h3>Scope &amp; simplifications</h3>
+    <p class="note">This tool assumes lossless transmission lines (no attenuation constant &alpha;) for the rotation model in Tab 2, which is the standard textbook Smith-chart assumption and matches how the chart is used for matching-network design in practice. Real lines have some loss, which causes the |&Gamma;| circle to spiral very slightly inward as you move toward the generator rather than staying perfectly circular &mdash; a second-order effect not modelled here. For production RF matching work, cross-check final designs against a full linear circuit simulator (e.g. an S-parameter/ABCD-matrix tool) that accounts for dielectric and conductor losses, dispersion, and component parasitics.</p>
+  </div>
+</div>
+
+<footer>Apna Electromechanic Service &mdash; Engineering Tools Suite &nbsp;|&nbsp; Smith Chart Interactive Simulator &nbsp;|&nbsp; Educational reference tool, not a certified RF design instrument</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- complex number helpers ---------------- */
+function cAdd(a,b){return {re:a.re+b.re, im:a.im+b.im};}
+function cSub(a,b){return {re:a.re-b.re, im:a.im-b.im};}
+function cMul(a,b){return {re:a.re*b.re-a.im*b.im, im:a.re*b.im+a.im*b.re};}
+function cDiv(a,b){const d=b.re*b.re+b.im*b.im; if(d===0) return {re:NaN,im:NaN}; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d};}
+function cAbs(a){return Math.sqrt(a.re*a.re+a.im*a.im);}
+function cAngle(a){return Math.atan2(a.im,a.re);}
+function cExpJ(theta){return {re:Math.cos(theta), im:Math.sin(theta)};}
+const ONE = {re:1,im:0};
+
+function zToGamma(z){ return cDiv(cSub(z,ONE), cAdd(z,ONE)); }
+function gammaToZ(g){
+  const denom = cSub(ONE,g);
+  if(Math.abs(denom.re)<1e-9 && Math.abs(denom.im)<1e-9) return {re:1e9,im:0}; // near open circuit
+  return cDiv(cAdd(ONE,g), denom);
+}
+
+/* ---------------- shared HiDPI-safe canvas resize ---------------- */
+function resizeCanvas(cv){
+  const ratio = window.devicePixelRatio||1;
+  if(cv.dataset.cssHeight===undefined) cv.dataset.cssHeight = cv.getAttribute('height');
+  const w = cv.clientWidth||cv.parentElement.clientWidth;
+  const h = parseInt(cv.dataset.cssHeight);
+  cv.style.width = w+'px';
+  cv.style.height = h+'px';
+  cv.width = Math.round(w*ratio); cv.height = Math.round(h*ratio);
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(ratio,0,0,ratio,0,0);
+  return {w,h};
+}
+
+/* ---------------- tab switching with per-tab redraw hooks ---------------- */
+const tabs = document.querySelectorAll('nav.tabs button');
+const panels = document.querySelectorAll('.panel');
+let activeTabName = 'chart';
+const onTabShown = {};
+tabs.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    tabs.forEach(b=>b.classList.remove('active'));
+    panels.forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    activeTabName = btn.dataset.tab;
+    if(onTabShown[activeTabName]) onTabShown[activeTabName]();
+  });
+});
+window.addEventListener('resize', ()=>{
+  if(onTabShown[activeTabName]) onTabShown[activeTabName]();
+});
+
+function fmtOhm(v){
+  if(!isFinite(v)) return '&infin;';
+  const av=Math.abs(v);
+  if(av>=1000) return (v/1000).toFixed(2)+' k&#8486;';
+  return v.toFixed(1)+' &#8486;';
+}
+function fmtSiemens(v){
+  if(!isFinite(v)) return '0 mS';
+  return (v*1000).toFixed(2)+' mS';
+}
+
+/* =========================================================================
+   SHARED SMITH GRID DRAWER
+   ========================================================================= */
+const R_CIRCLES = [0, 0.2, 0.5, 1, 2, 3, 5, 10, 20];
+const X_ARCS    = [0.2, 0.5, 1, 2, 3, 5, 10, 20];
+
+function drawSmithGrid(ctx, cx, cy, R, opts){
+  opts = opts||{};
+  const showR = opts.showR!==false;
+  const showX = opts.showX!==false;
+  const gridAlpha = opts.gridAlpha!==undefined? opts.gridAlpha : 0.55;
+  const rColor = opts.rColor || 'rgba(120,170,220,'+gridAlpha+')';
+  const xColor = opts.xColor || 'rgba(120,170,220,'+gridAlpha+')';
+
+  ctx.save();
+  // clip to unit circle so arcs never spill outside
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.clip();
+
+  if(showR){
+    R_CIRCLES.forEach(r=>{
+      const ccx = cx + (r/(1+r))*R;
+      const rad = (1/(1+r))*R;
+      ctx.beginPath();
+      ctx.strokeStyle = rColor;
+      ctx.lineWidth = r===1? 1.6 : 1;
+      ctx.arc(ccx, cy, rad, 0, Math.PI*2);
+      ctx.stroke();
+    });
+  }
+  if(showX){
+    X_ARCS.forEach(x=>{
+      [1,-1].forEach(sign=>{
+        const xv = x*sign;
+        const ccx = cx + R;
+        const ccy = cy - (1/xv)*R;
+        const rad = Math.abs(1/xv)*R;
+        ctx.beginPath();
+        ctx.strokeStyle = xColor;
+        ctx.lineWidth = x===1? 1.6 : 1;
+        ctx.arc(ccx, ccy, rad, 0, Math.PI*2);
+        ctx.stroke();
+      });
+    });
+    // x = 0 line (real axis)
+    ctx.beginPath();
+    ctx.strokeStyle = xColor;
+    ctx.lineWidth = 1;
+    ctx.moveTo(cx-R,cy); ctx.lineTo(cx+R,cy);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // outer boundary
+  ctx.beginPath();
+  ctx.strokeStyle = opts.boundaryColor || 'rgba(180,210,240,0.85)';
+  ctx.lineWidth = 1.8;
+  ctx.arc(cx,cy,R,0,Math.PI*2);
+  ctx.stroke();
+
+  if(opts.labels!==false){
+    ctx.fillStyle='rgba(160,190,220,0.7)';
+    ctx.font='9.5px monospace';
+    ctx.textAlign='center';
+    R_CIRCLES.forEach(r=>{
+      if(r===0) return;
+      const px = cx + (r/(1+r))*R*2 - cx; // point where circle crosses real axis (right side)
+      const labelX = cx + ((2*r/(1+r)) - (r/(1+r)))*R; // = cx + (r/(1+r))*R (right intersection)
+      ctx.fillText(r>=1? r.toFixed(0):r.toFixed(1), cx + (r/(1+r))*R*0 + cx*0 + (r/(1+r))*R, cy-4);
+    });
+  }
+
+  // key landmark points
+  if(opts.landmarks!==false){
+    const pts = [
+      {z:{re:0,im:0}, label:'SHORT', color:'#ff5c6c', dx:14, dy:0},
+      {z:{re:1e9,im:0}, label:'OPEN', color:'#5cff9d', dx:-30, dy:0},
+      {z:{re:1,im:0}, label:'MATCH', color:'#ffb648', dx:0, dy:16}
+    ];
+    pts.forEach(p=>{
+      const g = zToGamma(p.z);
+      const px = cx+g.re*R, py = cy-g.im*R;
+      ctx.beginPath(); ctx.fillStyle=p.color; ctx.arc(px,py,3.5,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=p.color; ctx.font='9px monospace'; ctx.textAlign='center';
+      ctx.fillText(p.label, px+p.dx*0.6, py+ (p.dy||12) + (p.dy?0:12));
+    });
+  }
+}
+
+/* Peripheral scale ring (degrees of \u0393, and wavelengths-toward-generator/load) \u2014
+   the ring of numbers printed around the rim of a professional paper Smith chart.
+   Convention: 0\u03bb (both WTG and WTL) is placed at the leftmost point (\u0393 angle = 180\u00b0);
+   WTG increases clockwise (toward generator), WTL increases counter-clockwise (toward load).
+   A useful cross-check when reading a real chart: WTG + WTL = 0.5 at every point. */
+function angleToWTG(deg){
+  let v = ((180-deg)%360+360)%360; // 0..360
+  return v/720; // 0..0.5
+}
+function drawPeripheralScale(ctx, cx, cy, R){
+  const tickR1 = R*1.015, tickR2 = R*1.055;
+  const labelRDeg = R*1.10;
+  const labelRWtg = R*1.225;
+  const labelRWtl = R*1.34;
+
+  ctx.save();
+  ctx.font='9px monospace';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+
+  // tick marks every 10deg, small ticks
+  for(let d=-180; d<180; d+=10){
+    const rad = d*Math.PI/180;
+    const x1=cx+Math.cos(rad)*tickR1, y1=cy-Math.sin(rad)*tickR1;
+    const isMajor = d%30===0;
+    const x2=cx+Math.cos(rad)*(isMajor?tickR2:R*1.03), y2=cy-Math.sin(rad)*(isMajor?tickR2:R*1.03);
+    ctx.strokeStyle = isMajor? 'rgba(200,225,245,0.75)' : 'rgba(150,180,210,0.4)';
+    ctx.lineWidth = isMajor?1.2:0.7;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  }
+  // degree labels every 30deg
+  for(let d=-180; d<180; d+=30){
+    const rad = d*Math.PI/180;
+    const lx=cx+Math.cos(rad)*labelRDeg, ly=cy-Math.sin(rad)*labelRDeg;
+    ctx.fillStyle='rgba(210,230,248,0.9)';
+    ctx.fillText(d+'\u00b0', lx, ly);
+  }
+  // WTG scale (green, clockwise from left point) every 0.05lambda
+  ctx.fillStyle='rgba(92,255,157,0.9)';
+  for(let d=180; d>-180; d-=36){
+    const rad = d*Math.PI/180;
+    const wtg = angleToWTG(d);
+    const lx=cx+Math.cos(rad)*labelRWtg, ly=cy-Math.sin(rad)*labelRWtg;
+    ctx.fillText(wtg.toFixed(2), lx, ly);
+  }
+  // WTL scale (amber, counter-clockwise from left point) = 0.5 - WTG, every 0.05lambda
+  ctx.fillStyle='rgba(255,182,72,0.85)';
+  for(let d=180; d>-180; d-=36){
+    const rad = d*Math.PI/180;
+    const wtl = (0.5 - angleToWTG(d) + 0.5)%0.5;
+    const lx=cx+Math.cos(rad)*labelRWtl, ly=cy-Math.sin(rad)*labelRWtl;
+    ctx.fillText(wtl.toFixed(2), lx, ly);
+  }
+  ctx.restore();
+}
+
+function plotPoint(ctx, cx, cy, R, gamma, color, label){
+  const px = cx+gamma.re*R, py = cy-gamma.im*R;
+  ctx.beginPath();
+  ctx.fillStyle = color;
+  ctx.shadowColor = color; ctx.shadowBlur = 12;
+  ctx.arc(px,py,6,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='#050b16'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(px,py,6,0,Math.PI*2); ctx.stroke();
+  if(label){
+    ctx.fillStyle=color; ctx.font='bold 11px monospace'; ctx.textAlign='left';
+    ctx.fillText(label, px+10, py-8);
+  }
+  return {px,py};
+}
+
+/* =========================================================================
+   TAB 1: CHART & POINT EXPLORER
+   ========================================================================= */
+const cvChart = document.getElementById('cv-chart');
+let dimChart = resizeCanvas(cvChart);
+onTabShown['chart'] = ()=>{ dimChart = resizeCanvas(cvChart); drawChartTab(); };
+
+const selZ0 = document.getElementById('sel-z0');
+const numZ0Custom = document.getElementById('num-z0-custom');
+const slR = document.getElementById('sl-r');
+const slX = document.getElementById('sl-x');
+const chkAdmittance = document.getElementById('chk-admittance');
+
+function getZ0(){
+  if(selZ0.value==='custom') return Math.max(1, +numZ0Custom.value||50);
+  return +selZ0.value;
+}
+selZ0.addEventListener('change', ()=>{
+  numZ0Custom.style.display = selZ0.value==='custom' ? 'block':'none';
+  drawChartTab();
+});
+numZ0Custom.addEventListener('input', drawChartTab);
+
+// sliders map 0-1000 to 0-1000 ohm (r) and -1000..1000 ohm (x), linear for simplicity/precision
+function sliderR(){ return (+slR.value); }
+function sliderX(){ return (+slX.value); }
+
+[slR,slX].forEach(el=>el.addEventListener('input', drawChartTab));
+chkAdmittance.addEventListener('change', drawChartTab);
+document.getElementById('chk-peripheral').addEventListener('change', drawChartTab);
+
+document.querySelectorAll('#panel-chart [data-preset]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const z0 = getZ0();
+    const preset = btn.dataset.preset;
+    if(preset==='matched'){ slR.value=z0; slX.value=0; }
+    else if(preset==='short'){ slR.value=0; slX.value=0; }
+    else if(preset==='open'){ slR.value=1000; slX.value=0; }
+    else if(preset==='halfz0'){ slR.value=z0/2; slX.value=0; }
+    else if(preset==='doublez0'){ slR.value=Math.min(1000,z0*2); slX.value=0; }
+    else if(preset==='inductive'){ slR.value=z0; slX.value=z0; }
+    else if(preset==='capacitive'){ slR.value=z0; slX.value=-z0; }
+    drawChartTab();
+  });
+});
+
+function drawChartTab(){
+  if(activeTabName!=='chart') return;
+  const {w,h} = dimChart;
+  const ctx = cvChart.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  const cx = w/2, cy = h/2;
+  const showPeripheral = document.getElementById('chk-peripheral').checked;
+  const Rpx = Math.min(w,h) * (showPeripheral ? 0.335 : 0.44);
+
+  drawSmithGrid(ctx, cx, cy, Rpx, {});
+  if(showPeripheral) drawPeripheralScale(ctx, cx, cy, Rpx);
+
+  const z0 = getZ0();
+  const Rload = sliderR(), Xload = sliderX();
+  document.getElementById('lbl-r').innerHTML = fmtOhm(Rload);
+  document.getElementById('lbl-x').innerHTML = (Xload>=0?'+':'')+fmtOhm(Xload);
+
+  const Z = {re:Rload, im:Xload};
+  const z = {re:Z.re/z0, im:Z.im/z0};
+  const gamma = zToGamma(z);
+  const gAbs = cAbs(gamma);
+  const gAng = cAngle(gamma)*180/Math.PI;
+  const vswr = gAbs>=0.9995 ? Infinity : (1+gAbs)/(1-gAbs);
+  const rl = gAbs<=1e-6 ? Infinity : -20*Math.log10(gAbs);
+  const mismatch = -10*Math.log10(Math.max(1e-9,1-gAbs*gAbs));
+
+  plotPoint(ctx, cx, cy, Rpx, gamma, '#33e0ff', 'Z');
+
+  if(chkAdmittance.checked){
+    const gammaY = {re:-gamma.re, im:-gamma.im};
+    plotPoint(ctx, cx, cy, Rpx, gammaY, '#ffb648', 'Y');
+    ctx.beginPath();
+    ctx.strokeStyle='rgba(255,182,72,0.4)'; ctx.setLineDash([3,3]);
+    ctx.moveTo(cx+gamma.re*Rpx, cy-gamma.im*Rpx);
+    ctx.lineTo(cx+gammaY.re*Rpx, cy-gammaY.im*Rpx);
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  document.getElementById('ro-gamma-rect').innerHTML = gamma.re.toFixed(3)+(gamma.im>=0?'+':'')+gamma.im.toFixed(3)+'j';
+  document.getElementById('ro-gamma-polar').innerHTML = gAbs.toFixed(3)+' &ang; '+gAng.toFixed(1)+'&deg;';
+  document.getElementById('ro-vswr').textContent = isFinite(vswr)? vswr.toFixed(2)+':1' : '&infin;';
+  document.getElementById('ro-rl').innerHTML = isFinite(rl)? rl.toFixed(1)+' dB' : '0 dB';
+  document.getElementById('ro-zin').innerHTML = Rload.toFixed(1)+(Xload>=0?'+j':'-j')+Math.abs(Xload).toFixed(1)+' &#8486;';
+  const Y = cDiv(ONE, cMul(Z,ONE)); // Y = 1/Z (Z as complex)
+  const Ycomplex = cDiv({re:1,im:0}, Z.re===0&&Z.im===0? {re:1e-9,im:0}:Z);
+  document.getElementById('ro-yin').innerHTML = (Ycomplex.re*1000).toFixed(2)+(Ycomplex.im>=0?'+j':'-j')+Math.abs(Ycomplex.im*1000).toFixed(2)+' mS';
+  document.getElementById('ro-mismatch').innerHTML = mismatch.toFixed(2)+' dB';
+  document.getElementById('ro-region').textContent = Math.abs(Xload)<1e-6 ? 'Resistive (real axis)' : (Xload>0? 'Inductive (upper half)':'Capacitive (lower half)');
+}
+drawChartTab();
+
+/* draggable point on tab 1 */
+(function(){
+  let dragging=false;
+  function pixelToGamma(px,py,cx,cy,Rpx){
+    let u=(px-cx)/Rpx, v=-(py-cy)/Rpx;
+    const m = Math.sqrt(u*u+v*v);
+    if(m>0.999){ u*=0.999/m; v*=0.999/m; }
+    return {re:u,im:v};
+  }
+  function handle(clientX, clientY){
+    const rect = cvChart.getBoundingClientRect();
+    const {w,h} = dimChart;
+    const cx=w/2, cy=h/2, Rpx=Math.min(w,h)*0.44;
+    const px = clientX-rect.left, py = clientY-rect.top;
+    const gamma = pixelToGamma(px,py,cx,cy,Rpx);
+    const z0 = getZ0();
+    const z = gammaToZ(gamma);
+    const Z = {re:z.re*z0, im:z.im*z0};
+    slR.value = Math.min(1000,Math.max(0,Z.re));
+    slX.value = Math.min(1000,Math.max(-1000,Z.im));
+    drawChartTab();
+  }
+  cvChart.addEventListener('mousedown', e=>{dragging=true; handle(e.clientX,e.clientY);});
+  window.addEventListener('mousemove', e=>{ if(dragging) handle(e.clientX,e.clientY); });
+  window.addEventListener('mouseup', ()=>{dragging=false;});
+  cvChart.addEventListener('touchstart', e=>{dragging=true; const t=e.touches[0]; handle(t.clientX,t.clientY); e.preventDefault();}, {passive:false});
+  cvChart.addEventListener('touchmove', e=>{ if(dragging){ const t=e.touches[0]; handle(t.clientX,t.clientY); e.preventDefault();} }, {passive:false});
+  window.addEventListener('touchend', ()=>{dragging=false;});
+})();
+
+/* =========================================================================
+   TAB 2: TRANSMISSION LINE NAVIGATOR
+   ========================================================================= */
+const cvLine = document.getElementById('cv-line');
+let dimLine = resizeCanvas(cvLine);
+onTabShown['line'] = ()=>{ dimLine = resizeCanvas(cvLine); };
+
+const slLz0 = document.getElementById('sl-lz0');
+const slLr = document.getElementById('sl-lr');
+const slLx = document.getElementById('sl-lx');
+const slLen = document.getElementById('sl-len');
+const chkAnimateLine = document.getElementById('chk-animate-line');
+let lineDirection = 'gen';
+document.querySelectorAll('#panel-line [data-dir]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#panel-line [data-dir]').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    lineDirection = btn.dataset.dir;
+  });
+});
+
+function drawLineTab(){
+  if(activeTabName!=='line'){ requestAnimationFrame(drawLineTab); return; }
+  const {w,h} = dimLine;
+  const ctx = cvLine.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  const showPeripheralLine = document.getElementById('chk-peripheral-line').checked;
+  const cx=w/2, cy=h/2, Rpx=Math.min(w,h)*(showPeripheralLine?0.335:0.44);
+
+  drawSmithGrid(ctx, cx, cy, Rpx, {gridAlpha:0.35});
+  if(showPeripheralLine) drawPeripheralScale(ctx, cx, cy, Rpx);
+
+  const z0 = +slLz0.value;
+  const Rl = +slLr.value/10, Xl = +slLx.value/10; // scaled sliders to give finer 0.1 ohm steps within same range feel
+  document.getElementById('lbl-lz0').textContent = z0+' \u2126';
+  document.getElementById('lbl-lr').innerHTML = fmtOhm(Rl);
+  document.getElementById('lbl-lx').innerHTML = (Xl>=0?'+':'')+fmtOhm(Xl);
+
+  if(chkAnimateLine.checked){
+    let v = (+slLen.value + 1) % 501;
+    slLen.value = v;
+  }
+  const lOverLambda = (+slLen.value/1000); // 0 to 0.5
+
+  const Zl = {re:Rl, im:Xl};
+  const zl = {re:Zl.re/z0, im:Zl.im/z0};
+  const gammaL = zToGamma(zl);
+  const gAbs = cAbs(gammaL);
+
+  document.getElementById('lbl-len').textContent = lOverLambda.toFixed(3);
+
+  const sign = lineDirection==='gen'? -1 : 1;
+  const theta = sign*4*Math.PI*lOverLambda;
+  const gammaAtL = cMul(gammaL, cExpJ(theta));
+  const zAtL = gammaToZ(gammaAtL);
+  const ZAtL = {re:zAtL.re*z0, im:zAtL.im*z0};
+
+  // draw constant-VSWR circle (dotted)
+  ctx.beginPath();
+  ctx.strokeStyle='rgba(92,255,157,0.55)';
+  ctx.setLineDash([4,3]);
+  ctx.lineWidth=1.3;
+  ctx.arc(cx,cy,gAbs*Rpx,0,Math.PI*2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // trail arc from start (gammaL) to current position
+  const angStart = cAngle(gammaL);
+  const angNow = cAngle(gammaAtL);
+  ctx.beginPath();
+  ctx.strokeStyle='rgba(255,182,72,0.8)';
+  ctx.lineWidth=2.4;
+  // canvas angles are measured with y-down; our gamma.im maps to -py, so convert
+  const a0 = -angStart, a1 = -angNow;
+  const anticlockwise = sign>0; // toward load rotates gamma angle positively (theta>0) -> in canvas (y flipped) draw accordingly
+  ctx.arc(cx,cy,gAbs*Rpx, a0, a1, sign>0);
+  ctx.stroke();
+
+  plotPoint(ctx, cx, cy, Rpx, gammaL, 'rgba(92,255,157,0.9)', 'Load');
+  plotPoint(ctx, cx, cy, Rpx, gammaAtL, '#ffb648', 'Z(l)');
+
+  const vswr = gAbs>=0.9995? Infinity : (1+gAbs)/(1-gAbs);
+  document.getElementById('ro-line-z').innerHTML = ZAtL.re.toFixed(1)+(ZAtL.im>=0?'+j':'-j')+Math.abs(ZAtL.im).toFixed(1)+' \u03a9';
+  document.getElementById('ro-line-gamma').innerHTML = gammaAtL.re.toFixed(3)+(gammaAtL.im>=0?'+':'')+gammaAtL.im.toFixed(3)+'j';
+  document.getElementById('ro-line-vswr').textContent = isFinite(vswr)? vswr.toFixed(2)+':1' : '\u221e';
+
+  // distance to next Vmax/Vmin, measured toward generator from the LOAD reference plane (standard convention)
+  const angL = cAngle(gammaL); // radians, load's own angle
+  let dVmax = ((-angL)/(4*Math.PI)) % 0.5; if(dVmax<0) dVmax+=0.5;
+  let dVmin = dVmax + 0.25; if(dVmin>=0.5) dVmin-=0.5;
+  document.getElementById('ro-line-vmax').textContent = dVmax.toFixed(3)+' \u03bb';
+  document.getElementById('ro-line-vmin').textContent = dVmin.toFixed(3)+' \u03bb';
+
+  requestAnimationFrame(drawLineTab);
+}
+[slLz0,slLr,slLx,slLen].forEach(el=>el.addEventListener('input', ()=>{}));
+requestAnimationFrame(drawLineTab);
+
+/* =========================================================================
+   TAB 3: GUIDE
+   ========================================================================= */
+const cvGuide = document.getElementById('cv-guide');
+let dimGuide = resizeCanvas(cvGuide);
+onTabShown['guide'] = ()=>{ dimGuide = resizeCanvas(cvGuide); drawGuide(); };
+
+const guideSteps = [
+  {
+    title:'1. The outer circle is the |\u0393| = 1 boundary',
+    text:'Every point inside (and on) this circle represents a possible normalised impedance. The centre is a perfect match. The rim is total reflection \u2014 any purely reactive, open, or short-circuit load lands exactly on it.',
+    opts:{showR:false, showX:false, landmarks:true, labels:false}
+  },
+  {
+    title:'2. Constant-resistance circles',
+    text:'Each circle here is every impedance sharing the same real part R, normalised to Z\u2080. The r=1 circle (the biggest one passing through the centre) is especially important \u2014 it\u2019s where R equals the system impedance, a common target when matching.',
+    opts:{showR:true, showX:false, landmarks:true, labels:true}
+  },
+  {
+    title:'3. Constant-reactance arcs',
+    text:'These arcs are every impedance sharing the same reactance X. Arcs curving upward (above the horizontal centre line) are positive/inductive reactance; arcs curving downward are negative/capacitive reactance. All of them pass through the rightmost point (open circuit).',
+    opts:{showR:false, showX:true, landmarks:true, labels:false}
+  },
+  {
+    title:'4. Reading any point: intersect one circle + one arc',
+    text:'Any impedance is the unique intersection of one constant-R circle and one constant-X arc. To read a point\u2019s impedance, find which R circle it sits on and which X arc it sits on, then read off both labels.',
+    opts:{showR:true, showX:true, landmarks:true, labels:true}
+  },
+  {
+    title:'5. Three landmark points to memorise',
+    text:'SHORT CIRCUIT (Z=0) sits at the far left of the real axis. OPEN CIRCUIT (Z=\u221e) sits at the far right. MATCHED (Z=Z\u2080) sits exactly at the centre. Every real matching problem is really about moving your load\u2019s point toward that centre.',
+    opts:{showR:true, showX:true, landmarks:true, labels:true}
+  },
+  {
+    title:'6. Concentric circles = constant VSWR',
+    text:'Any circle centred on the chart\u2019s centre (not to be confused with the constant-R circles, which are centred elsewhere) represents constant |\u0393|, and therefore constant VSWR. This is exactly the path a lossless transmission line traces as you move along it \u2014 see Tab 2.',
+    opts:{showR:true, showX:true, landmarks:true, labels:true, showVswrDemo:true}
+  }
+];
+let guideIdx = 0;
+const guideStepsEl = document.getElementById('guide-steps');
+guideSteps.forEach((s,i)=>{
+  const b=document.createElement('button');
+  b.textContent = s.title;
+  b.addEventListener('click', ()=>{guideIdx=i; renderGuideStep();});
+  guideStepsEl.appendChild(b);
+});
+function renderGuideStep(){
+  document.querySelectorAll('#guide-steps button').forEach((b,i)=>b.classList.toggle('on', i===guideIdx));
+  document.getElementById('guide-title').textContent = guideSteps[guideIdx].title;
+  document.getElementById('guide-text').textContent = guideSteps[guideIdx].text;
+  drawGuide();
+}
+function drawGuide(){
+  if(activeTabName!=='guide') return;
+  const {w,h} = dimGuide;
+  const ctx = cvGuide.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  const cx=w/2, cy=h/2, Rpx=Math.min(w,h)*0.44;
+  const opts = guideSteps[guideIdx].opts;
+  drawSmithGrid(ctx, cx, cy, Rpx, opts);
+  if(opts.showVswrDemo){
+    const g = {re:0.4, im:0.25};
+    ctx.beginPath();
+    ctx.strokeStyle='rgba(51,224,255,0.85)'; ctx.setLineDash([4,3]); ctx.lineWidth=1.6;
+    ctx.arc(cx,cy,cAbs(g)*Rpx,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    plotPoint(ctx,cx,cy,Rpx,g,'#33e0ff','example load');
+  }
+}
+renderGuideStep();
+
+document.addEventListener('visibilitychange', ()=>{});
+
+})();
+</script>
+</body>
+</html>
