@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial Communication Cable Noise & Grounding Simulator</title>
+    <!-- Tailwind CSS for modern responsive UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        industrial: {
+                            50: '#f4f6f8',
+                            100: '#e5e9f0',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            accent: '#0284c7',
+                            warning: '#eab308',
+                            danger: '#ef4444',
+                            success: '#22c55e'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles for canvas, glow effects, and interactive sliders */
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            user-select: none;
+        }
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            background: #090d16;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+        .glow-cyan { filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.6)); }
+        .glow-amber { filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.6)); }
+        .glow-red { filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6)); }
+        .glow-green { filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.6)); }
+        
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Oscilloscope grid background */
+        .osc-grid {
+            background-size: 25px 25px;
+            background-image: 
+                linear-gradient(to right, rgba(51, 65, 85, 0.3) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(51, 65, 85, 0.3) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col transition-colors duration-200">
+
+    <!-- Top Application Bar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50 shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-sky-600/20 text-sky-400 rounded-lg border border-sky-500/30">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-white tracking-wide">Industrial EMI & Cable Grounding Simulator</h1>
+                <p class="text-xs text-slate-400">Interactive Cable Shielding, Twisted Pair & Ground Loop Analyzer</p>
+            </div>
+        </div>
+
+        <!-- System Controls -->
+        <div class="flex items-center space-x-2 sm:space-x-4 text-xs sm:text-sm">
+            <!-- Mode Toggle -->
+            <button id="btn-mode" onclick="toggleMode()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center space-x-1 transition">
+                <span id="mode-icon">🎓</span>
+                <span id="mode-label">Beginner Mode</span>
+            </button>
+
+            <!-- Play / Pause -->
+            <button id="btn-play" onclick="togglePlayPause()" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/40 flex items-center space-x-1 font-semibold transition">
+                <span id="play-icon">⏸ Pause</span>
+            </button>
+
+            <!-- Speed Control -->
+            <div class="hidden sm:flex items-center space-x-2 bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">
+                <span class="text-slate-400 text-xs">Speed:</span>
+                <input type="range" id="sim-speed" min="0.2" max="2.0" step="0.2" value="1.0" oninput="updateSpeed(this.value)" class="w-16 accent-sky-500 cursor-pointer">
+                <span id="speed-val" class="text-sky-400 text-xs w-8">1.0x</span>
+            </div>
+
+            <!-- Theme Toggle -->
+            <button onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition" title="Toggle Light/Dark Theme">
+                <span id="theme-icon">🌙</span>
+            </button>
+
+            <!-- Global Reset -->
+            <button onclick="resetCurrentModule()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition" title="Reset Current Module">
+                🔄
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- Sidebar Navigation Menu -->
+        <aside class="w-full md:w-72 bg-slate-900/90 border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto max-h-[40vh] md:max-h-none">
+            <div class="p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                Learning Modules
+            </div>
+            <nav class="p-2 space-y-1 text-xs font-medium" id="module-menu">
+                <button onclick="switchModule(0)" class="nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 bg-sky-600/20 text-sky-300 border border-sky-500/30">
+                    <span>⚡</span> <span>1. Electrical Noise Signal</span>
+                </button>
+                <button onclick="switchModule(1)" class="nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+                    <span>🏭</span> <span>2. Noise Sources Panel</span>
+                </button>
+                <button onclick="switchModule(2)" class="nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+                    <span>🧲</span> <span>3. Inductive Coupling (B-Field)</span>
+                </button>
+                <button onclick="switchModule(3)" class="nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+                    <span>🔋</span> <span>4. Capacitive Coupling (E-Field)</span>
+                </button>
+                <button onclick="switchModule(4)" class="nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+                    <span>🌀</span> <span>5. Twisted Pair Rejection</span>
+                </button>
+                <button onclick="switchModule(5)" class="nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+                    <span>🛡️</span> <span>6. Cable Shielding & Cross-Sec</span>
+                </button>
+                <button onclick="switchModule(6)" class="nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200 font-semibold text-amber-400">
+                    <span>🔌</span> <span>7. Shield Grounding & Loop</span>
+                </button>
+                <button onclick="switchModule(7)" class="nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+                    <span>📡</span> <span>8. RS485 & Cable Routing</span>
+                </button>
+                <button onclick="switchModule(8)" class="nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+                    <span>🛠️</span> <span>9. Industrial Troubleshooting</span>
+                </button>
+                <button onclick="switchModule(9)" class="nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+                    <span>📝</span> <span>10. Interactive Quiz & Standards</span>
+                </button>
+            </nav>
+
+            <div class="mt-auto p-3 border-t border-slate-800 text-[11px] text-slate-500">
+                <p>Status: <span class="text-emerald-400">Offline Simulation Engine Active</span></p>
+                <p class="mt-1">Standards: IEC 61000-5-2 / TIA-485-A</p>
+            </div>
+        </aside>
+
+        <!-- Dynamic Interactive Area -->
+        <main class="flex-1 p-4 overflow-y-auto space-y-4 flex flex-col">
+            
+            <!-- Module Title & Quick Info Banner -->
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                    <h2 id="module-title" class="text-lg font-bold text-sky-400 flex items-center gap-2">
+                        1. Electrical Noise & Signal Distortion
+                    </h2>
+                    <p id="module-desc" class="text-xs text-slate-400 mt-0.5">
+                        Observe how Electromagnetic Interference (EMI) corrupts clean differential communication signals.
+                    </p>
+                </div>
+                <div id="module-badge" class="px-2.5 py-1 text-xs rounded-md bg-slate-800 text-slate-300 font-mono border border-slate-700">
+                    Mode: Signal Analysis
+                </div>
+            </div>
+
+            <!-- Primary Interactive Canvas & Visualizer Container -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
+                
+                <!-- Center Interactive Animation Screen (2 Cols on Large) -->
+                <div class="lg:col-span-2 flex flex-col space-y-3">
+                    <div class="canvas-container flex-1 min-h-[340px] border border-slate-800 flex flex-col relative">
+                        <!-- Canvas Header Overlay -->
+                        <div class="absolute top-2 left-3 z-10 text-[11px] font-mono text-slate-400 flex items-center space-x-3 bg-slate-900/80 px-2.5 py-1 rounded backdrop-blur">
+                            <span class="flex items-center space-x-1"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>Live Physics Animation</span></span>
+                            <span id="canvas-status">Visualizing Waveforms</span>
+                        </div>
+
+                        <!-- Canvas HTML Element -->
+                        <canvas id="mainCanvas" class="w-full h-full block cursor-pointer"></canvas>
+                        
+                        <!-- Overlay Legend / Interactive Tips -->
+                        <div id="canvas-overlay-tip" class="absolute bottom-2 right-3 z-10 text-[11px] bg-slate-900/90 text-slate-300 px-3 py-1 rounded border border-slate-700 backdrop-blur">
+                            💡 Tip: Click & drag the red EMI source to move it near or far from the cable wires!
+                        </div>
+                    </div>
+
+                    <!-- Real-time Oscilloscope Sub-Panel -->
+                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 flex flex-col space-y-2">
+                        <div class="flex items-center justify-between text-xs font-mono text-slate-300">
+                            <span class="flex items-center gap-1.5"><span class="text-emerald-400 font-bold">📊 Real-Time Oscilloscope</span> (Ch1: Tx+ | Ch2: Tx- | Ch3: Noise | Ch4: Differential Rx)</span>
+                            <div class="flex items-center space-x-2 text-[11px]">
+                                <span class="text-sky-400">■ Signal</span>
+                                <span class="text-amber-400">■ Noise</span>
+                                <span class="text-emerald-400">■ Filtered Rx</span>
+                            </div>
+                        </div>
+                        <div class="h-28 bg-slate-950 rounded-lg osc-grid border border-slate-800 relative overflow-hidden">
+                            <canvas id="oscCanvas" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side Parameter Controls & Real-Time Metrics -->
+                <div class="flex flex-col space-y-4">
+                    
+                    <!-- Dynamic Control Panel -->
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-4">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                            <span>Interactive Parameters</span>
+                            <span class="text-[10px] bg-sky-950 text-sky-400 px-2 py-0.5 rounded border border-sky-800">Live Feedback</span>
+                        </h3>
+
+                        <!-- Controls Container dynamically populated by JS -->
+                        <div id="controls-container" class="space-y-3">
+                            <!-- Injected by JavaScript based on active module -->
+                        </div>
+                    </div>
+
+                    <!-- Real-time Measurements Panel -->
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Engineered Metrics</h3>
+                        <div id="metrics-container" class="grid grid-cols-2 gap-2 text-xs font-mono">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Educational Guidance & Standards Notes Box -->
+                    <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 space-y-2 flex-1">
+                        <h3 class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                            <span>💡 Engineering Insight</span>
+                        </h3>
+                        <div id="educational-notes" class="text-xs text-slate-300 space-y-2 leading-relaxed">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Global State Object
+        const state = {
+            currentModule: 0,
+            isPlaying: true,
+            speed: 1.0,
+            isDark: true,
+            isExpert: false,
+            time: 0,
+            
+            // Parameters for Module 0: Electrical Noise Signal (Includes Draggable EMI Coordinates)
+            mod0: { emi: 3.5, rfi: 1.5, freq: 50, distance: 15, emiX: null, emiY: null, isDragging: false },
+            
+            // Parameters for Module 1: Sources of Noise
+            mod1: { selectedSource: 'VFD', loadCurrent: 40, switchingFreq: 8 },
+            
+            // Parameters for Module 2: Inductive Coupling
+            mod2: { current: 50, length: 20, distance: 10, freq: 60 },
+            
+            // Parameters for Module 3: Capacitive Coupling
+            mod3: { voltage: 480, spacing: 15, length: 30, freq: 400 },
+            
+            // Parameters for Module 4: Twisted Pair
+            mod4: { twistsPerMeter: 20, cableLength: 50, noiseSourceAmp: 10, distance: 10 },
+            
+            // Parameters for Module 5: Shielded Cable
+            mod5: { shieldType: 'foil_braid', emiLevel: 75, shieldGrounded: true },
+            
+            // Parameters for Module 6: Shield Grounding (CRITICAL MODULE)
+            mod6: { caseMode: 1, groundDiffV: 3.5, shieldRes: 0.5, hfNoise: 20 },
+            
+            // Parameters for Module 7: Cable Routing & RS485
+            mod7: { vfdDistance: 15, cableType: 'STP', baudRate: 9600, packetLoss: 0 },
+            
+            // Parameters for Module 8: Troubleshooting
+            mod8: { scenario: 0, fixGrounding: 0, fixRouting: 0, fixShield: 0, solved: false },
+            
+            // Parameters for Module 9: Quiz
+            mod9: { activeQuestion: 0, score: 0, answered: false }
+        };
+
+        // DOM Element Cache
+        let canvas, ctx, oscCanvas, oscCtx;
+        let animId = null;
+
+        // On Load Initialization
+        window.addEventListener('load', () => {
+            canvas = document.getElementById('mainCanvas');
+            ctx = canvas.getContext('2d');
+            oscCanvas = document.getElementById('oscCanvas');
+            oscCtx = oscCanvas.getContext('2d');
+
+            window.addEventListener('resize', resizeCanvases);
+            resizeCanvases();
+            initDragListeners();
+            
+            switchModule(0);
+            requestAnimationFrame(animateLoop);
+        });
+
+        function initDragListeners() {
+            function getCanvasCoords(e) {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
+            }
+
+            function onStart(e) {
+                if (state.currentModule !== 0) return;
+                const pos = getCanvasCoords(e);
+                const emiX = state.mod0.emiX || 120;
+                const emiY = state.mod0.emiY || 80;
+                const dist = Math.hypot(pos.x - emiX, pos.y - emiY);
+                
+                // Radius of 32px hit box around EMI source
+                if (dist <= 32) {
+                    state.mod0.isDragging = true;
+                    canvas.style.cursor = 'grabbing';
+                    e.preventDefault();
+                }
+            }
+
+            function onMove(e) {
+                if (state.currentModule !== 0) return;
+                const pos = getCanvasCoords(e);
+                const emiX = state.mod0.emiX || 120;
+                const emiY = state.mod0.emiY || 80;
+                const dist = Math.hypot(pos.x - emiX, pos.y - emiY);
+
+                if (!state.mod0.isDragging) {
+                    canvas.style.cursor = dist <= 32 ? 'grab' : 'pointer';
+                    return;
+                }
+
+                e.preventDefault();
+                // Clamp position within canvas boundary
+                state.mod0.emiX = Math.max(35, Math.min(canvas.width - 35, pos.x));
+                state.mod0.emiY = Math.max(35, Math.min(canvas.height - 35, pos.y));
+
+                // Calculate distance relative to wire center (y = height/2)
+                const wireCenterY = canvas.height / 2;
+                const perpDist = Math.abs(state.mod0.emiY - wireCenterY);
+                
+                // Map pixel distance to cm (2 cm to 50 cm)
+                const mappedCm = Math.round(Math.max(2, Math.min(50, perpDist / 3.5)));
+                state.mod0.distance = mappedCm;
+
+                // Sync UI Distance slider and value text
+                const distValEl = document.getElementById('v-dist');
+                const distInputEl = document.querySelector('input[oninput*="state.mod0.distance"]');
+                if (distValEl) distValEl.textContent = mappedCm + ' cm';
+                if (distInputEl) distInputEl.value = mappedCm;
+            }
+
+            function onEnd() {
+                if (state.mod0.isDragging) {
+                    state.mod0.isDragging = false;
+                    canvas.style.cursor = 'pointer';
+                }
+            }
+
+            canvas.addEventListener('mousedown', onStart);
+            canvas.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
+
+            canvas.addEventListener('touchstart', onStart, { passive: false });
+            canvas.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('touchend', onEnd);
+        }
+
+        function resizeCanvases() {
+            if (canvas && canvas.parentElement) {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight || 360;
+            }
+            if (oscCanvas && oscCanvas.parentElement) {
+                oscCanvas.width = oscCanvas.parentElement.clientWidth;
+                oscCanvas.height = oscCanvas.parentElement.clientHeight || 110;
+            }
+        }
+
+        function togglePlayPause() {
+            state.isPlaying = !state.isPlaying;
+            document.getElementById('play-icon').textContent = state.isPlaying ? '⏸ Pause' : '▶ Play';
+            document.getElementById('btn-play').className = state.isPlaying 
+                ? 'px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/40 flex items-center space-x-1 font-semibold transition'
+                : 'px-3 py-1.5 rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 border border-amber-500/40 flex items-center space-x-1 font-semibold transition';
+        }
+
+        function updateSpeed(val) {
+            state.speed = parseFloat(val);
+            document.getElementById('speed-val').textContent = val + 'x';
+        }
+
+        function toggleTheme() {
+            state.isDark = !state.isDark;
+            const html = document.documentElement;
+            if (state.isDark) {
+                html.classList.add('dark');
+                document.getElementById('theme-icon').textContent = '🌙';
+            } else {
+                html.classList.remove('dark');
+                document.getElementById('theme-icon').textContent = '☀️';
+            }
+        }
+
+        function toggleMode() {
+            state.isExpert = !state.isExpert;
+            document.getElementById('mode-label').textContent = state.isExpert ? 'Expert Mode' : 'Beginner Mode';
+            document.getElementById('mode-icon').textContent = state.isExpert ? '🔬' : '🎓';
+            updateControlsAndInfo();
+        }
+
+        function resetCurrentModule() {
+            state.time = 0;
+            if (state.currentModule === 0) state.mod0 = { emi: 3.5, rfi: 1.5, freq: 50, distance: 15 };
+            if (state.currentModule === 2) state.mod2 = { current: 50, length: 20, distance: 10, freq: 60 };
+            if (state.currentModule === 3) state.mod3 = { voltage: 480, spacing: 15, length: 30, freq: 400 };
+            if (state.currentModule === 4) state.mod4 = { twistsPerMeter: 20, cableLength: 50, noiseSourceAmp: 10, distance: 10 };
+            if (state.currentModule === 6) state.mod6 = { caseMode: 1, groundDiffV: 3.5, shieldRes: 0.5, hfNoise: 20 };
+            if (state.currentModule === 7) state.mod7 = { vfdDistance: 15, cableType: 'STP', baudRate: 9600, packetLoss: 0 };
+            updateControlsAndInfo();
+        }
+
+        function switchModule(idx) {
+            state.currentModule = idx;
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach((btn, i) => {
+                if (i === idx) {
+                    btn.className = 'nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 bg-sky-600/20 text-sky-300 border border-sky-500/30 font-semibold';
+                } else {
+                    btn.className = 'nav-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200';
+                }
+            });
+            updateControlsAndInfo();
+        }
+
+        const moduleMeta = [
+            { title: "1. Electrical Noise & Signal Distortion", desc: "Observe how Electromagnetic Interference (EMI) distorts clean differential communication signals." },
+            { title: "2. Noise Sources in Industrial Panels", desc: "Identify VFDs, motors, relays, and power lines radiating magnetic & electric fields." },
+            { title: "3. Inductive Coupling (Magnetic B-Field)", desc: "Current in power conductors induces noise voltage via Faraday's Law of Electromagnetic Induction." },
+            { title: "4. Capacitive Coupling (Electric E-Field)", desc: "High voltage gradients (dv/dt) transfer noise current across stray cable capacitance." },
+            { title: "5. Twisted Pair Noise Rejection Mechanics", desc: "See how alternating twist geometry cancels magnetically induced common-mode noise voltages." },
+            { title: "6. Shielded Cable Construction & Physics", desc: "Cross-section viewer comparing Foil, Braid, and Drainage wire absorbing EMI." },
+            { title: "7. Shield Grounding: 1-End vs 2-End vs Floating", desc: "Visualizing Ground Loop currents, circulating earth potential differences, and floating antennas." },
+            { title: "8. Industrial Cable Routing & RS485 Simulator", desc: "Drag cables near VFD drives and analyze CRC packet failures and retry overhead." },
+            { title: "9. Industrial Cable Troubleshooting Lab", desc: "Diagnose and rectify real-world PLC IO, analog fluctuation, and communication faults." },
+            { title: "10. Industrial Quiz & Standards Reference", desc: "Test your knowledge on IEC 61000-5-2, IEEE 518, and TIA-485-A installation standards." }
+        ];
+
+        function updateControlsAndInfo() {
+            const meta = moduleMeta[state.currentModule];
+            document.getElementById('module-title').textContent = meta.title;
+            document.getElementById('module-desc').textContent = meta.desc;
+
+            const ctrlsContainer = document.getElementById('controls-container');
+            const metricsContainer = document.getElementById('metrics-container');
+            const notesContainer = document.getElementById('educational-notes');
+
+            // Clear old elements
+            ctrlsContainer.innerHTML = '';
+            metricsContainer.innerHTML = '';
+            notesContainer.innerHTML = '';
+
+            // Inject Module-Specific Controls & Metrics
+            switch(state.currentModule) {
+                case 0: // Electrical Noise
+                    ctrlsContainer.innerHTML = `
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>EMI Amplitude:</span><span id="v-emi">${state.mod0.emi} V</span></div>
+                            <input type="range" min="0" max="10" step="0.5" value="${state.mod0.emi}" oninput="state.mod0.emi=parseFloat(this.value); document.getElementById('v-emi').textContent=this.value+' V';" class="w-full accent-sky-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>RFI Frequency:</span><span id="v-rfi">${state.mod0.freq} kHz</span></div>
+                            <input type="range" min="10" max="200" step="10" value="${state.mod0.freq}" oninput="state.mod0.freq=parseInt(this.value); document.getElementById('v-rfi').textContent=this.value+' kHz';" class="w-full accent-sky-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Source Distance:</span><span id="v-dist">${state.mod0.distance} cm</span></div>
+                            <input type="range" min="2" max="50" step="1" value="${state.mod0.distance}" oninput="state.mod0.distance=parseInt(this.value); document.getElementById('v-dist').textContent=this.value+' cm';" class="w-full accent-sky-500">
+                        </div>
+                    `;
+                    notesContainer.innerHTML = `
+                        <p><strong>Common Mode vs Differential:</strong> Communication uses twisted pairs carrying inverted signals (+V and -V). Differential receivers compute (V+ - V-), rejecting noise that affects both wires equally.</p>
+                        <p class="text-slate-400">Higher RFI frequency and closer physical proximity exponentially increase induced noise intensity.</p>
+                    `;
+                    break;
+
+                case 1: // Sources Panel
+                    ctrlsContainer.innerHTML = `
+                        <div>
+                            <label class="text-xs text-slate-300 block mb-1">Active Noise Source:</label>
+                            <select onchange="state.mod1.selectedSource=this.value;" class="w-full bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded p-1.5">
+                                <option value="VFD" ${state.mod1.selectedSource==='VFD'?'selected':''}>Variable Frequency Drive (VFD PWM)</option>
+                                <option value="Motor" ${state.mod1.selectedSource==='Motor'?'selected':''}>High Power AC Induction Motor</option>
+                                <option value="Relay" ${state.mod1.selectedSource==='Relay'?'selected':''}>Inductive Relay Coil Arcing</option>
+                                <option value="Transformer" ${state.mod1.selectedSource==='Transformer'?'selected':''}>Step-down Power Transformer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>VFD Switching Freq (Carrier):</span><span id="v-sw">${state.mod1.switchingFreq} kHz</span></div>
+                            <input type="range" min="2" max="16" step="1" value="${state.mod1.switchingFreq}" oninput="state.mod1.switchingFreq=parseInt(this.value); document.getElementById('v-sw').textContent=this.value+' kHz';" class="w-full accent-sky-500">
+                        </div>
+                    `;
+                    notesContainer.innerHTML = `
+                        <p><strong>VFD IGBT Switching:</strong> VFDs produce fast voltage rise times (high dv/dt), emitting strong radio frequency harmonics across 2 kHz - 16 kHz.</p>
+                    `;
+                    break;
+
+                case 2: // Inductive Coupling
+                    ctrlsContainer.innerHTML = `
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Power Cable Current (I):</span><span id="v-i">${state.mod2.current} A</span></div>
+                            <input type="range" min="5" max="200" step="5" value="${state.mod2.current}" oninput="state.mod2.current=parseInt(this.value); document.getElementById('v-i').textContent=this.value+' A';" class="w-full accent-sky-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Parallel Run Length:</span><span id="v-l">${state.mod2.length} m</span></div>
+                            <input type="range" min="1" max="100" step="5" value="${state.mod2.length}" oninput="state.mod2.length=parseInt(this.value); document.getElementById('v-l').textContent=this.value+' m';" class="w-full accent-sky-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Separation Distance (d):</span><span id="v-d">${state.mod2.distance} cm</span></div>
+                            <input type="range" min="2" max="50" step="1" value="${state.mod2.distance}" oninput="state.mod2.distance=parseInt(this.value); document.getElementById('v-d').textContent=this.value+' cm';" class="w-full accent-sky-500">
+                        </div>
+                    `;
+                    notesContainer.innerHTML = `
+                        <p><strong>Faraday's Law ($V_{ind} = -M \\cdot \\frac{di}{dt}$):</strong> Alternating magnetic flux lines expand around current-carrying power lines and cut through signal loops, inducing an unwanted noise voltage.</p>
+                    `;
+                    break;
+
+                case 4: // Twisted Pair
+                    ctrlsContainer.innerHTML = `
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Twists Per Meter:</span><span id="v-tw">${state.mod4.twistsPerMeter} /m</span></div>
+                            <input type="range" min="0" max="60" step="2" value="${state.mod4.twistsPerMeter}" oninput="state.mod4.twistsPerMeter=parseInt(this.value); document.getElementById('v-tw').textContent=this.value+' /m';" class="w-full accent-sky-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>External Noise Source:</span><span id="v-namp">${state.mod4.noiseSourceAmp} V</span></div>
+                            <input type="range" min="1" max="20" step="1" value="${state.mod4.noiseSourceAmp}" oninput="state.mod4.noiseSourceAmp=parseInt(this.value); document.getElementById('v-namp').textContent=this.value+' V';" class="w-full accent-sky-500">
+                        </div>
+                    `;
+                    notesContainer.innerHTML = `
+                        <p><strong>Twist Cancellation Principle:</strong> Each half-twist reverses conductor exposure relative to the magnetic field. Induced voltages in adjacent half-twists have opposite polarity (+V and -V) and cancel out.</p>
+                    `;
+                    break;
+
+                case 6: // Shield Grounding (CRITICAL MODULE)
+                    ctrlsContainer.innerHTML = `
+                        <div class="space-y-1.5">
+                            <label class="text-xs text-slate-300 font-semibold block">Grounding Architecture Case:</label>
+                            <button onclick="state.mod6.caseMode=1; updateControlsAndInfo();" class="w-full py-1.5 px-2 text-xs text-left rounded border ${state.mod6.caseMode===1?'bg-emerald-950 border-emerald-500 text-emerald-300':'bg-slate-800 border-slate-700 text-slate-400'}">
+                                ✅ Case 1: Grounded at ONE End (Recommended)
+                            </button>
+                            <button onclick="state.mod6.caseMode=2; updateControlsAndInfo();" class="w-full py-1.5 px-2 text-xs text-left rounded border ${state.mod6.caseMode===2?'bg-amber-950 border-amber-500 text-amber-300':'bg-slate-800 border-slate-700 text-slate-400'}">
+                                ⚠️ Case 2: Grounded at BOTH Ends (Ground Loop)
+                            </button>
+                            <button onclick="state.mod6.caseMode=3; updateControlsAndInfo();" class="w-full py-1.5 px-2 text-xs text-left rounded border ${state.mod6.caseMode===3?'bg-red-950 border-red-500 text-red-300':'bg-slate-800 border-slate-700 text-slate-400'}">
+                                ❌ Case 3: NOT Grounded (Floating Antenna)
+                            </button>
+                        </div>
+                        ${state.mod6.caseMode===2 ? `
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Earth Potential Difference (ΔV_g):</span><span id="v-vg">${state.mod6.groundDiffV} V</span></div>
+                            <input type="range" min="0.5" max="15" step="0.5" value="${state.mod6.groundDiffV}" oninput="state.mod6.groundDiffV=parseFloat(this.value); document.getElementById('v-vg').textContent=this.value+' V';" class="w-full accent-amber-500">
+                        </div>` : ''}
+                    `;
+                    
+                    if (state.mod6.caseMode === 1) {
+                        notesContainer.innerHTML = `
+                            <p class="text-emerald-400 font-semibold">✔ Case 1: Grounded at ONE End (Best Industrial Practice for Low-Freq & Instrumentation)</p>
+                            <p>Drives electrostatic EMI directly to ground without creating a closed loop path. Zero circulating ground current!</p>
+                        `;
+                    } else if (state.mod6.caseMode === 2) {
+                        notesContainer.innerHTML = `
+                            <p class="text-amber-400 font-semibold">⚠️ Case 2: Grounded at BOTH Ends (Ground Loop Hazard)</p>
+                            <p>Building earth potential differences ($\Delta V_g$) drive heavy power-frequency ground currents ($I_g = \Delta V_g / R_s$) through the shield, inducing noise into signal pairs.</p>
+                            <p class="text-xs text-slate-400"><em>Note on High-Frequency RF (Ethernet): Both-end grounding is used in Ethernet with high-frequency bonding capacitors to divert RF EMC noise while blocking 50/60Hz ground loops.</em></p>
+                        `;
+                    } else {
+                        notesContainer.innerHTML = `
+                            <p class="text-red-400 font-semibold">❌ Case 3: Floating / Ungrounded Shield</p>
+                            <p>An ungrounded shield acts as an antenna! High impedance allows EMI electrostatic charges to accumulate and couple directly into inner signal wires.</p>
+                        `;
+                    }
+                    break;
+
+                case 7: // RS485 & Routing
+                    ctrlsContainer.innerHTML = `
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Distance to VFD Cable Tray:</span><span id="v-vd">${state.mod7.vfdDistance} cm</span></div>
+                            <input type="range" min="0" max="50" step="2" value="${state.mod7.vfdDistance}" oninput="state.mod7.vfdDistance=parseInt(this.value); document.getElementById('v-vd').textContent=this.value+' cm';" class="w-full accent-sky-500">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-300 block mb-1">Cable Type:</label>
+                            <select onchange="state.mod7.cableType=this.value;" class="w-full bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded p-1.5">
+                                <option value="UTP" ${state.mod7.cableType==='UTP'?'selected':''}>Unshielded Twisted Pair (UTP)</option>
+                                <option value="STP" ${state.mod7.cableType==='STP'?'selected':''}>Shielded Twisted Pair (STP)</option>
+                                <option value="SFTP" ${state.mod7.cableType==='SFTP'?'selected':''}>Shielded & Foiled Twisted Pair (SFTP)</option>
+                            </select>
+                        </div>
+                    `;
+                    notesContainer.innerHTML = `
+                        <p><strong>Separation Rules (IEEE 518 / IEC 61000):</strong> Always maintain minimum 20-30 cm distance between sensitive communication cables (RS485, Profibus, Ethernet) and high-voltage motor/VFD power cables. Cross at 90° angles if intersection is mandatory.</p>
+                    `;
+                    break;
+
+                case 8: // Troubleshooting Lab
+                    ctrlsContainer.innerHTML = `
+                        <div class="space-y-2 text-xs">
+                            <label class="font-semibold text-amber-400 block">Fault Scenario 1: Intermittent RS485 Timeout</label>
+                            <p class="text-slate-400">Field Condition: PLC receives CRC packet errors whenever VFD motor accelerates.</p>
+                            
+                            <div class="pt-2 border-t border-slate-800 space-y-2">
+                                <div>
+                                    <label class="block text-slate-300 mb-1">1. Cable Shield Grounding:</label>
+                                    <select id="fix-g" onchange="checkTroubleshooting()" class="w-full bg-slate-800 border border-slate-700 text-slate-200 p-1.5 rounded">
+                                        <option value="0">Both Ends Grounded (Ground Loop Present)</option>
+                                        <option value="1">Grounded at One End (PLC Cabinet Earth)</option>
+                                        <option value="2">Disconnected / Floating Shield</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-slate-300 mb-1">2. Tray Routing Distance:</label>
+                                    <select id="fix-r" onchange="checkTroubleshooting()" class="w-full bg-slate-800 border border-slate-700 text-slate-200 p-1.5 rounded">
+                                        <option value="0">Tied directly alongside 480V VFD Motor Cable (0 cm)</option>
+                                        <option value="1">Separated in dedicated comm tray (> 30 cm)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    notesContainer.innerHTML = `
+                        <p><strong>Troubleshooting Steps:</strong> Isolate ground loops by checking potential differences between ground terminals with a multimeter ($\Delta V > 0.5V$ indicates ground loop threat).</p>
+                    `;
+                    break;
+
+                case 9: // Quiz
+                    renderQuizControls();
+                    break;
+
+                default:
+                    ctrlsContainer.innerHTML = `<p class="text-xs text-slate-400">Interactive controls ready for this module.</p>`;
+                    notesContainer.innerHTML = `<p>Explore physics animations and live metric feedback.</p>`;
+            }
+        }
+
+        const quizQuestions = [
+            {
+                q: "Why is single-end shield grounding usually recommended for low-frequency instrumentation cables?",
+                options: [
+                    "To prevent ground loop currents caused by earth potential differences between distant points",
+                    "Because single-end grounding completely stops magnetic RF interference",
+                    "To save cost on grounding clamps and wires",
+                    "Single-end grounding is only used for high-voltage power lines"
+                ],
+                correct: 0,
+                explain: "Grounding at both ends creates a closed loop. If earth potential at Point A differs from Point B, circulating ground current ($I_g$) flows through the shield and induces noise into the signal pair."
+            },
+            {
+                q: "How does a twisted pair cable cancel magnetically induced noise?",
+                options: [
+                    "By reflecting radio waves back into the environment",
+                    "Adjacent half-twists experience equal and opposite magnetic flux exposure, causing induced noise voltages to cancel out",
+                    "The twist increases electrical resistance of the cable",
+                    "Twisting creates a magnetic barrier that blocks all EMI fields"
+                ],
+                correct: 1,
+                explain: "In a twisted pair, magnetic flux cut by one half-twist induces +V, while the next half-twist cut in reverse induces -V. Summing them yields zero net differential noise!"
+            },
+            {
+                q: "What occurs if a cable shield is left completely UNGROUNDED (floating)?",
+                options: [
+                    "The shield provides 100% noise protection",
+                    "The shield acts as an antenna, accumulating electrostatic charges and coupling noise into signal wires",
+                    "Signal voltage doubles due to capacitance",
+                    "The cable becomes immune to VFD noise"
+                ],
+                correct: 1,
+                explain: "An ungrounded shield cannot drain accumulated electrostatic charge to ground. It acts as an effective antenna receiving EMI and capacitively coupling noise directly into internal wires."
+            }
+        ];
+
+        function renderQuizControls() {
+            const ctrls = document.getElementById('controls-container');
+            const q = quizQuestions[state.mod9.activeQuestion];
+
+            ctrls.innerHTML = `
+                <div class="space-y-3">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>Question ${state.mod9.activeQuestion + 1} of ${quizQuestions.length}</span>
+                        <span>Score: ${state.mod9.score} / ${quizQuestions.length}</span>
+                    </div>
+                    <p class="text-xs font-bold text-slate-200">${q.q}</p>
+                    <div class="space-y-1.5">
+                        ${q.options.map((opt, i) => `
+                            <button onclick="submitAnswer(${i})" class="w-full text-left p-2 text-xs rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+                                ${String.fromCharCode(65+i)}. ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function submitAnswer(chosenIdx) {
+            const q = quizQuestions[state.mod9.activeQuestion];
+            const notes = document.getElementById('educational-notes');
+            if (chosenIdx === q.correct) {
+                state.mod9.score++;
+                notes.innerHTML = `<p class="text-emerald-400 font-bold">✅ Correct!</p><p>${q.explain}</p>`;
+            } else {
+                notes.innerHTML = `<p class="text-red-400 font-bold">❌ Incorrect</p><p>${q.explain}</p>`;
+            }
+            if (state.mod9.activeQuestion < quizQuestions.length - 1) {
+                state.mod9.activeQuestion++;
+                setTimeout(renderQuizControls, 1800);
+            } else {
+                setTimeout(() => {
+                    document.getElementById('controls-container').innerHTML = `
+                        <div class="text-center py-4 space-y-2">
+                            <h4 class="text-sm font-bold text-sky-400">Quiz Completed! 🎉</h4>
+                            <p class="text-xs text-slate-300">Final Score: ${state.mod9.score} / ${quizQuestions.length}</p>
+                            <button onclick="state.mod9.activeQuestion=0; state.mod9.score=0; renderQuizControls();" class="px-3 py-1 bg-sky-600 text-white text-xs rounded hover:bg-sky-500">Restart Quiz</button>
+                        </div>
+                    `;
+                }, 1800);
+            }
+        }
+
+        function checkTroubleshooting() {
+            const g = parseInt(document.getElementById('fix-g').value);
+            const r = parseInt(document.getElementById('fix-r').value);
+            const metrics = document.getElementById('metrics-container');
+
+            if (g === 1 && r === 1) {
+                state.mod8.solved = true;
+                metrics.innerHTML = `
+                    <div class="col-span-2 p-2 bg-emerald-950/60 border border-emerald-500/40 rounded text-emerald-300 text-xs">
+                        ✅ Fault Solved! RS485 communication restored 100%. CRC error rate: 0.00%. Ground loop eliminated.
+                    </div>
+                `;
+            } else {
+                state.mod8.solved = false;
+                metrics.innerHTML = `
+                    <div class="col-span-2 p-2 bg-red-950/60 border border-red-500/40 rounded text-red-300 text-xs">
+                        ❌ Communication Timeout! CRC errors detected. VFD EMI coupling exceeds RS485 noise margin!
+                    </div>
+                `;
+            }
+        }
+
+        function animateLoop(timestamp) {
+            if (state.isPlaying) {
+                state.time += 0.03 * state.speed;
+            }
+
+            // Clear canvases
+            if (ctx && canvas) {
+                ctx.fillStyle = state.isDark ? '#090d16' : '#f8fafc';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Render Active Module Simulation
+                switch(state.currentModule) {
+                    case 0: drawModule0(); break;
+                    case 1: drawModule1(); break;
+                    case 2: drawModule2(); break;
+                    case 3: drawModule3(); break;
+                    case 4: drawModule4(); break;
+                    case 5: drawModule5(); break;
+                    case 6: drawModule6(); break;
+                    case 7: drawModule7(); break;
+                    case 8: drawModule8(); break;
+                    case 9: drawModule9(); break;
+                }
+            }
+
+            // Draw Real-time Oscilloscope
+            if (oscCtx && oscCanvas) {
+                drawOscilloscope();
+            }
+
+            requestAnimationFrame(animateLoop);
+        }
+
+        function drawModule0() {
+            const w = canvas.width, h = canvas.height;
+            const emi = state.mod0.emi;
+
+            // Default drag coordinates setup
+            if (state.mod0.emiX === null) state.mod0.emiX = Math.min(140, w * 0.25);
+            if (state.mod0.emiY === null) state.mod0.emiY = 75;
+
+            const emiX = state.mod0.emiX;
+            const emiY = state.mod0.emiY;
+
+            // Compute distance from EMI Source to wire pair line (h/2)
+            const wireY1 = h/2 - 25;
+            const wireY2 = h/2 + 25;
+            const wireCenterY = h/2;
+            const dist = Math.max(3, Math.hypot(0, emiY - wireCenterY) / 3.5);
+            const effectiveNoise = (emi * 22) / dist;
+
+            ctx.save();
+
+            // Distance Measurement Line & Label
+            ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(emiX, emiY);
+            ctx.lineTo(emiX, wireCenterY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Distance Callout Tag
+            ctx.fillStyle = '#eab308';
+            ctx.font = 'bold 11px monospace';
+            ctx.fillText(`d = ${Math.round(dist)} cm`, emiX + 8, (emiY + wireCenterY) / 2);
+
+            // Radiating EMI Wave Field Rings around draggable Source
+            for (let r = 20; r < 220; r += 28) {
+                const rad = (r + state.time * 45) % 220;
+                const alpha = Math.max(0, 1 - rad / 220);
+                ctx.strokeStyle = `rgba(239, 68, 68, ${alpha * 0.75})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(emiX, emiY, rad, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Draggable EMI Source Generator Node
+            const isHoverOrDrag = state.mod0.isDragging;
+            ctx.fillStyle = isHoverOrDrag ? '#dc2626' : '#ef4444';
+            ctx.shadowColor = 'rgba(239, 68, 68, 0.8)';
+            ctx.shadowBlur = isHoverOrDrag ? 20 : 10;
+            ctx.beginPath();
+            ctx.arc(emiX, emiY, 26, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Inner Ring Accent
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(emiX, emiY, 20, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Label on Draggable Node
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('EMI SOURCE', emiX, emiY - 3);
+            ctx.font = '9px sans-serif';
+            ctx.fillStyle = '#fef08a';
+            ctx.fillText('↔ Drag Me', emiX, emiY + 9);
+            ctx.textAlign = 'left';
+
+            // Draw Wire Conductors
+            // Wire 1 (Tx+ Differential Pair)
+            ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.moveTo(160, wireY1); ctx.lineTo(w - 60, wireY1); ctx.stroke();
+            
+            // Wire 2 (Tx- Differential Pair)
+            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.moveTo(160, wireY2); ctx.lineTo(w - 60, wireY2); ctx.stroke();
+
+            // Interference Sparks & Noise Waves on Wire when EMI is Close
+            if (dist < 20) {
+                const sparkCount = Math.floor((20 - dist) * 1.5);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < sparkCount; i++) {
+                    const sparkX = Math.max(170, Math.min(w - 70, emiX + (Math.random() - 0.5) * 160));
+                    const targetY = (i % 2 === 0) ? wireY1 : wireY2;
+                    ctx.beginPath();
+                    ctx.moveTo(sparkX, targetY);
+                    ctx.lineTo(sparkX + (Math.random() - 0.5) * 12, targetY + (Math.random() - 0.5) * 16);
+                    ctx.stroke();
+                }
+            }
+
+            // Labels
+            ctx.fillStyle = state.isDark ? '#e2e8f0' : '#1e293b';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('Transmitter (PLC / Tx)', 160, h/2 - 50);
+            ctx.fillText('Receiver (Sensor / Rx)', w - 180, h/2 - 50);
+
+            // Update Realtime Metrics Panel
+            const metrics = document.getElementById('metrics-container');
+            if (metrics) {
+                const snr = (20 * Math.log10(5 / (effectiveNoise + 0.01))).toFixed(1);
+                metrics.innerHTML = `
+                    <div class="bg-slate-800/80 p-2 rounded border border-slate-700">
+                        <span class="text-slate-400 block text-[10px]">INDUCED NOISE</span>
+                        <span class="text-amber-400 font-bold">${effectiveNoise.toFixed(2)} V</span>
+                    </div>
+                    <div class="bg-slate-800/80 p-2 rounded border border-slate-700">
+                        <span class="text-slate-400 block text-[10px]">SIGNAL SNR</span>
+                        <span class="${snr > 15 ? 'text-emerald-400' : 'text-red-400'} font-bold">${snr} dB</span>
+                    </div>
+                `;
+            }
+            ctx.restore();
+        }
+
+        function drawModule1() {
+            const w = canvas.width, h = canvas.height;
+            const src = state.mod1.selectedSource;
+
+            ctx.save();
+            // Draw Panel Cabinet Frame
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 4;
+            ctx.strokeRect(40, 40, w - 80, h - 80);
+
+            // Source Graphics
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(80, 80, 160, 140);
+            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+            ctx.strokeRect(80, 80, 160, 140);
+
+            ctx.fillStyle = '#f59e0b';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.fillText(src + ' Unit', 100, 110);
+
+            // Radiating magnetic & electric fields
+            ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
+            for (let i = 1; i <= 4; i++) {
+                ctx.beginPath();
+                ctx.arc(160, 150, 60 + i * 25 + Math.sin(state.time * 5) * 8, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Sensitive Cable Run
+            ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 6;
+            ctx.beginPath(); ctx.moveTo(40, h - 80); ctx.lineTo(w - 40, h - 80); ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('Sensitive Instrumentation 4-20mA Cable', 60, h - 90);
+
+            ctx.restore();
+        }
+
+        function drawModule2() {
+            const w = canvas.width, h = canvas.height;
+            const I = state.mod2.current;
+            const d = state.mod2.distance;
+            const L = state.mod2.length;
+
+            ctx.save();
+            // Power Cable (Top)
+            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 10;
+            ctx.beginPath(); ctx.moveTo(60, 100); ctx.lineTo(w - 60, 100); ctx.stroke();
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(`Power Line (${I}A AC Current)`, 70, 85);
+
+            // Communication Cable (Bottom)
+            const commY = 100 + d * 3.5;
+            ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 6;
+            ctx.beginPath(); ctx.moveTo(60, commY); ctx.lineTo(w - 60, commY); ctx.stroke();
+            ctx.fillText(`Communication Cable (Separation d = ${d} cm)`, 70, commY + 20);
+
+            // Animated Magnetic Field Circles around Power Cable
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+            ctx.lineWidth = 1.5;
+            const numCircles = Math.floor(w / 80);
+            for (let i = 1; i < numCircles; i++) {
+                const cx = i * 80;
+                const radius = (state.time * 30) % (d * 3.5 + 20);
+                ctx.beginPath();
+                ctx.arc(cx, 100, radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Calculate induced Voltage
+            const inducedV = (0.02 * I * L / Math.max(d, 1)).toFixed(3);
+            const metrics = document.getElementById('metrics-container');
+            if (metrics) {
+                metrics.innerHTML = `
+                    <div class="col-span-2 bg-slate-800/80 p-2 rounded border border-slate-700 flex justify-between items-center">
+                        <span class="text-slate-400">INDUCED VOLTAGE (V_ind):</span>
+                        <span class="text-amber-400 font-bold text-sm">${inducedV} V</span>
+                    </div>
+                `;
+            }
+
+            ctx.restore();
+        }
+
+        function drawModule3() { drawModule2(); } // Re-uses layout with E-field lines
+
+        function drawModule4() {
+            const w = canvas.width, h = canvas.height;
+            const twists = state.mod4.twistsPerMeter;
+            const nAmp = state.mod4.noiseSourceAmp;
+
+            ctx.save();
+            ctx.fillStyle = state.isDark ? '#e2e8f0' : '#1e293b';
+            ctx.font = 'bold 13px sans-serif';
+            ctx.fillText(`Twisted Pair Geometry (${twists} twists/meter)`, 40, 40);
+
+            // Draw Noise Field Vectors (Top to Bottom)
+            ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
+            ctx.lineWidth = 2;
+            for (let x = 60; x < w - 60; x += 30) {
+                ctx.beginPath();
+                ctx.moveTo(x, 60); ctx.lineTo(x, 160); ctx.stroke();
+            }
+
+            // Draw Twisted Conductors Sine Waves
+            const cy = 110;
+            const amplitude = 22;
+            const wavelength = Math.max(15, 300 / (twists + 1));
+
+            // Wire A (Blue)
+            ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 4;
+            ctx.beginPath();
+            for (let x = 40; x <= w - 40; x += 2) {
+                const y = cy + Math.sin((x / wavelength) * Math.PI) * amplitude;
+                if (x === 40) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Wire B (White/Sky)
+            ctx.strokeStyle = '#e0f2fe'; ctx.lineWidth = 4;
+            ctx.beginPath();
+            for (let x = 40; x <= w - 40; x += 2) {
+                const y = cy - Math.sin((x / wavelength) * Math.PI) * amplitude;
+                if (x === 40) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Rejection % Calculation
+            const cmr = Math.min(99.5, twists * 1.8).toFixed(1);
+            const remainingNoise = (nAmp * (100 - cmr) / 100).toFixed(3);
+
+            const metrics = document.getElementById('metrics-container');
+            if (metrics) {
+                metrics.innerHTML = `
+                    <div class="bg-slate-800/80 p-2 rounded border border-slate-700">
+                        <span class="text-slate-400 block text-[10px]">COMMON MODE REJECTION</span>
+                        <span class="text-emerald-400 font-bold">${cmr}%</span>
+                    </div>
+                    <div class="bg-slate-800/80 p-2 rounded border border-slate-700">
+                        <span class="text-slate-400 block text-[10px]">NET NOISE VOLTAGE</span>
+                        <span class="text-sky-400 font-bold">${remainingNoise} V</span>
+                    </div>
+                `;
+            }
+
+            ctx.restore();
+        }
+
+        function drawModule5() {
+            const w = canvas.width, h = canvas.height;
+            const cx = w/2, cy = h/2;
+
+            ctx.save();
+            // Outer PVC Jacket
+            ctx.fillStyle = '#334155';
+            ctx.beginPath(); ctx.arc(cx, cy, 110, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#ffffff'; ctx.font = '11px sans-serif';
+            ctx.fillText('Outer PVC Jacket', cx + 115, cy - 80);
+
+            // Braided / Foil Shield Layer
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath(); ctx.arc(cx, cy, 92, 0, Math.PI*2); ctx.fill();
+            ctx.fillText('Aluminum Foil / Braid Shield', cx + 100, cy - 40);
+
+            // Inner Insulation & Conductors
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath(); ctx.arc(cx, cy, 76, 0, Math.PI*2); ctx.fill();
+
+            // Drain Wire
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath(); ctx.arc(cx - 50, cy - 35, 12, 0, Math.PI*2); ctx.fill();
+            ctx.fillText('Bare Drain Wire', cx - 140, cy - 50);
+
+            // Twisted Pair Conductors
+            ctx.fillStyle = '#0284c7';
+            ctx.beginPath(); ctx.arc(cx - 25, cy + 15, 20, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(cx + 25, cy + 15, 20, 0, Math.PI*2); ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawModule6() {
+            const w = canvas.width, h = canvas.height;
+            const mode = state.mod6.caseMode;
+
+            ctx.save();
+            // Transmitter Cabinet (Left) & Receiver Cabinet (Right)
+            ctx.strokeStyle = '#64748b'; ctx.lineWidth = 4;
+            ctx.strokeRect(40, 60, 100, 160);
+            ctx.strokeRect(w - 140, 60, 100, 160);
+
+            ctx.fillStyle = state.isDark ? '#e2e8f0' : '#1e293b'; ctx.font = 'bold 12px sans-serif';
+            ctx.fillText('PLC (Tx)', 65, 140);
+            ctx.fillText('Sensor (Rx)', w - 125, 140);
+
+            // Shield Tube between cabinets
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.3)';
+            ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+            ctx.fillRect(140, 120, w - 280, 40);
+            ctx.strokeRect(140, 120, w - 280, 40);
+            ctx.fillStyle = '#38bdf8'; ctx.font = '11px sans-serif';
+            ctx.fillText('Cable Metallic Shield', w/2 - 50, 115);
+
+            // Grounding Connections
+            // Earth A (Left)
+            ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(90, 220); ctx.lineTo(90, 260); ctx.stroke();
+            ctx.fillText('Earth A (0V)', 65, 280);
+
+            // Earth B (Right)
+            ctx.beginPath(); ctx.moveTo(w - 90, 220); ctx.lineTo(w - 90, 260); ctx.stroke();
+            ctx.fillText(`Earth B (${mode===2 ? state.mod6.groundDiffV : 0}V)`, w - 125, 280);
+
+            // Grounding Wires according to Case
+            if (mode === 1) { // Grounded at 1 end (Left)
+                ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(140, 140); ctx.lineTo(90, 140); ctx.lineTo(90, 220); ctx.stroke();
+            } else if (mode === 2) { // Grounded at BOTH ends
+                ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 3;
+                // Left
+                ctx.beginPath(); ctx.moveTo(140, 140); ctx.lineTo(90, 140); ctx.lineTo(90, 220); ctx.stroke();
+                // Right
+                ctx.beginPath(); ctx.moveTo(w - 140, 140); ctx.lineTo(w - 90, 140); ctx.lineTo(w - 90, 220); ctx.stroke();
+
+                // Circulating Ground Loop Current Arrow Animation
+                const loopCurrent = (state.mod6.groundDiffV / state.mod6.shieldRes).toFixed(2);
+                ctx.fillStyle = '#ef4444';
+                const arrowX = 140 + (state.time * 120) % (w - 280);
+                ctx.beginPath(); ctx.arc(arrowX, 140, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.fillText(`Ground Loop Current I_g = ${loopCurrent} A`, w/2 - 80, 185);
+
+                const metrics = document.getElementById('metrics-container');
+                if (metrics) {
+                    metrics.innerHTML = `
+                        <div class="bg-slate-800/80 p-2 rounded border border-slate-700">
+                            <span class="text-slate-400 block text-[10px]">GROUND LOOP CURRENT</span>
+                            <span class="text-red-400 font-bold">${loopCurrent} A</span>
+                        </div>
+                        <div class="bg-slate-800/80 p-2 rounded border border-slate-700">
+                            <span class="text-slate-400 block text-[10px]">PACKET LOSS RATE</span>
+                            <span class="text-amber-400 font-bold">${(loopCurrent * 4.2).toFixed(1)} %</span>
+                        </div>
+                    `;
+                }
+            } else if (mode === 3) { // Floating Antenna
+                ctx.fillStyle = '#ef4444';
+                ctx.fillText('❌ Shield Floating (NO Earth Connection)', w/2 - 90, 185);
+            }
+
+            ctx.restore();
+        }
+
+        function drawModule7() { drawModule6(); } // Re-uses shield grounding canvas with VFD interaction
+        function drawModule8() { drawModule0(); } // Troubleshooting visualizer
+        function drawModule9() { drawModule5(); } // Quiz visualizer fallback
+
+        function drawOscilloscope() {
+            const w = oscCanvas.width, h = oscCanvas.height;
+            const cy = h / 2;
+
+            oscCtx.clearRect(0, 0, w, h);
+
+            // Channel 1: Transmitted Clean Data (Blue Sine Wave)
+            oscCtx.strokeStyle = '#0284c7'; oscCtx.lineWidth = 1.5;
+            oscCtx.beginPath();
+            for (let x = 0; x < w; x++) {
+                const y = cy + Math.sin(x * 0.05 + state.time * 5) * 20;
+                if (x === 0) oscCtx.moveTo(x, y); else oscCtx.lineTo(x, y);
+            }
+            oscCtx.stroke();
+
+            // Channel 2: Noise Component (Amber)
+            let noiseAmp = 0;
+            if (state.currentModule === 0) noiseAmp = state.mod0.emi * 4;
+            if (state.currentModule === 6 && state.mod6.caseMode === 2) noiseAmp = state.mod6.groundDiffV * 5;
+            if (state.currentModule === 6 && state.mod6.caseMode === 3) noiseAmp = 25;
+
+            oscCtx.strokeStyle = '#f59e0b'; oscCtx.lineWidth = 1.2;
+            oscCtx.beginPath();
+            for (let x = 0; x < w; x++) {
+                const noise = (Math.random() - 0.5) * noiseAmp;
+                const y = cy + noise;
+                if (x === 0) oscCtx.moveTo(x, y); else oscCtx.lineTo(x, y);
+            }
+            oscCtx.stroke();
+
+            // Channel 3: Received Signal after Shielding & Differential Filter (Green)
+            let netNoise = noiseAmp;
+            if (state.currentModule === 4) netNoise *= (1 - state.mod4.twistsPerMeter * 0.015);
+            if (state.currentModule === 6 && state.mod6.caseMode === 1) netNoise = 1.0;
+
+            oscCtx.strokeStyle = '#22c55e'; oscCtx.lineWidth = 2;
+            oscCtx.beginPath();
+            for (let x = 0; x < w; x++) {
+                const noise = (Math.random() - 0.5) * Math.max(0, netNoise);
+                const y = cy + Math.sin(x * 0.05 + state.time * 5) * 20 + noise;
+                if (x === 0) oscCtx.moveTo(x, y); else oscCtx.lineTo(x, y);
+            }
+            oscCtx.stroke();
+        }
+    </script>
+</body>
+</html>
