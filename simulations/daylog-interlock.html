@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>DAYLOG // Activity, Ideas &amp; Task Interlocks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0a1420;
+  --bg-panel:#0e1c2c;
+  --bg-panel-raised:#122438;
+  --grid-line:rgba(0,229,255,0.055);
+  --grid-line-major:rgba(0,229,255,0.09);
+  --cyan:#00e5ff;
+  --cyan-dim:#0891a8;
+  --cyan-glow:rgba(0,229,255,0.35);
+  --amber:#ffb300;
+  --amber-dim:#b37c00;
+  --amber-glow:rgba(255,179,0,0.35);
+  --green:#4ade80;
+  --green-dim:#2f8f56;
+  --red:#ff5470;
+  --red-dim:#a8324a;
+  --text:#dbe8f0;
+  --text-dim:#7a94a8;
+  --text-dimmer:#4c6376;
+  --border:rgba(0,229,255,0.16);
+  --border-soft:rgba(255,255,255,0.06);
+  --radius:3px;
+  --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    linear-gradient(var(--grid-line-major) 1px,transparent 1px) 0 0/80px 80px,
+    linear-gradient(90deg,var(--grid-line-major) 1px,transparent 1px) 0 0/80px 80px,
+    linear-gradient(var(--grid-line) 1px,transparent 1px) 0 0/16px 16px,
+    linear-gradient(90deg,var(--grid-line) 1px,transparent 1px) 0 0/16px 16px,
+    var(--bg);
+  color:var(--text);
+  font-family:var(--mono);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--cyan);color:#001018;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:var(--bg-panel);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;}
+
+a{color:var(--cyan);}
+
+/* ---------- layout shell ---------- */
+.shell{max-width:1180px;margin:0 auto;padding:18px 16px 80px;}
+
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:16px;flex-wrap:wrap;
+  padding:14px 18px;
+  background:var(--bg-panel);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  position:relative;
+  overflow:hidden;
+}
+.topbar::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  opacity:.6;
+}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-mark{
+  width:34px;height:34px;border:1px solid var(--cyan-dim);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;color:var(--cyan);
+  font-weight:700;font-size:13px;background:rgba(0,229,255,0.06);
+  position:relative;flex:none;
+}
+.brand-mark::after{
+  content:"";position:absolute;inset:5px;border:1px solid rgba(0,229,255,.25);border-radius:2px;
+}
+.brand-text h1{margin:0;font-size:16px;letter-spacing:.14em;font-weight:700;color:var(--text);}
+.brand-text p{margin:2px 0 0;font-size:10.5px;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;}
+
+.top-right{display:flex;align-items:center;gap:14px;}
+.clock{text-align:right;font-size:11px;color:var(--text-dim);line-height:1.5;}
+.clock b{display:block;color:var(--text);font-size:13px;letter-spacing:.03em;}
+
+.bell{
+  position:relative;width:38px;height:38px;border-radius:4px;
+  border:1px solid var(--border);background:var(--bg-panel-raised);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  color:var(--text-dim);transition:.15s;
+}
+.bell:hover{color:var(--cyan);border-color:var(--cyan-dim);}
+.bell.due{color:var(--amber);border-color:var(--amber-dim);animation:pulse-border 1.4s infinite;}
+.bell svg{width:17px;height:17px;}
+.bell .count{
+  position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 3px;
+  background:var(--amber);color:#1a1000;font-size:10px;font-weight:700;
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--bg);
+}
+@keyframes pulse-border{
+  0%,100%{box-shadow:0 0 0 0 var(--amber-glow);}
+  50%{box-shadow:0 0 0 5px transparent;}
+}
+
+/* ---------- nav tabs ---------- */
+.tabs{
+  display:flex;gap:2px;margin-top:14px;background:var(--bg-panel);
+  border:1px solid var(--border);border-radius:var(--radius);padding:4px;
+  flex-wrap:wrap;
+}
+.tab-btn{
+  flex:1;min-width:140px;
+  background:transparent;border:none;color:var(--text-dim);
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;
+  padding:10px 12px;border-radius:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:.15s;
+}
+.tab-btn svg{width:14px;height:14px;flex:none;}
+.tab-btn:hover{color:var(--text);background:rgba(255,255,255,.03);}
+.tab-btn.active{background:rgba(0,229,255,0.09);color:var(--cyan);}
+.tab-btn .badge{
+  background:var(--amber);color:#1a1000;font-size:9.5px;font-weight:700;
+  padding:1px 5px;border-radius:8px;
+}
+
+.panel{display:none;margin-top:16px;animation:fade .2s ease;}
+.panel.active{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+.card{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;margin-bottom:14px;
+}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.card-head h2{margin:0;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);font-weight:600;}
+.eyebrow{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan-dim);margin:0 0 4px;}
+
+/* ---------- buttons / inputs ---------- */
+.btn{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;
+  border-radius:2px;border:1px solid var(--border);background:var(--bg-panel-raised);
+  color:var(--text);padding:8px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  transition:.15s;white-space:nowrap;
+}
+.btn:hover{border-color:var(--cyan-dim);color:var(--cyan);}
+.btn.primary{background:rgba(0,229,255,.12);border-color:var(--cyan-dim);color:var(--cyan);}
+.btn.primary:hover{background:rgba(0,229,255,.2);}
+.btn.amber{background:rgba(255,179,0,.1);border-color:var(--amber-dim);color:var(--amber);}
+.btn.amber:hover{background:rgba(255,179,0,.18);}
+.btn.danger{color:var(--red);}
+.btn.danger:hover{border-color:var(--red-dim);}
+.btn.ghost{background:transparent;border-color:transparent;padding:6px 8px;}
+.btn.small{padding:5px 10px;font-size:10.5px;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn svg{width:13px;height:13px;}
+
+input,select,textarea{
+  font-family:var(--mono);background:var(--bg-panel-raised);border:1px solid var(--border);
+  color:var(--text);border-radius:2px;padding:8px 10px;font-size:12.5px;width:100%;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan-dim);box-shadow:0 0 0 2px rgba(0,229,255,.08);}
+textarea{resize:vertical;min-height:60px;line-height:1.5;}
+label{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--text-dim);display:block;margin-bottom:5px;}
+.field{margin-bottom:12px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:560px){.field-row{grid-template-columns:1fr;}}
+
+/* ---------- daily log ---------- */
+.log-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;margin-bottom:14px;}
+.date-nav{display:flex;align-items:center;gap:8px;}
+.date-nav b{font-size:13px;color:var(--text);min-width:190px;text-align:center;}
+.icon-btn{
+  width:30px;height:30px;border-radius:2px;border:1px solid var(--border);background:var(--bg-panel-raised);
+  color:var(--text-dim);display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.icon-btn:hover{color:var(--cyan);border-color:var(--cyan-dim);}
+.icon-btn svg{width:14px;height:14px;}
+
+.entry{
+  display:flex;gap:12px;align-items:flex-start;padding:11px 4px;border-bottom:1px solid var(--border-soft);
+}
+.entry:last-child{border-bottom:none;}
+.entry-check{
+  width:19px;height:19px;border:1px solid var(--border);border-radius:3px;flex:none;margin-top:2px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;color:transparent;
+  background:var(--bg-panel-raised);
+}
+.entry-check:hover{border-color:var(--cyan-dim);}
+.entry.done .entry-check{background:rgba(74,222,128,.15);border-color:var(--green-dim);color:var(--green);}
+.entry-check svg{width:11px;height:11px;}
+.entry-body{flex:1;min-width:0;}
+.entry-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.entry-time{font-size:10.5px;color:var(--cyan-dim);}
+.entry-cat{
+  font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border-radius:8px;
+  border:1px solid var(--border);color:var(--text-dim);
+}
+.entry.done .entry-text{color:var(--text-dimmer);text-decoration:line-through;}
+.entry-text{font-size:13px;margin-top:3px;line-height:1.5;word-wrap:break-word;}
+.entry-actions{display:flex;gap:4px;flex:none;}
+
+.empty{
+  text-align:center;padding:34px 14px;color:var(--text-dimmer);font-size:12px;
+}
+.empty svg{width:30px;height:30px;margin-bottom:10px;color:var(--text-dimmer);}
+
+/* ---------- notes / reminders ---------- */
+.note-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;}
+.note-card{
+  background:var(--bg-panel-raised);border:1px solid var(--border);border-radius:var(--radius);
+  padding:13px 14px;position:relative;border-left:2px solid var(--border);
+}
+.note-card.has-reminder{border-left-color:var(--cyan-dim);}
+.note-card.due{border-left-color:var(--amber);box-shadow:0 0 0 1px var(--amber-glow) inset;animation:pulse-card 1.6s infinite;}
+.note-card.overdue{border-left-color:var(--red);}
+.note-card.done{opacity:.55;}
+@keyframes pulse-card{0%,100%{box-shadow:0 0 0 1px var(--amber-glow) inset;}50%{box-shadow:0 0 0 1px transparent inset;}}
+.note-title{font-size:13px;font-weight:600;margin:0 0 6px;color:var(--text);padding-right:50px;}
+.note-text{font-size:12px;color:var(--text-dim);line-height:1.5;white-space:pre-wrap;word-wrap:break-word;margin:0 0 10px;}
+.note-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:10px;color:var(--text-dimmer);margin-bottom:8px;}
+.note-reminder-tag{
+  display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--cyan);
+  border:1px solid var(--cyan-dim);background:rgba(0,229,255,.06);padding:2px 7px;border-radius:9px;
+}
+.note-reminder-tag.due{color:var(--amber);border-color:var(--amber-dim);background:rgba(255,179,0,.08);}
+.note-reminder-tag.overdue{color:var(--red);border-color:var(--red-dim);background:rgba(255,84,112,.08);}
+.note-reminder-tag svg{width:10px;height:10px;}
+.note-actions{position:absolute;top:11px;right:10px;display:flex;gap:2px;}
+.note-footer{display:flex;gap:6px;flex-wrap:wrap;}
+
+/* ---------- chains (task interlocks) ---------- */
+.chain-list{display:flex;flex-direction:column;gap:12px;}
+.chain-card{background:var(--bg-panel-raised);border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px;}
+.chain-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.chain-title{font-size:14px;font-weight:600;color:var(--text);margin:0 0 3px;}
+.chain-sub{font-size:10.5px;color:var(--text-dimmer);}
+.progress-track{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin:9px 0 14px;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));border-radius:3px;transition:width .3s;}
+
+.step-chain{display:flex;flex-direction:column;}
+.step{display:flex;gap:12px;position:relative;padding-bottom:4px;}
+.step:last-child .step-wire{display:none;}
+.step-lock-col{display:flex;flex-direction:column;align-items:center;flex:none;width:30px;}
+.step-wire{width:2px;flex:1;background:var(--border);margin-top:2px;min-height:18px;}
+.step.done .step-wire{background:var(--green-dim);}
+.step-lock{
+  width:28px;height:28px;border-radius:50%;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer;
+  background:var(--bg-panel);color:var(--text-dimmer);transition:.15s;
+}
+.step-lock svg{width:13px;height:13px;}
+.step.locked .step-lock{cursor:not-allowed;}
+.step.active .step-lock{border-color:var(--amber-dim);color:var(--amber);background:rgba(255,179,0,.08);}
+.step.done .step-lock{border-color:var(--green-dim);color:var(--green);background:rgba(74,222,128,.12);}
+.step-body{flex:1;padding:2px 0 16px;min-width:0;}
+.step-title{font-size:12.5px;color:var(--text);font-weight:500;}
+.step.locked .step-title{color:var(--text-dimmer);}
+.step.done .step-title{color:var(--text-dim);text-decoration:line-through;}
+.step-notes{font-size:11px;color:var(--text-dimmer);margin-top:3px;line-height:1.5;white-space:pre-wrap;}
+.step-status{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;margin-top:4px;color:var(--text-dimmer);}
+.step.active .step-status{color:var(--amber);}
+.step.done .step-status{color:var(--green);}
+.step-row-actions{display:flex;gap:6px;margin-top:8px;}
+
+/* ---------- reports ---------- */
+.report-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:640px){.report-type-grid{grid-template-columns:1fr;}}
+.report-type{
+  border:1px solid var(--border);background:var(--bg-panel-raised);border-radius:var(--radius);
+  padding:14px;cursor:pointer;text-align:left;color:var(--text-dim);transition:.15s;
+}
+.report-type:hover{border-color:var(--cyan-dim);}
+.report-type.active{border-color:var(--cyan);background:rgba(0,229,255,.07);color:var(--text);}
+.report-type svg{width:18px;height:18px;color:var(--cyan);margin-bottom:8px;}
+.report-type h3{margin:0 0 4px;font-size:12px;letter-spacing:.04em;color:inherit;}
+.report-type p{margin:0;font-size:10.5px;color:var(--text-dimmer);line-height:1.4;}
+
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin:14px 0;}
+.stat{border:1px solid var(--border-soft);border-radius:2px;padding:10px 12px;background:var(--bg-panel-raised);}
+.stat b{display:block;font-size:20px;color:var(--cyan);}
+.stat span{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dimmer);}
+
+/* ---------- modal ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(5,10,16,.72);backdrop-filter:blur(2px);
+  display:none;align-items:flex-start;justify-content:center;z-index:100;padding:40px 16px;overflow-y:auto;
+}
+.overlay.open{display:flex;}
+.modal{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);
+  width:100%;max-width:440px;padding:20px 22px 22px;position:relative;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.modal-head h3{margin:0;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--text);}
+.modal-close{background:none;border:none;color:var(--text-dim);cursor:pointer;padding:4px;}
+.modal-close svg{width:16px;height:16px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{
+  border:1px solid var(--border);background:var(--bg-panel-raised);color:var(--text-dim);
+  font-size:10.5px;padding:5px 10px;border-radius:12px;cursor:pointer;
+}
+.chip.selected{border-color:var(--cyan-dim);color:var(--cyan);background:rgba(0,229,255,.08);}
+
+/* toasts */
+.toast-wrap{position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column;gap:8px;z-index:200;max-width:320px;}
+.toast{
+  background:var(--bg-panel);border:1px solid var(--amber-dim);border-left:3px solid var(--amber);
+  border-radius:2px;padding:11px 13px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);
+  animation:toast-in .2s ease;
+}
+@keyframes toast-in{from{opacity:0;transform:translateX(12px);}to{opacity:1;transform:translateX(0);}}
+.toast b{display:block;color:var(--amber);font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;}
+.toast p{margin:0 0 8px;color:var(--text);line-height:1.4;}
+.toast .toast-actions{display:flex;gap:6px;}
+
+.hint{font-size:10.5px;color:var(--text-dimmer);margin-top:10px;line-height:1.5;}
+.perm-banner{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  background:rgba(255,179,0,.06);border:1px solid var(--amber-dim);border-radius:var(--radius);
+  padding:10px 14px;margin-bottom:14px;font-size:11.5px;color:var(--text);
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">DL</div>
+      <div class="brand-text">
+        <h1>DAYLOG</h1>
+        <p>Activity &middot; Ideas &middot; Task Interlocks</p>
+      </div>
+    </div>
+    <div class="top-right">
+      <div class="clock"><b id="clockTime">--:--</b><span id="clockDate">-- --- ----</span></div>
+      <div class="bell" id="bellBtn" title="Reminders">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span class="count" id="bellCount" style="display:none;">0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="log">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Daily Log
+    </button>
+    <button class="tab-btn" data-tab="notes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a5 5 0 0 0-5 5c0 3 2 4 2 7v1h6v-1c0-3 2-4 2-7a5 5 0 0 0-5-5z"/><path d="M9 21h6M10 18h4"/></svg>
+      Ideas &amp; Reminders
+      <span class="badge" id="notesBadge" style="display:none;">0</span>
+    </button>
+    <button class="tab-btn" data-tab="chains">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="15" width="7" height="7" rx="1"/><path d="M10 14.5H12a2 2 0 0 0 2-2V9M10 14.5v0"/></svg>
+      Task Interlocks
+    </button>
+    <button class="tab-btn" data-tab="reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/></svg>
+      Reports
+    </button>
+  </div>
+
+  <!-- ===================== DAILY LOG ===================== -->
+  <div class="panel active" id="panel-log">
+    <div class="card">
+      <div class="log-toolbar">
+        <div class="date-nav">
+          <button class="icon-btn" id="prevDay" title="Previous day">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <b id="logDateLabel">Today</b>
+          <button class="icon-btn" id="nextDay" title="Next day">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button class="btn small" id="todayBtn">Today</button>
+        </div>
+        <button class="btn primary" id="addActivityBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Add activity
+        </button>
+      </div>
+      <div class="stat-row" id="logStats"></div>
+      <div id="logList"></div>
+    </div>
+  </div>
+
+  <!-- ===================== NOTES / REMINDERS ===================== -->
+  <div class="panel" id="panel-notes">
+    <div class="perm-banner" id="permBanner" style="display:none;">
+      <span>Turn on browser notifications so reminders alert you even if this tab isn't focused.</span>
+      <button class="btn amber small" id="enableNotifBtn">Enable alerts</button>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Capture now, act later</p>
+          <h2>Ideas &amp; Reminders</h2>
+        </div>
+        <button class="btn primary" id="addNoteBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          New idea / note
+        </button>
+      </div>
+      <div class="chip-row" id="noteFilterRow" style="margin-bottom:14px;">
+        <button class="chip selected" data-filter="all">All</button>
+        <button class="chip" data-filter="due">Due / overdue</button>
+        <button class="chip" data-filter="upcoming">Upcoming</button>
+        <button class="chip" data-filter="nodate">No reminder</button>
+        <button class="chip" data-filter="done">Done</button>
+      </div>
+      <div class="note-grid" id="noteGrid"></div>
+    </div>
+  </div>
+
+  <!-- ===================== TASK INTERLOCKS ===================== -->
+  <div class="panel" id="panel-chains">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Step 2 stays locked until step 1 is done</p>
+          <h2>Task Interlock Chains</h2>
+        </div>
+        <button class="btn primary" id="addChainBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          New chain
+        </button>
+      </div>
+      <p class="hint">Build a plan as an ordered sequence, like an electrical interlock: each step is a "lock" that only opens once the one before it is completed. Good for "do A, then B, then C" planning.</p>
+    </div>
+    <div class="chain-list" id="chainList"></div>
+  </div>
+
+  <!-- ===================== REPORTS ===================== -->
+  <div class="panel" id="panel-reports">
+    <div class="card">
+      <p class="eyebrow">Export a PDF</p>
+      <h2 style="margin-bottom:14px;">Generate a report</h2>
+      <div class="report-type-grid">
+        <button class="report-type active" data-report="log">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <h3>Daily Log</h3>
+          <p>Activities over a date range, with completion status.</p>
+        </button>
+        <button class="report-type" data-report="chain">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="15" width="7" height="7" rx="1"/></svg>
+          <h3>Task Interlock</h3>
+          <p>One plan's steps, progress and completion timestamps.</p>
+        </button>
+        <button class="report-type" data-report="notes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a5 5 0 0 0-5 5c0 3 2 4 2 7v1h6v-1c0-3 2-4 2-7a5 5 0 0 0-5-5z"/></svg>
+          <h3>Ideas &amp; Notes</h3>
+          <p>All notes, with reminder times and status.</p>
+        </button>
+      </div>
+
+      <div id="reportOptionsLog">
+        <div class="field-row">
+          <div class="field"><label>From</label><input type="date" id="repFrom"></div>
+          <div class="field"><label>To</label><input type="date" id="repTo"></div>
+        </div>
+      </div>
+      <div id="reportOptionsChain" style="display:none;">
+        <div class="field"><label>Select chain</label><select id="repChainSelect"></select></div>
+      </div>
+      <div id="reportOptionsNotes" style="display:none;">
+        <div class="field"><label>Include</label>
+          <div class="chip-row">
+            <button class="chip selected" data-noteinc="active">Active</button>
+            <button class="chip selected" data-noteinc="done">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-row" id="reportPreviewStats"></div>
+      <button class="btn primary" id="generateReportBtn" style="margin-top:6px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+        Download PDF report
+      </button>
+      <p class="hint" id="reportEmptyHint" style="display:none;">Nothing to include for this selection yet.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- =============== MODALS =============== -->
+
+<div class="overlay" id="overlayActivity">
+  <div class="modal">
+    <div class="modal-head"><h3>Add activity</h3><button class="modal-close" data-close><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+    <div class="field"><label>What did / will you do</label><textarea id="actText" placeholder="e.g. Site visit — panel inspection at Shed 3"></textarea></div>
+    <div class="field-row">
+      <div class="field"><label>Date</label><input type="date" id="actDate"></div>
+      <div class="field"><label>Time (optional)</label><input type="time" id="actTime"></div>
+    </div>
+    <div class="field"><label>Category</label>
+      <div class="chip-row" id="actCatRow">
+        <button class="chip selected" data-cat="task">Task</button>
+        <button class="chip" data-cat="meeting">Meeting</button>
+        <button class="chip" data-cat="site">Site work</button>
+        <button class="chip" data-cat="personal">Personal</button>
+        <button class="chip" data-cat="other">Other</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn primary" id="saveActivityBtn">Save activity</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayNote">
+  <div class="modal">
+    <div class="modal-head"><h3 id="noteModalTitle">New idea / note</h3><button class="modal-close" data-close><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+    <input type="hidden" id="noteEditId">
+    <div class="field"><label>Title</label><input type="text" id="noteTitle" placeholder="e.g. Try VFD harmonic filter idea"></div>
+    <div class="field"><label>Details (optional)</label><textarea id="noteText" placeholder="Jot down enough to remember why this mattered..."></textarea></div>
+    <div class="field"><label>Remind me</label>
+      <div class="chip-row" id="quickReminderRow" style="margin-bottom:8px;">
+        <button class="chip" data-quick="0">No reminder</button>
+        <button class="chip" data-quick="30">In 30 min</button>
+        <button class="chip" data-quick="60">In 1 hr</button>
+        <button class="chip" data-quick="1440">Tomorrow, 9am</button>
+        <button class="chip" data-quick="custom">Custom</button>
+      </div>
+      <div class="field-row" id="customReminderRow" style="display:none;">
+        <div class="field"><label>Date</label><input type="date" id="noteRemDate"></div>
+        <div class="field"><label>Time</label><input type="time" id="noteRemTime"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn primary" id="saveNoteBtn">Save note</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayChain">
+  <div class="modal">
+    <div class="modal-head"><h3>New task interlock chain</h3><button class="modal-close" data-close><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+    <div class="field"><label>Plan title</label><input type="text" id="chainTitle" placeholder="e.g. New client onboarding"></div>
+    <div class="field"><label>Steps, in order</label>
+      <div id="chainStepsInputs"></div>
+      <button class="btn small" id="addStepInputBtn" style="margin-top:6px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add step
+      </button>
+    </div>
+    <p class="hint">Each step unlocks only after the previous one is marked done — like an interlock.</p>
+    <div class="modal-actions">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn primary" id="saveChainBtn">Create chain</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayAddStep">
+  <div class="modal">
+    <div class="modal-head"><h3>Add step to chain</h3><button class="modal-close" data-close><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+    <input type="hidden" id="addStepChainId">
+    <div class="field"><label>Step title</label><input type="text" id="newStepTitle"></div>
+    <div class="field"><label>Notes (optional)</label><textarea id="newStepNotes"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn primary" id="saveNewStepBtn">Add step</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= STATE ================= */
+const STORE_KEY = "daylog_interlock_state_v1";
+let state = loadState();
+let currentLogDate = todayStr();
+let noteFilter = "all";
+let reportType = "log";
+let reportNoteInclude = new Set(["active","done"]);
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){ console.warn("state load failed", e); }
+  return { activities: [], notes: [], chains: [] };
+}
+function saveState(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  catch(e){ console.warn("state save failed", e); }
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+/* ================= DATE HELPERS ================= */
+function todayStr(){ return fmtISO(new Date()); }
+function fmtISO(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function addDays(iso, n){
+  const d = new Date(iso+"T00:00:00");
+  d.setDate(d.getDate()+n);
+  return fmtISO(d);
+}
+function prettyDate(iso){
+  const d = new Date(iso+"T00:00:00");
+  const opts = { weekday:'short', day:'numeric', month:'short', year:'numeric' };
+  let label = d.toLocaleDateString('en-GB', opts);
+  if(iso === todayStr()) label = "Today — " + label;
+  else if(iso === addDays(todayStr(),-1)) label = "Yesterday — " + label;
+  else if(iso === addDays(todayStr(),1)) label = "Tomorrow — " + label;
+  return label;
+}
+function fmtDateTime(ts){
+  const d = new Date(ts);
+  return d.toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:true });
+}
+function relTime(ts){
+  const diff = ts - Date.now();
+  const abs = Math.abs(diff);
+  const mins = Math.round(abs/60000);
+  const hrs = Math.round(abs/3600000);
+  const days = Math.round(abs/86400000);
+  let out;
+  if(mins < 1) out = "now";
+  else if(mins < 60) out = mins+"m";
+  else if(hrs < 24) out = hrs+"h";
+  else out = days+"d";
+  return diff < 0 ? out+" overdue" : "in "+out;
+}
+
+/* ================= CLOCK ================= */
+function tickClock(){
+  const now = new Date();
+  document.getElementById("clockTime").textContent = now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById("clockDate").textContent = now.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+}
+tickClock(); setInterval(tickClock, 15000);
+
+/* ================= TABS ================= */
+document.querySelectorAll(".tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("panel-"+btn.dataset.tab).classList.add("active");
+    if(btn.dataset.tab === "reports") refreshReportOptions();
+  });
+});
+
+/* ================= MODAL HELPERS ================= */
+function openModal(id){ document.getElementById(id).classList.add("open"); }
+function closeModal(id){ document.getElementById(id).classList.remove("open"); }
+document.querySelectorAll("[data-close]").forEach(el=>{
+  el.addEventListener("click", ()=>{ el.closest(".overlay").classList.remove("open"); });
+});
+document.querySelectorAll(".overlay").forEach(ov=>{
+  ov.addEventListener("click", (e)=>{ if(e.target === ov) ov.classList.remove("open"); });
+});
+
+/* ================================================================
+   DAILY LOG
+================================================================ */
+const CAT_LABEL = { task:"Task", meeting:"Meeting", site:"Site work", personal:"Personal", other:"Other" };
+
+document.getElementById("prevDay").addEventListener("click", ()=>{ currentLogDate = addDays(currentLogDate,-1); renderLog(); });
+document.getElementById("nextDay").addEventListener("click", ()=>{ currentLogDate = addDays(currentLogDate,1); renderLog(); });
+document.getElementById("todayBtn").addEventListener("click", ()=>{ currentLogDate = todayStr(); renderLog(); });
+
+document.getElementById("addActivityBtn").addEventListener("click", ()=>{
+  document.getElementById("actText").value = "";
+  document.getElementById("actDate").value = currentLogDate;
+  document.getElementById("actTime").value = "";
+  document.querySelectorAll("#actCatRow .chip").forEach(c=>c.classList.remove("selected"));
+  document.querySelector('#actCatRow .chip[data-cat="task"]').classList.add("selected");
+  openModal("overlayActivity");
+});
+document.getElementById("actCatRow").addEventListener("click",(e)=>{
+  const chip = e.target.closest(".chip"); if(!chip) return;
+  document.querySelectorAll("#actCatRow .chip").forEach(c=>c.classList.remove("selected"));
+  chip.classList.add("selected");
+});
+document.getElementById("saveActivityBtn").addEventListener("click", ()=>{
+  const text = document.getElementById("actText").value.trim();
+  if(!text){ flashInvalid("actText"); return; }
+  const date = document.getElementById("actDate").value || currentLogDate;
+  const time = document.getElementById("actTime").value;
+  const cat = document.querySelector("#actCatRow .chip.selected")?.dataset.cat || "task";
+  state.activities.push({ id: uid(), date, time, text, category: cat, done:false, createdAt: Date.now() });
+  saveState();
+  currentLogDate = date;
+  closeModal("overlayActivity");
+  renderLog();
+  toast("Activity added", text, []);
+});
+
+function renderLog(){
+  document.getElementById("logDateLabel").textContent = prettyDate(currentLogDate);
+  const items = state.activities.filter(a=>a.date===currentLogDate)
+    .sort((a,b)=> (a.time||"99:99").localeCompare(b.time||"99:99"));
+
+  const total = items.length, done = items.filter(a=>a.done).length;
+  const stats = document.getElementById("logStats");
+  stats.innerHTML = `
+    <div class="stat"><b>${total}</b><span>Logged</span></div>
+    <div class="stat"><b>${done}</b><span>Completed</span></div>
+    <div class="stat"><b>${total-done}</b><span>Pending</span></div>
+    <div class="stat"><b>${total? Math.round(done/total*100):0}%</b><span>Done rate</span></div>
+  `;
+
+  const list = document.getElementById("logList");
+  if(!items.length){
+    list.innerHTML = `<div class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <div>Nothing logged for this day yet.</div>
+    </div>`;
+    return;
+  }
+  list.innerHTML = items.map(a=>`
+    <div class="entry ${a.done?'done':''}" data-id="${a.id}">
+      <div class="entry-check" data-action="toggle">${a.done? checkSvg() : ''}</div>
+      <div class="entry-body">
+        <div class="entry-top">
+          ${a.time?`<span class="entry-time">${a.time}</span>`:''}
+          <span class="entry-cat">${CAT_LABEL[a.category]||'Other'}</span>
+        </div>
+        <div class="entry-text">${escapeHtml(a.text)}</div>
+      </div>
+      <div class="entry-actions">
+        <button class="btn ghost small" data-action="delete" title="Delete">${trashSvg()}</button>
+      </div>
+    </div>
+  `).join("");
+}
+document.getElementById("logList").addEventListener("click",(e)=>{
+  const row = e.target.closest(".entry"); if(!row) return;
+  const id = row.dataset.id;
+  const act = state.activities.find(a=>a.id===id);
+  if(e.target.closest('[data-action="toggle"]')){
+    act.done = !act.done; saveState(); renderLog();
+  } else if(e.target.closest('[data-action="delete"]')){
+    state.activities = state.activities.filter(a=>a.id!==id); saveState(); renderLog();
+  }
+});
+
+/* ================================================================
+   NOTES / IDEAS / REMINDERS
+================================================================ */
+document.getElementById("addNoteBtn").addEventListener("click", ()=>{
+  document.getElementById("noteModalTitle").textContent = "New idea / note";
+  document.getElementById("noteEditId").value = "";
+  document.getElementById("noteTitle").value = "";
+  document.getElementById("noteText").value = "";
+  document.getElementById("noteRemDate").value = "";
+  document.getElementById("noteRemTime").value = "";
+  document.getElementById("customReminderRow").style.display = "none";
+  document.querySelectorAll("#quickReminderRow .chip").forEach(c=>c.classList.remove("selected"));
+  document.querySelector('#quickReminderRow .chip[data-quick="0"]').classList.add("selected");
+  openModal("overlayNote");
+});
+document.getElementById("quickReminderRow").addEventListener("click",(e)=>{
+  const chip = e.target.closest(".chip"); if(!chip) return;
+  document.querySelectorAll("#quickReminderRow .chip").forEach(c=>c.classList.remove("selected"));
+  chip.classList.add("selected");
+  document.getElementById("customReminderRow").style.display = chip.dataset.quick==="custom" ? "grid" : "none";
+});
+document.getElementById("saveNoteBtn").addEventListener("click", ()=>{
+  const title = document.getElementById("noteTitle").value.trim();
+  if(!title){ flashInvalid("noteTitle"); return; }
+  const text = document.getElementById("noteText").value.trim();
+  const editId = document.getElementById("noteEditId").value;
+  const quick = document.querySelector("#quickReminderRow .chip.selected")?.dataset.quick || "0";
+
+  let reminderAt = null;
+  if(quick === "custom"){
+    const d = document.getElementById("noteRemDate").value;
+    const t = document.getElementById("noteRemTime").value || "09:00";
+    if(d) reminderAt = new Date(d+"T"+t).getTime();
+  } else if(quick === "1440"){
+    const tmr = new Date(); tmr.setDate(tmr.getDate()+1); tmr.setHours(9,0,0,0);
+    reminderAt = tmr.getTime();
+  } else if(quick !== "0"){
+    reminderAt = Date.now() + parseInt(quick,10)*60000;
+  }
+
+  if(editId){
+    const n = state.notes.find(x=>x.id===editId);
+    n.title=title; n.text=text; n.reminderAt=reminderAt; n.notified=false;
+    if(reminderAt) n.status = "active";
+  } else {
+    state.notes.unshift({
+      id: uid(), title, text, createdAt: Date.now(),
+      reminderAt, status:"active", notified:false
+    });
+  }
+  saveState();
+  closeModal("overlayNote");
+  renderNotes();
+  maybeAskNotifPermission();
+  toast(editId?"Note updated":"Note saved", title, []);
+});
+
+document.getElementById("noteFilterRow").addEventListener("click",(e)=>{
+  const chip = e.target.closest(".chip"); if(!chip) return;
+  document.querySelectorAll("#noteFilterRow .chip").forEach(c=>c.classList.remove("selected"));
+  chip.classList.add("selected");
+  noteFilter = chip.dataset.filter;
+  renderNotes();
+});
+
+function noteState(n){
+  if(n.status === "done") return "done";
+  if(!n.reminderAt) return "nodate";
+  if(n.reminderAt <= Date.now()) return "overdue";
+  if(n.reminderAt - Date.now() < 3600000) return "due";
+  return "upcoming";
+}
+
+function renderNotes(){
+  let items = state.notes.slice();
+  if(noteFilter === "due") items = items.filter(n=>["overdue","due"].includes(noteState(n)));
+  else if(noteFilter === "upcoming") items = items.filter(n=>noteState(n)==="upcoming");
+  else if(noteFilter === "nodate") items = items.filter(n=>noteState(n)==="nodate");
+  else if(noteFilter === "done") items = items.filter(n=>noteState(n)==="done");
+
+  items.sort((a,b)=>{
+    const rank = {overdue:0, due:1, upcoming:2, nodate:3, done:4};
+    const ra = rank[noteState(a)], rb = rank[noteState(b)];
+    if(ra!==rb) return ra-rb;
+    return (a.reminderAt||a.createdAt) - (b.reminderAt||b.createdAt);
+  });
+
+  const grid = document.getElementById("noteGrid");
+  if(!items.length){
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a5 5 0 0 0-5 5c0 3 2 4 2 7v1h6v-1c0-3 2-4 2-7a5 5 0 0 0-5-5z"/></svg>
+      <div>No notes here. Capture an idea before it slips away.</div>
+    </div>`;
+  } else {
+    grid.innerHTML = items.map(n=>{
+      const st = noteState(n);
+      const cardCls = ["note-card"];
+      if(n.reminderAt) cardCls.push("has-reminder");
+      if(st==="due") cardCls.push("due");
+      if(st==="overdue") cardCls.push("overdue");
+      if(st==="done") cardCls.push("done");
+      let tag = "";
+      if(n.reminderAt){
+        const tagCls = st==="overdue"?"overdue":(st==="due"?"due":"");
+        tag = `<span class="note-reminder-tag ${tagCls}">${bellSvgSmall()} ${fmtDateTime(n.reminderAt)} &middot; ${relTime(n.reminderAt)}</span>`;
+      }
+      return `
+      <div class="${cardCls.join(' ')}" data-id="${n.id}">
+        <div class="note-actions">
+          <button class="btn ghost small" data-action="edit" title="Edit">${editSvg()}</button>
+          <button class="btn ghost small" data-action="delete" title="Delete">${trashSvg()}</button>
+        </div>
+        <div class="note-title">${escapeHtml(n.title)}</div>
+        ${n.text?`<p class="note-text">${escapeHtml(n.text)}</p>`:''}
+        <div class="note-meta">${tag}</div>
+        <div class="note-footer">
+          ${st!=="done" ? `<button class="btn small" data-action="done">Mark done</button>` : `<button class="btn small" data-action="reopen">Reopen</button>`}
+          ${n.reminderAt && st!=="done" ? `<button class="btn small amber" data-action="snooze">Snooze 30m</button>` : ''}
+        </div>
+      </div>`;
+    }).join("");
+  }
+  updateNotesBadge();
+}
+document.getElementById("noteGrid").addEventListener("click",(e)=>{
+  const card = e.target.closest(".note-card"); if(!card) return;
+  const id = card.dataset.id;
+  const n = state.notes.find(x=>x.id===id);
+  const action = e.target.closest("[data-action]")?.dataset.action;
+  if(action === "delete"){
+    state.notes = state.notes.filter(x=>x.id!==id); saveState(); renderNotes();
+  } else if(action === "done"){
+    n.status = "done"; saveState(); renderNotes();
+  } else if(action === "reopen"){
+    n.status = "active"; n.notified=false; saveState(); renderNotes();
+  } else if(action === "snooze"){
+    n.reminderAt = Date.now() + 30*60000; n.notified=false; n.status="active"; saveState(); renderNotes();
+  } else if(action === "edit"){
+    document.getElementById("noteModalTitle").textContent = "Edit note";
+    document.getElementById("noteEditId").value = n.id;
+    document.getElementById("noteTitle").value = n.title;
+    document.getElementById("noteText").value = n.text||"";
+    document.querySelectorAll("#quickReminderRow .chip").forEach(c=>c.classList.remove("selected"));
+    if(n.reminderAt){
+      document.querySelector('#quickReminderRow .chip[data-quick="custom"]').classList.add("selected");
+      document.getElementById("customReminderRow").style.display = "grid";
+      const d = new Date(n.reminderAt);
+      document.getElementById("noteRemDate").value = fmtISO(d);
+      document.getElementById("noteRemTime").value = String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+    } else {
+      document.querySelector('#quickReminderRow .chip[data-quick="0"]').classList.add("selected");
+      document.getElementById("customReminderRow").style.display = "none";
+    }
+    openModal("overlayNote");
+  }
+});
+function updateNotesBadge(){
+  const dueCount = state.notes.filter(n=>["overdue","due"].includes(noteState(n))).length;
+  const badge = document.getElementById("notesBadge");
+  if(dueCount>0){ badge.style.display="inline-flex"; badge.textContent=dueCount; }
+  else badge.style.display="none";
+}
+
+/* ================================================================
+   REMINDER ENGINE
+================================================================ */
+let notifPermissionAsked = false;
+function maybeAskNotifPermission(){
+  if(!("Notification" in window)) return;
+  if(Notification.permission === "default" && !notifPermissionAsked){
+    document.getElementById("permBanner").style.display = "flex";
+  }
+}
+document.getElementById("enableNotifBtn").addEventListener("click", ()=>{
+  notifPermissionAsked = true;
+  if("Notification" in window){
+    Notification.requestPermission().then(()=>{
+      document.getElementById("permBanner").style.display = "none";
+    });
+  }
+});
+
+function beep(){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.5);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+0.55);
+  }catch(e){/* audio not available, ignore */}
+}
+
+function toast(title, msg, actions){
+  const wrap = document.getElementById("toastWrap");
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.innerHTML = `<b>${escapeHtml(title)}</b><p>${escapeHtml(msg)}</p>`;
+  if(actions && actions.length){
+    const row = document.createElement("div"); row.className="toast-actions";
+    actions.forEach(a=>{
+      const b = document.createElement("button");
+      b.className = "btn small"+(a.primary?" primary":"");
+      b.textContent = a.label;
+      b.addEventListener("click", ()=>{ a.onClick(); el.remove(); });
+      row.appendChild(b);
+    });
+    el.appendChild(row);
+  }
+  wrap.appendChild(el);
+  setTimeout(()=>{ if(el.parentNode) el.remove(); }, actions&&actions.length ? 20000 : 6000);
+}
+
+function checkReminders(){
+  const now = Date.now();
+  let dueList = [];
+  state.notes.forEach(n=>{
+    if(n.status==="active" && n.reminderAt && n.reminderAt<=now){
+      dueList.push(n);
+      if(!n.notified){
+        n.notified = true;
+        fireAlert(n);
+      }
+    }
+  });
+  document.querySelectorAll(".bell").forEach(b=>{});
+  const bell = document.getElementById("bellBtn");
+  const count = document.getElementById("bellCount");
+  if(dueList.length>0){
+    bell.classList.add("due");
+    count.style.display="flex"; count.textContent = dueList.length;
+  } else {
+    bell.classList.remove("due");
+    count.style.display="none";
+  }
+  saveState();
+  if(document.getElementById("panel-notes").classList.contains("active")) renderNotes();
+  updateNotesBadge();
+}
+function fireAlert(n){
+  beep();
+  if("Notification" in window && Notification.permission === "granted"){
+    try{
+      const notif = new Notification("Reminder: "+n.title, { body: n.text || "Tap to open DAYLOG", tag: n.id });
+      notif.onclick = ()=>{ window.focus(); };
+    }catch(e){/* ignore */}
+  }
+  toast("Reminder due", n.title, [
+    { label:"Snooze 10m", onClick:()=>{ n.reminderAt = Date.now()+10*60000; n.notified=false; saveState(); renderNotes(); } },
+    { label:"Done", primary:true, onClick:()=>{ n.status="done"; saveState(); renderNotes(); } }
+  ]);
+  flashTitle();
+}
+let titleFlashInterval = null;
+const ORIGINAL_TITLE = document.title;
+function flashTitle(){
+  if(titleFlashInterval) return;
+  let on = false, count=0;
+  titleFlashInterval = setInterval(()=>{
+    document.title = on ? ORIGINAL_TITLE : "⏰ Reminder due — DAYLOG";
+    on = !on; count++;
+    if(count>10){ clearInterval(titleFlashInterval); titleFlashInterval=null; document.title=ORIGINAL_TITLE; }
+  }, 1200);
+}
+document.getElementById("bellBtn").addEventListener("click", ()=>{
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector('.tab-btn[data-tab="notes"]').classList.add('active');
+  document.getElementById('panel-notes').classList.add('active');
+  document.querySelectorAll('#noteFilterRow .chip').forEach(c=>c.classList.remove('selected'));
+  document.querySelector('#noteFilterRow .chip[data-filter="due"]').classList.add('selected');
+  noteFilter = "due";
+  renderNotes();
+});
+
+setInterval(checkReminders, 15000);
+
+/* ================================================================
+   TASK INTERLOCK CHAINS
+================================================================ */
+let stepInputCount = 0;
+document.getElementById("addChainBtn").addEventListener("click", ()=>{
+  document.getElementById("chainTitle").value = "";
+  document.getElementById("chainStepsInputs").innerHTML = "";
+  stepInputCount = 0;
+  addStepInputRow(); addStepInputRow();
+  openModal("overlayChain");
+});
+document.getElementById("addStepInputBtn").addEventListener("click", ()=> addStepInputRow());
+function addStepInputRow(){
+  stepInputCount++;
+  const row = document.createElement("div");
+  row.className = "field";
+  row.style.display = "flex"; row.style.gap = "6px"; row.style.marginBottom="8px";
+  row.innerHTML = `<input type="text" class="chain-step-input" placeholder="Step ${stepInputCount}">
+    <button type="button" class="btn ghost small" data-remove-step>${trashSvg()}</button>`;
+  row.querySelector("[data-remove-step]").addEventListener("click", ()=> row.remove());
+  document.getElementById("chainStepsInputs").appendChild(row);
+}
+document.getElementById("saveChainBtn").addEventListener("click", ()=>{
+  const title = document.getElementById("chainTitle").value.trim();
+  if(!title){ flashInvalid("chainTitle"); return; }
+  const stepEls = [...document.querySelectorAll(".chain-step-input")].map(i=>i.value.trim()).filter(Boolean);
+  if(!stepEls.length){ toast("Add at least one step", "A chain needs at least one step to interlock.", []); return; }
+  const steps = stepEls.map(t=>({ id: uid(), title:t, notes:"", done:false, doneAt:null }));
+  state.chains.unshift({ id: uid(), title, createdAt: Date.now(), steps });
+  saveState();
+  closeModal("overlayChain");
+  renderChains();
+  toast("Chain created", title, []);
+});
+
+document.getElementById("saveNewStepBtn").addEventListener("click", ()=>{
+  const chainId = document.getElementById("addStepChainId").value;
+  const title = document.getElementById("newStepTitle").value.trim();
+  if(!title){ flashInvalid("newStepTitle"); return; }
+  const notes = document.getElementById("newStepNotes").value.trim();
+  const chain = state.chains.find(c=>c.id===chainId);
+  chain.steps.push({ id: uid(), title, notes, done:false, doneAt:null });
+  saveState();
+  closeModal("overlayAddStep");
+  renderChains();
+});
+
+function renderChains(){
+  const list = document.getElementById("chainList");
+  if(!state.chains.length){
+    list.innerHTML = `<div class="card"><div class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="15" width="7" height="7" rx="1"/></svg>
+      <div>No task chains yet. Build a step plan and interlock it.</div>
+    </div></div>`;
+    return;
+  }
+  list.innerHTML = state.chains.map(c=>{
+    const done = c.steps.filter(s=>s.done).length;
+    const pct = c.steps.length ? Math.round(done/c.steps.length*100) : 0;
+    let firstLockedFound = false;
+    const stepsHtml = c.steps.map((s,idx)=>{
+      let cls = "step";
+      if(s.done){ cls += " done"; }
+      else if(!firstLockedFound){ cls += " active"; firstLockedFound = true; }
+      else { cls += " locked"; }
+      const locked = cls.includes("locked");
+      let statusLabel = s.done ? ("Done " + fmtDateTime(s.doneAt)) : (cls.includes("active") ? "Unlocked — in progress" : "Locked");
+      return `
+      <div class="${cls}" data-chain="${c.id}" data-step="${s.id}">
+        <div class="step-lock-col">
+          <div class="step-lock" data-action="${s.done?'reopen':'complete'}" title="${locked?'Complete the previous step first':(s.done?'Reopen':'Mark done')}">
+            ${s.done? checkSvg() : (locked? lockSvg() : unlockSvg())}
+          </div>
+          <div class="step-wire"></div>
+        </div>
+        <div class="step-body">
+          <div class="step-title">${idx+1}. ${escapeHtml(s.title)}</div>
+          ${s.notes?`<div class="step-notes">${escapeHtml(s.notes)}</div>`:''}
+          <div class="step-status">${statusLabel}</div>
+        </div>
+      </div>`;
+    }).join("");
+    return `
+    <div class="chain-card" data-id="${c.id}">
+      <div class="chain-head">
+        <div>
+          <div class="chain-title">${escapeHtml(c.title)}</div>
+          <div class="chain-sub">${done}/${c.steps.length} steps complete</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn small" data-action="addstep">+ Step</button>
+          <button class="btn ghost small" data-action="deletechain">${trashSvg()}</button>
+        </div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="step-chain">${stepsHtml}</div>
+    </div>`;
+  }).join("");
+}
+document.getElementById("chainList").addEventListener("click",(e)=>{
+  const chainCard = e.target.closest(".chain-card"); if(!chainCard) return;
+  const chainId = chainCard.dataset.id;
+  const chain = state.chains.find(c=>c.id===chainId);
+  const headAction = e.target.closest("[data-action]");
+
+  if(headAction && headAction.dataset.action === "addstep"){
+    document.getElementById("addStepChainId").value = chainId;
+    document.getElementById("newStepTitle").value = "";
+    document.getElementById("newStepNotes").value = "";
+    openModal("overlayAddStep");
+    return;
+  }
+  if(headAction && headAction.dataset.action === "deletechain"){
+    state.chains = state.chains.filter(c=>c.id!==chainId);
+    saveState(); renderChains(); return;
+  }
+  const stepEl = e.target.closest(".step"); if(!stepEl) return;
+  if(stepEl.classList.contains("locked")) {
+    toast("Locked", "Complete the previous step to unlock this one.", []);
+    return;
+  }
+  const stepId = stepEl.dataset.step;
+  const step = chain.steps.find(s=>s.id===stepId);
+  const action = e.target.closest("[data-action]")?.dataset.action;
+  if(action === "complete"){
+    step.done = true; step.doneAt = Date.now();
+  } else if(action === "reopen"){
+    step.done = false; step.doneAt = null;
+  }
+  saveState(); renderChains();
+});
+
+/* ================================================================
+   REPORTS
+================================================================ */
+document.querySelectorAll(".report-type").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".report-type").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    reportType = btn.dataset.report;
+    document.getElementById("reportOptionsLog").style.display = reportType==="log" ? "block":"none";
+    document.getElementById("reportOptionsChain").style.display = reportType==="chain" ? "block":"none";
+    document.getElementById("reportOptionsNotes").style.display = reportType==="notes" ? "block":"none";
+    refreshReportPreview();
+  });
+});
+document.getElementById("repFrom").addEventListener("change", refreshReportPreview);
+document.getElementById("repTo").addEventListener("change", refreshReportPreview);
+document.getElementById("repChainSelect").addEventListener("change", refreshReportPreview);
+document.getElementById("reportOptionsNotes").addEventListener("click",(e)=>{
+  const chip = e.target.closest("[data-noteinc]"); if(!chip) return;
+  chip.classList.toggle("selected");
+  const val = chip.dataset.noteinc;
+  if(chip.classList.contains("selected")) reportNoteInclude.add(val); else reportNoteInclude.delete(val);
+  refreshReportPreview();
+});
+
+function refreshReportOptions(){
+  const from = document.getElementById("repFrom");
+  const to = document.getElementById("repTo");
+  if(!from.value){ from.value = addDays(todayStr(),-6); }
+  if(!to.value){ to.value = todayStr(); }
+  const sel = document.getElementById("repChainSelect");
+  sel.innerHTML = state.chains.map(c=>`<option value="${c.id}">${escapeHtml(c.title)}</option>`).join("") || `<option value="">No chains yet</option>`;
+  refreshReportPreview();
+}
+
+function getReportData(){
+  if(reportType === "log"){
+    const from = document.getElementById("repFrom").value;
+    const to = document.getElementById("repTo").value;
+    const items = state.activities.filter(a=> (!from || a.date>=from) && (!to || a.date<=to))
+      .sort((a,b)=> a.date===b.date ? (a.time||"").localeCompare(b.time||"") : a.date.localeCompare(b.date));
+    return { items, from, to };
+  }
+  if(reportType === "chain"){
+    const chain = state.chains.find(c=>c.id===document.getElementById("repChainSelect").value);
+    return { chain };
+  }
+  if(reportType === "notes"){
+    const items = state.notes.filter(n=>{
+      const st = noteState(n);
+      if(st==="done") return reportNoteInclude.has("done");
+      return reportNoteInclude.has("active");
+    });
+    return { items };
+  }
+}
+
+function refreshReportPreview(){
+  const data = getReportData();
+  const statRow = document.getElementById("reportPreviewStats");
+  const emptyHint = document.getElementById("reportEmptyHint");
+  let empty = false, statsHtml = "";
+  if(reportType === "log"){
+    const items = data.items;
+    const done = items.filter(a=>a.done).length;
+    statsHtml = `<div class="stat"><b>${items.length}</b><span>Activities</span></div>
+      <div class="stat"><b>${done}</b><span>Completed</span></div>
+      <div class="stat"><b>${items.length-done}</b><span>Pending</span></div>`;
+    empty = items.length===0;
+  } else if(reportType === "chain"){
+    const c = data.chain;
+    if(!c){ empty = true; }
+    else{
+      const done = c.steps.filter(s=>s.done).length;
+      statsHtml = `<div class="stat"><b>${c.steps.length}</b><span>Steps</span></div>
+        <div class="stat"><b>${done}</b><span>Complete</span></div>
+        <div class="stat"><b>${c.steps.length? Math.round(done/c.steps.length*100):0}%</b><span>Progress</span></div>`;
+    }
+  } else if(reportType === "notes"){
+    const items = data.items;
+    statsHtml = `<div class="stat"><b>${items.length}</b><span>Notes included</span></div>
+      <div class="stat"><b>${items.filter(n=>n.reminderAt).length}</b><span>With reminders</span></div>`;
+    empty = items.length===0;
+  }
+  statRow.innerHTML = statsHtml;
+  emptyHint.style.display = empty ? "block":"none";
+  document.getElementById("generateReportBtn").disabled = empty;
+}
+
+document.getElementById("generateReportBtn").addEventListener("click", generatePdfReport);
+
+function generatePdfReport(){
+  if(!window.jspdf){ toast("PDF library unavailable","Couldn't load the PDF engine. Check your connection and try again.",[]); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:"pt", format:"a4" });
+  const marginX = 48;
+  let y = 56;
+  const pageH = doc.internal.pageSize.getHeight();
+  const pageW = doc.internal.pageSize.getWidth();
+
+  function ensureSpace(h){
+    if(y + h > pageH - 50){ doc.addPage(); y = 56; drawHeader(false); }
+  }
+  function drawHeader(isFirst){
+    doc.setFont("courier","bold"); doc.setFontSize(14); doc.setTextColor(20,30,40);
+    doc.text("DAYLOG", marginX, isFirst? y : 40);
+    doc.setFont("courier","normal"); doc.setFontSize(9); doc.setTextColor(120,130,140);
+    doc.text(new Date().toLocaleString(), pageW-marginX, isFirst? y : 40, {align:"right"});
+    if(isFirst){ y += 10; doc.setDrawColor(0,200,220); doc.setLineWidth(1); doc.line(marginX,y,pageW-marginX,y); y+=24; }
+    else { doc.setDrawColor(220,220,220); doc.line(marginX,50,pageW-marginX,50); }
+  }
+  drawHeader(true);
+
+  function h1(text){
+    ensureSpace(30);
+    doc.setFont("courier","bold"); doc.setFontSize(13); doc.setTextColor(15,25,35);
+    doc.text(text, marginX, y); y += 20;
+  }
+  function meta(text){
+    ensureSpace(16);
+    doc.setFont("courier","normal"); doc.setFontSize(9.5); doc.setTextColor(110,120,130);
+    doc.text(text, marginX, y); y += 16;
+  }
+  function tableHeader(cols, widths){
+    ensureSpace(20);
+    doc.setFont("courier","bold"); doc.setFontSize(9); doc.setTextColor(0,140,160);
+    let x = marginX;
+    cols.forEach((c,i)=>{ doc.text(c, x, y); x += widths[i]; });
+    y += 6;
+    doc.setDrawColor(200,220,225); doc.line(marginX, y, pageW-marginX, y); y += 12;
+  }
+  function tableRow(vals, widths, opts){
+    const lineHeights = vals.map((v,i)=> doc.splitTextToSize(String(v), widths[i]-6));
+    const rows = Math.max(...lineHeights.map(l=>l.length));
+    ensureSpace(rows*12+8);
+    let x = marginX;
+    doc.setFont("courier","normal"); doc.setFontSize(9);
+    doc.setTextColor(opts&&opts.dim?150:40, opts&&opts.dim?150:45, opts&&opts.dim?150:50);
+    vals.forEach((v,i)=>{
+      doc.text(lineHeights[i], x, y);
+      x += widths[i];
+    });
+    y += rows*12 + 6;
+    doc.setDrawColor(238,240,242); doc.line(marginX, y-4, pageW-marginX, y-4);
+  }
+  function paragraph(text){
+    ensureSpace(14);
+    doc.setFont("courier","normal"); doc.setFontSize(9.5); doc.setTextColor(70,80,90);
+    const lines = doc.splitTextToSize(text, pageW-marginX*2);
+    lines.forEach(l=>{ ensureSpace(13); doc.text(l, marginX, y); y+=13; });
+    y += 4;
+  }
+
+  let filename = "daylog-report.pdf";
+
+  if(reportType === "log"){
+    const { items, from, to } = getReportData();
+    h1("Daily Activity Report");
+    meta(`Range: ${from} to ${to}  |  ${items.length} activities  |  ${items.filter(a=>a.done).length} completed`);
+    y += 4;
+    const widths = [70,60,70,pageW-marginX*2-70-60-70];
+    tableHeader(["Date","Time","Category","Activity"], widths);
+    if(!items.length) paragraph("No activities logged in this range.");
+    items.forEach(a=>{
+      tableRow([a.date, a.time||"—", CAT_LABEL[a.category]||"Other", (a.done?"[DONE] ":"[ ] ")+a.text], widths, {dim:a.done});
+    });
+    filename = `daylog-activity-${from}_to_${to}.pdf`;
+  }
+
+  if(reportType === "chain"){
+    const { chain } = getReportData();
+    if(chain){
+      h1("Task Interlock Report: " + chain.title);
+      const done = chain.steps.filter(s=>s.done).length;
+      meta(`Created ${fmtDateTime(chain.createdAt)}  |  ${done}/${chain.steps.length} steps complete  |  ${chain.steps.length? Math.round(done/chain.steps.length*100):0}% progress`);
+      y += 4;
+      const widths = [26,pageW-marginX*2-26-140,140];
+      tableHeader(["#","Step","Status"], widths);
+      chain.steps.forEach((s,idx)=>{
+        const label = s.title + (s.notes? ("\n"+s.notes) : "");
+        const status = s.done ? ("Done — "+fmtDateTime(s.doneAt)) : "Pending / Locked";
+        tableRow([String(idx+1), label, status], widths, {dim:s.done});
+      });
+      filename = `interlock-${chain.title.replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.pdf`;
+    }
+  }
+
+  if(reportType === "notes"){
+    const { items } = getReportData();
+    h1("Ideas & Notes Report");
+    meta(`${items.length} notes included`);
+    y += 4;
+    items.forEach(n=>{
+      ensureSpace(40);
+      doc.setFont("courier","bold"); doc.setFontSize(10.5); doc.setTextColor(15,25,35);
+      const titleLines = doc.splitTextToSize(n.title, pageW-marginX*2);
+      titleLines.forEach(l=>{ ensureSpace(14); doc.text(l, marginX, y); y+=14; });
+      doc.setFont("courier","normal"); doc.setFontSize(8.5); doc.setTextColor(120,130,140);
+      const st = noteState(n);
+      const statusText = st==="done" ? "Status: done" : (n.reminderAt ? `Reminder: ${fmtDateTime(n.reminderAt)} (${st})` : "No reminder set");
+      doc.text(statusText, marginX, y); y+=13;
+      if(n.text){
+        doc.setFontSize(9.5); doc.setTextColor(70,80,90);
+        const lines = doc.splitTextToSize(n.text, pageW-marginX*2);
+        lines.forEach(l=>{ ensureSpace(13); doc.text(l, marginX, y); y+=13; });
+      }
+      y += 8;
+      ensureSpace(4);
+      doc.setDrawColor(230,230,232); doc.line(marginX, y-4, pageW-marginX, y-4);
+    });
+    filename = `daylog-notes-${todayStr()}.pdf`;
+  }
+
+  doc.save(filename);
+  toast("Report downloaded", filename, []);
+}
+
+/* ================================================================
+   MISC HELPERS
+================================================================ */
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+}
+function flashInvalid(id){
+  const el = document.getElementById(id);
+  el.style.borderColor = "var(--red)";
+  el.focus();
+  setTimeout(()=>{ el.style.borderColor = ""; }, 1200);
+}
+function checkSvg(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>`; }
+function trashSvg(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>`; }
+function editSvg(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`; }
+function lockSvg(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>`; }
+function unlockSvg(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg>`; }
+function bellSvgSmall(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/></svg>`; }
+
+/* ================= INIT ================= */
+renderLog();
+renderNotes();
+renderChains();
+checkReminders();
+maybeAskNotifPermission();
+
+})();
+</script>
+</body>
+</html>
