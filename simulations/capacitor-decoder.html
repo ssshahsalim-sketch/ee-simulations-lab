@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Capacitor Bench — Decode Any Capacitor Marking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b1f18;
+  --bg-2:#0f2a20;
+  --panel:#13332687;
+  --panel-solid:#153428;
+  --panel-2:#1a4030;
+  --line:#2c5541;
+  --copper:#c17a4d;
+  --copper-bright:#e2965c;
+  --gold:#d9b45a;
+  --paper:#f3efe2;
+  --paper-dim:#cdd8cd;
+  --muted:#8fac9c;
+  --ceramic:#d9a066;
+  --film:#4d84ab;
+  --film-2:#c0563f;
+  --electro:#c7d0c9;
+  --tant:#e08a3c;
+  --red-flag:#e2705c;
+  --radius:14px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(circle at 15% 8%, #133d2c 0%, transparent 45%),
+    radial-gradient(circle at 90% 85%, #103224 0%, transparent 50%),
+    var(--bg);
+  color:var(--paper);
+  font-family:'Inter',sans-serif;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.trace-bg{
+  position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.35;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(ellipse at 50% 0%, black, transparent 75%);
+}
+.wrap{position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 24px 120px;}
+h1,h2,h3{font-family:'Space Grotesk',sans-serif; margin:0; color:var(--paper);}
+.mono{font-family:'IBM Plex Mono',monospace;}
+a{color:var(--copper-bright);}
+
+/* ---------- top nav ---------- */
+.topnav{
+  position:sticky; top:0; z-index:50;
+  backdrop-filter:blur(10px);
+  background:rgba(11,31,24,.88);
+  border-bottom:1px solid var(--line);
+}
+.topnav-inner{max-width:1080px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:18px; overflow-x:auto;}
+.brand{display:flex; align-items:center; gap:10px; flex-shrink:0; font-family:'Space Grotesk',sans-serif; font-weight:600; letter-spacing:.02em; color:var(--paper); font-size:15px;}
+.brand-mark{width:22px; height:22px; flex-shrink:0;}
+.navlinks{display:flex; gap:4px; flex-shrink:0;}
+.navlinks a{
+  font-size:12.5px; text-decoration:none; color:var(--muted); padding:7px 11px; border-radius:8px;
+  white-space:nowrap; font-weight:500; transition:.15s;
+}
+.navlinks a:hover{color:var(--paper); background:var(--panel-2);}
+
+/* ---------- hero ---------- */
+.hero{padding:56px 0 8px;}
+.eyebrow{
+  display:inline-flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace;
+  font-size:12px; letter-spacing:.08em; color:var(--copper-bright); text-transform:uppercase;
+  border:1px solid var(--line); padding:5px 12px; border-radius:100px; margin-bottom:18px;
+}
+.eyebrow::before{content:''; width:6px; height:6px; border-radius:50%; background:var(--copper-bright); box-shadow:0 0 8px var(--copper-bright);}
+h1.title{font-size:clamp(32px,5vw,52px); font-weight:700; line-height:1.05; max-width:820px; letter-spacing:-.01em;}
+h1.title em{font-style:normal; color:var(--copper-bright);}
+.subtitle{color:var(--paper-dim); font-size:17px; max-width:640px; margin-top:18px;}
+
+/* ---------- panels ---------- */
+.panel{
+  background:var(--panel-solid);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:28px;
+}
+.section{padding:64px 0 0; scroll-margin-top:72px;}
+.section-head{display:flex; align-items:baseline; gap:14px; margin-bottom:22px; flex-wrap:wrap;}
+.refdes{
+  font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--bg);
+  background:var(--copper-bright); padding:3px 9px; border-radius:6px; font-weight:600;
+}
+.section-head h2{font-size:26px;}
+.section-sub{color:var(--muted); font-size:14.5px; max-width:640px; margin-top:6px;}
+
+/* ---------- decoder hero widget ---------- */
+.decoder{margin-top:32px; display:grid; grid-template-columns:1.05fr 1fr; gap:0; overflow:hidden; border-radius:18px; border:1px solid var(--line);}
+@media(max-width:820px){.decoder{grid-template-columns:1fr;}}
+.decoder-left{background:linear-gradient(160deg,#153a2b,#0f2a20); padding:32px; display:flex; flex-direction:column; gap:20px; justify-content:center;}
+.decoder-right{background:#0e2a20; padding:32px; border-left:1px solid var(--line);}
+@media(max-width:820px){.decoder-right{border-left:none; border-top:1px solid var(--line);}}
+
+.code-input-row{display:flex; gap:10px; align-items:center;}
+#codeInput{
+  flex:1; font-family:'IBM Plex Mono',monospace; font-size:28px; font-weight:600;
+  background:#0a2018; border:1.5px solid var(--line); color:var(--gold);
+  padding:14px 16px; border-radius:10px; letter-spacing:.03em; outline:none; min-width:0;
+}
+#codeInput:focus{border-color:var(--copper-bright);}
+.mini-select{
+  background:#0a2018; border:1.5px solid var(--line); color:var(--paper);
+  font-family:'IBM Plex Mono',monospace; font-size:13px; padding:9px 10px; border-radius:8px; outline:none;
+}
+.field-row{display:flex; gap:10px; flex-wrap:wrap;}
+.field{display:flex; flex-direction:column; gap:6px; flex:1; min-width:130px;}
+.field label{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600;}
+
+.examples{display:flex; gap:8px; flex-wrap:wrap; margin-top:2px;}
+.example-chip{
+  font-family:'IBM Plex Mono',monospace; font-size:12px; background:var(--panel-2); border:1px solid var(--line);
+  color:var(--paper-dim); padding:5px 10px; border-radius:100px; cursor:pointer; transition:.15s;
+}
+.example-chip:hover{border-color:var(--copper-bright); color:var(--paper);}
+
+.result-value{font-family:'Space Grotesk',sans-serif; font-size:42px; font-weight:700; color:var(--gold); line-height:1;}
+.result-sub{font-family:'IBM Plex Mono',monospace; color:var(--muted); font-size:13px; margin-top:6px;}
+.breakdown{margin-top:22px; display:flex; flex-direction:column; gap:10px;}
+.bd-row{display:flex; align-items:flex-start; gap:12px; font-size:13.5px;}
+.bd-chip{
+  font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:13px; min-width:34px; text-align:center;
+  padding:4px 8px; border-radius:6px; flex-shrink:0;
+}
+.bd-text{color:var(--paper-dim); padding-top:3px;}
+.bd-text b{color:var(--paper); font-weight:600;}
+.errbox{color:var(--red-flag); font-family:'IBM Plex Mono',monospace; font-size:13.5px; padding-top:4px;}
+
+.cap-render{display:flex; align-items:center; justify-content:center; padding:12px 0 6px;}
+
+/* ---------- generic data tables ---------- */
+.table-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; margin-top:10px;}
+.tt-cell{
+  background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; cursor:default;
+  transition:.15s;
+}
+.tt-cell:hover{border-color:var(--copper-bright);}
+.tt-cell .k{font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--copper-bright); font-size:14px;}
+.tt-cell .v{font-size:12.5px; color:var(--paper-dim); margin-top:2px;}
+
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+@media(max-width:760px){.two-col{grid-template-columns:1fr;}}
+
+/* ---------- gallery ---------- */
+.gallery{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px; margin-top:22px;}
+.gcard{
+  background:var(--panel-solid); border:1px solid var(--line); border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:10px;
+}
+.gcard .swatch{width:100%; height:64px; border-radius:8px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;}
+.gcard h4{font-family:'Space Grotesk',sans-serif; font-size:16px; margin:0;}
+.gcard .fam{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--copper-bright); text-transform:uppercase; letter-spacing:.05em;}
+.gcard p{font-size:13px; color:var(--paper-dim); margin:0;}
+.gcard .tags{display:flex; gap:6px; flex-wrap:wrap; margin-top:2px;}
+.gtag{font-size:10.5px; font-family:'IBM Plex Mono',monospace; background:var(--panel-2); border:1px solid var(--line); padding:2px 7px; border-radius:100px; color:var(--muted);}
+
+/* ---------- electrolytic diagram ---------- */
+.diagram-grid{display:grid; grid-template-columns:1fr 1fr; gap:28px; align-items:center; margin-top:20px;}
+@media(max-width:760px){.diagram-grid{grid-template-columns:1fr;}}
+.callout-list{display:flex; flex-direction:column; gap:14px;}
+.callout{display:flex; gap:12px; align-items:flex-start;}
+.callout-dot{width:22px; height:22px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; color:#0a2018; margin-top:2px;}
+.callout b{display:block; font-size:14px; color:var(--paper);}
+.callout span{font-size:13px; color:var(--paper-dim);}
+
+/* ---------- converter ---------- */
+.conv-row{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-top:20px;}
+@media(max-width:640px){.conv-row{grid-template-columns:1fr;}}
+.conv-field{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:14px 16px;}
+.conv-field label{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; display:block; margin-bottom:8px;}
+.conv-field input{
+  width:100%; background:transparent; border:none; outline:none; color:var(--gold);
+  font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:600;
+}
+
+/* ---------- footer ---------- */
+footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;}
+
+.note{
+  background:var(--panel-2); border:1px solid var(--line); border-left:3px solid var(--copper-bright);
+  border-radius:8px; padding:12px 16px; font-size:13px; color:var(--paper-dim); margin-top:18px;
+}
+.note b{color:var(--paper);}
+
+::selection{background:var(--copper-bright); color:#0a2018;}
+</style>
+</head>
+<body>
+<div class="trace-bg"></div>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none"><path d="M9 4v16M15 4v16M4 9h5M15 9h5M4 15h5M15 15h5" stroke="#e2965c" stroke-width="1.6" stroke-linecap="round"/></svg>
+      The Capacitor Bench
+    </div>
+    <div class="navlinks">
+      <a href="#decode">3-Digit Code</a>
+      <a href="#tolvolt">Tolerance &amp; Voltage</a>
+      <a href="#smd">SMD Codes</a>
+      <a href="#electro">Electrolytic</a>
+      <a href="#gallery">Type Gallery</a>
+      <a href="#convert">Unit Converter</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="eyebrow">Component reference · interactive</div>
+    <h1 class="title">Every capacitor is<br><em>shouting its value at you.</em><br>Here's how to listen.</h1>
+    <p class="subtitle">Type the tiny print off any capacitor into the reader below — a 3-digit ceramic code, a film cap marking, an SMD letter code — and watch it get decoded live, digit by digit, the same way an engineer reads it on the bench.</p>
+  </section>
+
+  <!-- ============ DECODER ============ -->
+  <section class="section" id="decode">
+    <div class="section-head">
+      <span class="refdes">C1</span>
+      <h2>The 3-Digit / 4-Digit Code Reader</h2>
+    </div>
+    <p class="section-sub">Used on ceramic disc, multilayer ceramic (MLCC), and most box-style film capacitors (PET / MPB / MKT / MKP). The first two digits are significant figures, the third is a multiplier — the result is always in picofarads (pF).</p>
+
+    <div class="decoder">
+      <div class="decoder-left">
+        <div>
+          <div class="field-row" style="margin-bottom:10px;">
+            <div class="field" style="flex:2;">
+              <label>Printed code</label>
+              <div class="code-input-row">
+                <input id="codeInput" class="mono" value="104" spellcheck="false" autocomplete="off">
+              </div>
+            </div>
+          </div>
+          <div class="examples" id="exampleChips"></div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Tolerance letter (optional)</label>
+            <select id="tolSelect" class="mini-select"></select>
+          </div>
+          <div class="field">
+            <label>Voltage code (optional)</label>
+            <select id="voltSelect" class="mini-select"></select>
+          </div>
+        </div>
+
+        <div class="cap-render" id="capRender"></div>
+      </div>
+
+      <div class="decoder-right">
+        <div id="resultBlock"></div>
+      </div>
+    </div>
+
+    <div class="note"><b>Rule of thumb:</b> a lone 2-digit number under 100 with no third digit (like "47") is usually already in pF. A code with a letter "R" in the middle (like "4R7") means "decimal point here" — no multiplier at all, so 4R7 = 4.7 pF.</div>
+  </section>
+
+  <!-- ============ TOLERANCE + VOLTAGE ============ -->
+  <section class="section" id="tolvolt">
+    <div class="section-head">
+      <span class="refdes">C2</span>
+      <h2>Tolerance &amp; Voltage Codes</h2>
+    </div>
+    <p class="section-sub">The letters riding after the value tell you how much the real capacitance can drift, and the two-character codes tell you the maximum working voltage — both defined by the EIA (Electronic Industries Alliance).</p>
+
+    <div class="two-col">
+      <div class="panel">
+        <h3 style="font-size:16px; margin-bottom:4px;">Tolerance letters</h3>
+        <p style="font-size:13px; color:var(--muted); margin:4px 0 0;">How far the actual value may stray from what's printed.</p>
+        <div class="table-grid" id="tolTable"></div>
+      </div>
+      <div class="panel">
+        <h3 style="font-size:16px; margin-bottom:4px;">Voltage codes (DC)</h3>
+        <p style="font-size:13px; color:var(--muted); margin:4px 0 0;">A digit + a letter, e.g. <span class="mono">2A</span> = 100 VDC. Often tacked onto the end of a value, e.g. <span class="mono">103J2A</span> = 10 nF, ±5%, 100 V.</p>
+        <div class="table-grid" id="voltTable"></div>
+      </div>
+    </div>
+    <div class="note"><b>Heads up:</b> not every manufacturer follows the EIA table strictly — some print the working voltage directly instead (like plain "250V"), and some SMD tantalum parts reuse a single voltage letter with the leading digit dropped. When in doubt, the datasheet wins.</div>
+  </section>
+
+  <!-- ============ SMD ============ -->
+  <section class="section" id="smd">
+    <div class="section-head">
+      <span class="refdes">C3</span>
+      <h2>SMD &amp; Chip Capacitor Codes</h2>
+    </div>
+    <p class="section-sub">Surface-mount parts are often too small for a 3-digit print, so many use a 2-character shorthand: two digits for the significant figures, one letter for the multiplier.</p>
+
+    <div class="decoder" style="grid-template-columns:1fr 1fr;">
+      <div class="decoder-left">
+        <div class="field-row">
+          <div class="field" style="flex:1.4;">
+            <label>Significant digits</label>
+            <input id="smdDigits" class="mini-select mono" style="font-size:22px; padding:12px;" value="22" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label>Multiplier letter</label>
+            <select id="smdLetter" class="mini-select"></select>
+          </div>
+        </div>
+        <div class="examples" id="smdChips"></div>
+      </div>
+      <div class="decoder-right">
+        <div id="smdResult"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:20px;">
+      <h3 style="font-size:16px;">SMD tantalum voltage letters</h3>
+      <p style="font-size:13px; color:var(--muted); margin:6px 0 14px;">Chip tantalum capacitors are polarized and often mark voltage with a single letter instead of the tolerance letter — this sits next to a directly-printed µF value, e.g. <span class="mono">106</span> + <span class="mono">C</span> = 10 µF, 16 V.</p>
+      <div class="table-grid" id="tantVoltTable"></div>
+    </div>
+  </section>
+
+  <!-- ============ ELECTROLYTIC ============ -->
+  <section class="section" id="electro">
+    <div class="section-head">
+      <span class="refdes">C4</span>
+      <h2>Reading Electrolytics &amp; Direct-Print Capacitors</h2>
+    </div>
+    <p class="section-sub">Aluminium electrolytics and larger film/motor capacitors are usually roomy enough to skip the code entirely — they print the real value straight on the case. The catch is polarity: get it backwards and the capacitor can fail, bulge, or vent.</p>
+
+    <div class="diagram-grid">
+      <div class="panel" style="display:flex; align-items:center; justify-content:center; padding:26px;">
+        <svg viewBox="0 0 340 300" width="100%" style="max-width:320px;">
+          <!-- can body -->
+          <rect x="90" y="40" width="160" height="190" rx="14" fill="#8b95a8"/>
+          <rect x="90" y="40" width="160" height="190" rx="14" fill="url(#canshade)"/>
+          <ellipse cx="170" cy="40" rx="80" ry="14" fill="#a7b1c2"/>
+          <path d="M130 44 Q170 30 210 44" stroke="#5c6b85" stroke-width="2" fill="none"/>
+          <!-- vent lines -->
+          <path d="M170 48 L170 68 M150 52 L150 68 M190 52 L190 68" stroke="#5c6b85" stroke-width="2.2" stroke-linecap="round"/>
+          <!-- negative stripe -->
+          <rect x="90" y="70" width="42" height="150" fill="#232c39" opacity="0.85"/>
+          <g fill="#e7ebf0" font-family="IBM Plex Mono, monospace">
+            <text x="104" y="95" font-size="16" font-weight="700">−</text>
+            <text x="98" y="150" font-size="12" transform="rotate(-90 108 150)">NEGATIVE</text>
+          </g>
+          <!-- label text -->
+          <g fill="#232c39" font-family="IBM Plex Mono, monospace" text-anchor="middle">
+            <text x="190" y="120" font-size="19" font-weight="700">470µF</text>
+            <text x="190" y="140" font-size="13">25V</text>
+            <text x="190" y="162" font-size="10">105°C</text>
+          </g>
+          <!-- leads -->
+          <line x1="130" y1="230" x2="130" y2="280" stroke="#9aa3ad" stroke-width="5" stroke-linecap="round"/>
+          <line x1="210" y1="230" x2="210" y2="280" stroke="#9aa3ad" stroke-width="5" stroke-linecap="round"/>
+          <text x="130" y="296" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#e7ebf0">−</text>
+          <text x="210" y="296" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#e7ebf0">+</text>
+          <defs>
+            <linearGradient id="canshade" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#6a7488"/>
+              <stop offset="0.5" stop-color="#a2acbd"/>
+              <stop offset="1" stop-color="#6a7488"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div class="callout-list">
+        <div class="callout">
+          <div class="callout-dot" style="background:var(--copper-bright);">1</div>
+          <div><b>Capacitance, written straight up</b><span>"470µF" means 470 microfarads — no multiplier math needed. If you see a bare number like "220" with no unit on a can, it's almost always µF too.</span></div>
+        </div>
+        <div class="callout">
+          <div class="callout-dot" style="background:var(--gold);">2</div>
+          <div><b>Working voltage</b><span>The max DC voltage it can safely hold, e.g. "25V". Always replace with equal or higher voltage — never lower.</span></div>
+        </div>
+        <div class="callout">
+          <div class="callout-dot" style="background:var(--film-2);">3</div>
+          <div><b>The stripe marks the negative lead</b><span>On radial (both-leads-down) electrolytics, a dark stripe with a minus sign runs down the negative side. On axial cans, the negative end is usually the crimped or marked end.</span></div>
+        </div>
+        <div class="callout">
+          <div class="callout-dot" style="background:var(--electro);">4</div>
+          <div><b>The unmarked lead is positive</b><span>Also often the longer lead on a fresh, unbent part. Install backwards and the capacitor can heat up, bulge at the vent, or fail outright.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note"><b>Tantalum capacitors are polarized too</b> — but the marking convention flips: they usually mark the <b>positive</b> lead with a "+" or a stripe, the opposite convention from aluminium electrolytics. Always check for the + or − explicitly rather than assuming.</div>
+  </section>
+
+  <!-- ============ GALLERY ============ -->
+  <section class="section" id="gallery">
+    <div class="section-head">
+      <span class="refdes">C5</span>
+      <h2>Capacitor Type Gallery</h2>
+    </div>
+    <p class="section-sub">Different bodies, different dielectrics, different reasons to reach for one over another. Here's what the common families actually are.</p>
+    <div class="gallery" id="galleryGrid"></div>
+  </section>
+
+  <!-- ============ CONVERTER ============ -->
+  <section class="section" id="convert">
+    <div class="section-head">
+      <span class="refdes">C6</span>
+      <h2>Quick Unit Converter</h2>
+    </div>
+    <p class="section-sub">Type a value into any field — the other two update instantly. 1 µF = 1,000 nF = 1,000,000 pF.</p>
+    <div class="conv-row">
+      <div class="conv-field"><label>Picofarads (pF)</label><input id="pfIn" class="mono" inputmode="decimal" value="100000"></div>
+      <div class="conv-field"><label>Nanofarads (nF)</label><input id="nfIn" class="mono" inputmode="decimal" value="100"></div>
+      <div class="conv-field"><label>Microfarads (µF)</label><input id="ufIn" class="mono" inputmode="decimal" value="0.1"></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Built for reading real components on a real bench. Markings vary by manufacturer — cross-check against a datasheet before high-stakes replacements.</span>
+    <span class="mono">EIA / IEC reference data</span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   DATA TABLES
+   ============================================================ */
+const MULT = {0:1,1:10,2:100,3:1000,4:10000,5:100000,6:1000000,8:0.01,9:0.1};
+const TOL = {
+  B:'±0.1 pF', C:'±0.25 pF', D:'±0.5 pF', F:'±1%', G:'±2%', H:'±3%',
+  J:'±5%', K:'±10%', M:'±20%', P:'+100% / −0%', Z:'+80% / −20%'
+};
+const VOLT_DC = [
+  ['0E','2.5 V'],['0G','4 V'],['0L','5.5 V'],['0J','6.3 V'],
+  ['1A','10 V'],['1C','16 V'],['1D','20 V'],['1E','25 V'],['1V','35 V'],
+  ['1G','40 V'],['1H','50 V'],['1J','63 V'],['1K','80 V'],
+  ['2A','100 V'],['2Q','110 V'],['2B','125 V'],['2C','160 V'],['2D','200 V'],
+  ['2E','250 V'],['2F','315 V'],['2G','400 V'],['2W','450 V'],['2J','630 V'],['2K','800 V'],
+  ['3A','1 kV'],['3D','2 kV'],['3E','2.5 kV'],['3F','3 kV'],['3G','4 kV'],['3H','5 kV'],['3K','8 kV'],['4A','10 kV']
+];
+const TANT_VOLT = {G:'4 V', J:'6.3 V', A:'10 V', C:'16 V', D:'20 V', E:'25 V', V:'35 V', H:'50 V'};
+const SMD_MULT = {R:0.01, A:1, B:10, C:100, D:1000, E:10000, F:100000};
+
+const GALLERY = [
+  {name:'Ceramic Disc / MLCC', fam:'Ceramic dielectric', color:'var(--ceramic)',
+   desc:'Small, cheap, non-polarized. Multilayer versions (MLCC) are the tiny beige or blue chips on almost every PCB.',
+   tags:['3-digit code','Decoupling','General purpose']},
+  {name:'PET / MKT (Polyester film)', fam:'Metallized polyester', color:'var(--film-2)',
+   desc:'Often called Mylar. Good all-rounder for coupling, timing, and general filtering up to moderate frequencies.',
+   tags:['3-digit + tolerance','Coupling','Timing']},
+  {name:'MPB / MPT / MKP (Polypropylene)', fam:'Metallized polypropylene', color:'var(--film)',
+   desc:'Low loss, very stable, handles ripple current well. The go-to for audio, snubbers, and high-frequency work.',
+   tags:['Direct print','Audio','Snubber']},
+  {name:'MET (metallized film)', fam:'Mixed film dielectric', color:'#7a9e7c',
+   desc:'General catch-all label for metallized-film construction, spanning polyester and polypropylene builds.',
+   tags:['Direct print','General purpose']},
+  {name:'MKPH (heavy-duty film)', fam:'Metallized polypropylene', color:'#5a7fae',
+   desc:'A beefed-up polypropylene build meant for higher ripple current and power-handling duty.',
+   tags:['Direct print','Power']},
+  {name:'Aluminium Electrolytic', fam:'Aluminium oxide, polarized', color:'var(--electro)',
+   desc:'Large capacitance in a small can, at the cost of being polarized and having a limited lifespan. The workhorse of power supplies.',
+   tags:['Direct print µF+V','Polarized','Bulk storage']},
+  {name:'Chip / SMD Electrolytic', fam:'Aluminium oxide, polarized', color:'#9fb3ac',
+   desc:'Same chemistry as the big cans, shrunk down for surface mounting, with polarity marked by a stripe or shape.',
+   tags:['Direct print','Polarized','Compact']},
+  {name:'Tantalum (dipped / chip)', fam:'Tantalum pentoxide, polarized', color:'var(--tant)',
+   desc:'Compact and stable for its size. Polarity marking is the opposite convention of electrolytics — the + lead is marked.',
+   tags:['3-digit + volt letter','Polarized','Space-constrained']},
+  {name:'Motor Run / Start Capacitor', fam:'Metallized polypropylene, AC-rated', color:'#3f6a55',
+   desc:'Built to survive continuous AC and high current for starting or running a motor — physically large, often in a can with screw terminals.',
+   tags:['Direct print µF + VAC','Motor']},
+];
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function fmtPF(pf){
+  if(pf===null||isNaN(pf)) return null;
+  if(pf >= 1e6) return {v:(pf/1e6), u:'µF'};
+  if(pf >= 1e3) return {v:(pf/1e3), u:'nF'};
+  return {v:pf, u:'pF'};
+}
+function trimNum(n){
+  if(Math.abs(n) >= 100) return Math.round(n*100)/100;
+  return parseFloat(n.toPrecision(6));
+}
+function el(tag, cls, html){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(html!==undefined) e.innerHTML = html;
+  return e;
+}
+
+/* ============================================================
+   POPULATE STATIC UI PIECES
+   ============================================================ */
+// tolerance select + table
+const tolSelect = document.getElementById('tolSelect');
+tolSelect.appendChild(el('option','','— none —'));
+Object.entries(TOL).forEach(([k,v])=>{
+  tolSelect.appendChild(el('option', '', `${k} — ${v}`)).value = k;
+});
+const tolTableEl = document.getElementById('tolTable');
+Object.entries(TOL).forEach(([k,v])=>{
+  const c = el('div','tt-cell', `<div class="k">${k}</div><div class="v">${v}</div>`);
+  tolTableEl.appendChild(c);
+});
+
+// voltage select + table
+const voltSelect = document.getElementById('voltSelect');
+voltSelect.appendChild(el('option','','— none —'));
+VOLT_DC.forEach(([code,v])=>{
+  const o = el('option','', `${code} — ${v} DC`); o.value = code; voltSelect.appendChild(o);
+});
+const voltTableEl = document.getElementById('voltTable');
+VOLT_DC.forEach(([code,v])=>{
+  voltTableEl.appendChild(el('div','tt-cell', `<div class="k">${code}</div><div class="v">${v} DC</div>`));
+});
+
+// tantalum voltage table
+const tantVoltEl = document.getElementById('tantVoltTable');
+Object.entries(TANT_VOLT).forEach(([k,v])=>{
+  tantVoltEl.appendChild(el('div','tt-cell', `<div class="k">${k}</div><div class="v">${v}</div>`));
+});
+
+// smd multiplier select
+const smdLetter = document.getElementById('smdLetter');
+Object.entries(SMD_MULT).forEach(([k,v])=>{
+  const label = v>=1000 ? `×${v/1000}k` : (v<1?`×${v}`:`×${v}`);
+  const o = el('option','', `${k} — ${label} pF`); o.value = k; smdLetter.appendChild(o);
+});
+smdLetter.value = 'C';
+
+// example chips for main decoder
+const EXAMPLES = ['104','223J','473K250V','2A474J','4R7','101','225M','334'];
+const exWrap = document.getElementById('exampleChips');
+EXAMPLES.forEach(code=>{
+  const chip = el('div','example-chip mono', code);
+  chip.onclick = ()=>{ codeInput.value = code; parseAndRender(); };
+  exWrap.appendChild(chip);
+});
+
+// example chips for smd
+const SMD_EXAMPLES = [['22','C'],['10','B'],['47','A'],['15','D']];
+const smdExWrap = document.getElementById('smdChips');
+SMD_EXAMPLES.forEach(([d,l])=>{
+  const chip = el('div','example-chip mono', d+l);
+  chip.onclick = ()=>{ document.getElementById('smdDigits').value = d; smdLetter.value = l; renderSmd(); };
+  smdExWrap.appendChild(chip);
+});
+
+// gallery cards
+const galleryGrid = document.getElementById('galleryGrid');
+GALLERY.forEach(g=>{
+  const card = el('div','gcard');
+  const swatch = el('div','swatch');
+  swatch.style.background = `linear-gradient(135deg, ${g.color}, color-mix(in srgb, ${g.color} 60%, black))`;
+  card.appendChild(swatch);
+  card.appendChild(el('div','fam', g.fam));
+  card.appendChild(el('h4','', g.name));
+  card.appendChild(el('p','', g.desc));
+  const tagWrap = el('div','tags');
+  g.tags.forEach(t=> tagWrap.appendChild(el('span','gtag', t)));
+  card.appendChild(tagWrap);
+  galleryGrid.appendChild(card);
+});
+
+/* ============================================================
+   MAIN 3-DIGIT / 4-DIGIT DECODER
+   ============================================================ */
+const codeInput = document.getElementById('codeInput');
+const resultBlock = document.getElementById('resultBlock');
+const capRender = document.getElementById('capRender');
+
+function parseValueCode(raw){
+  let s = raw.trim().toUpperCase().replace(/\s+/g,'');
+  // strip trailing tolerance letter / voltage code the user typed inline, but keep numeric core detection simple:
+  // find the leading numeric-ish token (digits + optional single R)
+  let m = s.match(/^(\d*R\d+|\d+)/);
+  if(!m) return {error:'Type a numeric code, like 104 or 4R7.'};
+  let core = m[0];
+  let rest = s.slice(core.length);
+
+  // R-notation direct pF value
+  if(core.includes('R')){
+    const pf = parseFloat(core.replace('R','.'));
+    if(isNaN(pf)) return {error:'Could not read the R-notation value.'};
+    return {pf, mode:'r', core, rest, sig:core, digit:null};
+  }
+
+  if(/^\d{3,}$/.test(core)){
+    const sig = core.slice(0,2);
+    const dch = core.slice(2,3);
+    const d = parseInt(dch,10);
+    if(!(d in MULT)){
+      return {error:`Digit "${dch}" isn't a valid multiplier (7 is unused).`};
+    }
+    const pf = parseInt(sig,10) * MULT[d];
+    return {pf, mode:'3digit', core, rest, sig, digit:d};
+  }
+
+  if(/^\d{1,2}$/.test(core)){
+    // 1-2 digit codes are read directly as pF
+    const pf = parseInt(core,10);
+    return {pf, mode:'direct', core, rest, sig:core, digit:null};
+  }
+
+  return {error:'Unrecognized numeric pattern.'};
+}
+
+function renderCapSVG(sig, digit, mode){
+  const digits = mode==='3digit' ? [sig[0], sig[1], String(digit)] : (mode==='r' ? sig.split('') : sig.split(''));
+  const colors = ['#e2965c','#d9b45a','#4d84ab'];
+  let boxes = '';
+  digits.forEach((d,i)=>{
+    boxes += `<rect x="${118 + i*38}" y="52" width="30" height="30" rx="6" fill="${colors[i%colors.length]}"/>
+      <text x="${133 + i*38}" y="73" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="17" font-weight="700" fill="#0a2018">${d}</text>`;
+  });
+  return `
+  <svg viewBox="0 0 280 150" width="100%" style="max-width:260px;">
+    <ellipse cx="140" cy="88" rx="70" ry="46" fill="#d9a066"/>
+    <ellipse cx="140" cy="88" rx="70" ry="46" fill="url(#g1)"/>
+    <line x1="90" y1="130" x2="70" y2="150" stroke="#b8925a" stroke-width="5" stroke-linecap="round"/>
+    <line x1="190" y1="130" x2="210" y2="150" stroke="#b8925a" stroke-width="5" stroke-linecap="round"/>
+    ${boxes}
+    <defs>
+      <radialGradient id="g1" cx="35%" cy="30%" r="80%">
+        <stop offset="0" stop-color="#e8b784"/>
+        <stop offset="1" stop-color="#b8823f"/>
+      </radialGradient>
+    </defs>
+  </svg>`;
+}
+
+function parseAndRender(){
+  const raw = codeInput.value;
+  const parsed = parseValueCode(raw);
+  const tol = tolSelect.value;
+  const volt = voltSelect.value;
+
+  if(parsed.error){
+    resultBlock.innerHTML = `<div class="errbox">⚠ ${parsed.error}</div>`;
+    capRender.innerHTML = '';
+    return;
+  }
+
+  const f = fmtPF(parsed.pf);
+  const pfStr = trimNum(parsed.pf) + ' pF';
+  const displayVal = trimNum(f.v) + ' ' + f.u;
+
+  let rows = '';
+  if(parsed.mode==='3digit'){
+    rows += `<div class="bd-row"><span class="bd-chip" style="background:#e2965c;color:#0a2018;">${parsed.sig[0]}${parsed.sig[1]}</span><span class="bd-text">First two digits are the <b>significant figures</b>: ${parseInt(parsed.sig,10)}.</span></div>`;
+    const multVal = MULT[parsed.digit];
+    rows += `<div class="bd-row"><span class="bd-chip" style="background:#4d84ab;color:#0a2018;">${parsed.digit}</span><span class="bd-text">Third digit is the <b>multiplier</b>: ×${multVal}${parsed.digit>=8?' (special low-value case)':''}.</span></div>`;
+    rows += `<div class="bd-row"><span class="bd-chip" style="background:#1a4030;color:#e2965c;">=</span><span class="bd-text">${parseInt(parsed.sig,10)} × ${multVal} = <b>${pfStr}</b></span></div>`;
+  } else if(parsed.mode==='r'){
+    rows += `<div class="bd-row"><span class="bd-chip" style="background:#d9b45a;color:#0a2018;">R</span><span class="bd-text">The letter <b>R</b> marks a decimal point — no multiplier is applied. Value is read straight as pF.</span></div>`;
+    rows += `<div class="bd-row"><span class="bd-chip" style="background:#1a4030;color:#e2965c;">=</span><span class="bd-text"><b>${pfStr}</b></span></div>`;
+  } else {
+    rows += `<div class="bd-row"><span class="bd-chip" style="background:#e2965c;color:#0a2018;">${parsed.sig}</span><span class="bd-text">A short 1–2 digit code with no multiplier — read directly in picofarads.</span></div>`;
+    rows += `<div class="bd-row"><span class="bd-chip" style="background:#1a4030;color:#e2965c;">=</span><span class="bd-text"><b>${pfStr}</b></span></div>`;
+  }
+
+  if(tol){
+    rows += `<div class="bd-row"><span class="bd-chip" style="background:#e08a3c;color:#0a2018;">${tol}</span><span class="bd-text">Tolerance: <b>${TOL[tol]}</b> of the marked value.</span></div>`;
+  }
+  if(volt){
+    const vLabel = VOLT_DC.find(v=>v[0]===volt);
+    rows += `<div class="bd-row"><span class="bd-chip" style="background:#c7d0c9;color:#0a2018;">${volt}</span><span class="bd-text">Rated: <b>${vLabel?vLabel[1]:''} DC</b> maximum.</span></div>`;
+  }
+
+  resultBlock.innerHTML = `
+    <div class="result-value">${displayVal}</div>
+    <div class="result-sub">${pfStr} · ${trimNum(parsed.pf/1000)} nF ${tol?(' · '+TOL[tol]):''}${volt?(' · '+(VOLT_DC.find(v=>v[0]===volt)||[])[1]+' DC'):''}</div>
+    <div class="breakdown">${rows}</div>
+  `;
+
+  capRender.innerHTML = renderCapSVG(parsed.sig, parsed.digit, parsed.mode);
+}
+
+codeInput.addEventListener('input', parseAndRender);
+tolSelect.addEventListener('change', parseAndRender);
+voltSelect.addEventListener('change', parseAndRender);
+parseAndRender();
+
+/* ============================================================
+   SMD DECODER
+   ============================================================ */
+const smdDigits = document.getElementById('smdDigits');
+const smdResult = document.getElementById('smdResult');
+
+function renderSmd(){
+  const digitsRaw = smdDigits.value.trim();
+  const letter = smdLetter.value;
+  if(!/^\d{1,2}$/.test(digitsRaw)){
+    smdResult.innerHTML = `<div class="errbox">⚠ Enter 1–2 significant digits.</div>`;
+    return;
+  }
+  const sig = parseInt(digitsRaw,10);
+  const mult = SMD_MULT[letter];
+  const pf = sig * mult;
+  const f = fmtPF(pf);
+
+  smdResult.innerHTML = `
+    <div class="result-value">${trimNum(f.v)} ${f.u}</div>
+    <div class="result-sub">${trimNum(pf)} pF</div>
+    <div class="breakdown">
+      <div class="bd-row"><span class="bd-chip" style="background:#e2965c;color:#0a2018;">${digitsRaw}</span><span class="bd-text">Significant figures: <b>${sig}</b></span></div>
+      <div class="bd-row"><span class="bd-chip" style="background:#4d84ab;color:#0a2018;">${letter}</span><span class="bd-text">Multiplier letter: <b>×${mult}</b></span></div>
+      <div class="bd-row"><span class="bd-chip" style="background:#1a4030;color:#e2965c;">=</span><span class="bd-text">${sig} × ${mult} = <b>${trimNum(pf)} pF</b></span></div>
+    </div>
+  `;
+}
+smdDigits.addEventListener('input', renderSmd);
+smdLetter.addEventListener('change', renderSmd);
+renderSmd();
+
+/* ============================================================
+   UNIT CONVERTER
+   ============================================================ */
+const pfIn = document.getElementById('pfIn');
+const nfIn = document.getElementById('nfIn');
+const ufIn = document.getElementById('ufIn');
+
+function syncFrom(source){
+  let pf;
+  if(source==='pf') pf = parseFloat(pfIn.value);
+  if(source==='nf') pf = parseFloat(nfIn.value) * 1000;
+  if(source==='uf') pf = parseFloat(ufIn.value) * 1e6;
+  if(isNaN(pf)) return;
+  if(source!=='pf') pfIn.value = trimNum(pf);
+  if(source!=='nf') nfIn.value = trimNum(pf/1000);
+  if(source!=='uf') ufIn.value = trimNum(pf/1e6);
+}
+pfIn.addEventListener('input', ()=>syncFrom('pf'));
+nfIn.addEventListener('input', ()=>syncFrom('nf'));
+ufIn.addEventListener('input', ()=>syncFrom('uf'));
+</script>
+</body>
+</html>
