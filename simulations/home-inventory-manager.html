@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Home Inventory &amp; Stock Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --navy-900:#060a14; --navy-800:#0b1121; --navy-700:#111a30; --navy-600:#182545;
+    --grid-line: rgba(34,211,238,0.06);
+    --cyan:#22d3ee; --cyan-dim: rgba(34,211,238,0.35);
+    --amber:#f5a524; --amber-dim: rgba(245,165,36,0.35);
+    --red:#f0555a; --green:#3ddc84;
+    --text-hi:#eaf2ff; --text-mid:#9fb2d6; --text-dim:#5f7195;
+    --border: rgba(159,178,214,0.18);
+    --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--navy-900);color:var(--text-hi);font-family:var(--sans);}
+  body{
+    min-height:100vh;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-color: var(--navy-900);
+    padding-bottom:60px;
+  }
+  header{
+    padding:22px 24px 18px; border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, var(--navy-800), rgba(11,17,33,0.4));
+    position:sticky; top:0; z-index:50; backdrop-filter: blur(6px);
+  }
+  .brand-row{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;}
+  .brand-tag{font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--amber); text-transform:uppercase;}
+  h1{font-family:var(--mono); font-size:22px; margin:4px 0 2px; color:var(--text-hi); letter-spacing:.02em;}
+  .subtitle{font-size:13px; color:var(--text-mid); font-family:var(--sans);}
+  .stat-strip{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+  .stat-chip{
+    font-family:var(--mono); font-size:12px; padding:7px 12px; border-radius:6px;
+    border:1px solid var(--border); background:rgba(24,37,69,0.5); color:var(--text-mid);
+    display:flex; gap:7px; align-items:center;
+  }
+  .stat-chip b{color:var(--text-hi); font-size:14px;}
+  .stat-chip.warn{border-color:var(--amber-dim); color:var(--amber);}
+  .stat-chip.crit{border-color:rgba(240,85,90,0.4); color:var(--red);}
+  .dot{width:7px;height:7px;border-radius:50%;}
+  .dot.ok{background:var(--green);} .dot.warn{background:var(--amber);} .dot.crit{background:var(--red);}
+
+  nav{display:flex; gap:2px; padding:0 24px; border-bottom:1px solid var(--border); background:rgba(6,10,20,0.5); overflow-x:auto;}
+  nav button{
+    font-family:var(--mono); font-size:12.5px; letter-spacing:.03em; background:transparent; border:none;
+    color:var(--text-dim); padding:13px 16px; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;
+  }
+  nav button.active{color:var(--cyan); border-bottom-color:var(--cyan);}
+  nav button:hover{color:var(--text-hi);}
+
+  main{max-width:1180px; margin:0 auto; padding:22px 24px;}
+  .panel{display:none;} .panel.active{display:block;}
+
+  .card{
+    background:linear-gradient(180deg, rgba(17,26,48,0.7), rgba(11,17,33,0.55));
+    border:1px solid var(--border); border-radius:10px; padding:18px; margin-bottom:18px;
+  }
+  .card h2{font-family:var(--mono); font-size:14px; color:var(--cyan); margin:0 0 12px; letter-spacing:.03em; text-transform:uppercase; display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .card h2 span.count{color:var(--text-dim); font-size:11px; text-transform:none;}
+
+  .grid-cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px;}
+
+  form.add-row{display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-bottom:14px; padding:12px; background:rgba(6,10,20,0.4); border:1px dashed var(--border); border-radius:8px;}
+  .field{display:flex; flex-direction:column; gap:4px;}
+  .field label{font-size:10px; color:var(--text-dim); font-family:var(--mono); text-transform:uppercase; letter-spacing:.05em;}
+  input, select, textarea{
+    font-family:var(--sans); font-size:13px; background:var(--navy-700); color:var(--text-hi);
+    border:1px solid var(--border); border-radius:6px; padding:7px 9px; outline:none;
+  }
+  input:focus, select:focus, textarea:focus{border-color:var(--cyan-dim); box-shadow:0 0 0 2px rgba(34,211,238,0.08);}
+  input[type=number]{width:80px;}
+  .field.grow{flex:1; min-width:140px;}
+  .field.narrow input, .field.narrow select{width:100px;}
+
+  button.btn{
+    font-family:var(--mono); font-size:12px; letter-spacing:.03em; padding:8px 14px; border-radius:6px;
+    border:1px solid var(--cyan-dim); background:rgba(34,211,238,0.08); color:var(--cyan); cursor:pointer;
+    transition:background .15s;
+  }
+  button.btn:hover{background:rgba(34,211,238,0.18);}
+  button.btn.amber{border-color:var(--amber-dim); color:var(--amber); background:rgba(245,165,36,0.08);}
+  button.btn.amber:hover{background:rgba(245,165,36,0.18);}
+  button.btn.ghost{background:transparent; color:var(--text-dim); border-color:var(--border);}
+  button.btn.small{padding:4px 9px; font-size:11px;}
+  button.icon-btn{
+    background:transparent; border:1px solid var(--border); color:var(--text-dim); border-radius:5px;
+    padding:4px 7px; cursor:pointer; font-size:12px; font-family:var(--mono);
+  }
+  button.icon-btn:hover{color:var(--red); border-color:rgba(240,85,90,0.4);}
+  button.icon-btn.edit:hover{color:var(--cyan); border-color:var(--cyan-dim);}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{
+    text-align:left; font-family:var(--mono); font-size:10.5px; color:var(--text-dim); text-transform:uppercase;
+    letter-spacing:.05em; padding:8px 8px; border-bottom:1px solid var(--border);
+  }
+  td{padding:8px 8px; border-bottom:1px solid rgba(159,178,214,0.08); vertical-align:middle;}
+  tr:hover td{background:rgba(34,211,238,0.03);}
+  .badge{
+    font-family:var(--mono); font-size:10px; padding:3px 8px; border-radius:20px; text-transform:uppercase;
+    letter-spacing:.04em; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+  }
+  .badge.ok{color:var(--green); background:rgba(61,220,132,0.1); border:1px solid rgba(61,220,132,0.3);}
+  .badge.low{color:var(--amber); background:rgba(245,165,36,0.1); border:1px solid var(--amber-dim);}
+  .badge.finished{color:var(--red); background:rgba(240,85,90,0.1); border:1px solid rgba(240,85,90,0.35);}
+  .badge.working{color:var(--green); background:rgba(61,220,132,0.1); border:1px solid rgba(61,220,132,0.3);}
+  .badge.maintenance{color:var(--amber); background:rgba(245,165,36,0.1); border:1px solid var(--amber-dim);}
+  .badge.damaged{color:var(--red); background:rgba(240,85,90,0.1); border:1px solid rgba(240,85,90,0.35);}
+
+  .qty-cell{display:flex; align-items:center; gap:6px;}
+  .qty-cell button{width:24px; height:24px; padding:0; border-radius:4px; border:1px solid var(--border); background:var(--navy-700); color:var(--text-hi); cursor:pointer; font-family:var(--mono);}
+  .qty-cell button:hover{border-color:var(--cyan-dim); color:var(--cyan);}
+  .qty-cell input{width:52px; text-align:center; padding:5px 4px;}
+
+  .empty-state{color:var(--text-dim); font-size:13px; font-family:var(--mono); padding:20px 4px; text-align:center;}
+
+  .req-group h3{font-family:var(--mono); font-size:12px; color:var(--amber); text-transform:uppercase; letter-spacing:.05em; margin:18px 0 8px;}
+  .req-group:first-child h3{margin-top:0;}
+
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;}
+
+  .dash-tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:18px;}
+  .tile{border:1px solid var(--border); border-radius:8px; padding:14px; background:rgba(17,26,48,0.55);}
+  .tile .num{font-family:var(--mono); font-size:26px; color:var(--text-hi);}
+  .tile .lbl{font-size:11px; color:var(--text-dim); font-family:var(--mono); text-transform:uppercase; letter-spacing:.04em; margin-top:2px;}
+  .tile.crit .num{color:var(--red);} .tile.warn .num{color:var(--amber);} .tile.ok .num{color:var(--green);} .tile.cyan .num{color:var(--cyan);}
+
+  footer.notice{max-width:1180px; margin:10px auto 0; padding:0 24px; color:var(--text-dim); font-size:11px; font-family:var(--mono); line-height:1.6;}
+  .toast{
+    position:fixed; bottom:20px; right:20px; background:var(--navy-700); border:1px solid var(--cyan-dim);
+    color:var(--text-hi); font-family:var(--mono); font-size:12.5px; padding:10px 16px; border-radius:8px;
+    opacity:0; transform:translateY(10px); transition:all .25s; pointer-events:none; z-index:200;
+  }
+  .toast.show{opacity:1; transform:translateY(0);}
+  select, input, textarea { color-scheme: dark; }
+  ::placeholder{color:var(--text-dim); opacity:.6;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand-row">
+    <div>
+      <div class="brand-tag">Apna Electromechanic Service — Home Management Tools</div>
+      <h1>Home Inventory &amp; Stock Manager</h1>
+      <div class="subtitle">Track groceries and appliance condition, auto-build a buy/repair list, export a PDF anytime.</div>
+    </div>
+  </div>
+  <div class="stat-strip" id="statStrip"></div>
+</header>
+
+<nav>
+  <button data-tab="dashboard" class="active">Dashboard</button>
+  <button data-tab="groceries">Groceries</button>
+  <button data-tab="appliances">Appliances</button>
+  <button data-tab="required">Buy &amp; Repair List</button>
+  <button data-tab="export">Export / Data</button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <div class="panel active" id="panel-dashboard">
+    <div class="dash-tiles" id="dashTiles"></div>
+    <div class="grid-cols">
+      <div class="card">
+        <h2>Groceries needing attention</h2>
+        <table><thead><tr><th>Item</th><th>Qty</th><th>Status</th></tr></thead><tbody id="dashGroceryBody"></tbody></table>
+        <div class="empty-state" id="dashGroceryEmpty" style="display:none;">All groceries are stocked above their minimum level.</div>
+      </div>
+      <div class="card">
+        <h2>Appliances needing attention</h2>
+        <table><thead><tr><th>Appliance</th><th>Condition</th><th>Priority</th></tr></thead><tbody id="dashApplianceBody"></tbody></table>
+        <div class="empty-state" id="dashApplianceEmpty" style="display:none;">All appliances are marked working.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GROCERIES -->
+  <div class="panel" id="panel-groceries">
+    <div class="card">
+      <h2>Add grocery item</h2>
+      <form class="add-row" id="groceryForm">
+        <div class="field grow"><label>Item name</label><input type="text" id="gName" placeholder="e.g. Rice" required></div>
+        <div class="field"><label>Category</label>
+          <select id="gCategory">
+            <option>Staples</option><option>Vegetables</option><option>Fruits</option><option>Dairy</option>
+            <option>Spices</option><option>Cleaning</option><option>Personal Care</option><option>Beverages</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field narrow"><label>Quantity</label><input type="number" id="gQty" min="0" step="0.5" value="1" required></div>
+        <div class="field narrow"><label>Unit</label>
+          <select id="gUnit"><option>pcs</option><option>kg</option><option>g</option><option>L</option><option>ml</option><option>pack</option><option>dozen</option><option>bottle</option></select>
+        </div>
+        <div class="field narrow"><label>Min level</label><input type="number" id="gThreshold" min="0" step="0.5" value="1" title="Below this level the item is flagged Low"></div>
+        <div class="field narrow"><label>Restock qty</label><input type="number" id="gRestock" min="0" step="0.5" value="2" title="Amount to buy when restocking"></div>
+        <button class="btn" type="submit">+ Add item</button>
+      </form>
+      <div class="toolbar">
+        <input type="text" id="gSearch" placeholder="Search groceries…" style="min-width:200px;">
+        <select id="gFilter"><option value="all">All statuses</option><option value="ok">OK</option><option value="low">Low</option><option value="finished">Finished</option></select>
+      </div>
+      <table>
+        <thead><tr><th>Item</th><th>Category</th><th>Quantity</th><th>Min / Restock</th><th>Status</th><th></th></tr></thead>
+        <tbody id="groceryBody"></tbody>
+      </table>
+      <div class="empty-state" id="groceryEmpty" style="display:none;">No grocery items yet — add your first one above.</div>
+    </div>
+  </div>
+
+  <!-- APPLIANCES -->
+  <div class="panel" id="panel-appliances">
+    <div class="card">
+      <h2>Add appliance</h2>
+      <form class="add-row" id="applianceForm">
+        <div class="field grow"><label>Appliance name</label><input type="text" id="aName" placeholder="e.g. Microwave" required></div>
+        <div class="field"><label>Category</label>
+          <select id="aCategory">
+            <option>Kitchen</option><option>Cooling</option><option>Cleaning</option><option>Electrical/Wiring</option>
+            <option>Bathroom</option><option>Entertainment</option><option>Tools</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Condition</label>
+          <select id="aCondition"><option value="working">Working</option><option value="maintenance">Needs Maintenance</option><option value="damaged">Damaged</option></select>
+        </div>
+        <div class="field"><label>Priority</label>
+          <select id="aPriority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
+        </div>
+        <div class="field grow"><label>Issue / notes</label><input type="text" id="aNote" placeholder="Optional — describe the fault or requirement"></div>
+        <button class="btn" type="submit">+ Add appliance</button>
+      </form>
+      <div class="toolbar">
+        <input type="text" id="aSearch" placeholder="Search appliances…" style="min-width:200px;">
+        <select id="aFilter"><option value="all">All conditions</option><option value="working">Working</option><option value="maintenance">Needs Maintenance</option><option value="damaged">Damaged</option></select>
+      </div>
+      <table>
+        <thead><tr><th>Appliance</th><th>Category</th><th>Condition</th><th>Priority</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="applianceBody"></tbody>
+      </table>
+      <div class="empty-state" id="applianceEmpty" style="display:none;">No appliances logged yet — add your first one above.</div>
+    </div>
+  </div>
+
+  <!-- REQUIRED LIST -->
+  <div class="panel" id="panel-required">
+    <div class="card">
+      <h2>Manual extra item <span class="count">(anything not tied to tracked stock — e.g. a one-off purchase)</span></h2>
+      <form class="add-row" id="extraForm">
+        <div class="field grow"><label>Item / task</label><input type="text" id="exName" placeholder="e.g. New doormat" required></div>
+        <div class="field"><label>Type</label><select id="exType"><option value="buy">To Buy</option><option value="fix">To Fix / Service</option></select></div>
+        <div class="field narrow"><label>Qty</label><input type="text" id="exQty" placeholder="1 pc" value="1"></div>
+        <button class="btn amber" type="submit">+ Add to list</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Auto-generated buy &amp; repair list <span class="count" id="reqCount"></span></h2>
+      <div id="requiredContent"></div>
+      <div class="empty-state" id="requiredEmpty" style="display:none;">Nothing needed right now — everything is stocked and working.</div>
+    </div>
+  </div>
+
+  <!-- EXPORT -->
+  <div class="panel" id="panel-export">
+    <div class="card">
+      <h2>Export to PDF</h2>
+      <p style="color:var(--text-mid); font-size:13px; line-height:1.6;">
+        Generates a PDF with the full current inventory (groceries + appliances) and the buy/repair list, ready to
+        take shopping or hand to a technician. Requires an internet connection the first time, to load the PDF library.
+      </p>
+      <div class="toolbar">
+        <button class="btn" id="exportFullBtn">Export full report (Inventory + Buy/Repair List)</button>
+        <button class="btn amber" id="exportListBtn">Export buy/repair list only</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Backup &amp; restore data</h2>
+      <p style="color:var(--text-mid); font-size:13px; line-height:1.6;">
+        All data is stored locally in this browser (localStorage) — nothing is uploaded anywhere. Export a JSON backup
+        before clearing browser data, switching devices, or moving the file.
+      </p>
+      <div class="toolbar">
+        <button class="btn" id="backupBtn">Download JSON backup</button>
+        <label class="btn ghost" style="cursor:pointer;">Restore from backup<input type="file" id="restoreInput" accept="application/json" style="display:none;"></label>
+        <button class="btn ghost" id="clearBtn" style="border-color:rgba(240,85,90,0.4); color:var(--red);">Clear all data</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>How status &amp; the buy list are calculated</h2>
+      <ul style="color:var(--text-mid); font-size:13px; line-height:1.8; margin:0; padding-left:18px;">
+        <li><b style="color:var(--text-hi)">Groceries:</b> Finished = quantity is 0. Low = quantity is at or below the minimum level you set. Both are added to the buy list automatically, using the restock quantity you set for that item.</li>
+        <li><b style="color:var(--text-hi)">Appliances:</b> anything marked <i>Needs Maintenance</i> or <i>Damaged</i> is added to the repair list automatically, sorted by priority.</li>
+        <li><b style="color:var(--text-hi)">Manual items:</b> anything you add directly on the Buy &amp; Repair List tab, for one-off needs not tied to ongoing stock.</li>
+      </ul>
+    </div>
+  </div>
+
+</main>
+
+<footer class="notice">Apna Electromechanic Service — Home Management Tools · Offline single-file tool · Data stored locally in this browser only</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+// ---------- storage ----------
+const LS_KEY = "aes_home_inventory_v1";
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){ console.warn("load failed", e); }
+  return { groceries: [], appliances: [], extras: [] };
+}
+let state = load();
+function save(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  }catch(e){
+    console.warn("save failed", e);
+  }
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._h);
+  toast._h = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+// ---------- tabs ----------
+document.querySelectorAll("nav button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("panel-"+btn.dataset.tab).classList.add("active");
+    if(btn.dataset.tab === "dashboard") renderDashboard();
+    if(btn.dataset.tab === "required") renderRequired();
+  });
+});
+
+// ---------- helpers ----------
+function groceryStatus(item){
+  const qty = Number(item.qty);
+  if(qty <= 0) return "finished";
+  if(qty <= Number(item.threshold)) return "low";
+  return "ok";
+}
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function fmtQty(q, unit){
+  const n = Number(q);
+  const s = Number.isInteger(n) ? n.toString() : n.toFixed(2).replace(/0+$/,"").replace(/\.$/,"");
+  return s + (unit ? " " + unit : "");
+}
+
+// ---------- GROCERIES ----------
+const groceryForm = document.getElementById("groceryForm");
+groceryForm.addEventListener("submit", e=>{
+  e.preventDefault();
+  const item = {
+    id: uid(),
+    name: document.getElementById("gName").value.trim(),
+    category: document.getElementById("gCategory").value,
+    qty: parseFloat(document.getElementById("gQty").value) || 0,
+    unit: document.getElementById("gUnit").value,
+    threshold: parseFloat(document.getElementById("gThreshold").value) || 0,
+    restock: parseFloat(document.getElementById("gRestock").value) || 1,
+  };
+  if(!item.name) return;
+  state.groceries.push(item);
+  save();
+  groceryForm.reset();
+  document.getElementById("gQty").value = 1;
+  document.getElementById("gThreshold").value = 1;
+  document.getElementById("gRestock").value = 2;
+  renderGroceries();
+  toast("Added " + item.name);
+});
+
+function adjustQty(id, delta){
+  const item = state.groceries.find(g=>g.id===id);
+  if(!item) return;
+  item.qty = Math.max(0, Math.round((Number(item.qty) + delta) * 100) / 100);
+  save();
+  renderGroceries();
+}
+function setQty(id, val){
+  const item = state.groceries.find(g=>g.id===id);
+  if(!item) return;
+  item.qty = Math.max(0, parseFloat(val) || 0);
+  save();
+  renderGroceries();
+}
+function deleteGrocery(id){
+  state.groceries = state.groceries.filter(g=>g.id!==id);
+  save();
+  renderGroceries();
+}
+
+function renderGroceries(){
+  const body = document.getElementById("groceryBody");
+  const search = (document.getElementById("gSearch").value || "").toLowerCase();
+  const filter = document.getElementById("gFilter").value;
+  let rows = state.groceries.filter(g=>{
+    if(search && !g.name.toLowerCase().includes(search)) return false;
+    if(filter !== "all" && groceryStatus(g) !== filter) return false;
+    return true;
+  });
+  rows.sort((a,b)=>{
+    const order = {finished:0, low:1, ok:2};
+    return order[groceryStatus(a)] - order[groceryStatus(b)] || a.name.localeCompare(b.name);
+  });
+  body.innerHTML = rows.map(g=>{
+    const st = groceryStatus(g);
+    return `<tr>
+      <td>${esc(g.name)}</td>
+      <td style="color:var(--text-mid);">${esc(g.category)}</td>
+      <td><div class="qty-cell">
+        <button onclick="HomeInv.adjustQty('${g.id}',-1)" title="Decrease">−</button>
+        <input type="number" value="${g.qty}" step="0.5" min="0" onchange="HomeInv.setQty('${g.id}', this.value)">
+        <button onclick="HomeInv.adjustQty('${g.id}',1)" title="Increase">+</button>
+        <span style="color:var(--text-dim); font-size:11px;">${esc(g.unit)}</span>
+      </div></td>
+      <td style="color:var(--text-mid); font-family:var(--mono); font-size:12px;">${fmtQty(g.threshold,g.unit)} / ${fmtQty(g.restock,g.unit)}</td>
+      <td><span class="badge ${st}">${st}</span></td>
+      <td><button class="icon-btn" onclick="HomeInv.deleteGrocery('${g.id}')" title="Remove">✕</button></td>
+    </tr>`;
+  }).join("");
+  document.getElementById("groceryEmpty").style.display = rows.length ? "none" : "block";
+  updateStatStrip();
+}
+document.getElementById("gSearch").addEventListener("input", renderGroceries);
+document.getElementById("gFilter").addEventListener("change", renderGroceries);
+
+// ---------- APPLIANCES ----------
+const applianceForm = document.getElementById("applianceForm");
+applianceForm.addEventListener("submit", e=>{
+  e.preventDefault();
+  const item = {
+    id: uid(),
+    name: document.getElementById("aName").value.trim(),
+    category: document.getElementById("aCategory").value,
+    condition: document.getElementById("aCondition").value,
+    priority: document.getElementById("aPriority").value,
+    note: document.getElementById("aNote").value.trim(),
+  };
+  if(!item.name) return;
+  state.appliances.push(item);
+  save();
+  applianceForm.reset();
+  document.getElementById("aPriority").value = "medium";
+  renderAppliances();
+  toast("Added " + item.name);
+});
+
+function updateApplianceField(id, field, value){
+  const item = state.appliances.find(a=>a.id===id);
+  if(!item) return;
+  item[field] = value;
+  save();
+  renderAppliances();
+}
+function deleteAppliance(id){
+  state.appliances = state.appliances.filter(a=>a.id!==id);
+  save();
+  renderAppliances();
+}
+
+function renderAppliances(){
+  const body = document.getElementById("applianceBody");
+  const search = (document.getElementById("aSearch").value || "").toLowerCase();
+  const filter = document.getElementById("aFilter").value;
+  const condLabel = {working:"Working", maintenance:"Needs Maintenance", damaged:"Damaged"};
+  let rows = state.appliances.filter(a=>{
+    if(search && !a.name.toLowerCase().includes(search)) return false;
+    if(filter !== "all" && a.condition !== filter) return false;
+    return true;
+  });
+  const order = {damaged:0, maintenance:1, working:2};
+  rows.sort((a,b)=> order[a.condition]-order[b.condition] || a.name.localeCompare(b.name));
+  body.innerHTML = rows.map(a=>{
+    return `<tr>
+      <td>${esc(a.name)}</td>
+      <td style="color:var(--text-mid);">${esc(a.category)}</td>
+      <td>
+        <select onchange="HomeInv.updateApplianceField('${a.id}','condition',this.value)">
+          <option value="working" ${a.condition==="working"?"selected":""}>Working</option>
+          <option value="maintenance" ${a.condition==="maintenance"?"selected":""}>Needs Maintenance</option>
+          <option value="damaged" ${a.condition==="damaged"?"selected":""}>Damaged</option>
+        </select>
+      </td>
+      <td>
+        <select onchange="HomeInv.updateApplianceField('${a.id}','priority',this.value)">
+          <option value="low" ${a.priority==="low"?"selected":""}>Low</option>
+          <option value="medium" ${a.priority==="medium"?"selected":""}>Medium</option>
+          <option value="high" ${a.priority==="high"?"selected":""}>High</option>
+        </select>
+      </td>
+      <td style="color:var(--text-mid); font-size:12px; max-width:220px;">${esc(a.note) || "—"}</td>
+      <td><button class="icon-btn" onclick="HomeInv.deleteAppliance('${a.id}')" title="Remove">✕</button></td>
+    </tr>`;
+  }).join("");
+  document.getElementById("applianceEmpty").style.display = rows.length ? "none" : "block";
+  updateStatStrip();
+}
+document.getElementById("aSearch").addEventListener("input", renderAppliances);
+document.getElementById("aFilter").addEventListener("change", renderAppliances);
+
+// ---------- EXTRAS (manual required-list items) ----------
+const extraForm = document.getElementById("extraForm");
+extraForm.addEventListener("submit", e=>{
+  e.preventDefault();
+  const item = {
+    id: uid(),
+    name: document.getElementById("exName").value.trim(),
+    type: document.getElementById("exType").value,
+    qty: document.getElementById("exQty").value.trim() || "1",
+  };
+  if(!item.name) return;
+  state.extras.push(item);
+  save();
+  extraForm.reset();
+  document.getElementById("exQty").value = "1";
+  renderRequired();
+  toast("Added " + item.name + " to the list");
+});
+function deleteExtra(id){
+  state.extras = state.extras.filter(x=>x.id!==id);
+  save();
+  renderRequired();
+}
+
+// ---------- REQUIRED LIST (derived) ----------
+function computeRequired(){
+  const buyGroceries = state.groceries
+    .filter(g => groceryStatus(g) !== "ok")
+    .map(g => ({
+      id: g.id, name: g.name, category: g.category,
+      status: groceryStatus(g),
+      currentQty: fmtQty(g.qty, g.unit),
+      buyQty: fmtQty(g.restock, g.unit)
+    }))
+    .sort((a,b)=> (a.status==="finished"?0:1) - (b.status==="finished"?0:1) || a.name.localeCompare(b.name));
+
+  const fixAppliances = state.appliances
+    .filter(a => a.condition !== "working")
+    .map(a => ({ id:a.id, name:a.name, category:a.category, condition:a.condition, priority:a.priority, note:a.note }))
+    .sort((a,b)=> (a.condition==="damaged"?0:1) - (b.condition==="damaged"?0:1)
+              || ({high:0,medium:1,low:2}[a.priority]) - ({high:0,medium:1,low:2}[b.priority]) );
+
+  const extraBuy = state.extras.filter(x=>x.type==="buy");
+  const extraFix = state.extras.filter(x=>x.type==="fix");
+
+  return { buyGroceries, fixAppliances, extraBuy, extraFix };
+}
+
+function renderRequired(){
+  const { buyGroceries, fixAppliances, extraBuy, extraFix } = computeRequired();
+  const total = buyGroceries.length + fixAppliances.length + extraBuy.length + extraFix.length;
+  document.getElementById("reqCount").textContent = "(" + total + " item" + (total===1?"":"s") + ")";
+  const content = document.getElementById("requiredContent");
+  const sections = [];
+
+  if(buyGroceries.length){
+    sections.push(`<div class="req-group"><h3>Groceries to buy</h3><table>
+      <thead><tr><th>Item</th><th>Category</th><th>Current</th><th>Buy qty</th><th>Status</th></tr></thead>
+      <tbody>${buyGroceries.map(g=>`<tr>
+        <td>${esc(g.name)}</td><td style="color:var(--text-mid);">${esc(g.category)}</td>
+        <td style="color:var(--text-mid);">${esc(g.currentQty)}</td>
+        <td style="font-family:var(--mono); color:var(--text-hi);">${esc(g.buyQty)}</td>
+        <td><span class="badge ${g.status}">${g.status}</span></td>
+      </tr>`).join("")}</tbody></table></div>`);
+  }
+  if(fixAppliances.length){
+    sections.push(`<div class="req-group"><h3>Appliances to fix / service</h3><table>
+      <thead><tr><th>Appliance</th><th>Category</th><th>Condition</th><th>Priority</th><th>Notes</th></tr></thead>
+      <tbody>${fixAppliances.map(a=>`<tr>
+        <td>${esc(a.name)}</td><td style="color:var(--text-mid);">${esc(a.category)}</td>
+        <td><span class="badge ${a.condition}">${a.condition==="damaged"?"damaged":"needs maintenance"}</span></td>
+        <td style="text-transform:capitalize; color:var(--text-mid);">${esc(a.priority)}</td>
+        <td style="color:var(--text-mid); font-size:12px;">${esc(a.note) || "—"}</td>
+      </tr>`).join("")}</tbody></table></div>`);
+  }
+  if(extraBuy.length){
+    sections.push(`<div class="req-group"><h3>Other items to buy</h3><table>
+      <thead><tr><th>Item</th><th>Qty</th><th></th></tr></thead>
+      <tbody>${extraBuy.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.qty)}</td>
+      <td><button class="icon-btn" onclick="HomeInv.deleteExtra('${x.id}')" title="Remove">✕</button></td></tr>`).join("")}</tbody></table></div>`);
+  }
+  if(extraFix.length){
+    sections.push(`<div class="req-group"><h3>Other tasks to fix / service</h3><table>
+      <thead><tr><th>Item</th><th>Qty</th><th></th></tr></thead>
+      <tbody>${extraFix.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.qty)}</td>
+      <td><button class="icon-btn" onclick="HomeInv.deleteExtra('${x.id}')" title="Remove">✕</button></td></tr>`).join("")}</tbody></table></div>`);
+  }
+
+  content.innerHTML = sections.join("");
+  document.getElementById("requiredEmpty").style.display = total ? "none" : "block";
+}
+
+// ---------- DASHBOARD ----------
+function renderDashboard(){
+  const groceriesTotal = state.groceries.length;
+  const appliancesTotal = state.appliances.length;
+  const groceriesNeeding = state.groceries.filter(g=>groceryStatus(g)!=="ok");
+  const finishedCount = state.groceries.filter(g=>groceryStatus(g)==="finished").length;
+  const lowCount = state.groceries.filter(g=>groceryStatus(g)==="low").length;
+  const appliancesNeeding = state.appliances.filter(a=>a.condition!=="working");
+  const damagedCount = state.appliances.filter(a=>a.condition==="damaged").length;
+  const maintCount = state.appliances.filter(a=>a.condition==="maintenance").length;
+
+  document.getElementById("dashTiles").innerHTML = `
+    <div class="tile cyan"><div class="num">${groceriesTotal}</div><div class="lbl">Grocery items tracked</div></div>
+    <div class="tile crit"><div class="num">${finishedCount}</div><div class="lbl">Finished</div></div>
+    <div class="tile warn"><div class="num">${lowCount}</div><div class="lbl">Running low</div></div>
+    <div class="tile cyan"><div class="num">${appliancesTotal}</div><div class="lbl">Appliances tracked</div></div>
+    <div class="tile crit"><div class="num">${damagedCount}</div><div class="lbl">Damaged</div></div>
+    <div class="tile warn"><div class="num">${maintCount}</div><div class="lbl">Need maintenance</div></div>
+  `;
+
+  const gb = document.getElementById("dashGroceryBody");
+  gb.innerHTML = groceriesNeeding.slice(0,8).map(g=>{
+    const st = groceryStatus(g);
+    return `<tr><td>${esc(g.name)}</td><td style="color:var(--text-mid);">${fmtQty(g.qty,g.unit)}</td><td><span class="badge ${st}">${st}</span></td></tr>`;
+  }).join("");
+  document.getElementById("dashGroceryEmpty").style.display = groceriesNeeding.length ? "none" : "block";
+
+  const ab = document.getElementById("dashApplianceBody");
+  ab.innerHTML = appliancesNeeding.slice(0,8).map(a=>{
+    return `<tr><td>${esc(a.name)}</td><td><span class="badge ${a.condition}">${a.condition==="damaged"?"damaged":"needs maintenance"}</span></td><td style="text-transform:capitalize; color:var(--text-mid);">${esc(a.priority)}</td></tr>`;
+  }).join("");
+  document.getElementById("dashApplianceEmpty").style.display = appliancesNeeding.length ? "none" : "block";
+
+  updateStatStrip();
+}
+
+function updateStatStrip(){
+  const finishedCount = state.groceries.filter(g=>groceryStatus(g)==="finished").length;
+  const lowCount = state.groceries.filter(g=>groceryStatus(g)==="low").length;
+  const damagedCount = state.appliances.filter(a=>a.condition==="damaged").length;
+  const maintCount = state.appliances.filter(a=>a.condition==="maintenance").length;
+  const strip = document.getElementById("statStrip");
+  const chips = [];
+  chips.push(`<div class="stat-chip"><span class="dot ok"></span>${state.groceries.length} groceries · ${state.appliances.length} appliances tracked</div>`);
+  if(finishedCount) chips.push(`<div class="stat-chip crit"><span class="dot crit"></span><b>${finishedCount}</b> finished</div>`);
+  if(lowCount) chips.push(`<div class="stat-chip warn"><span class="dot warn"></span><b>${lowCount}</b> running low</div>`);
+  if(damagedCount) chips.push(`<div class="stat-chip crit"><span class="dot crit"></span><b>${damagedCount}</b> damaged</div>`);
+  if(maintCount) chips.push(`<div class="stat-chip warn"><span class="dot warn"></span><b>${maintCount}</b> need maintenance</div>`);
+  strip.innerHTML = chips.join("");
+}
+
+// ---------- PDF EXPORT ----------
+function buildPdf(includeInventory){
+  if(!window.jspdf){ toast("PDF library failed to load — check internet connection"); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const marginX = 40;
+  let y = 50;
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+
+  function ensureSpace(h){
+    if(y + h > pageH - 40){ doc.addPage(); y = 50; }
+  }
+  function h1(text){
+    ensureSpace(30);
+    doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(20,30,50);
+    doc.text(text, marginX, y); y += 22;
+  }
+  function h2(text){
+    ensureSpace(24);
+    doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(20,110,130);
+    doc.text(text, marginX, y); y += 16;
+  }
+  function tableHeader(cols, widths){
+    ensureSpace(20);
+    doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(90,90,90);
+    let x = marginX;
+    cols.forEach((c,i)=>{ doc.text(c, x, y); x += widths[i]; });
+    y += 6;
+    doc.setDrawColor(200,200,200);
+    doc.line(marginX, y, marginX + widths.reduce((a,b)=>a+b,0), y);
+    y += 12;
+  }
+  function tableRow(vals, widths){
+    ensureSpace(16);
+    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(40,40,40);
+    let x = marginX;
+    vals.forEach((v,i)=>{
+      const lines = doc.splitTextToSize(String(v), widths[i]-6);
+      doc.text(lines, x, y);
+      x += widths[i];
+    });
+    y += 14;
+  }
+  function subtleLine(text){
+    ensureSpace(14);
+    doc.setFont("helvetica","italic"); doc.setFontSize(9); doc.setTextColor(130,130,130);
+    doc.text(text, marginX, y); y += 16;
+  }
+
+  h1("Home Inventory Report — Apna Electromechanic Service");
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(110,110,110);
+  doc.text("Generated " + new Date().toLocaleString(), marginX, y);
+  y += 22;
+
+  const { buyGroceries, fixAppliances, extraBuy, extraFix } = computeRequired();
+
+  // Required list first (most actionable)
+  h2("Buy & Repair List");
+  if(buyGroceries.length){
+    doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(150,110,10);
+    ensureSpace(16); doc.text("Groceries to buy", marginX, y); y += 14;
+    tableHeader(["Item","Category","Current","Buy Qty","Status"], [140,110,90,90,80]);
+    buyGroceries.forEach(g=> tableRow([g.name,g.category,g.currentQty,g.buyQty,g.status], [140,110,90,90,80]));
+    y += 6;
+  }
+  if(fixAppliances.length){
+    doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(150,110,10);
+    ensureSpace(16); doc.text("Appliances to fix / service", marginX, y); y += 14;
+    tableHeader(["Appliance","Category","Condition","Priority","Notes"], [110,90,90,70,150]);
+    fixAppliances.forEach(a=> tableRow([a.name,a.category,a.condition==="damaged"?"Damaged":"Needs Maintenance",a.priority,a.note||"—"], [110,90,90,70,150]));
+    y += 6;
+  }
+  if(extraBuy.length){
+    doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(150,110,10);
+    ensureSpace(16); doc.text("Other items to buy", marginX, y); y += 14;
+    tableHeader(["Item","Qty"], [300,150]);
+    extraBuy.forEach(x=> tableRow([x.name,x.qty], [300,150]));
+    y += 6;
+  }
+  if(extraFix.length){
+    doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(150,110,10);
+    ensureSpace(16); doc.text("Other tasks to fix / service", marginX, y); y += 14;
+    tableHeader(["Item","Qty"], [300,150]);
+    extraFix.forEach(x=> tableRow([x.name,x.qty], [300,150]));
+    y += 6;
+  }
+  if(!buyGroceries.length && !fixAppliances.length && !extraBuy.length && !extraFix.length){
+    subtleLine("Nothing needed right now — all tracked items are stocked and working.");
+  }
+
+  if(includeInventory){
+    doc.addPage(); y = 50;
+    h1("Full Current Inventory");
+
+    h2("Groceries (" + state.groceries.length + ")");
+    if(state.groceries.length){
+      tableHeader(["Item","Category","Quantity","Min Level","Status"], [130,110,100,90,80]);
+      state.groceries.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{
+        tableRow([g.name, g.category, fmtQty(g.qty,g.unit), fmtQty(g.threshold,g.unit), groceryStatus(g)], [130,110,100,90,80]);
+      });
+    } else { subtleLine("No grocery items tracked."); }
+    y += 10;
+
+    h2("Appliances (" + state.appliances.length + ")");
+    if(state.appliances.length){
+      tableHeader(["Appliance","Category","Condition","Priority","Notes"], [110,90,90,70,150]);
+      state.appliances.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(a=>{
+        tableRow([a.name, a.category, a.condition==="working"?"Working":(a.condition==="damaged"?"Damaged":"Needs Maintenance"), a.priority, a.note||"—"], [110,90,90,70,150]);
+      });
+    } else { subtleLine("No appliances tracked."); }
+  }
+
+  const fname = (includeInventory ? "home-inventory-report_" : "buy-repair-list_") + new Date().toISOString().slice(0,10) + ".pdf";
+  doc.save(fname);
+  toast("PDF downloaded");
+}
+
+document.getElementById("exportFullBtn").addEventListener("click", ()=>buildPdf(true));
+document.getElementById("exportListBtn").addEventListener("click", ()=>buildPdf(false));
+
+// ---------- BACKUP / RESTORE / CLEAR ----------
+document.getElementById("backupBtn").addEventListener("click", ()=>{
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "home-inventory-backup_" + new Date().toISOString().slice(0,10) + ".json";
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("Backup downloaded");
+});
+document.getElementById("restoreInput").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(!data.groceries || !data.appliances) throw new Error("Invalid file");
+      state = { groceries: data.groceries || [], appliances: data.appliances || [], extras: data.extras || [] };
+      save();
+      renderAll();
+      toast("Backup restored");
+    }catch(err){
+      toast("Could not read that file");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+document.getElementById("clearBtn").addEventListener("click", ()=>{
+  if(!confirm("This will permanently delete all groceries, appliances, and list items. Continue?")) return;
+  state = { groceries: [], appliances: [], extras: [] };
+  save();
+  renderAll();
+  toast("All data cleared");
+});
+
+// ---------- init ----------
+function renderAll(){
+  renderGroceries();
+  renderAppliances();
+  renderRequired();
+  renderDashboard();
+}
+window.HomeInv = { adjustQty, setQty, deleteGrocery, updateApplianceField, deleteAppliance, deleteExtra };
+renderAll();
+
+})();
+</script>
+</body>
+</html>
