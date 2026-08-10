@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>WWTP Electrical &amp; Control Simulator | Apna Electromechanic Service</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root{
+  --navy-950:#050b14;
+  --navy-900:#0a1220;
+  --navy-800:#0f1c30;
+  --navy-700:#16283f;
+  --navy-600:#1e3550;
+  --grid-line: rgba(90,170,220,0.07);
+  --cyan:#3fd9e8;
+  --cyan-dim:#1f8b96;
+  --amber:#ffb648;
+  --amber-dim:#a67528;
+  --red:#ff5566;
+  --green:#4ee08a;
+  --text-hi:#e8f4fb;
+  --text-mid:#9db3c7;
+  --text-dim:#5c7288;
+  --mono: 'IBM Plex Mono', 'Courier New', monospace;
+  --sans: 'IBM Plex Sans', Arial, sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--navy-950);color:var(--text-hi);font-family:var(--sans);}
+body{
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size:28px 28px;
+  min-height:100vh;
+}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:var(--navy-900);}
+::-webkit-scrollbar-thumb{background:var(--navy-600);border-radius:4px;}
+
+/* HEADER */
+header.app{
+  position:sticky; top:0; z-index:50;
+  background:linear-gradient(180deg, var(--navy-900) 0%, rgba(10,18,32,0.96) 100%);
+  border-bottom:1px solid var(--navy-600);
+  padding:10px 16px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.brand{display:flex; flex-direction:column; line-height:1.15;}
+.brand .line1{font-family:var(--mono); font-size:11px; letter-spacing:2px; color:var(--amber); text-transform:uppercase;}
+.brand .line2{font-family:var(--mono); font-size:15px; font-weight:700; color:var(--cyan); letter-spacing:0.5px;}
+.hdr-spacer{flex:1;}
+.clock{font-family:var(--mono); font-size:12px; color:var(--text-mid); text-align:right;}
+.estop-btn{
+  background:var(--red); color:#1a0508; border:2px solid #ff8a97; border-radius:8px;
+  font-family:var(--mono); font-weight:700; font-size:12px; letter-spacing:1px;
+  padding:10px 16px; cursor:pointer; box-shadow:0 0 14px rgba(255,85,102,0.5);
+}
+.estop-btn:active{transform:scale(0.97);}
+.estop-btn.active{background:#7a0e1a; color:#ffb3ba; animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 8px rgba(255,85,102,0.4);}50%{box-shadow:0 0 22px rgba(255,85,102,0.9);}}
+
+/* TABS */
+nav.tabs{
+  display:flex; gap:2px; overflow-x:auto; padding:0 10px; background:var(--navy-900);
+  border-bottom:1px solid var(--navy-700);
+}
+nav.tabs button{
+  background:transparent; border:none; color:var(--text-mid); font-family:var(--mono);
+  font-size:11.5px; letter-spacing:0.6px; padding:11px 14px; cursor:pointer; white-space:nowrap;
+  border-bottom:2px solid transparent; text-transform:uppercase;
+}
+nav.tabs button:hover{color:var(--text-hi);}
+nav.tabs button.active{color:var(--cyan); border-bottom-color:var(--cyan); background:rgba(63,217,232,0.06);}
+
+/* ALARM BANNER */
+#alarmBanner{
+  display:none; background:linear-gradient(90deg,#3a0a12,#5a0f1c); border-bottom:1px solid var(--red);
+  color:#ffd0d5; font-family:var(--mono); font-size:12px; padding:7px 14px; align-items:center; gap:10px;
+}
+#alarmBanner.show{display:flex;}
+#alarmBanner .cnt{background:var(--red); color:#1a0508; padding:2px 8px; border-radius:10px; font-weight:700;}
+#alarmBanner button{
+  margin-left:auto; background:var(--navy-700); color:var(--text-hi); border:1px solid var(--navy-600);
+  font-family:var(--mono); font-size:11px; padding:5px 10px; border-radius:5px; cursor:pointer;
+}
+
+main{max-width:1500px; margin:0 auto; padding:16px;}
+.panel{display:none;}
+.panel.active{display:block;}
+
+h2.section-title{
+  font-family:var(--mono); font-size:13px; color:var(--amber); letter-spacing:2px; text-transform:uppercase;
+  margin:22px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--navy-700);
+}
+.card{
+  background:linear-gradient(180deg, var(--navy-800), var(--navy-900));
+  border:1px solid var(--navy-600); border-radius:10px; padding:14px;
+}
+.grid{display:grid; gap:12px;}
+.grid.cols-2{grid-template-columns:1fr 1fr;}
+.grid.cols-3{grid-template-columns:repeat(3,1fr);}
+.grid.cols-4{grid-template-columns:repeat(4,1fr);}
+@media(max-width:900px){.grid.cols-2,.grid.cols-3,.grid.cols-4{grid-template-columns:1fr;}}
+
+/* EQUIPMENT CHIP */
+.eq-chip{
+  display:flex; align-items:center; gap:8px; background:var(--navy-800); border:1px solid var(--navy-600);
+  border-radius:8px; padding:8px 10px; cursor:pointer; transition:border-color .15s;
+}
+.eq-chip:hover{border-color:var(--cyan-dim);}
+.eq-dot{width:10px; height:10px; border-radius:50%; background:var(--text-dim); flex-shrink:0;}
+.eq-dot.running{background:var(--green); box-shadow:0 0 6px var(--green);}
+.eq-dot.tripped{background:var(--red); box-shadow:0 0 6px var(--red);}
+.eq-dot.starting{background:var(--amber); animation:blink 0.6s infinite;}
+@keyframes blink{50%{opacity:0.25;}}
+.eq-name{font-family:var(--mono); font-size:11.5px; color:var(--text-hi); flex:1;}
+.eq-meta{font-family:var(--mono); font-size:10px; color:var(--text-dim);}
+
+/* SVG PROCESS */
+.pfd-wrap{background:var(--navy-900); border:1px solid var(--navy-700); border-radius:10px; overflow:auto; padding:6px;}
+svg text{font-family:var(--mono); fill:var(--text-mid);}
+.tag-label{font-size:9px; fill:var(--text-dim);}
+.eq-label{font-size:10px; fill:var(--text-hi); font-weight:600;}
+.flow-pipe{stroke:var(--navy-600); stroke-width:6; fill:none;}
+.flow-anim{stroke-dasharray:8 7; stroke-width:3; fill:none; opacity:0.95;}
+.flow-raw{stroke:#8a6a3a;}
+.flow-treated{stroke:var(--cyan);}
+.flow-ras{stroke:var(--green);}
+.flow-was{stroke:var(--amber);}
+.flow-gas{stroke:#c586ff;}
+@keyframes flowmove{to{stroke-dashoffset:-60;}}
+.flow-on{animation:flowmove 1.1s linear infinite;}
+.tank-body{fill:var(--navy-800); stroke:var(--navy-600); stroke-width:1.5;}
+.tank-liquid{fill:rgba(63,217,232,0.18);}
+.motor-sym{fill:var(--navy-700); stroke:var(--text-dim); stroke-width:1.5; cursor:pointer;}
+.motor-sym.running{stroke:var(--green); fill:rgba(78,224,138,0.12);}
+.motor-sym.tripped{stroke:var(--red); fill:rgba(255,85,102,0.15);}
+.bubble{fill:rgba(255,255,255,0.5);}
+
+/* BUTTONS / CONTROLS */
+.btn{
+  font-family:var(--mono); font-size:11px; letter-spacing:0.5px; padding:8px 12px; border-radius:6px;
+  border:1px solid var(--navy-600); background:var(--navy-700); color:var(--text-hi); cursor:pointer;
+}
+.btn:hover{border-color:var(--cyan-dim);}
+.btn.on{background:rgba(78,224,138,0.15); border-color:var(--green); color:var(--green);}
+.btn.off{background:rgba(255,85,102,0.15); border-color:var(--red); color:var(--red);}
+.btn.warn{background:rgba(255,182,72,0.15); border-color:var(--amber); color:var(--amber);}
+.btn:disabled{opacity:0.35; cursor:not-allowed;}
+.pill{display:inline-block; font-family:var(--mono); font-size:10px; padding:2px 8px; border-radius:10px; border:1px solid var(--navy-600); color:var(--text-mid);}
+.pill.green{border-color:var(--green); color:var(--green);}
+.pill.red{border-color:var(--red); color:var(--red);}
+.pill.amber{border-color:var(--amber); color:var(--amber);}
+select, input[type=text], input[type=number]{
+  background:var(--navy-900); border:1px solid var(--navy-600); color:var(--text-hi); font-family:var(--mono);
+  font-size:11.5px; padding:6px 8px; border-radius:5px;
+}
+input[type=range]{width:100%; accent-color:var(--cyan);}
+label.small{font-family:var(--mono); font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;}
+
+table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:11px;}
+th{text-align:left; color:var(--amber); border-bottom:1px solid var(--navy-600); padding:6px 8px; font-size:10px; letter-spacing:1px; text-transform:uppercase;}
+td{padding:6px 8px; border-bottom:1px solid var(--navy-800); color:var(--text-mid);}
+tr:hover td{background:rgba(63,217,232,0.04);}
+
+.kv{display:flex; justify-content:space-between; font-family:var(--mono); font-size:11.5px; padding:4px 0; border-bottom:1px dashed var(--navy-700);}
+.kv b{color:var(--text-hi); font-weight:600;}
+
+/* MODAL FACEPLATE */
+#modalOverlay{
+  display:none; position:fixed; inset:0; background:rgba(2,6,12,0.72); z-index:200;
+  align-items:center; justify-content:center; padding:14px;
+}
+#modalOverlay.show{display:flex;}
+#faceplate{
+  width:100%; max-width:480px; max-height:92vh; overflow-y:auto;
+  background:linear-gradient(180deg, var(--navy-800), var(--navy-900));
+  border:1px solid var(--cyan-dim); border-radius:12px; padding:16px;
+  box-shadow:0 0 40px rgba(63,217,232,0.15);
+}
+#faceplate .fp-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;}
+#faceplate .fp-tag{font-family:var(--mono); font-size:16px; color:var(--cyan); font-weight:700;}
+#faceplate .fp-desc{font-family:var(--mono); font-size:11px; color:var(--text-dim);}
+.closeX{background:none; border:none; color:var(--text-dim); font-size:20px; cursor:pointer;}
+.perm-row{display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px; padding:3px 0;}
+.perm-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+.perm-dot.ok{background:var(--green);}
+.perm-dot.bad{background:var(--red);}
+
+.tag-strip{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
+.tag-strip span{font-family:var(--mono); font-size:9.5px; padding:2px 7px; border-radius:9px; border:1px solid var(--navy-600); color:var(--text-dim);}
+
+canvas{width:100%; display:block;}
+.chart-box{background:var(--navy-900); border:1px solid var(--navy-700); border-radius:8px; padding:8px;}
+
+footer.notice{font-family:var(--mono); font-size:10px; color:var(--text-dim); text-align:center; padding:26px 10px 40px;}
+
+.seq-step{display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-left:2px solid var(--navy-700); padding-left:14px; margin-left:6px; position:relative;}
+.seq-step::before{content:''; position:absolute; left:-7px; top:11px; width:11px; height:11px; border-radius:50%; background:var(--navy-700); border:2px solid var(--navy-600);}
+.seq-step.done::before{background:var(--green); border-color:var(--green);}
+.seq-step.active::before{background:var(--amber); border-color:var(--amber); box-shadow:0 0 8px var(--amber);}
+.seq-step .stitle{font-family:var(--mono); font-size:12px; color:var(--text-hi);}
+.seq-step .sdesc{font-family:var(--mono); font-size:10.5px; color:var(--text-dim);}
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div class="brand">
+    <span class="line1">Apna Electromechanic Service — Engineering Tools Suite</span>
+    <span class="line2">WWTP ELECTRICAL &amp; CONTROL SIMULATOR</span>
+  </div>
+  <div class="hdr-spacer"></div>
+  <div class="clock" id="simClock">SIM TIME 00:00:00</div>
+  <button class="estop-btn" id="estopBtn">EMERGENCY STOP</button>
+</header>
+
+<div id="alarmBanner"><span class="cnt" id="alarmCount">0</span><span id="alarmLatest">No active alarms</span><button id="gotoAlarms">VIEW ALARMS</button></div>
+
+<nav class="tabs" id="tabNav">
+  <button data-tab="overview" class="active">Plant Overview</button>
+  <button data-tab="sld">Electrical SLD</button>
+  <button data-tab="startmethods">Motor Control Methods</button>
+  <button data-tab="vfdlab">VFD &amp; Process Loops</button>
+  <button data-tab="plc">Permissives &amp; PLC I/O</button>
+  <button data-tab="alarms">Alarms &amp; Trends</button>
+  <button data-tab="energy">Energy Monitoring</button>
+  <button data-tab="sequence">Sequences</button>
+</nav>
+
+<main>
+
+<!-- =========== OVERVIEW =========== -->
+<section class="panel active" id="panel-overview">
+  <h2 class="section-title">Process Flow Diagram — click any pump / motor / tank for its faceplate</h2>
+  <div class="pfd-wrap"><svg id="pfdSvg" viewBox="0 0 1400 780" width="1400" height="780"></svg></div>
+
+  <h2 class="section-title">Key Process Instruments</h2>
+  <div class="grid cols-4" id="instrumentGrid"></div>
+
+  <h2 class="section-title">All Equipment — quick status</h2>
+  <div class="grid cols-4" id="eqChipGrid"></div>
+</section>
+
+<!-- =========== ELECTRICAL SLD =========== -->
+<section class="panel" id="panel-sld">
+  <h2 class="section-title">Electrical Single Line Diagram — Incomer → Transformer → PCC → MCC → VFD Panels → Motors</h2>
+  <div class="pfd-wrap"><svg id="sldSvg" viewBox="0 0 1400 620" width="1400" height="620"></svg></div>
+  <h2 class="section-title">Motor Electrical Summary</h2>
+  <div class="card" style="overflow-x:auto">
+    <table id="elecTable"><thead><tr>
+      <th>Tag</th><th>Ctrl</th><th>Status</th><th>V</th><th>I (A)</th><th>P (kW)</th><th>PF</th><th>Hz</th><th>RPM</th><th>Dir</th><th>Thermal</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+</section>
+
+<!-- =========== MOTOR CONTROL METHODS =========== -->
+<section class="panel" id="panel-startmethods">
+  <h2 class="section-title">Starting Method Demonstrator</h2>
+  <div class="card">
+    <div class="grid cols-2">
+      <div>
+        <label class="small">Select motor</label><br>
+        <select id="smMotorSelect" style="width:100%; margin-top:6px;"></select>
+        <div style="margin-top:12px;" id="smInfo"></div>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="btn on" id="smStart">START</button>
+          <button class="btn off" id="smStop">STOP</button>
+        </div>
+        <div id="smSeqBox" style="margin-top:14px;"></div>
+      </div>
+      <div>
+        <div class="chart-box"><canvas id="smChart" height="260"></canvas></div>
+        <p style="font-family:var(--mono); font-size:10.5px; color:var(--text-dim); margin-top:8px;">
+          Chart shows current (cyan) and speed % (amber) vs time since start command, per the selected starting method's real characteristic curve.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========== VFD LAB =========== -->
+<section class="panel" id="panel-vfdlab">
+  <h2 class="section-title">VFD Control Panel</h2>
+  <div class="grid cols-2" id="vfdPanelGrid"></div>
+
+  <h2 class="section-title">Dissolved Oxygen Control Loop (Aeration Blowers)</h2>
+  <div class="card grid cols-2">
+    <div>
+      <div class="kv"><span>DO Setpoint (mg/L)</span><b><input type="range" id="doSp" min="0.5" max="4" step="0.1" value="2.0" style="width:140px;"> <span id="doSpVal">2.0</span></b></div>
+      <div class="kv"><span>Blower control mode</span><b id="doModeLabel">AUTO (PID)</b></div>
+      <div class="kv"><span>P gain</span><b><input type="range" id="doP" min="1" max="20" step="1" value="8" style="width:140px;"></b></div>
+      <div class="kv"><span>Current DO</span><b id="doCurrent">— mg/L</b></div>
+      <div class="kv"><span>Aeration Blower avg speed</span><b id="doBlowerSpd">— %</b></div>
+      <div class="kv"><span>Airflow (approx)</span><b id="doAirflow">— Nm³/h</b></div>
+    </div>
+    <div class="chart-box"><canvas id="doChart" height="220"></canvas></div>
+  </div>
+
+  <h2 class="section-title">RAS / WAS Flow Control</h2>
+  <div class="card grid cols-2">
+    <div>
+      <div class="kv"><span>RAS Pump-1 VFD speed</span><b id="rasSpdLbl">—</b></div>
+      <div class="kv"><span>RAS Flow</span><b id="rasFlowLbl">—</b></div>
+      <div class="kv"><span>WAS Pump-1 VFD speed</span><b id="wasSpdLbl">—</b></div>
+      <div class="kv"><span>WAS Flow</span><b id="wasFlowLbl">—</b></div>
+      <p style="font-family:var(--mono); font-size:10.5px; color:var(--text-dim); margin-top:10px;">
+        Increasing RAS VFD speed increases return-sludge flow to the aeration tank, raising MLSS concentration there; increasing WAS speed increases waste-sludge extraction, lowering aeration-tank solids inventory over time. Open the faceplates in the VFD panel above (RAS-1 / WAS-1) to adjust speed directly.
+      </p>
+    </div>
+    <div class="chart-box"><canvas id="rasWasChart" height="220"></canvas></div>
+  </div>
+</section>
+
+<!-- =========== PERMISSIVES & PLC =========== -->
+<section class="panel" id="panel-plc">
+  <h2 class="section-title">Motor Permissives — click a motor to see why it can / cannot start</h2>
+  <div class="grid cols-4" id="permGrid"></div>
+
+  <h2 class="section-title">Duty / Standby Pairs</h2>
+  <div class="card" id="dutyStandbyBox"></div>
+
+  <h2 class="section-title">PLC I/O Live Status</h2>
+  <div class="grid cols-2">
+    <div class="card">
+      <h3 style="font-family:var(--mono); color:var(--cyan); font-size:12px;">DIGITAL INPUTS</h3>
+      <table id="diTable"><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h3 style="font-family:var(--mono); color:var(--cyan); font-size:12px;">DIGITAL OUTPUTS</h3>
+      <table id="doTable"><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h3 style="font-family:var(--mono); color:var(--cyan); font-size:12px;">ANALOG INPUTS</h3>
+      <table id="aiTable"><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h3 style="font-family:var(--mono); color:var(--cyan); font-size:12px;">ANALOG OUTPUTS</h3>
+      <table id="aoTable"><tbody></tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- =========== ALARMS & TRENDS =========== -->
+<section class="panel" id="panel-alarms">
+  <h2 class="section-title">Active Alarms</h2>
+  <div class="card" id="activeAlarmsBox"></div>
+  <h2 class="section-title">Alarm History</h2>
+  <div class="card" style="max-height:220px; overflow-y:auto;"><table id="alarmHistTable"><thead><tr><th>Time</th><th>Severity</th><th>Message</th><th>State</th></tr></thead><tbody></tbody></table></div>
+
+  <h2 class="section-title">Trends</h2>
+  <div class="card">
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+      <label class="small">Parameter</label>
+      <select id="trendParam">
+        <option value="eqLevel">EQ Tank Level (LT-101) %</option>
+        <option value="aerLevel">Aeration Tank Level (LT-102) %</option>
+        <option value="secLevel">Secondary Clarifier Level (LT-103) %</option>
+        <option value="do">Dissolved Oxygen DO-101 mg/L</option>
+        <option value="ph">pH-101</option>
+        <option value="inletFlow">Inlet Flow FT-101 m3/h</option>
+        <option value="rasFlow">RAS Flow FT-102 m3/h</option>
+        <option value="blowerSpd">Aeration Blower Speed %</option>
+        <option value="totalKW">Plant Running Load kW</option>
+      </select>
+      <label class="small">Window</label>
+      <select id="trendWindow">
+        <option value="60">1 min</option>
+        <option value="300" selected>5 min</option>
+        <option value="600">10 min</option>
+        <option value="1800">30 min</option>
+      </select>
+    </div>
+    <div class="chart-box"><canvas id="trendChart" height="260"></canvas></div>
+  </div>
+</section>
+
+<!-- =========== ENERGY =========== -->
+<section class="panel" id="panel-energy">
+  <h2 class="section-title">Plant Energy Summary</h2>
+  <div class="grid cols-4" id="energySummaryGrid"></div>
+  <div class="card" style="margin-top:12px;">
+    <label class="small">Electricity tariff (₹ / kWh)</label><br>
+    <input type="number" id="tariffInput" value="8.5" step="0.1" style="margin-top:6px; width:120px;">
+  </div>
+  <h2 class="section-title">Per-Motor Energy</h2>
+  <div class="card" style="overflow-x:auto;">
+    <table id="energyTable"><thead><tr><th>Tag</th><th>Status</th><th>kW now</th><th>Run Hours</th><th>kWh (session)</th><th>Cost ₹</th></tr></thead><tbody></tbody></table>
+  </div>
+  <h2 class="section-title">Top Energy Consumers (session)</h2>
+  <div class="chart-box"><canvas id="energyBarChart" height="220"></canvas></div>
+</section>
+
+<!-- =========== SEQUENCES =========== -->
+<section class="panel" id="panel-sequence">
+  <h2 class="section-title">Sequential Startup</h2>
+  <div class="card grid cols-2">
+    <div>
+      <button class="btn on" id="runStartupBtn">RUN STARTUP SEQUENCE</button>
+      <div id="startupSteps" style="margin-top:14px;"></div>
+    </div>
+    <div>
+      <h3 style="font-family:var(--mono); color:var(--cyan); font-size:12px;">Controlled Shutdown</h3>
+      <button class="btn off" id="runShutdownBtn">RUN CONTROLLED SHUTDOWN</button>
+      <div id="shutdownSteps" style="margin-top:14px;"></div>
+      <p style="font-family:var(--mono); font-size:10.5px; color:var(--text-dim); margin-top:14px;">
+        EMERGENCY STOP (top-right, red) differs from a controlled shutdown: it immediately de-energizes all configured motor outputs with no ramp-down or valve sequencing, exactly like a hardwired E-stop circuit — vs. the ordered ramp-down shown here.
+      </p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div id="modalOverlay"><div id="faceplate"></div></div>
+
+<footer class="notice">Educational simulation — process, electrical and biological behaviour are simplified approximations for training purposes, not a substitute for actual plant SCADA/PLC logic or a detailed design.</footer>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   DATA MODEL
+   ============================================================ */
+const AREA = { INLET:'Inlet', PRIMARY:'Primary Clarifier', AERATION:'Aeration', MIXING:'Mixing', SECONDARY:'Secondary Clarifier', SLUDGE:'Sludge System', DEWATER:'Dewatering', OUTLET:'Outlet/Aux' };
+const CTRL = { DOL:'DOL', SD:'STAR-DELTA', SOFT:'SOFT STARTER', VFD:'VFD' };
+
+function motor(o){
+  return Object.assign({
+    mode:'AUTO', local:false, status:'STOPPED', // STOPPED, STARTING, RUNNING, TRIPPED, STOPPING
+    freq:0, targetFreq:0, speedPct:0, dirFwd:true, reqDir:true,
+    current:0, voltage:415, power:0, pf:0.0, thermal:20,
+    runSeconds:0, kWh:0, faultCode:null, startPhaseT:0, seqIdx:0,
+    speedSet:70, // operator/AUTO speed reference %
+    dutyRole:null, dutyPartner:null,
+  }, o);
+}
+
+const motors = [
+ motor({id:'IP1', tag:'Inlet Pump-1', area:AREA.INLET, ctrl:CTRL.VFD, kw:22, rpm:1480, poles:4, reversible:false, dutyRole:'DUTY', dutyPartner:'IP2'}),
+ motor({id:'IP2', tag:'Inlet Pump-2', area:AREA.INLET, ctrl:CTRL.VFD, kw:22, rpm:1480, poles:4, reversible:false, dutyRole:'STANDBY', dutyPartner:'IP1'}),
+ motor({id:'SCR', tag:'Screen Motor', area:AREA.INLET, ctrl:CTRL.DOL, kw:2.2, rpm:1420, poles:4, reversible:false}),
+ motor({id:'GRP', tag:'Grit Pump', area:AREA.INLET, ctrl:CTRL.DOL, kw:7.5, rpm:1440, poles:4, reversible:false}),
+ motor({id:'EQM', tag:'EQ Tank Mixer', area:AREA.MIXING, ctrl:CTRL.VFD, kw:11, rpm:970, poles:6, reversible:false}),
+ motor({id:'PCS1', tag:'Primary Clarifier Scraper-1', area:AREA.PRIMARY, ctrl:CTRL.SD, kw:3.7, rpm:960, poles:6, reversible:true}),
+ motor({id:'PSP1', tag:'Primary Sludge Pump-1', area:AREA.PRIMARY, ctrl:CTRL.DOL, kw:5.5, rpm:1440, poles:4, reversible:false}),
+ motor({id:'AB1', tag:'Aeration Blower-1', area:AREA.AERATION, ctrl:CTRL.VFD, kw:75, rpm:2960, poles:2, reversible:false, dutyRole:'DUTY', dutyPartner:'AB2', speedSet:60}),
+ motor({id:'AB2', tag:'Aeration Blower-2', area:AREA.AERATION, ctrl:CTRL.VFD, kw:75, rpm:2960, poles:2, reversible:false, dutyRole:'STANDBY', dutyPartner:'AB1'}),
+ motor({id:'ANM1', tag:'Anoxic Mixer-1', area:AREA.MIXING, ctrl:CTRL.VFD, kw:7.5, rpm:970, poles:6, reversible:false}),
+ motor({id:'SCS1', tag:'Secondary Clarifier Scraper-1', area:AREA.SECONDARY, ctrl:CTRL.SOFT, kw:3.0, rpm:960, poles:6, reversible:true}),
+ motor({id:'RAS1', tag:'RAS Pump-1', area:AREA.SECONDARY, ctrl:CTRL.VFD, kw:18.5, rpm:1460, poles:4, reversible:false, dutyRole:'DUTY', dutyPartner:'RAS2', speedSet:70}),
+ motor({id:'RAS2', tag:'RAS Pump-2', area:AREA.SECONDARY, ctrl:CTRL.VFD, kw:18.5, rpm:1460, poles:4, reversible:false, dutyRole:'STANDBY', dutyPartner:'RAS1'}),
+ motor({id:'WAS1', tag:'WAS Pump-1', area:AREA.SECONDARY, ctrl:CTRL.VFD, kw:5.5, rpm:1440, poles:4, reversible:false, speedSet:35}),
+ motor({id:'STP', tag:'Sludge Transfer Pump', area:AREA.SLUDGE, ctrl:CTRL.DOL, kw:7.5, rpm:1440, poles:4, reversible:false}),
+ motor({id:'DGM', tag:'Digester Mixer', area:AREA.SLUDGE, ctrl:CTRL.VFD, kw:15, rpm:970, poles:6, reversible:true, speedSet:50}),
+ motor({id:'DFP', tag:'Digester Feed Pump', area:AREA.SLUDGE, ctrl:CTRL.SOFT, kw:5.5, rpm:1440, poles:4, reversible:false}),
+ motor({id:'PDP', tag:'Polymer Dosing Pump', area:AREA.DEWATER, ctrl:CTRL.DOL, kw:1.1, rpm:1400, poles:4, reversible:false}),
+ motor({id:'CFG', tag:'Centrifuge Motor', area:AREA.DEWATER, ctrl:CTRL.VFD, kw:37, rpm:1480, poles:4, reversible:false, speedSet:80}),
+ motor({id:'TWP', tag:'Treated Water Pump', area:AREA.OUTLET, ctrl:CTRL.DOL, kw:11, rpm:1450, poles:4, reversible:false}),
+];
+const byId = {}; motors.forEach(m=>byId[m.id]=m);
+
+/* Process state */
+const proc = {
+  eqLevel:45, aerLevel:60, secLevel:55, digLevel:50,
+  inletFlow:0, rasFlow:0, wasFlow:0, treatedFlow:0,
+  DO:1.6, doSetpoint:2.0, doP:8,
+  pH:7.1, ORP:120, temp:22.4, digTemp:35.5,
+  pressure:2.1,
+  estop:false,
+  t:0,
+};
+
+/* Permissive definitions per motor id -> list of {name, get():bool} */
+function makePermissives(m){
+  const list = [
+    {name:'No motor fault', get:()=> m.faultCode===null},
+    {name:'E-Stop healthy', get:()=> !proc.estop},
+    {name:'Local/Remote in REMOTE (PLC control)', get:()=> !m.local},
+  ];
+  if(m.ctrl===CTRL.VFD) list.push({name:'VFD ready (no VFD fault)', get:()=> m.faultCode!=='VFD_FAULT'});
+  if(m.area===AREA.INLET) list.push({name:'Suction/inlet valve open', get:()=> true, override:'inletValve'});
+  if(m.id==='IP1'||m.id==='IP2') list.push({name:'EQ tank level > LOW-LOW', get:()=> proc.eqLevel>8});
+  if(m.id==='PSP1') list.push({name:'Primary clarifier available', get:()=> true});
+  if(m.id==='AB1'||m.id==='AB2') list.push({name:'Aeration tank level normal', get:()=> proc.aerLevel>5 && proc.aerLevel<98});
+  if(m.id==='RAS1'||m.id==='RAS2') list.push({name:'Secondary clarifier available', get:()=> true},{name:'RAS discharge valve open', get:()=> true});
+  if(m.id==='WAS1') list.push({name:'Sludge holding tank level OK', get:()=> proc.digLevel<95});
+  if(m.id==='CFG') list.push({name:'Polymer dosing pump running', get:()=> byId['PDP'].status==='RUNNING'});
+  if(m.id==='STP'||m.id==='DFP') list.push({name:'Digester level < HIGH-HIGH', get:()=> proc.digLevel<95});
+  if(m.dutyRole==='STANDBY') list.push({name:'AUTO mode (for auto-changeover)', get:()=> m.mode==='AUTO'});
+  return list;
+}
+
+/* ============================================================
+   SIMULATION CORE
+   ============================================================ */
+const DT = 0.5; // seconds per tick
+let simSeconds = 0;
+const alarmHistory = [];
+const activeAlarms = new Map(); // key -> {sev,msg,time}
+const trendHistory = { eqLevel:[], aerLevel:[], secLevel:[], do:[], ph:[], inletFlow:[], rasFlow:[], blowerSpd:[], totalKW:[] };
+const MAX_TREND = 3600; // seconds retained
+
+function pushAlarm(key, sev, msg){
+  if(!activeAlarms.has(key)){
+    activeAlarms.set(key,{sev,msg,time:simSeconds});
+    alarmHistory.unshift({time:simSeconds, sev, msg, state:'RAISED'});
+    if(alarmHistory.length>300) alarmHistory.pop();
+  }
+}
+function clearAlarm(key){
+  if(activeAlarms.has(key)){
+    const a = activeAlarms.get(key);
+    activeAlarms.delete(key);
+    alarmHistory.unshift({time:simSeconds, sev:a.sev, msg:a.msg, state:'CLEARED'});
+    if(alarmHistory.length>300) alarmHistory.pop();
+  }
+}
+
+function fmtTime(s){
+  s = Math.floor(s);
+  const h=String(Math.floor(s/3600)).padStart(2,'0');
+  const mnt=String(Math.floor((s%3600)/60)).padStart(2,'0');
+  const sec=String(s%60).padStart(2,'0');
+  return h+':'+mnt+':'+sec;
+}
+
+/* target speed / freq for a motor given mode */
+function computeTargetFreq(m){
+  if(m.ctrl!==CTRL.VFD) return 50; // fixed speed types run at line freq once up to speed
+  let pct = m.speedSet;
+  if(m.mode==='AUTO'){
+    if(m.id==='AB1'||m.id==='AB2'){
+      // DO PID (simple P) drives combined blower speed; split evenly among running blowers
+    } else if(m.id==='RAS1'||m.id==='RAS2'||m.id==='WAS1'){
+      pct = m.speedSet; // operator/PLC setpoint from VFD lab
+    }
+  }
+  return (pct/100)*50;
+}
+
+function canStart(m){
+  if(proc.estop) return false;
+  if(m.faultCode) return false;
+  return makePermissives(m).every(p=>p.get());
+}
+
+function startMotor(m){
+  if(m.status==='RUNNING'||m.status==='STARTING') return;
+  if(!canStart(m)) return;
+  m.status='STARTING'; m.startPhaseT=0; m.seqIdx=0;
+  m.dirFwd = m.reqDir;
+}
+function stopMotor(m){
+  if(m.status==='STOPPED') return;
+  m.status='STOPPING'; m.startPhaseT=0;
+}
+function tripMotor(m, code){
+  m.status='TRIPPED'; m.faultCode=code; m.current=0; m.power=0; m.freq=0; m.speedPct=0;
+  pushAlarm('trip_'+m.id, 'HIGH', m.tag+' TRIPPED — '+code);
+}
+function resetMotor(m){
+  if(proc.estop) return;
+  m.faultCode=null;
+  if(m.status==='TRIPPED') m.status='STOPPED';
+  clearAlarm('trip_'+m.id);
+}
+
+/* motor electrical dynamics each tick */
+function tickMotor(m){
+  const ratedI = (m.kw*1000)/(1.732*415*0.86*0.90); // approx FLA
+  m.ratedI = ratedI;
+
+  if(m.status==='STOPPED'){
+    m.current=0; m.power=0; m.freq=0; m.speedPct=0; m.pf=0; m.thermal = Math.max(20, m.thermal-0.15);
+    return;
+  }
+  if(m.status==='TRIPPED'){ m.current=0; m.power=0; return; }
+
+  if(m.status==='STARTING'){
+    m.startPhaseT += DT;
+    if(m.ctrl===CTRL.DOL){
+      m.current = ratedI*6*Math.max(0,1-m.startPhaseT/2.5) + ratedI*Math.min(1,m.startPhaseT/2.5);
+      m.speedPct = Math.min(100, (m.startPhaseT/2.5)*100);
+      m.freq=50;
+      if(m.startPhaseT>=2.5){ m.status='RUNNING'; }
+    } else if(m.ctrl===CTRL.SD){
+      if(m.startPhaseT<3){ // star
+        m.current = ratedI*2.1; m.speedPct = Math.min(70,(m.startPhaseT/3)*70); m.freq=50;
+      } else if(m.startPhaseT<3.4){ // transition
+        m.current = ratedI*4.5; m.speedPct=70;
+      } else {
+        m.current = ratedI*1.0; m.speedPct = Math.min(100, 70+((m.startPhaseT-3.4)/1.0)*30);
+        if(m.startPhaseT>=4.4) m.status='RUNNING';
+      }
+      m.freq=50;
+    } else if(m.ctrl===CTRL.SOFT){
+      const t = Math.min(1, m.startPhaseT/4);
+      m.current = ratedI*(1.5 + 2.0*(1-t));
+      m.speedPct = t*100; m.freq=50;
+      if(m.startPhaseT>=4) m.status='RUNNING';
+    } else if(m.ctrl===CTRL.VFD){
+      const targetF = computeTargetFreq(m);
+      const rampRate = 25/6; // Hz/sec, ~6s accel to 50Hz
+      m.freq += Math.sign(targetF-m.freq)*Math.min(Math.abs(targetF-m.freq), rampRate*DT);
+      m.speedPct = (m.freq/50)*100;
+      m.current = ratedI*(0.55 + 0.5*(m.freq/50));
+      if(Math.abs(m.freq-targetF)<0.3 && m.startPhaseT>1){ m.status='RUNNING'; }
+    }
+  } else if(m.status==='RUNNING'){
+    if(m.ctrl===CTRL.VFD){
+      const targetF = computeTargetFreq(m);
+      const rampRate = 25/6;
+      m.freq += Math.sign(targetF-m.freq)*Math.min(Math.abs(targetF-m.freq), rampRate*DT);
+      m.speedPct = (m.freq/50)*100;
+      m.current = ratedI*(0.35 + 0.65*(m.freq/50));
+    } else {
+      m.freq=50; m.speedPct=100;
+      m.current = ratedI*(0.92+Math.sin(simSeconds/7+ (m.id.length))*0.03);
+    }
+    m.runSeconds += DT;
+  } else if(m.status==='STOPPING'){
+    m.startPhaseT += DT;
+    if(m.ctrl===CTRL.VFD){
+      m.freq = Math.max(0, m.freq - (25/4)*DT);
+      m.speedPct=(m.freq/50)*100;
+      m.current = m.ratedI*0.4*(m.freq/50);
+      if(m.freq<=0){ m.status='STOPPED'; }
+    } else {
+      m.speedPct = Math.max(0, m.speedPct-(100/2)*DT);
+      m.current = m.ratedI*(m.speedPct/100)*0.5;
+      if(m.speedPct<=0){ m.status='STOPPED'; m.freq=0; }
+    }
+  }
+  m.voltage = 415 - (proc.estop?15:0) + (Math.random()-0.5)*2;
+  m.pf = m.status==='RUNNING' ? 0.86 : (m.status==='STOPPED'?0:0.55);
+  m.power = (1.732*m.voltage*m.current*m.pf)/1000;
+  if(m.status==='RUNNING' || m.status==='STARTING'){
+    m.thermal = Math.min(140, m.thermal + (m.current>m.ratedI*1.15? 0.6 : (m.current<m.ratedI*1.05? -0.2:0.15)));
+  }
+  if(m.thermal>=118 && m.status!=='TRIPPED'){ tripMotor(m,'OVERLOAD'); }
+  if(m.status==='RUNNING'||m.status==='STARTING'||m.status==='STOPPING') m.kWh += (m.power*(DT/3600));
+}
+
+/* duty/standby auto-changeover */
+function tickDutyStandby(){
+  motors.forEach(m=>{
+    if(m.dutyRole==='DUTY' && m.mode==='AUTO' && m.status==='TRIPPED'){
+      const partner = byId[m.dutyPartner];
+      if(partner && partner.status==='STOPPED' && canStart(partner)){
+        startMotor(partner);
+        pushAlarm('changeover_'+m.id, 'MEDIUM', 'AUTO CHANGEOVER: '+partner.tag+' started (duty '+m.tag+' tripped)');
+      }
+    }
+  });
+}
+
+/* process model */
+function tickProcess(){
+  proc.t += DT;
+  // inlet flow depends on running inlet pump speed
+  const activeInlet = motors.find(m=>(m.id==='IP1'||m.id==='IP2') && m.status==='RUNNING');
+  proc.inletFlow = activeInlet ? 40 + (activeInlet.speedPct/100)*160 : 0;
+  proc.eqLevel += (proc.inletFlow>0? (proc.inletFlow-140)*0.0009 : -0.03) - (proc.eqLevel>95?0.4:0);
+  proc.eqLevel = Math.max(0, Math.min(100, proc.eqLevel));
+  // low-low protects inlet pumps
+  if(proc.eqLevel<=5 && activeInlet){ /* permissive handles stop via canStart on restart; force stop for dry-run protect */
+    if(activeInlet.status==='RUNNING'){ stopMotor(activeInlet); pushAlarm('lowlow_eq','HIGH','EQ TANK LOW-LOW — Inlet pump stopped to prevent dry-run'); }
+  } else clearAlarm('lowlow_eq');
+  if(proc.eqLevel>=92) pushAlarm('hi_eq','HIGH','EQ TANK HIGH LEVEL'); else clearAlarm('hi_eq');
+
+  // aeration tank level roughly tied to plant throughput (slow drift + blower influence none)
+  proc.aerLevel += (proc.inletFlow>0? 0.01: -0.01);
+  proc.aerLevel = Math.max(0, Math.min(100, proc.aerLevel));
+
+  // DO control: avg speed of running blowers
+  const blowers = ['AB1','AB2'].map(id=>byId[id]);
+  const runningBlowers = blowers.filter(b=>b.status==='RUNNING'||b.status==='STARTING');
+  let avgSpeed = 0;
+  if(runningBlowers.length){
+    // AUTO PID applied on the duty blower's speedSet
+    const duty = blowers.find(b=>b.dutyRole==='DUTY') || runningBlowers[0];
+    if(duty.mode==='AUTO'){
+      const err = proc.doSetpoint - proc.DO;
+      duty.speedSet = Math.max(20, Math.min(100, duty.speedSet + err*proc.doP*DT*0.6));
+    }
+    avgSpeed = runningBlowers.reduce((s,b)=>s+b.speedPct,0)/runningBlowers.length;
+  }
+  const airflow = avgSpeed*38; // Nm3/h approx
+  const doTarget = 0.3 + (airflow/3800)*4.2;
+  proc.DO += (doTarget-proc.DO)*0.05 - 0.01; // consumption term
+  proc.DO = Math.max(0, Math.min(6, proc.DO));
+  if(proc.DO<0.8) pushAlarm('lowdo','HIGH','LOW DISSOLVED OXYGEN (DO-101)'); else clearAlarm('lowdo');
+  if(proc.DO>4.5) pushAlarm('hido','MEDIUM','HIGH DISSOLVED OXYGEN (DO-101) — energy waste'); else clearAlarm('hido');
+  proc._avgBlowerSpeed = avgSpeed; proc._airflow = airflow;
+
+  // RAS / WAS flow
+  const ras = byId['RAS1'].status==='RUNNING'?byId['RAS1']:(byId['RAS2'].status==='RUNNING'?byId['RAS2']:null);
+  proc.rasFlow = ras? (ras.speedPct/100)*220 : 0;
+  const was = byId['WAS1'];
+  proc.wasFlow = was.status==='RUNNING' ? (was.speedPct/100)*45 : 0;
+
+  proc.secLevel += (proc.inletFlow>0?0.01:-0.01) - (proc.rasFlow*0.0004);
+  proc.secLevel = Math.max(0, Math.min(100, proc.secLevel));
+
+  // digester level from sludge transfer / digester feed pump vs dewatering draw
+  const feedIn = (byId['STP'].status==='RUNNING'?1:0)*8 + (byId['DFP'].status==='RUNNING'?1:0)*6;
+  const feedOut = (byId['CFG'].status==='RUNNING'?1:0)*5;
+  proc.digLevel += (feedIn-feedOut)*0.02;
+  proc.digLevel = Math.max(0, Math.min(100, proc.digLevel));
+  if(proc.digLevel>=95) pushAlarm('hi_dig','HIGH','DIGESTER / SLUDGE TANK HIGH-HIGH LEVEL'); else clearAlarm('hi_dig');
+
+  proc.pH = 7.0 + Math.sin(simSeconds/180)*0.25;
+  proc.ORP = 100 + Math.sin(simSeconds/140)*40;
+  proc.pressure = 2.0 + (activeInlet? (activeInlet.speedPct/100)*0.6:0);
+
+  // interlock: centrifuge requires polymer pump running, else trip warn
+  const cfg = byId['CFG'];
+  if(cfg.status==='RUNNING' && byId['PDP'].status!=='RUNNING'){
+    pushAlarm('poly_fail','HIGH','POLYMER DOSING LOST — Centrifuge feed pump interlock');
+  } else clearAlarm('poly_fail');
+}
+
+/* E-STOP */
+function setEstop(active){
+  proc.estop = active;
+  const btn = document.getElementById('estopBtn');
+  if(active){
+    btn.classList.add('active'); btn.textContent='E-STOP ACTIVE — TWIST/CLICK TO RESET';
+    motors.forEach(m=>{ if(m.status!=='STOPPED'){ m.status='STOPPED'; m.current=0; m.power=0; m.freq=0; m.speedPct=0; } });
+    pushAlarm('estop','CRITICAL','EMERGENCY STOP ACTIVE — ALL EQUIPMENT DE-ENERGIZED');
+  } else {
+    btn.classList.remove('active'); btn.textContent='EMERGENCY STOP';
+    clearAlarm('estop');
+  }
+}
+document.getElementById('estopBtn').addEventListener('click', ()=> setEstop(!proc.estop));
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+function statusColor(m){
+  if(m.status==='RUNNING') return 'running';
+  if(m.status==='TRIPPED') return 'tripped';
+  if(m.status==='STARTING'||m.status==='STOPPING') return 'starting';
+  return '';
+}
+
+function renderEqChips(){
+  const grid = document.getElementById('eqChipGrid');
+  grid.innerHTML='';
+  motors.forEach(m=>{
+    const d = document.createElement('div'); d.className='eq-chip';
+    d.innerHTML = `<span class="eq-dot ${statusColor(m)}"></span><span class="eq-name">${m.tag}</span><span class="eq-meta">${m.ctrl}${m.ctrl===CTRL.VFD? ' '+m.freq.toFixed(0)+'Hz':''}</span>`;
+    d.onclick = ()=> openFaceplate(m.id);
+    grid.appendChild(d);
+  });
+}
+
+function renderInstruments(){
+  const items = [
+    ['LT-101','EQ Tank Level', proc.eqLevel.toFixed(1)+' %', proc.eqLevel<10||proc.eqLevel>90],
+    ['LT-102','Aeration Tank Level', proc.aerLevel.toFixed(1)+' %', false],
+    ['LT-103','Secondary Clarifier Level', proc.secLevel.toFixed(1)+' %', false],
+    ['LT-104','Digester Level', proc.digLevel.toFixed(1)+' %', proc.digLevel>93],
+    ['FT-101','Inlet Flow', proc.inletFlow.toFixed(0)+' m³/h', false],
+    ['FT-102','RAS Flow', proc.rasFlow.toFixed(0)+' m³/h', false],
+    ['FT-103','WAS Flow', proc.wasFlow.toFixed(0)+' m³/h', false],
+    ['PT-101','Discharge Pressure', proc.pressure.toFixed(2)+' bar', false],
+    ['DO-101','Dissolved Oxygen', proc.DO.toFixed(2)+' mg/L', proc.DO<0.8],
+    ['pH-101','pH', proc.pH.toFixed(2), proc.pH<6.5||proc.pH>8.5],
+    ['ORP-101','ORP', proc.ORP.toFixed(0)+' mV', false],
+    ['TT-101','Process Temperature', proc.temp.toFixed(1)+' °C', false],
+  ];
+  const grid = document.getElementById('instrumentGrid');
+  grid.innerHTML='';
+  items.forEach(([tag,name,val,alarm])=>{
+    const c = document.createElement('div'); c.className='card';
+    c.innerHTML = `<div class="kv"><span>${tag} — ${name}</span></div><div style="font-family:var(--mono); font-size:20px; color:${alarm?'var(--red)':'var(--cyan)'}; font-weight:700;">${val}</div>`;
+    grid.appendChild(c);
+  });
+}
+
+/* ---- PFD SVG (built once, updated live) ---- */
+function buildPFD(){
+  const svg = document.getElementById('pfdSvg');
+  svg.innerHTML = `
+  <defs></defs>
+  <text x="20" y="24" class="eq-label" fill="#ffb648" font-size="13">PROCESS FLOW — RAW WASTEWATER → TREATED WATER + SLUDGE HANDLING</text>
+
+  <!-- Inlet -->
+  <g id="g_screen"><rect x="40" y="60" width="70" height="46" rx="4" class="motor-sym" data-id="SCR"/><text x="75" y="88" text-anchor="middle" class="eq-label" font-size="9">SCREEN</text></g>
+  <path class="flow-pipe" d="M110,83 L170,83"/><path id="fp_scr" class="flow-anim flow-raw" d="M110,83 L170,83"/>
+  <g id="g_grit"><rect x="170" y="60" width="70" height="46" rx="4" class="motor-sym" data-id="GRP"/><text x="205" y="88" text-anchor="middle" class="eq-label" font-size="9">GRIT PUMP</text></g>
+  <path class="flow-pipe" d="M205,106 L205,150 L260,150"/><path id="fp_grit" class="flow-anim flow-raw" d="M205,106 L205,150 L260,150"/>
+
+  <!-- EQ tank -->
+  <rect x="260" y="120" width="130" height="90" rx="6" class="tank-body"/><rect id="tank_eq" x="264" y="165" width="122" height="41" class="tank-liquid"/>
+  <text x="325" y="140" text-anchor="middle" class="eq-label" font-size="10">EQ / COLLECTION TANK</text><text x="325" y="152" text-anchor="middle" class="tag-label">LT-101</text>
+  <g id="g_eqm" transform="translate(300,175)"><circle r="14" class="motor-sym" data-id="EQM"/><text y="4" text-anchor="middle" class="tag-label" fill="#e8f4fb">M</text></g>
+  <text x="325" y="222" text-anchor="middle" class="tag-label" id="lbl_eqLevel">45%</text>
+
+  <path class="flow-pipe" d="M390,165 Q430,165 430,140 L470,140"/><path id="fp_ip" class="flow-anim flow-raw" d="M390,165 Q430,165 430,140 L470,140"/>
+  <g id="g_ip1"><rect x="470" y="118" width="70" height="44" rx="4" class="motor-sym" data-id="IP1"/><text x="505" y="144" text-anchor="middle" class="eq-label" font-size="8">INLET P-1</text></g>
+  <g id="g_ip2"><rect x="470" y="168" width="70" height="44" rx="4" class="motor-sym" data-id="IP2"/><text x="505" y="194" text-anchor="middle" class="eq-label" font-size="8">INLET P-2 (SBY)</text></g>
+  <path class="flow-pipe" d="M540,140 L620,140 L620,240"/><path id="fp_toprimary" class="flow-anim flow-raw" d="M540,140 L620,140 L620,240"/>
+
+  <!-- Primary clarifier (circular) -->
+  <circle cx="620" cy="300" r="65" class="tank-body"/><circle id="circ_primary_liquid" cx="620" cy="300" r="58" class="tank-liquid"/>
+  <text x="620" y="245" text-anchor="middle" class="eq-label" font-size="10">PRIMARY CLARIFIER</text>
+  <g id="g_pcs1" transform="translate(620,300)"><circle r="12" class="motor-sym" data-id="PCS1"/><text y="4" text-anchor="middle" class="tag-label" fill="#e8f4fb">SC</text></g>
+  <path class="flow-pipe" d="M620,365 L620,410 L700,410"/><path id="fp_psp" class="flow-anim flow-amber" d="M620,365 L620,410 L700,410"/>
+  <g id="g_psp1"><rect x="700" y="388" width="70" height="44" rx="4" class="motor-sym" data-id="PSP1"/><text x="735" y="414" text-anchor="middle" class="eq-label" font-size="8">PRIM SLUDGE P</text></g>
+  <path class="flow-pipe" d="M770,410 L830,410 L830,470"/><path id="fp_toholdA" class="flow-anim flow-amber" d="M770,410 L830,410 L830,470"/>
+
+  <path class="flow-pipe" d="M685,285 L760,240 L840,240"/><path id="fp_toaer" class="flow-anim flow-raw" d="M685,285 L760,240 L840,240"/>
+
+  <!-- Aeration tank -->
+  <rect x="840" y="150" width="220" height="150" rx="6" class="tank-body"/><rect id="tank_aer" x="844" y="200" width="212" height="96" class="tank-liquid"/>
+  <text x="950" y="172" text-anchor="middle" class="eq-label" font-size="10">AERATION TANK</text>
+  <text x="950" y="184" text-anchor="middle" class="tag-label">LT-102 · DO-101</text>
+  <g id="bubbles"></g>
+  <g id="g_anm1" transform="translate(880,270)"><circle r="12" class="motor-sym" data-id="ANM1"/><text y="4" text-anchor="middle" class="tag-label" fill="#e8f4fb">M</text></g>
+  <g id="g_ab1"><rect x="845" y="60" width="66" height="42" rx="4" class="motor-sym" data-id="AB1"/><text x="878" y="85" text-anchor="middle" class="eq-label" font-size="8">BLOWER-1</text></g>
+  <g id="g_ab2"><rect x="990" y="60" width="66" height="42" rx="4" class="motor-sym" data-id="AB2"/><text x="1023" y="85" text-anchor="middle" class="eq-label" font-size="8">BLOWER-2 (SBY)</text></g>
+  <path class="flow-pipe" d="M878,102 L878,150" stroke-width="4"/><path class="flow-pipe" d="M1023,102 L1023,150" stroke-width="4"/>
+
+  <path class="flow-pipe" d="M1060,240 L1130,240"/><path id="fp_tosec" class="flow-anim flow-raw" d="M1060,240 L1130,240"/>
+
+  <!-- Secondary clarifier -->
+  <circle cx="1200" cy="270" r="62" class="tank-body"/><circle id="circ_sec_liquid" cx="1200" cy="270" r="55" class="tank-liquid"/>
+  <text x="1200" y="200" text-anchor="middle" class="eq-label" font-size="10">SECONDARY CLARIFIER</text>
+  <text x="1200" y="212" text-anchor="middle" class="tag-label">LT-103</text>
+  <g id="g_scs1" transform="translate(1200,270)"><circle r="11" class="motor-sym" data-id="SCS1"/><text y="4" text-anchor="middle" class="tag-label" fill="#e8f4fb">SC</text></g>
+
+  <path class="flow-pipe" d="M1200,332 L1200,370 L1120,370"/><path id="fp_ras" class="flow-anim flow-ras" d="M1200,332 L1200,370 L1120,370"/>
+  <g id="g_ras1"><rect x="1040" y="348" width="80" height="44" rx="4" class="motor-sym" data-id="RAS1"/><text x="1080" y="374" text-anchor="middle" class="eq-label" font-size="8">RAS PUMP-1</text></g>
+  <path class="flow-pipe" d="M1040,370 Q950,370 950,300"/><path id="fp_ras2aer" class="flow-anim flow-ras" d="M1040,370 Q950,370 950,300"/>
+
+  <path class="flow-pipe" d="M1235,330 L1290,330 L1290,420"/><path id="fp_was" class="flow-anim flow-was" d="M1235,330 L1290,330 L1290,420"/>
+  <g id="g_was1"><rect x="1255" y="420" width="70" height="42" rx="4" class="motor-sym" data-id="WAS1"/><text x="1290" y="445" text-anchor="middle" class="eq-label" font-size="8">WAS PUMP-1</text></g>
+
+  <path class="flow-pipe" d="M1230,255 L1300,190 L1360,190"/><path id="fp_treated" class="flow-anim flow-treated" d="M1230,255 L1300,190 L1360,190"/>
+  <g id="g_twp"><rect x="1290" y="120" width="70" height="42" rx="4" class="motor-sym" data-id="TWP"/><text x="1325" y="145" text-anchor="middle" class="eq-label" font-size="8">TREATED WATER P</text></g>
+  <text x="1370" y="100" class="eq-label" font-size="10" fill="#3fd9e8">TO OUTLET / DISINFECTION</text>
+
+  <!-- Sludge handling -->
+  <rect x="770" y="470" width="140" height="80" rx="6" class="tank-body"/><rect id="tank_hold" x="774" y="500" width="132" height="46" class="tank-liquid"/>
+  <text x="840" y="490" text-anchor="middle" class="eq-label" font-size="10">SLUDGE HOLDING / THICKENING</text>
+  <path class="flow-pipe" d="M1290,462 Q1150,540 910,510"/><path id="fp_was2hold" class="flow-anim flow-was" d="M1290,462 Q1150,540 910,510"/>
+
+  <path class="flow-pipe" d="M840,550 L840,600 L780,600"/><path id="fp_stp" class="flow-anim flow-amber" d="M840,550 L840,600 L780,600"/>
+  <g id="g_stp"><rect x="700" y="578" width="80" height="44" rx="4" class="motor-sym" data-id="STP"/><text x="740" y="604" text-anchor="middle" class="eq-label" font-size="8">SLUDGE TRANSFER</text></g>
+  <path class="flow-pipe" d="M700,600 L640,600 L640,660"/><path id="fp_todig" class="flow-anim flow-amber" d="M700,600 L640,600 L640,660"/>
+
+  <!-- Digester -->
+  <rect x="540" y="660" width="200" height="100" rx="8" class="tank-body"/><rect id="tank_dig" x="544" y="700" width="192" height="56" class="tank-liquid"/>
+  <text x="640" y="682" text-anchor="middle" class="eq-label" font-size="10">ANAEROBIC DIGESTER</text><text x="640" y="694" text-anchor="middle" class="tag-label">LT-104 · TT-102</text>
+  <g id="g_dgm" transform="translate(600,720)"><circle r="12" class="motor-sym" data-id="DGM"/><text y="4" text-anchor="middle" class="tag-label" fill="#e8f4fb">M</text></g>
+  <g id="g_dfp"><rect x="440" y="700" width="80" height="42" rx="4" class="motor-sym" data-id="DFP"/><text x="480" y="725" text-anchor="middle" class="eq-label" font-size="8">DIGESTER FEED P</text></g>
+  <path class="flow-pipe" d="M700,660 Q740,610 690,600 Q660,595 640,600" fill="none"/><path id="fp_gas" class="flow-anim flow-gas" d="M700,660 Q740,610 690,600 Q660,595 640,600" fill="none"/>
+  <text x="760" y="605" class="eq-label" font-size="9" fill="#c586ff">BIOGAS →</text>
+
+  <path class="flow-pipe" d="M740,715 L820,715 L820,760"/><path id="fp_dewater" class="flow-anim flow-amber" d="M740,715 L820,715 L820,760"/>
+  <g id="g_pdp"><rect x="900" y="738" width="70" height="40" rx="4" class="motor-sym" data-id="PDP"/><text x="935" y="762" text-anchor="middle" class="eq-label" font-size="8">POLYMER DOSE</text></g>
+  <g id="g_cfg"><rect x="780" y="738" width="80" height="40" rx="4" class="motor-sym" data-id="CFG"/><text x="820" y="762" text-anchor="middle" class="eq-label" font-size="8">CENTRIFUGE</text></g>
+  <text x="1000" y="762" class="eq-label" font-size="9">→ SLUDGE CAKE</text>
+  `;
+  svg.querySelectorAll('[data-id]').forEach(el=>{
+    el.style.cursor='pointer';
+    el.addEventListener('click', ()=> openFaceplate(el.getAttribute('data-id')));
+  });
+  // bubble particles for aeration
+  const bg = svg.getElementById('bubbles');
+  for(let i=0;i<18;i++){
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('class','bubble'); c.setAttribute('r', 1.6+Math.random()*1.8);
+    c.setAttribute('cx', 850+Math.random()*200); c.setAttribute('cy', 290-Math.random()*90);
+    c.dataset.spd = (0.4+Math.random()*0.8).toFixed(2);
+    c.dataset.baseY = c.getAttribute('cy');
+    bg.appendChild(c);
+  }
+}
+
+function updatePFD(){
+  const set = (id,attr,val)=>{ const el=document.getElementById(id); if(el) el.setAttribute(attr,val); };
+  // tank fills
+  const eqH = (proc.eqLevel/100)*82; set('tank_eq','height',eqH); set('tank_eq','y',206-eqH);
+  const aerH = (proc.aerLevel/100)*96; set('tank_aer','height',aerH); set('tank_aer','y',296-aerH);
+  set('circ_sec_liquid','r', 20+(proc.secLevel/100)*35);
+  const digH=(proc.digLevel/100)*56; set('tank_dig','height',digH); set('tank_dig','y',756-digH);
+  const svg = document.getElementById('pfdSvg');
+  const lbl = svg.getElementById ? svg.getElementById('lbl_eqLevel') : document.getElementById('lbl_eqLevel');
+  if(lbl) lbl.textContent = proc.eqLevel.toFixed(0)+'%';
+
+  motors.forEach(m=>{
+    const g = document.getElementById('g_'+m.id.toLowerCase());
+  });
+  // per-motor symbol styling by data-id
+  svg.querySelectorAll('[data-id]').forEach(el=>{
+    const m = byId[el.getAttribute('data-id')];
+    el.classList.remove('running','tripped');
+    if(m.status==='RUNNING'||m.status==='STARTING') el.classList.add('running');
+    if(m.status==='TRIPPED') el.classList.add('tripped');
+  });
+  // flow animations
+  const flowMap = {
+    fp_scr: byId['SCR'].status==='RUNNING', fp_grit: byId['GRP'].status==='RUNNING',
+    fp_ip: (byId['IP1'].status==='RUNNING'||byId['IP2'].status==='RUNNING'),
+    fp_toprimary: (byId['IP1'].status==='RUNNING'||byId['IP2'].status==='RUNNING'),
+    fp_psp: byId['PSP1'].status==='RUNNING', fp_toholdA: byId['PSP1'].status==='RUNNING',
+    fp_toaer: (byId['IP1'].status==='RUNNING'||byId['IP2'].status==='RUNNING'),
+    fp_tosec: (byId['AB1'].status==='RUNNING'||byId['AB2'].status==='RUNNING'||proc.inletFlow>0),
+    fp_ras: (byId['RAS1'].status==='RUNNING'||byId['RAS2'].status==='RUNNING'),
+    fp_ras2aer: (byId['RAS1'].status==='RUNNING'||byId['RAS2'].status==='RUNNING'),
+    fp_was: byId['WAS1'].status==='RUNNING', fp_was2hold: byId['WAS1'].status==='RUNNING',
+    fp_treated: byId['TWP'].status==='RUNNING',
+    fp_stp: byId['STP'].status==='RUNNING', fp_todig: byId['STP'].status==='RUNNING',
+    fp_gas: proc.digLevel>10,
+    fp_dewater: byId['CFG'].status==='RUNNING',
+  };
+  Object.entries(flowMap).forEach(([id,on])=>{
+    const el = document.getElementById(id);
+    if(el){ el.classList.toggle('flow-on', !!on); }
+  });
+  // bubbles rise when blower running
+  const blowerOn = (byId['AB1'].status==='RUNNING'||byId['AB2'].status==='RUNNING');
+  document.querySelectorAll('#bubbles .bubble').forEach(b=>{
+    let cy = parseFloat(b.getAttribute('cy'));
+    if(blowerOn){
+      cy -= parseFloat(b.dataset.spd)*2.2;
+      if(cy < 205){ cy = 295; b.setAttribute('cx', 850+Math.random()*200); }
+      b.setAttribute('opacity', 0.15+proc._avgBlowerSpeed/140);
+    } else { b.setAttribute('opacity', 0); }
+    b.setAttribute('cy', cy);
+  });
+}
+
+/* ---- SLD ---- */
+function buildSLD(){
+  const svg = document.getElementById('sldSvg');
+  let html = `<text x="20" y="24" class="eq-label" fill="#ffb648" font-size="13">ELECTRICAL SINGLE LINE DIAGRAM</text>
+  <text x="60" y="60" class="tag-label">11kV INCOMER</text>
+  <rect x="40" y="70" width="60" height="26" class="motor-sym"/><text x="70" y="88" text-anchor="middle" class="tag-label" fill="#e8f4fb">ACB</text>
+  <path class="flow-pipe" d="M70,96 L70,130" stroke-width="4"/>
+  <polygon points="50,130 90,130 90,170 50,170" class="motor-sym"/><text x="70" y="154" text-anchor="middle" class="tag-label" fill="#e8f4fb">TX</text><text x="70" y="185" text-anchor="middle" class="tag-label">11kV/433V</text>
+  <path class="flow-pipe" d="M70,170 L70,200" stroke-width="4"/>
+  <rect x="20" y="200" width="1360" height="8" fill="#1e3550"/><text x="1390" y="196" class="tag-label" text-anchor="end">MAIN LT PCC BUSBAR — 433V</text>
+  `;
+  const cols = 6;
+  motors.forEach((m,i)=>{
+    const x = 40 + (i%cols)*230;
+    const y = 260 + Math.floor(i/cols)*130;
+    html += `
+    <path class="flow-pipe" d="M${x+40},208 L${x+40},${y}" stroke-width="2.5"/>
+    <rect x="${x}" y="${y}" width="80" height="26" class="motor-sym" data-id="${m.id}"/>
+    <text x="${x+40}" y="${y+17}" text-anchor="middle" class="tag-label" fill="#e8f4fb" font-size="8">${m.ctrl}</text>
+    <circle cx="${x+40}" cy="${y+55}" r="16" class="motor-sym" data-id="${m.id}"/>
+    <text x="${x+40}" y="${y+59}" text-anchor="middle" class="tag-label" fill="#e8f4fb" font-size="9">M</text>
+    <path class="flow-pipe" d="M${x+40},${y+26} L${x+40},${y+39}" stroke-width="2"/>
+    <text x="${x+40}" y="${y+92}" text-anchor="middle" class="tag-label" data-id-label="${m.id}">${m.tag}</text>
+    `;
+  });
+  svg.innerHTML = html;
+  svg.querySelectorAll('[data-id]').forEach(el=>{ el.style.cursor='pointer'; el.addEventListener('click', ()=>openFaceplate(el.getAttribute('data-id'))); });
+}
+function updateSLD(){
+  const svg = document.getElementById('sldSvg');
+  svg.querySelectorAll('[data-id]').forEach(el=>{
+    const m = byId[el.getAttribute('data-id')];
+    el.classList.toggle('running', m.status==='RUNNING'||m.status==='STARTING');
+    el.classList.toggle('tripped', m.status==='TRIPPED');
+  });
+  const tbody = document.querySelector('#elecTable tbody');
+  tbody.innerHTML = motors.map(m=>`<tr style="cursor:pointer" onclick="window.__openFP('${m.id}')">
+    <td>${m.tag}</td><td>${m.ctrl}</td>
+    <td><span class="pill ${m.status==='RUNNING'?'green':m.status==='TRIPPED'?'red':''}">${m.status}</span></td>
+    <td>${m.voltage.toFixed(0)}</td><td>${m.current.toFixed(1)}</td><td>${m.power.toFixed(1)}</td>
+    <td>${m.pf.toFixed(2)}</td><td>${m.freq.toFixed(1)}</td><td>${Math.round((m.freq/50)*m.rpm)}</td>
+    <td>${m.reversible? (m.dirFwd?'FWD':'REV') : '—'}</td>
+    <td style="color:${m.thermal>100?'var(--red)':m.thermal>80?'var(--amber)':'var(--text-mid)'}">${m.thermal.toFixed(0)}%</td>
+  </tr>`).join('');
+}
+window.__openFP = (id)=> openFaceplate(id);
+
+/* ============================================================
+   FACEPLATE MODAL
+   ============================================================ */
+function openFaceplate(id){
+  const m = byId[id]; if(!m) return;
+  const overlay = document.getElementById('modalOverlay');
+  const fp = document.getElementById('faceplate');
+  const perms = makePermissives(m);
+  const permHtml = perms.map(p=>`<div class="perm-row"><span class="perm-dot ${p.get()?'ok':'bad'}"></span>${p.name}</div>`).join('');
+  const blocked = perms.filter(p=>!p.get());
+  fp.innerHTML = `
+    <div class="fp-head">
+      <div><div class="fp-tag">${m.tag}</div><div class="fp-desc">${m.area} · ${m.ctrl} · ${m.kw} kW · ${m.poles}-pole (~${m.rpm} RPM @50Hz)</div></div>
+      <button class="closeX" id="fpClose">✕</button>
+    </div>
+    <div class="tag-strip">
+      <span class="pill ${m.status==='RUNNING'?'green':m.status==='TRIPPED'?'red':''}">${m.status}</span>
+      <span>${m.mode}</span><span>${m.local?'LOCAL':'REMOTE'}</span>
+      ${m.ctrl===CTRL.VFD?`<span>${m.freq.toFixed(1)} Hz</span>`:''}
+      ${m.faultCode? `<span style="color:var(--red); border-color:var(--red);">FAULT: ${m.faultCode}</span>`:''}
+    </div>
+    <div class="kv"><span>Voltage</span><b>${m.voltage.toFixed(0)} V</b></div>
+    <div class="kv"><span>Current</span><b>${m.current.toFixed(1)} A (rated ~${m.ratedI?m.ratedI.toFixed(1):'—'} A)</b></div>
+    <div class="kv"><span>Power</span><b>${m.power.toFixed(1)} kW</b></div>
+    <div class="kv"><span>Power Factor</span><b>${m.pf.toFixed(2)}</b></div>
+    <div class="kv"><span>Speed</span><b>${m.speedPct.toFixed(0)}% (${Math.round((m.freq/50)*m.rpm)} RPM)</b></div>
+    <div class="kv"><span>Thermal / I²t</span><b>${m.thermal.toFixed(0)}%</b></div>
+    <div class="kv"><span>Run hours (session)</span><b>${(m.runSeconds/3600).toFixed(2)} h</b></div>
+
+    <div style="display:flex; gap:8px; margin:12px 0; flex-wrap:wrap;">
+      <button class="btn on" id="fpStart" ${!canStart(m)&&m.status==='STOPPED'?'disabled':''}>START</button>
+      <button class="btn off" id="fpStop">STOP</button>
+      <button class="btn warn" id="fpReset" ${m.status!=='TRIPPED'?'disabled':''}>RESET</button>
+      <button class="btn" id="fpMode">${m.mode==='AUTO'?'SET MANUAL':'SET AUTO'}</button>
+      <button class="btn" id="fpLocal">${m.local?'SET REMOTE':'SET LOCAL'}</button>
+      ${m.reversible? `<button class="btn" id="fpDir">${m.reqDir?'REQUEST REVERSE':'REQUEST FORWARD'}</button>`:''}
+    </div>
+    ${m.ctrl===CTRL.VFD? `
+    <div style="margin-top:6px;">
+      <label class="small">Speed Setpoint (${m.mode==='AUTO'?'AUTO — PLC controlled':'MANUAL'})</label>
+      <input type="range" id="fpSpeed" min="0" max="100" value="${m.speedSet}" ${m.mode==='AUTO' && (m.id==='AB1'||m.id==='AB2')?'disabled':''}>
+      <div style="font-family:var(--mono); font-size:11px; color:var(--cyan);"><span id="fpSpeedVal">${m.speedSet}</span>%</div>
+    </div>`:''}
+
+    <h3 style="font-family:var(--mono); color:var(--amber); font-size:11px; margin-top:14px;">PERMISSIVES</h3>
+    ${permHtml}
+    ${blocked.length && m.status==='STOPPED' ? `<div style="margin-top:8px; padding:8px; border:1px solid var(--red); border-radius:6px; background:rgba(255,85,102,0.08); font-family:var(--mono); font-size:11px; color:#ffb3ba;">
+      START INHIBITED — ${blocked.map(b=>b.name).join('; ')}
+    </div>`:''}
+  `;
+  overlay.classList.add('show');
+  document.getElementById('fpClose').onclick = ()=> overlay.classList.remove('show');
+  document.getElementById('fpStart').onclick = ()=>{ startMotor(m); openFaceplate(id); };
+  document.getElementById('fpStop').onclick = ()=>{ stopMotor(m); openFaceplate(id); };
+  document.getElementById('fpReset').onclick = ()=>{ resetMotor(m); openFaceplate(id); };
+  document.getElementById('fpMode').onclick = ()=>{ m.mode = m.mode==='AUTO'?'MANUAL':'AUTO'; openFaceplate(id); };
+  document.getElementById('fpLocal').onclick = ()=>{ m.local = !m.local; openFaceplate(id); };
+  const dirBtn = document.getElementById('fpDir');
+  if(dirBtn) dirBtn.onclick = ()=>{
+    if(m.status==='RUNNING'||m.status==='STARTING'){
+      alert('REVERSE COMMAND BLOCKED — MOTOR MUST STOP BEFORE REVERSE.');
+      return;
+    }
+    m.reqDir = !m.reqDir; openFaceplate(id);
+  };
+  const spd = document.getElementById('fpSpeed');
+  if(spd) spd.oninput = (e)=>{ m.speedSet = +e.target.value; document.getElementById('fpSpeedVal').textContent = m.speedSet; };
+}
+document.getElementById('modalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='modalOverlay') e.currentTarget.classList.remove('show'); });
+
+/* ============================================================
+   MOTOR CONTROL METHODS TAB
+   ============================================================ */
+const smSelect = document.getElementById('smMotorSelect');
+motors.forEach(m=> smSelect.innerHTML += `<option value="${m.id}">${m.tag} (${m.ctrl})</option>`);
+let smHistory = [];
+function smReset(){ smHistory=[]; }
+function renderSmInfo(){
+  const m = byId[smSelect.value];
+  document.getElementById('smInfo').innerHTML = `
+    <div class="kv"><span>Control method</span><b>${m.ctrl}</b></div>
+    <div class="kv"><span>Rating</span><b>${m.kw} kW, ${m.poles}-pole</b></div>
+    <div class="kv"><span>Status</span><b>${m.status}</b></div>
+    ${m.ctrl===CTRL.VFD?`<div class="kv"><span>Frequency</span><b>${m.freq.toFixed(1)} Hz</b></div>`:''}
+  `;
+  document.getElementById('smSeqBox').innerHTML = seqDescription(m.ctrl);
+}
+function seqDescription(ctrl){
+  const steps = {
+    DOL:['START command','Contactor closes — full line voltage applied','High inrush current (~6× FLA)','Motor accelerates to rated speed','Steady-state run at ~1× FLA'],
+    SD:['START command','Star contactor closes — reduced voltage (1/√3), reduced current','Motor accelerates in STAR to ~70% speed','Star contactor opens (brief open transition)','Delta contactor closes — full voltage, run winding in DELTA'],
+    SOFT:['START command','SCRs phase-back — controlled voltage ramp','Current limited to configured level (typ. 3× FLA)','Voltage ramps to 100% over set ramp time','Bypass contactor closes — smooth run'],
+    VFD:['START command','VFD ramps output frequency from 0 Hz','Motor accelerates following V/f or vector control','Frequency reaches setpoint (e.g. 50 Hz = rated speed)','Continuous variable-speed operation'],
+  };
+  return `<h4 style="font-family:var(--mono); color:var(--cyan); font-size:11px;">SEQUENCE</h4>` + steps[ctrl==CTRL.DOL?'DOL':ctrl==CTRL.SD?'SD':ctrl==CTRL.SOFT?'SOFT':'VFD'].map((s,i)=>`<div class="kv"><span>${i+1}.</span><span style="text-align:left; flex:1; margin-left:8px;">${s}</span></div>`).join('');
+}
+smSelect.onchange = ()=>{ smReset(); renderSmInfo(); };
+document.getElementById('smStart').onclick = ()=>{ smReset(); startMotor(byId[smSelect.value]); };
+document.getElementById('smStop').onclick = ()=>{ stopMotor(byId[smSelect.value]); };
+renderSmInfo();
+
+function drawSmChart(){
+  const m = byId[smSelect.value];
+  if(m.status==='STARTING' || (m.status==='RUNNING' && smHistory.length && smHistory.length<40)){
+    smHistory.push({t:smHistory.length*DT, i:m.current, spd:m.speedPct});
+  }
+  if(smHistory.length>80) smHistory.shift();
+  const cv = document.getElementById('smChart');
+  const ctx = cv.getContext('2d');
+  const w = cv.width = cv.clientWidth; const h = cv.height = 260;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='#16283f'; ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){ const y=h-20-(i/4)*(h-40); ctx.beginPath(); ctx.moveTo(30,y); ctx.lineTo(w-10,y); ctx.stroke(); }
+  if(smHistory.length<2) return;
+  const maxI = Math.max(...smHistory.map(p=>p.i), 10);
+  const plot = (key, max, color)=>{
+    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+    smHistory.forEach((p,i)=>{
+      const x = 30 + (i/(80))*(w-40);
+      const y = h-20 - (p[key]/max)*(h-40);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  };
+  plot('i', maxI*1.1, '#3fd9e8');
+  plot('spd', 105, '#ffb648');
+  ctx.fillStyle='#9db3c7'; ctx.font='10px monospace';
+  ctx.fillText('cyan = current (A)   amber = speed (%)', 34, 16);
+}
+
+/* ============================================================
+   VFD LAB TAB
+   ============================================================ */
+function renderVfdPanels(){
+  const grid = document.getElementById('vfdPanelGrid');
+  const vfdMotors = motors.filter(m=>m.ctrl===CTRL.VFD);
+  grid.innerHTML = vfdMotors.map(m=>`
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <b style="font-family:var(--mono); color:var(--cyan); font-size:13px;">${m.tag}</b>
+        <span class="pill ${m.status==='RUNNING'?'green':m.status==='TRIPPED'?'red':''}">${m.status}</span>
+      </div>
+      <div class="kv"><span>Frequency</span><b>${m.freq.toFixed(1)} Hz</b></div>
+      <div class="kv"><span>Speed</span><b>${Math.round((m.freq/50)*m.rpm)} RPM (${m.speedPct.toFixed(0)}%)</b></div>
+      <div class="kv"><span>Current</span><b>${m.current.toFixed(1)} A</b></div>
+      <div class="kv"><span>Power</span><b>${m.power.toFixed(1)} kW</b></div>
+      <div class="kv"><span>Direction</span><b>${m.reversible?(m.dirFwd?'FORWARD':'REVERSE'):'FIXED'}</b></div>
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        <button class="btn on" onclick="window.__vfdStart('${m.id}')">START</button>
+        <button class="btn off" onclick="window.__vfdStop('${m.id}')">STOP</button>
+        <button class="btn" onclick="window.__openFP('${m.id}')">FACEPLATE</button>
+      </div>
+      <div style="margin-top:8px;">
+        <label class="small">Speed setpoint ${m.mode==='AUTO'?'(AUTO)':''}</label>
+        <input type="range" min="0" max="100" value="${m.speedSet}" ${m.mode==='AUTO' && (m.id==='AB1'||m.id==='AB2')?'disabled':''} oninput="window.__vfdSpeed('${m.id}', this.value)">
+      </div>
+    </div>
+  `).join('');
+}
+window.__vfdStart = (id)=>{ startMotor(byId[id]); };
+window.__vfdStop = (id)=>{ stopMotor(byId[id]); };
+window.__vfdSpeed = (id,val)=>{ byId[id].speedSet = +val; };
+
+document.getElementById('doSp').oninput = (e)=>{ proc.doSetpoint = +e.target.value; document.getElementById('doSpVal').textContent = proc.doSetpoint.toFixed(1); };
+document.getElementById('doP').oninput = (e)=>{ proc.doP = +e.target.value; };
+
+let doHistory=[], rasWasHistory=[];
+function drawDoChart(){
+  doHistory.push({do:proc.DO, sp:proc.doSetpoint});
+  if(doHistory.length>120) doHistory.shift();
+  const cv = document.getElementById('doChart'); const ctx=cv.getContext('2d');
+  const w = cv.width=cv.clientWidth; const h=cv.height=220;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='#16283f'; for(let i=0;i<=4;i++){const y=h-20-(i/4)*(h-40); ctx.beginPath(); ctx.moveTo(30,y); ctx.lineTo(w-10,y); ctx.stroke();}
+  const max=5;
+  const plot=(key,color,dash)=>{ ctx.strokeStyle=color; ctx.lineWidth=2; if(dash) ctx.setLineDash([4,3]); else ctx.setLineDash([]); ctx.beginPath();
+    doHistory.forEach((p,i)=>{ const x=30+(i/120)*(w-40); const y=h-20-(p[key]/max)*(h-40); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke(); ctx.setLineDash([]); };
+  plot('do','#3fd9e8'); plot('sp','#ffb648',true);
+  ctx.fillStyle='#9db3c7'; ctx.font='10px monospace'; ctx.fillText('cyan = DO mg/L    dashed amber = setpoint', 34,16);
+}
+function drawRasWasChart(){
+  rasWasHistory.push({ras:proc.rasFlow, was:proc.wasFlow});
+  if(rasWasHistory.length>120) rasWasHistory.shift();
+  const cv=document.getElementById('rasWasChart'); const ctx=cv.getContext('2d');
+  const w=cv.width=cv.clientWidth; const h=cv.height=220;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='#16283f'; for(let i=0;i<=4;i++){const y=h-20-(i/4)*(h-40); ctx.beginPath(); ctx.moveTo(30,y); ctx.lineTo(w-10,y); ctx.stroke();}
+  const max=230;
+  const plot=(key,color)=>{ ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+    rasWasHistory.forEach((p,i)=>{ const x=30+(i/120)*(w-40); const y=h-20-(p[key]/max)*(h-40); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke(); };
+  plot('ras','#4ee08a'); plot('was','#ffb648');
+  ctx.fillStyle='#9db3c7'; ctx.font='10px monospace'; ctx.fillText('green = RAS flow    amber = WAS flow (m3/h)', 34,16);
+}
+
+/* ============================================================
+   PERMISSIVES / PLC TAB
+   ============================================================ */
+function renderPermGrid(){
+  const grid = document.getElementById('permGrid');
+  grid.innerHTML = motors.map(m=>{
+    const perms = makePermissives(m);
+    const bad = perms.filter(p=>!p.get());
+    return `<div class="card" style="cursor:pointer" onclick="window.__openFP('${m.id}')">
+      <b style="font-family:var(--mono); font-size:11.5px; color:var(--text-hi);">${m.tag}</b>
+      <div style="margin-top:6px;">${perms.map(p=>`<div class="perm-row"><span class="perm-dot ${p.get()?'ok':'bad'}"></span>${p.name}</div>`).join('')}</div>
+      ${bad.length? `<div style="margin-top:6px; font-family:var(--mono); font-size:10px; color:var(--red);">START INHIBITED (${bad.length})</div>`:`<div style="margin-top:6px; font-family:var(--mono); font-size:10px; color:var(--green);">READY TO START</div>`}
+    </div>`;
+  }).join('');
+}
+function renderDutyStandby(){
+  const box = document.getElementById('dutyStandbyBox');
+  const pairs = motors.filter(m=>m.dutyRole==='DUTY');
+  box.innerHTML = pairs.map(m=>{
+    const p = byId[m.dutyPartner];
+    return `<div class="kv"><span>${m.tag} (DUTY: ${m.status}) / ${p.tag} (STANDBY: ${p.status})</span><b>${m.status==='TRIPPED'?'AUTO CHANGEOVER ACTIVE':'Normal'}</b></div>`;
+  }).join('');
+}
+function renderPlcIO(){
+  const di=[], dout=[], ai=[], ao=[];
+  motors.forEach(m=>{
+    di.push([`${m.id}_RUN`, m.status==='RUNNING'?1:0]);
+    di.push([`${m.id}_FAULT`, m.faultCode?1:0]);
+    dout.push([`${m.id}_START_CMD`, (m.status==='STARTING'||m.status==='RUNNING')?1:0]);
+    if(m.ctrl===CTRL.VFD) ao.push([`${m.id}_SPEED_REF`, m.speedSet.toFixed(0)+' %']);
+  });
+  di.push(['ESTOP_HEALTHY', proc.estop?0:1]);
+  dout.push(['ALARM_HORN', activeAlarms.size>0?1:0]);
+  ai.push(['LT-101 EQ LEVEL', proc.eqLevel.toFixed(1)+' %']);
+  ai.push(['LT-102 AER LEVEL', proc.aerLevel.toFixed(1)+' %']);
+  ai.push(['LT-103 SEC LEVEL', proc.secLevel.toFixed(1)+' %']);
+  ai.push(['FT-101 INLET FLOW', proc.inletFlow.toFixed(0)+' m3/h']);
+  ai.push(['DO-101', proc.DO.toFixed(2)+' mg/L']);
+  ai.push(['pH-101', proc.pH.toFixed(2)]);
+  ao.push(['VALVE V-101 POSITION', '100 %']);
+
+  const fill=(tid,rows)=>{ document.getElementById(tid).querySelector('tbody').innerHTML =
+    rows.map(r=>`<tr><td>${r[0]}</td><td style="color:${(r[1]===1)?'var(--green)':(r[1]===0?'var(--text-dim)':'var(--cyan)')}">${r[1]}</td></tr>`).join(''); };
+  fill('diTable', di); fill('doTable', dout); fill('aiTable', ai); fill('aoTable', ao);
+}
+
+/* ============================================================
+   ALARMS TAB
+   ============================================================ */
+function renderAlarms(){
+  const box = document.getElementById('activeAlarmsBox');
+  const list = Array.from(activeAlarms.entries());
+  box.innerHTML = list.length? list.map(([k,a])=>`
+    <div class="kv"><span><span class="pill ${a.sev==='CRITICAL'||a.sev==='HIGH'?'red':a.sev==='MEDIUM'?'amber':''}">${a.sev}</span> ${a.msg}</span><b>${fmtTime(a.time)}</b></div>
+  `).join('') : `<div style="font-family:var(--mono); color:var(--text-dim); font-size:11px;">No active alarms.</div>`;
+
+  document.querySelector('#alarmHistTable tbody').innerHTML = alarmHistory.slice(0,60).map(a=>`
+    <tr><td>${fmtTime(a.time)}</td><td><span class="pill ${a.sev==='CRITICAL'||a.sev==='HIGH'?'red':a.sev==='MEDIUM'?'amber':''}">${a.sev}</span></td><td>${a.msg}</td><td>${a.state}</td></tr>
+  `).join('');
+
+  const banner = document.getElementById('alarmBanner');
+  if(activeAlarms.size>0){
+    banner.classList.add('show');
+    document.getElementById('alarmCount').textContent = activeAlarms.size;
+    document.getElementById('alarmLatest').textContent = Array.from(activeAlarms.values()).slice(-1)[0].msg;
+  } else banner.classList.remove('show');
+}
+document.getElementById('gotoAlarms').onclick = ()=> switchTab('alarms');
+
+let trendChartCanvas;
+function drawTrendChart(){
+  const param = document.getElementById('trendParam').value;
+  const win = +document.getElementById('trendWindow').value;
+  const arr = trendHistory[param] || [];
+  const data = arr.slice(-Math.floor(win/DT));
+  const cv = document.getElementById('trendChart'); const ctx = cv.getContext('2d');
+  const w = cv.width = cv.clientWidth; const h = cv.height = 260;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='#16283f'; for(let i=0;i<=4;i++){const y=h-20-(i/4)*(h-40); ctx.beginPath(); ctx.moveTo(34,y); ctx.lineTo(w-10,y); ctx.stroke();}
+  if(data.length<2) return;
+  const max = Math.max(...data,1)*1.15 || 1;
+  ctx.strokeStyle='#3fd9e8'; ctx.lineWidth=2; ctx.beginPath();
+  data.forEach((v,i)=>{ const x=34+(i/data.length)*(w-44); const y=h-20-(v/max)*(h-40); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+  ctx.stroke();
+  ctx.fillStyle='#9db3c7'; ctx.font='10px monospace'; ctx.fillText('max '+max.toFixed(1), 40, 16);
+}
+
+/* ============================================================
+   ENERGY TAB
+   ============================================================ */
+function renderEnergy(){
+  const tariff = +document.getElementById('tariffInput').value || 0;
+  const runningKW = motors.filter(m=>m.status==='RUNNING').reduce((s,m)=>s+m.power,0);
+  const connectedKW = motors.reduce((s,m)=>s+m.kw,0);
+  const totalKWh = motors.reduce((s,m)=>s+m.kWh,0);
+  const grid = document.getElementById('energySummaryGrid');
+  grid.innerHTML = [
+    ['Total Connected Load', connectedKW.toFixed(1)+' kW'],
+    ['Running Load (now)', runningKW.toFixed(1)+' kW'],
+    ['Session Energy', totalKWh.toFixed(2)+' kWh'],
+    ['Session Cost', '₹ '+(totalKWh*tariff).toFixed(2)],
+  ].map(([l,v])=>`<div class="card"><div class="kv"><span>${l}</span></div><div style="font-family:var(--mono); font-size:19px; color:var(--cyan); font-weight:700;">${v}</div></div>`).join('');
+
+  document.querySelector('#energyTable tbody').innerHTML = motors.map(m=>`
+    <tr><td>${m.tag}</td><td><span class="pill ${m.status==='RUNNING'?'green':m.status==='TRIPPED'?'red':''}">${m.status}</span></td>
+    <td>${m.power.toFixed(1)}</td><td>${(m.runSeconds/3600).toFixed(2)}</td><td>${m.kWh.toFixed(2)}</td><td>₹${(m.kWh*tariff).toFixed(2)}</td></tr>
+  `).join('');
+
+  const cv = document.getElementById('energyBarChart'); const ctx = cv.getContext('2d');
+  const w = cv.width = cv.clientWidth; const h = cv.height = 220;
+  ctx.clearRect(0,0,w,h);
+  const top = [...motors].sort((a,b)=>b.kWh-a.kWh).slice(0,8);
+  const max = Math.max(...top.map(m=>m.kWh),0.01);
+  top.forEach((m,i)=>{
+    const bw = (w-40)/top.length - 8;
+    const x = 30 + i*((w-40)/top.length);
+    const bh = (m.kWh/max)*(h-50);
+    ctx.fillStyle='#3fd9e8'; ctx.fillRect(x, h-30-bh, bw, bh);
+    ctx.fillStyle='#9db3c7'; ctx.font='9px monospace'; ctx.save();
+    ctx.translate(x+bw/2, h-14); ctx.rotate(0); ctx.textAlign='center';
+    ctx.fillText(m.id, 0, 0);
+    ctx.restore();
+    ctx.fillText(m.kWh.toFixed(1), x+bw/2-8, h-30-bh-4);
+  });
+}
+
+/* ============================================================
+   SEQUENCES TAB
+   ============================================================ */
+const startupSeq = [
+  {t:'Step 1', d:'Check E-Stop healthy', run:()=> !proc.estop},
+  {t:'Step 2', d:'Check MCC / VFD panels healthy (no active trips)', run:()=> motors.every(m=>m.faultCode===null)},
+  {t:'Step 3', d:'Confirm inlet & discharge valves open (assumed open in this model)', run:()=> true},
+  {t:'Step 4', d:'Start auxiliary systems — EQ Tank Mixer', run:()=>{ startMotor(byId['EQM']); return true; }},
+  {t:'Step 5', d:'Start Aeration Blower-1 (duty)', run:()=>{ startMotor(byId['AB1']); return true; }},
+  {t:'Step 6', d:'Start mixers — Anoxic Mixer-1, Digester Mixer', run:()=>{ startMotor(byId['ANM1']); startMotor(byId['DGM']); return true; }},
+  {t:'Step 7', d:'Start process pumps — Inlet Pump-1, RAS Pump-1', run:()=>{ startMotor(byId['IP1']); startMotor(byId['RAS1']); return true; }},
+  {t:'Step 8', d:'Enable automatic control (AUTO mode on duty equipment)', run:()=>{ ['IP1','AB1','RAS1'].forEach(id=>byId[id].mode='AUTO'); return true; }},
+];
+const shutdownSeq = [
+  {t:'Step 1', d:'Stop feed — Inlet Pump-1/2', run:()=>{ stopMotor(byId['IP1']); stopMotor(byId['IP2']); return true; }},
+  {t:'Step 2', d:'Stop process pumps — RAS-1/2, WAS-1', run:()=>{ ['RAS1','RAS2','WAS1'].forEach(id=>stopMotor(byId[id])); return true; }},
+  {t:'Step 3', d:'Ramp down & stop blowers', run:()=>{ ['AB1','AB2'].forEach(id=>stopMotor(byId[id])); return true; }},
+  {t:'Step 4', d:'Stop mixers', run:()=>{ ['EQM','ANM1','DGM'].forEach(id=>stopMotor(byId[id])); return true; }},
+  {t:'Step 5', d:'Stop remaining auxiliaries', run:()=>{ motors.forEach(m=>stopMotor(m)); return true; }},
+];
+let seqRunning = null, seqIndex = -1, seqTimer=0;
+function renderSeqLists(){
+  document.getElementById('startupSteps').innerHTML = startupSeq.map((s,i)=>`
+    <div class="seq-step ${seqRunning==='up'&&i<seqIndex?'done':''} ${seqRunning==='up'&&i===seqIndex?'active':''}">
+      <div><div class="stitle">${s.t}</div><div class="sdesc">${s.d}</div></div>
+    </div>`).join('');
+  document.getElementById('shutdownSteps').innerHTML = shutdownSeq.map((s,i)=>`
+    <div class="seq-step ${seqRunning==='down'&&i<seqIndex?'done':''} ${seqRunning==='down'&&i===seqIndex?'active':''}">
+      <div><div class="stitle">${s.t}</div><div class="sdesc">${s.d}</div></div>
+    </div>`).join('');
+}
+document.getElementById('runStartupBtn').onclick = ()=>{ seqRunning='up'; seqIndex=0; seqTimer=0; };
+document.getElementById('runShutdownBtn').onclick = ()=>{ seqRunning='down'; seqIndex=0; seqTimer=0; };
+function tickSequence(){
+  if(!seqRunning) return;
+  seqTimer += DT;
+  if(seqTimer>=1.4){
+    seqTimer=0;
+    const seq = seqRunning==='up'?startupSeq:shutdownSeq;
+    if(seqIndex<seq.length){ seq[seqIndex].run(); seqIndex++; }
+    if(seqIndex>=seq.length){ seqRunning=null; seqIndex=-1; }
+  }
+}
+
+/* ============================================================
+   TAB SWITCHING
+   ============================================================ */
+function switchTab(tab){
+  document.querySelectorAll('nav.tabs button').forEach(b=> b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.panel').forEach(p=> p.classList.toggle('active', p.id==='panel-'+tab));
+}
+document.getElementById('tabNav').addEventListener('click', (e)=>{
+  if(e.target.tagName==='BUTTON') switchTab(e.target.dataset.tab);
+});
+
+/* ============================================================
+   MAIN LOOP
+   ============================================================ */
+function tick(){
+  simSeconds += DT;
+  motors.forEach(tickMotor);
+  tickDutyStandby();
+  tickProcess();
+  tickSequence();
+
+  // trend push (every tick, DT=0.5s)
+  trendHistory.eqLevel.push(proc.eqLevel); trendHistory.aerLevel.push(proc.aerLevel); trendHistory.secLevel.push(proc.secLevel);
+  trendHistory.do.push(proc.DO); trendHistory.ph.push(proc.pH); trendHistory.inletFlow.push(proc.inletFlow);
+  trendHistory.rasFlow.push(proc.rasFlow); trendHistory.blowerSpd.push(proc._avgBlowerSpeed||0);
+  trendHistory.totalKW.push(motors.filter(m=>m.status==='RUNNING').reduce((s,m)=>s+m.power,0));
+  Object.keys(trendHistory).forEach(k=>{ if(trendHistory[k].length>MAX_TREND) trendHistory[k].shift(); });
+
+  document.getElementById('simClock').textContent = 'SIM TIME ' + fmtTime(simSeconds);
+
+  renderEqChips(); renderInstruments(); updatePFD();
+  updateSLD();
+  renderVfdPanels(); drawDoChart(); drawRasWasChart();
+  document.getElementById('doCurrent').textContent = proc.DO.toFixed(2)+' mg/L';
+  document.getElementById('doBlowerSpd').textContent = (proc._avgBlowerSpeed||0).toFixed(0)+' %';
+  document.getElementById('doAirflow').textContent = (proc._airflow||0).toFixed(0)+' Nm³/h';
+  const ras1 = byId['RAS1'], was1 = byId['WAS1'];
+  document.getElementById('rasSpdLbl').textContent = ras1.status==='RUNNING'? ras1.speedPct.toFixed(0)+'%':'off';
+  document.getElementById('rasFlowLbl').textContent = proc.rasFlow.toFixed(0)+' m³/h';
+  document.getElementById('wasSpdLbl').textContent = was1.status==='RUNNING'? was1.speedPct.toFixed(0)+'%':'off';
+  document.getElementById('wasFlowLbl').textContent = proc.wasFlow.toFixed(0)+' m³/h';
+
+  renderPermGrid(); renderDutyStandby(); renderPlcIO();
+  renderAlarms(); drawTrendChart();
+  renderEnergy();
+  renderSeqLists();
+  if(document.getElementById('panel-startmethods').classList.contains('active')){ renderSmInfo(); drawSmChart(); }
+}
+
+buildPFD(); buildSLD();
+setInterval(tick, DT*1000);
+tick();
+
+})();
+</script>
+</body>
+</html>
