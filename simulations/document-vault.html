@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Document Vault</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg:#0a1628;
+    --bg2:#0d1d33;
+    --panel:#0f2138;
+    --panel-hi:#123054;
+    --line:rgba(94,180,255,0.14);
+    --grid:rgba(56,189,248,0.055);
+    --cyan:#22d3ee;
+    --cyan-dim:#0e7490;
+    --amber:#fbbf24;
+    --amber-dim:#92640a;
+    --text:#dce7f5;
+    --text-dim:#5f7a99;
+    --danger:#f87171;
+    --success:#34d399;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--grid) 1px,transparent 1px) 0 0/34px 34px,
+      linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/34px 34px,
+      radial-gradient(circle at 15% 0%,#0d2440 0%,var(--bg) 60%);
+    color:var(--text);
+    font-family:'IBM Plex Mono',monospace;
+    min-height:100vh;
+    padding:22px 16px 60px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+
+  /* header */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;
+    border-bottom:1px solid var(--line);
+    padding-bottom:16px;margin-bottom:20px;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .seal{width:46px;height:46px;flex:0 0 auto;}
+  .brand-text .eyebrow{
+    font-size:10px;letter-spacing:.18em;color:var(--cyan);
+    text-transform:uppercase;opacity:.8;
+  }
+  .brand-text h1{margin:2px 0 0;font-size:20px;font-weight:700;letter-spacing:.01em;}
+  .brand-text .sub{font-size:11px;color:var(--text-dim);margin-top:2px;}
+
+  .sync-status{
+    display:flex;align-items:center;gap:8px;
+    font-size:11px;color:var(--text-dim);
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:7px 12px;background:var(--panel);
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 8px var(--success);}
+  .dot.busy{background:var(--amber);box-shadow:0 0 8px var(--amber);animation:pulse 1s infinite;}
+  .dot.err{background:var(--danger);box-shadow:0 0 8px var(--danger);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* notice */
+  .notice{
+    border:1px solid var(--line);background:var(--panel);
+    border-left:3px solid var(--cyan);
+    border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:20px;
+    font-size:12px;line-height:1.6;color:var(--text-dim);
+  }
+  .notice b{color:var(--text);font-weight:600;}
+  .notice button{
+    background:none;border:1px solid var(--line);color:var(--text-dim);
+    font-family:inherit;font-size:10px;letter-spacing:.06em;
+    padding:3px 8px;border-radius:var(--radius);cursor:pointer;margin-top:8px;
+  }
+  .notice button:hover{color:var(--cyan);border-color:var(--cyan-dim);}
+
+  /* dropzone */
+  .dropzone{
+    border:1.5px dashed var(--line);
+    border-radius:var(--radius);
+    background:var(--panel);
+    padding:34px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    margin-bottom:22px;
+    position:relative;
+  }
+  .dropzone:hover,.dropzone.drag{
+    border-color:var(--cyan);
+    background:var(--panel-hi);
+  }
+  .dropzone .icon{color:var(--cyan);margin-bottom:10px;}
+  .dropzone .main{font-size:13px;color:var(--text);}
+  .dropzone .main b{color:var(--cyan);}
+  .dropzone .hint{font-size:10.5px;color:var(--text-dim);margin-top:6px;letter-spacing:.02em;}
+  input[type=file]{display:none;}
+
+  /* toolbar */
+  .toolbar{
+    display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;
+  }
+  .search{
+    flex:1;min-width:160px;
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:var(--radius);color:var(--text);
+    font-family:inherit;font-size:12px;padding:9px 11px;
+  }
+  .search:focus{outline:none;border-color:var(--cyan-dim);}
+  select.sortsel{
+    background:var(--panel);border:1px solid var(--line);
+    color:var(--text-dim);font-family:inherit;font-size:11px;
+    padding:9px 10px;border-radius:var(--radius);
+  }
+  .stat{font-size:10.5px;color:var(--text-dim);white-space:nowrap;}
+  .stat b{color:var(--cyan);}
+
+  /* file list */
+  .filelist{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+  .empty{
+    padding:40px 20px;text-align:center;color:var(--text-dim);font-size:12px;
+    background:var(--panel);
+  }
+  .empty svg{margin-bottom:10px;color:var(--text-dim);opacity:.5;}
+
+  .file-row{
+    display:grid;
+    grid-template-columns:34px 1fr auto auto auto;
+    align-items:center;gap:12px;
+    padding:12px 14px;
+    background:var(--panel);
+    border-top:1px solid var(--line);
+    position:relative;
+  }
+  .file-row:first-child{border-top:none;}
+  .file-row:hover{background:var(--panel-hi);}
+  .ftype{
+    width:34px;height:34px;border-radius:var(--radius);
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(34,211,238,.08);color:var(--cyan);
+    font-size:9px;font-weight:700;letter-spacing:.03em;border:1px solid var(--line);
+  }
+  .finfo{min-width:0;}
+  .fname{font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .fmeta{font-size:10px;color:var(--text-dim);margin-top:3px;}
+  .fmeta .tag{color:var(--amber);}
+  .fbtn{
+    background:none;border:1px solid var(--line);color:var(--text-dim);
+    padding:7px 10px;border-radius:var(--radius);cursor:pointer;
+    font-family:inherit;font-size:10px;letter-spacing:.04em;
+    display:flex;align-items:center;gap:5px;white-space:nowrap;
+  }
+  .fbtn:hover{border-color:var(--cyan);color:var(--cyan);}
+  .fbtn.danger:hover{border-color:var(--danger);color:var(--danger);}
+  .fbtn:disabled{opacity:.4;cursor:default;}
+
+  .progress-wrap{
+    grid-column:1/-1;margin-top:10px;
+  }
+  .progress-bar{
+    height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;
+  }
+  .progress-fill{height:100%;background:var(--cyan);width:0%;transition:width .2s;}
+  .progress-label{font-size:9.5px;color:var(--text-dim);margin-top:4px;}
+
+  footer{
+    margin-top:26px;display:flex;justify-content:space-between;align-items:center;
+    flex-wrap:wrap;gap:10px;
+  }
+  .footlink{
+    font-size:10.5px;color:var(--text-dim);background:none;border:none;
+    text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-family:inherit;
+  }
+  .footlink:hover{color:var(--danger);}
+  .footlink.export:hover{color:var(--cyan);}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--panel-hi);border:1px solid var(--cyan-dim);
+    color:var(--text);font-size:12px;padding:11px 18px;border-radius:var(--radius);
+    opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:50;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.err{border-color:var(--danger);}
+
+  @media(max-width:560px){
+    .file-row{grid-template-columns:30px 1fr;grid-template-rows:auto auto;}
+    .file-row .fbtn{grid-column:span 1;}
+    .file-actions{grid-column:1/-1;display:flex;gap:8px;margin-top:8px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <svg class="seal" viewBox="0 0 46 46" fill="none">
+        <circle cx="23" cy="23" r="21" stroke="#22d3ee" stroke-width="1.3" opacity=".5"/>
+        <circle cx="23" cy="23" r="15.5" stroke="#fbbf24" stroke-width="1" stroke-dasharray="2 3" opacity=".6"/>
+        <path d="M15 20 L23 14 L31 20 V30 Q31 32 29 32 H17 Q15 32 15 30 Z" stroke="#22d3ee" stroke-width="1.4" fill="none" stroke-linejoin="round"/>
+        <rect x="20" y="24" width="6" height="8" stroke="#fbbf24" stroke-width="1.2" fill="none"/>
+        <circle cx="23" cy="27.5" r=".9" fill="#fbbf24"/>
+      </svg>
+      <div class="brand-text">
+        <div class="eyebrow">Apna Electromechanic Service</div>
+        <h1>Document Vault</h1>
+        <div class="sub">Cloud-synced file store &middot; any device, this account</div>
+      </div>
+    </div>
+    <div class="sync-status"><span class="dot" id="syncDot"></span><span id="syncLabel">Synced</span></div>
+  </header>
+
+  <div class="notice" id="notice">
+    <b>How this works:</b> Files upload into storage attached to your Claude account for this tool &mdash; open this same Vault from your phone, laptop, or any device you're signed in on and your documents are there. Storage is private to you (not shared with other users). Practical limits: <b>~20&nbsp;MB per file</b> and best for a working set of documents rather than a full archive &mdash; each upload is split into chunks under the platform's per-item cap, so very large files take longer and are more likely to hit rate limits. Keep a copy of anything irreplaceable elsewhere too.
+    <br><button id="dismissNotice">Got it, hide this</button>
+  </div>
+
+  <div class="dropzone" id="dropzone">
+    <svg class="icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4M12 4L7 9M12 4L17 9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16V18C4 19.1 4.9 20 6 20H18C19.1 20 20 19.1 20 18V16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="main"><b>Click to upload</b> or drag files here</div>
+    <div class="hint">PDFs, images, docs, spreadsheets &mdash; anything, up to ~20 MB each</div>
+    <input type="file" id="fileInput" multiple>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" class="search" id="search" placeholder="Search documents...">
+    <select class="sortsel" id="sortsel">
+      <option value="date_desc">Newest first</option>
+      <option value="date_asc">Oldest first</option>
+      <option value="name_asc">Name A–Z</option>
+      <option value="size_desc">Largest first</option>
+    </select>
+    <div class="stat" id="statLine"><b>0</b> files &middot; <b>0 KB</b> total</div>
+  </div>
+
+  <div class="filelist" id="fileList">
+    <div class="empty" id="emptyState">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M4 4h10l4 4v12H4V4z"/><path d="M14 4v4h4"/></svg>
+      <div>No documents yet. Upload something to get started.</div>
+    </div>
+  </div>
+
+  <footer>
+    <button class="footlink export" id="exportAllBtn">Download all as list (JSON manifest)</button>
+    <button class="footlink" id="clearAllBtn">Clear all documents</button>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  const RAW_CHUNK_SIZE = 3.2 * 1024 * 1024; // raw bytes per chunk before base64 (~4.3MB after encoding, under 5MB cap)
+  const MAX_FILE_SIZE = 20 * 1024 * 1024;   // soft cap: 20MB per file
+  const INDEX_KEY = 'docvault:index';
+
+  const el = id => document.getElementById(id);
+  const dropzone = el('dropzone'), fileInput = el('fileInput'), fileList = el('fileList'),
+        emptyState = el('emptyState'), searchBox = el('search'), sortSel = el('sortsel'),
+        statLine = el('statLine'), toast = el('toast'), syncDot = el('syncDot'), syncLabel = el('syncLabel');
+
+  let index = []; // [{id,name,type,size,chunkCount,uploadedAt}]
+
+  function setSync(state, label){
+    syncDot.className = 'dot' + (state==='busy'?' busy':state==='err'?' err':'');
+    syncLabel.textContent = label;
+  }
+
+  function showToast(msg, isErr){
+    toast.textContent = msg;
+    toast.className = 'toast show' + (isErr?' err':'');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>toast.classList.remove('show'), 3200);
+  }
+
+  function fmtSize(bytes){
+    if(bytes < 1024) return bytes + ' B';
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/(1024*1024)).toFixed(2) + ' MB';
+  }
+  function fmtDate(iso){
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) + ' ' +
+           d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+  }
+  function extTag(name, type){
+    const ext = (name.split('.').pop()||'').toUpperCase().slice(0,4);
+    return ext || (type.split('/')[1]||'FILE').toUpperCase().slice(0,4);
+  }
+  function uid(){
+    return 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+
+  async function loadIndex(){
+    setSync('busy','Loading...');
+    try{
+      const res = await window.storage.get(INDEX_KEY, false);
+      index = res && res.value ? JSON.parse(res.value) : [];
+    }catch(e){
+      index = []; // key not found yet is normal on first run
+    }
+    setSync('ok','Synced');
+    render();
+  }
+
+  async function saveIndex(){
+    try{
+      const r = await window.storage.set(INDEX_KEY, JSON.stringify(index), false);
+      if(!r) throw new Error('storage set returned null');
+    }catch(e){
+      setSync('err','Sync failed');
+      showToast('Could not save the document list. Try again.', true);
+      throw e;
+    }
+  }
+
+  function fileToBase64(file){
+    return new Promise((resolve,reject)=>{
+      const r = new FileReader();
+      r.onload = ()=> resolve(r.result.split(',')[1]);
+      r.onerror = ()=> reject(new Error('Could not read file'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  function base64ToBlob(b64, mime){
+    const byteChars = atob(b64);
+    const byteArrays = [];
+    for(let offset=0; offset<byteChars.length; offset+=8192){
+      const slice = byteChars.slice(offset, offset+8192);
+      const bytes = new Array(slice.length);
+      for(let i=0;i<slice.length;i++) bytes[i] = slice.charCodeAt(i);
+      byteArrays.push(new Uint8Array(bytes));
+    }
+    return new Blob(byteArrays, {type: mime || 'application/octet-stream'});
+  }
+
+  async function uploadFile(file){
+    if(file.size > MAX_FILE_SIZE){
+      showToast(`"${file.name}" is over the 20 MB limit — skipped.`, true);
+      return;
+    }
+    const id = uid();
+    const row = renderPendingRow(file, id);
+    setSync('busy','Uploading...');
+
+    try{
+      const b64 = await fileToBase64(file);
+      // chunk the base64 string proportionally to raw chunk size (base64 ~ 4/3 of raw)
+      const b64ChunkLen = Math.floor(RAW_CHUNK_SIZE * 4/3 / 4) * 4; // keep multiple of 4
+      const totalChunks = Math.max(1, Math.ceil(b64.length / b64ChunkLen));
+
+      for(let i=0;i<totalChunks;i++){
+        const chunk = b64.slice(i*b64ChunkLen, (i+1)*b64ChunkLen);
+        const r = await window.storage.set(`docvault:chunk:${id}:${i}`, chunk, false);
+        if(!r) throw new Error('chunk write failed');
+        updatePendingProgress(row, Math.round(((i+1)/totalChunks)*100));
+      }
+
+      index.unshift({
+        id, name:file.name, type:file.type||'application/octet-stream',
+        size:file.size, chunkCount: totalChunks, uploadedAt: new Date().toISOString()
+      });
+      await saveIndex();
+      setSync('ok','Synced');
+      showToast(`"${file.name}" uploaded.`);
+      render();
+    }catch(e){
+      setSync('err','Upload failed');
+      showToast(`Upload failed for "${file.name}". ${e.message || ''}`, true);
+      row.remove();
+    }
+  }
+
+  function renderPendingRow(file, id){
+    if(emptyState) emptyState.style.display = 'none';
+    const row = document.createElement('div');
+    row.className = 'file-row';
+    row.id = 'pending-'+id;
+    row.innerHTML = `
+      <div class="ftype">${extTag(file.name,file.type)}</div>
+      <div class="finfo">
+        <div class="fname">${escapeHtml(file.name)}</div>
+        <div class="fmeta">${fmtSize(file.size)} &middot; <span class="tag">uploading</span></div>
+      </div>
+      <div></div><div></div><div></div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+        <div class="progress-label">0%</div>
+      </div>`;
+    fileList.prepend(row);
+    return row;
+  }
+  function updatePendingProgress(row, pct){
+    row.querySelector('.progress-fill').style.width = pct+'%';
+    row.querySelector('.progress-label').textContent = pct+'% uploaded';
+  }
+
+  async function downloadFile(item, btn){
+    const origLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Fetching...';
+    setSync('busy','Fetching...');
+    try{
+      let b64 = '';
+      for(let i=0;i<item.chunkCount;i++){
+        const r = await window.storage.get(`docvault:chunk:${item.id}:${i}`, false);
+        if(!r) throw new Error('missing chunk '+i);
+        b64 += r.value;
+      }
+      const blob = base64ToBlob(b64, item.type);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = item.name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      setSync('ok','Synced');
+    }catch(e){
+      setSync('err','Download failed');
+      showToast(`Could not download "${item.name}". ${e.message||''}`, true);
+    }finally{
+      btn.disabled = false; btn.textContent = origLabel;
+    }
+  }
+
+  async function deleteFile(item, row){
+    if(!confirm(`Delete "${item.name}"? This can't be undone.`)) return;
+    setSync('busy','Deleting...');
+    try{
+      for(let i=0;i<item.chunkCount;i++){
+        try{ await window.storage.delete(`docvault:chunk:${item.id}:${i}`, false); }catch(e){/* ignore missing */}
+      }
+      index = index.filter(f=>f.id!==item.id);
+      await saveIndex();
+      row.remove();
+      setSync('ok','Synced');
+      showToast(`"${item.name}" deleted.`);
+      render();
+    }catch(e){
+      setSync('err','Delete failed');
+      showToast('Delete failed. Try again.', true);
+    }
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function getFiltered(){
+    const q = searchBox.value.trim().toLowerCase();
+    let list = index.filter(f => !q || f.name.toLowerCase().includes(q));
+    const mode = sortSel.value;
+    list = list.slice().sort((a,b)=>{
+      if(mode==='date_desc') return new Date(b.uploadedAt)-new Date(a.uploadedAt);
+      if(mode==='date_asc') return new Date(a.uploadedAt)-new Date(b.uploadedAt);
+      if(mode==='name_asc') return a.name.localeCompare(b.name);
+      if(mode==='size_desc') return b.size-a.size;
+      return 0;
+    });
+    return list;
+  }
+
+  function render(){
+    fileList.querySelectorAll('.file-row').forEach(r=>{ if(!r.id.startsWith('pending-')) r.remove(); });
+    const list = getFiltered();
+
+    const totalSize = index.reduce((s,f)=>s+f.size,0);
+    statLine.innerHTML = `<b>${index.length}</b> file${index.length!==1?'s':''} &middot; <b>${fmtSize(totalSize)}</b> total`;
+
+    if(index.length===0){
+      emptyState.style.display = 'block';
+      emptyState.querySelector('div:last-child') && (emptyState.querySelector('div:last-child').textContent = 'No documents yet. Upload something to get started.');
+      return;
+    }
+    if(list.length===0){
+      emptyState.style.display = 'block';
+      emptyState.innerHTML = `<div>No documents match "${escapeHtml(searchBox.value)}".</div>`;
+      return;
+    }
+    emptyState.style.display = 'none';
+
+    list.forEach(item=>{
+      const row = document.createElement('div');
+      row.className = 'file-row';
+      row.innerHTML = `
+        <div class="ftype">${extTag(item.name,item.type)}</div>
+        <div class="finfo">
+          <div class="fname">${escapeHtml(item.name)}</div>
+          <div class="fmeta">${fmtSize(item.size)} &middot; ${fmtDate(item.uploadedAt)}</div>
+        </div>
+        <div class="file-actions">
+          <button class="fbtn dl">Download</button>
+          <button class="fbtn danger del">Delete</button>
+        </div>`;
+      row.querySelector('.dl').addEventListener('click', e=>downloadFile(item, e.target));
+      row.querySelector('.del').addEventListener('click', ()=>deleteFile(item, row));
+      fileList.appendChild(row);
+    });
+  }
+
+  // --- events ---
+  dropzone.addEventListener('click', ()=>fileInput.click());
+  fileInput.addEventListener('change', e=>{
+    Array.from(e.target.files).forEach(uploadFile);
+    fileInput.value = '';
+  });
+  ['dragenter','dragover'].forEach(ev=>dropzone.addEventListener(ev, e=>{
+    e.preventDefault(); dropzone.classList.add('drag');
+  }));
+  ['dragleave','drop'].forEach(ev=>dropzone.addEventListener(ev, e=>{
+    e.preventDefault(); dropzone.classList.remove('drag');
+  }));
+  dropzone.addEventListener('drop', e=>{
+    Array.from(e.dataTransfer.files).forEach(uploadFile);
+  });
+  searchBox.addEventListener('input', render);
+  sortSel.addEventListener('change', render);
+
+  el('dismissNotice').addEventListener('click', ()=>{ el('notice').style.display='none'; });
+
+  el('clearAllBtn').addEventListener('click', async ()=>{
+    if(index.length===0){ showToast('Nothing to clear.'); return; }
+    if(!confirm(`Delete all ${index.length} document(s)? This can't be undone.`)) return;
+    setSync('busy','Clearing...');
+    try{
+      for(const item of index){
+        for(let i=0;i<item.chunkCount;i++){
+          try{ await window.storage.delete(`docvault:chunk:${item.id}:${i}`, false); }catch(e){}
+        }
+      }
+      index = [];
+      await saveIndex();
+      setSync('ok','Synced');
+      showToast('All documents cleared.');
+      render();
+    }catch(e){
+      setSync('err','Clear failed');
+      showToast('Could not clear everything. Try again.', true);
+    }
+  });
+
+  el('exportAllBtn').addEventListener('click', ()=>{
+    if(index.length===0){ showToast('No documents to list yet.'); return; }
+    const manifest = index.map(({id,...rest})=>rest);
+    const blob = new Blob([JSON.stringify(manifest,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'document-vault-manifest.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  });
+
+  loadIndex();
+})();
+</script>
+</body>
+</html>
