@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Quantum Physics Explorer — Interactive Simulator</title>
+<style>
+  :root{
+    --navy-950:#050813;
+    --navy-900:#0a0e1a;
+    --navy-800:#0f1526;
+    --navy-700:#161d33;
+    --navy-600:#1e2740;
+    --grid-line:rgba(34,211,238,0.055);
+    --cyan:#22d3ee;
+    --cyan-dim:#0e7490;
+    --amber:#fbbf24;
+    --amber-dim:#92650f;
+    --violet:#a78bfa;
+    --magenta:#f472b6;
+    --text-hi:#e6f1f7;
+    --text-mid:#9fb3c8;
+    --text-dim:#5b7089;
+    --danger:#f87171;
+    --good:#34d399;
+    --mono:'IBM Plex Mono', 'Consolas', monospace;
+  }
+  @font-face{
+    font-family:'IBM Plex Mono';
+    src:local('IBM Plex Mono');
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;
+    background:var(--navy-900);
+    color:var(--text-hi);
+    font-family:var(--mono);
+    -webkit-tap-highlight-color:transparent;
+    overflow-x:hidden;
+  }
+  body{
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size:34px 34px;
+    min-height:100vh;
+  }
+  ::selection{ background:var(--cyan-dim); color:#fff; }
+
+  .app{ max-width:1180px; margin:0 auto; padding:18px 16px 60px; }
+
+  /* Header */
+  header.top{
+    display:flex; align-items:center; gap:14px;
+    padding:16px 18px; margin-bottom:16px;
+    background:linear-gradient(180deg, var(--navy-800), var(--navy-900));
+    border:1px solid var(--navy-600);
+    border-left:3px solid var(--cyan);
+    position:relative; overflow:hidden;
+  }
+  header.top::after{
+    content:"";
+    position:absolute; top:0; right:0; bottom:0; width:220px;
+    background:radial-gradient(circle at right, rgba(34,211,238,0.10), transparent 70%);
+    pointer-events:none;
+  }
+  .psi-icon{
+    width:46px;height:46px; flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid var(--cyan-dim); border-radius:50%;
+    font-size:24px; color:var(--cyan);
+    box-shadow:0 0 18px rgba(34,211,238,0.25) inset;
+  }
+  header.top h1{
+    font-size:17px; margin:0 0 3px; letter-spacing:0.5px; color:var(--text-hi);
+    font-weight:600;
+  }
+  header.top .sub{
+    font-size:11.5px; color:var(--text-dim); letter-spacing:0.4px;
+  }
+  header.top .tag{
+    margin-left:auto; font-size:10px; color:var(--amber);
+    border:1px solid var(--amber-dim); padding:4px 8px;
+    letter-spacing:0.6px; white-space:nowrap; display:none;
+  }
+  @media(min-width:640px){ header.top .tag{ display:block; } }
+
+  /* Tabs */
+  nav.tabs{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:4px;
+    margin-bottom:16px; scrollbar-width:thin;
+  }
+  nav.tabs::-webkit-scrollbar{ height:5px; }
+  nav.tabs::-webkit-scrollbar-thumb{ background:var(--navy-600); }
+  .tab-btn{
+    flex:0 0 auto;
+    background:var(--navy-800); color:var(--text-mid);
+    border:1px solid var(--navy-600); border-bottom:2px solid var(--navy-600);
+    padding:9px 14px; font-family:var(--mono); font-size:11.5px;
+    letter-spacing:0.3px; cursor:pointer; white-space:nowrap;
+    transition:all .15s ease;
+  }
+  .tab-btn:hover{ color:var(--text-hi); border-color:var(--cyan-dim); }
+  .tab-btn.active{
+    color:var(--navy-950); background:var(--cyan);
+    border-color:var(--cyan); border-bottom:2px solid var(--amber);
+    font-weight:600;
+  }
+
+  .panel{ display:none; animation:fadein .25s ease; }
+  .panel.active{ display:block; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .card{
+    background:var(--navy-800); border:1px solid var(--navy-600);
+    padding:16px; margin-bottom:14px;
+  }
+  .card h2{
+    margin:0 0 8px; font-size:14.5px; color:var(--cyan); letter-spacing:0.4px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card h2 .n{
+    font-size:10px; color:var(--navy-950); background:var(--amber);
+    padding:2px 6px; letter-spacing:0.5px;
+  }
+  .card p, .card li{ font-size:12.5px; line-height:1.65; color:var(--text-mid); }
+  .card strong{ color:var(--text-hi); font-weight:600; }
+  .card .hl-cyan{ color:var(--cyan); }
+  .card .hl-amber{ color:var(--amber); }
+
+  .grid2{ display:grid; grid-template-columns:1fr; gap:14px; }
+  @media(min-width:860px){ .grid2{ grid-template-columns:1.3fr 1fr; } }
+
+  .stage{
+    background:var(--navy-950); border:1px solid var(--navy-600);
+    position:relative; overflow:hidden;
+  }
+  .stage canvas{ display:block; width:100%; height:auto; touch-action:pan-y; }
+
+  .controls{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; align-items:center; }
+  .ctrl{
+    display:flex; flex-direction:column; gap:4px; min-width:140px; flex:1 1 140px;
+  }
+  .ctrl label{
+    font-size:10px; color:var(--text-dim); letter-spacing:0.5px; text-transform:uppercase;
+    display:flex; justify-content:space-between;
+  }
+  .ctrl label .val{ color:var(--amber); }
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:4px; background:var(--navy-600);
+    outline:none; border-radius:2px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:15px; height:15px; border-radius:50%;
+    background:var(--cyan); cursor:pointer; border:2px solid var(--navy-950);
+    box-shadow:0 0 8px rgba(34,211,238,0.6);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:15px; height:15px; border-radius:50%;
+    background:var(--cyan); cursor:pointer; border:2px solid var(--navy-950);
+  }
+
+  button.btn{
+    font-family:var(--mono); font-size:11.5px; letter-spacing:0.3px;
+    background:var(--navy-700); color:var(--text-hi);
+    border:1px solid var(--cyan-dim); padding:9px 14px;
+    cursor:pointer; transition:all .15s ease;
+  }
+  button.btn:hover{ background:var(--cyan-dim); color:#fff; }
+  button.btn.primary{ background:var(--cyan); color:var(--navy-950); border-color:var(--cyan); font-weight:600; }
+  button.btn.primary:hover{ background:#67e4fa; }
+  button.btn.amber{ border-color:var(--amber-dim); }
+  button.btn.amber.active, button.btn.toggle.active{
+    background:var(--amber); color:var(--navy-950); border-color:var(--amber); font-weight:600;
+  }
+  button.btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btnrow{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+
+  .readout-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+    gap:8px; margin-top:12px;
+  }
+  .readout{
+    background:var(--navy-900); border:1px solid var(--navy-600);
+    padding:8px 10px;
+  }
+  .readout .k{ font-size:9.5px; color:var(--text-dim); letter-spacing:0.5px; text-transform:uppercase; }
+  .readout .v{ font-size:15px; color:var(--cyan); font-weight:600; margin-top:2px; }
+  .readout .v.amber{ color:var(--amber); }
+  .readout .v.magenta{ color:var(--magenta); }
+  .readout .v.good{ color:var(--good); }
+
+  .note-box{
+    border-left:3px solid var(--amber); background:rgba(251,191,36,0.06);
+    padding:10px 12px; font-size:12px; color:var(--text-mid); margin-top:12px;
+  }
+  .note-box strong{ color:var(--amber); }
+  .info-box{
+    border-left:3px solid var(--cyan); background:rgba(34,211,238,0.06);
+    padding:10px 12px; font-size:12px; color:var(--text-mid); margin-top:12px;
+  }
+  .info-box strong{ color:var(--cyan); }
+
+  table.ftab{ width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
+  table.ftab th, table.ftab td{
+    border:1px solid var(--navy-600); padding:7px 9px; text-align:left; color:var(--text-mid);
+  }
+  table.ftab th{ color:var(--cyan); background:var(--navy-900); font-size:10.5px; letter-spacing:0.4px; text-transform:uppercase; }
+  table.ftab td strong{ color:var(--text-hi); }
+
+  .home-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+  .home-card{
+    background:var(--navy-800); border:1px solid var(--navy-600);
+    border-top:2px solid var(--cyan); padding:14px; cursor:pointer;
+    transition:all .15s ease;
+  }
+  .home-card:hover{ border-top-color:var(--amber); transform:translateY(-2px); background:var(--navy-700); }
+  .home-card .ic{ font-size:22px; margin-bottom:6px; }
+  .home-card h3{ margin:0 0 6px; font-size:13px; color:var(--text-hi); }
+  .home-card p{ margin:0; font-size:11.5px; color:var(--text-dim); line-height:1.5; }
+
+  .pill-row{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .pill{
+    font-size:10.5px; padding:5px 10px; background:var(--navy-700);
+    border:1px solid var(--navy-600); color:var(--text-mid); cursor:pointer;
+  }
+  .pill.active{ background:var(--violet); color:var(--navy-950); border-color:var(--violet); font-weight:600; }
+
+  footer.app-footer{
+    text-align:center; font-size:10.5px; color:var(--text-dim);
+    padding:20px 0 4px; letter-spacing:0.4px;
+  }
+  footer.app-footer .cyan{ color:var(--cyan-dim); }
+
+  @media(max-width:520px){
+    header.top h1{ font-size:14.5px; }
+    .card h2{ font-size:13px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="psi-icon">&#968;</div>
+    <div>
+      <h1>Quantum Physics Explorer</h1>
+      <div class="sub">Interactive simulations — wave-particle duality, superposition, uncertainty & tunneling</div>
+    </div>
+    <div class="tag">OFFLINE &middot; SINGLE FILE</div>
+  </header>
+
+  <nav class="tabs" id="tabNav"></nav>
+
+  <div id="panels"></div>
+
+  <footer class="app-footer">
+    Built for intuition, not just equations &middot; <span class="cyan">every model here is simplified for teaching &mdash; see each Notes panel for what's glossed over</span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   SHARED HELPERS (design-system canvas utilities)
+   ============================================================ */
+const DPR_CAP = 3;
+
+function sizeCanvasEl(canvas, fallbackH){
+  const parent = canvas.parentElement;
+  const cs = getComputedStyle(parent);
+  const padX = parseFloat(cs.paddingLeft||0) + parseFloat(cs.paddingRight||0);
+  let cssW = parent.clientWidth - padX;
+  if(cssW <= 0) cssW = canvas.dataset.lastW ? parseFloat(canvas.dataset.lastW) : 320;
+  let cssH = canvas.dataset.origH ? parseFloat(canvas.dataset.origH) : fallbackH;
+  if(!canvas.dataset.origH) canvas.dataset.origH = cssH;
+  const dpr = Math.min(window.devicePixelRatio||1, DPR_CAP);
+  const needW = Math.round(cssW*dpr), needH = Math.round(cssH*dpr);
+  if(canvas.width !== needW || canvas.height !== needH){
+    canvas.width = needW; canvas.height = needH;
+    canvas.style.width = cssW+'px';
+    canvas.style.height = cssH+'px';
+    canvas.dataset.lastW = cssW;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx, w:cssW, h:cssH};
+}
+
+// Registry of {canvas, fallbackH, draw} per tab-panel id, only sized/drawn while visible
+const redrawRegistry = {}; // panelId -> [{canvas, fallbackH, draw}]
+function regRedraw(panelId, canvas, fallbackH, draw){
+  if(!redrawRegistry[panelId]) redrawRegistry[panelId] = [];
+  redrawRegistry[panelId].push({canvas, fallbackH, draw});
+}
+function redrawPanel(panelId){
+  const list = redrawRegistry[panelId];
+  if(!list) return;
+  list.forEach(item=>{
+    if(item.canvas.offsetParent === null) return; // hidden
+    const {ctx,w,h} = sizeCanvasEl(item.canvas, item.fallbackH);
+    item.draw(ctx,w,h);
+  });
+}
+window.addEventListener('resize', ()=>{ redrawPanel(activePanelId); });
+
+function fmt(n, d=2){ return Number(n).toFixed(d); }
+
+/* ============================================================
+   TAB / PANEL FRAMEWORK
+   ============================================================ */
+const TABS = [
+  {id:'home', label:'Home'},
+  {id:'duality', label:'1 &middot; Wave-Particle Duality'},
+  {id:'superposition', label:'2 &middot; Superposition'},
+  {id:'uncertainty', label:'3 &middot; Uncertainty Principle'},
+  {id:'tunneling', label:'4 &middot; Quantum Tunneling'},
+  {id:'levels', label:'5 &middot; Energy Levels & Atoms'},
+  {id:'notes', label:'Notes & Formulas'},
+];
+
+let activePanelId = 'home';
+const tabNav = document.getElementById('tabNav');
+const panelsRoot = document.getElementById('panels');
+
+TABS.forEach(t=>{
+  const b = document.createElement('button');
+  b.className='tab-btn'; b.dataset.tab=t.id; b.innerHTML=t.label;
+  b.addEventListener('click', ()=>showTab(t.id));
+  tabNav.appendChild(b);
+});
+
+function showTab(id){
+  activePanelId = id;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+id));
+  requestAnimationFrame(()=>redrawPanel(id));
+  window.scrollTo({top:0, behavior:'instant'});
+}
+</script>
+
+<!-- ============================================================
+     PANEL: HOME
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel active" id="panel-home">
+  <div class="card">
+    <h2>What this tool is</h2>
+    <p>Quantum physics has a reputation for being unintuitive because most explanations lead with the math. This tool leads with <strong class="hl-cyan">one clean example per idea</strong> that you can actually run yourself &mdash; fire electrons one at a time, drag a wave packet, aim a ball at a wall it shouldn't be able to cross. The equations are there too, in the Notes tab, once the picture already makes sense.</p>
+    <p>Four core ideas, each with its own lab:</p>
+  </div>
+  <div class="home-grid">
+    <div class="home-card" data-goto="duality">
+      <div class="ic">&#9863;</div>
+      <h3>1. Wave&ndash;Particle Duality</h3>
+      <p>Fire electrons one at a time through two slits. Individually they land like bullets. Collectively they build up a wave interference pattern &mdash; until you try to watch which slit they went through.</p>
+    </div>
+    <div class="home-card" data-goto="superposition">
+      <div class="ic">&#9878;&#65039;</div>
+      <h3>2. Superposition</h3>
+      <p>Schr&ouml;dinger's cat, made concrete with a real quantum coin. A qubit genuinely is both heads and tails at once &mdash; until you measure it, and then it commits.</p>
+    </div>
+    <div class="home-card" data-goto="uncertainty">
+      <div class="ic">&#128373;&#65039;</div>
+      <h3>3. Uncertainty Principle</h3>
+      <p>Squeeze a wave packet down to pin its position, and watch its momentum spread out in a live plot. Not a measurement limitation &mdash; a property of waves themselves.</p>
+    </div>
+    <div class="home-card" data-goto="tunneling">
+      <div class="ic">&#8594;&#9632;&#8594;</div>
+      <h3>4. Quantum Tunneling</h3>
+      <p>Roll a ball at a hill too tall to climb. Classically it always bounces back. Quantum mechanically, sometimes it just appears on the other side.</p>
+    </div>
+    <div class="home-card" data-goto="levels">
+      <div class="ic">&#9899;</div>
+      <h3>5. Energy Levels & Atoms</h3>
+      <p>Why do neon signs glow one specific color and not any color at all? Electrons trapped in an atom can only sit on fixed rungs of a ladder.</p>
+    </div>
+    <div class="home-card" data-goto="notes">
+      <div class="ic">&#8721;</div>
+      <h3>Notes & Formulas</h3>
+      <p>The actual math behind every simulation above, plus what each model deliberately simplifies away.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <h2>The one idea that ties all four together</h2>
+    <p>Before quantum mechanics, "reality" meant: things have definite properties whether or not you look at them. A ball is somewhere, moving at some speed, whether you check or not. Quantum mechanics says that for small enough things &mdash; electrons, photons, atoms &mdash; that's <strong>not true</strong>. A particle can genuinely be spread across multiple possibilities (a wave of probability) right up until something interacts with it and forces it to land on one definite outcome. That single fact is behind every simulation in this tool.</p>
+  </div>
+</div>
+`);
+document.querySelectorAll('#panel-home .home-card').forEach(c=>{
+  c.addEventListener('click', ()=>showTab(c.dataset.goto));
+});
+</script>
+
+<!-- ============================================================
+     PANEL 1: WAVE-PARTICLE DUALITY (Double-Slit)
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-duality">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> The Double-Slit Experiment</h2>
+    <p>Fire electrons <strong>one at a time</strong> &mdash; a single, indivisible particle each time &mdash; through a wall with two narrow slits, toward a screen behind it. Common sense says: each electron goes through one slit or the other, and you should end up with two clumps behind the two slits, like a shotgun blast through two holes.</p>
+    <p>That's not what happens. Run it below with the detector <strong class="hl-amber">off</strong> and watch the pattern build up.</p>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="stage"><canvas id="dsCanvas"></canvas></div>
+      <div class="controls">
+        <div class="ctrl">
+          <label>Slit separation <span class="val" id="dsSepVal">1.0</span></label>
+          <input type="range" id="dsSep" min="0.5" max="2.2" step="0.05" value="1.0">
+        </div>
+        <div class="ctrl">
+          <label>Fire rate <span class="val" id="dsRateVal">Medium</span></label>
+          <input type="range" id="dsRate" min="1" max="3" step="1" value="2">
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="dsFire1">Fire 1 Electron</button>
+        <button class="btn" id="dsFireMany">Fire 200</button>
+        <button class="btn amber toggle" id="dsStream">&#9654; Continuous Stream</button>
+        <button class="btn amber toggle" id="dsDetector">Which-Path Detector: OFF</button>
+        <button class="btn" id="dsClear">Clear Screen</button>
+      </div>
+      <div class="readout-grid">
+        <div class="readout"><div class="k">Electrons Fired</div><div class="v" id="dsCount">0</div></div>
+        <div class="readout"><div class="k">Detector</div><div class="v amber" id="dsDetStat">OFF</div></div>
+        <div class="readout"><div class="k">Pattern</div><div class="v good" id="dsPattern">Building interference&hellip;</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:0;">
+        <h2>What you're watching</h2>
+        <p><strong>Detector OFF:</strong> each electron's path is not known &mdash; it behaves as a wave of possibility passing through <em>both</em> slits at once and interfering with itself. Over many electrons, that self-interference builds up the classic striped <strong class="hl-cyan">interference pattern</strong>, with electrons piling up in bands and avoiding certain regions entirely &mdash; even though each one arrived as a single dot, one at a time.</p>
+        <p><strong>Detector ON:</strong> the moment you measure which slit each electron actually went through, the interference pattern <strong class="hl-amber">vanishes</strong>. You get exactly the two-clump "shotgun" pattern common sense predicted. The act of finding out "which path" forces each electron to behave like a plain particle again.</p>
+        <div class="note-box"><strong>The takeaway:</strong> a quantum object's behavior genuinely depends on whether a "which-path" measurement happens &mdash; not on some hidden fact we simply failed to notice. This has been confirmed experimentally with electrons, photons, and even large molecules.</div>
+      </div>
+    </div>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const canvas = document.getElementById('dsCanvas');
+  const sepSlider = document.getElementById('dsSep');
+  const sepVal = document.getElementById('dsSepVal');
+  const rateSlider = document.getElementById('dsRate');
+  const rateVal = document.getElementById('dsRateVal');
+  const btnFire1 = document.getElementById('dsFire1');
+  const btnFireMany = document.getElementById('dsFireMany');
+  const btnStream = document.getElementById('dsStream');
+  const btnDetector = document.getElementById('dsDetector');
+  const btnClear = document.getElementById('dsClear');
+  const countEl = document.getElementById('dsCount');
+  const detStatEl = document.getElementById('dsDetStat');
+  const patternEl = document.getElementById('dsPattern');
+
+  let detectorOn = false;
+  let streaming = false;
+  let count = 0;
+  let hits = []; // {y, age}
+  let inFlight = []; // {y0, targetY, t0, dur, viaSlit}
+  const rateLabels = {1:'Slow',2:'Medium',3:'Fast'};
+
+  // PDF helpers, computed against a normalized half-height of 1
+  function envWide(u){ return Math.exp(-(u*u)/(0.55*0.55)); }
+  function envNarrow(u){ return Math.exp(-(u*u)/(0.26*0.26)); }
+  function K(){ return 3.6 * parseFloat(sepSlider.value); }
+  function y0(){ return 0.16 * parseFloat(sepSlider.value); }
+
+  function pdf(u){ // u in [-1,1]
+    if(detectorOn){
+      return envNarrow(u-y0()) + envNarrow(u+y0());
+    }
+    const k = K();
+    return envWide(u) * Math.pow(Math.cos(k*u),2);
+  }
+
+  // precompute cumulative distribution for sampling
+  function sampleY(){
+    const N = 400;
+    let sum=0; const vals=[];
+    for(let i=0;i<N;i++){
+      const u = -1 + 2*i/(N-1);
+      const p = pdf(u);
+      sum += p; vals.push(sum);
+    }
+    const r = Math.random()*sum;
+    let idx = vals.findIndex(v=>v>=r);
+    if(idx<0) idx = N-1;
+    const u = -1 + 2*idx/(N-1);
+    return u + (Math.random()-0.5)*(2/N); // small jitter
+  }
+
+  function fireOne(){
+    const u = sampleY();
+    const viaSlit = Math.random()<0.5 ? -1 : 1;
+    inFlight.push({u, t0:performance.now(), dur: 900 - (parseInt(rateSlider.value)-1)*250, viaSlit});
+    count++; countEl.textContent = count;
+  }
+
+  function fireMany(n){
+    let i=0;
+    const iv = setInterval(()=>{
+      fireOne();
+      i++;
+      if(i>=n) clearInterval(iv);
+    }, 12);
+  }
+
+  sepSlider.addEventListener('input', ()=>{ sepVal.textContent = sepSlider.value; });
+  rateSlider.addEventListener('input', ()=>{ rateVal.textContent = rateLabels[rateSlider.value]; });
+  btnFire1.addEventListener('click', fireOne);
+  btnFireMany.addEventListener('click', ()=>fireMany(200));
+  btnStream.addEventListener('click', ()=>{
+    streaming = !streaming;
+    btnStream.classList.toggle('active', streaming);
+    btnStream.textContent = streaming ? '&#9724; Stop Stream' : '&#9654; Continuous Stream';
+    btnStream.innerHTML = streaming ? '&#9724; Stop Stream' : '&#9654; Continuous Stream';
+  });
+  btnDetector.addEventListener('click', ()=>{
+    detectorOn = !detectorOn;
+    btnDetector.classList.toggle('active', detectorOn);
+    btnDetector.textContent = 'Which-Path Detector: ' + (detectorOn?'ON':'OFF');
+    detStatEl.textContent = detectorOn ? 'ON' : 'OFF';
+    patternEl.textContent = detectorOn ? 'Two clumps (particle-like)' : 'Building interference…';
+    patternEl.className = 'v ' + (detectorOn ? 'amber' : 'good');
+  });
+  btnClear.addEventListener('click', ()=>{
+    hits = []; count = 0; countEl.textContent = 0; inFlight=[];
+  });
+
+  let streamAcc = 0;
+  function tick(dt){
+    if(streaming){
+      streamAcc += dt;
+      const interval = 260 - (parseInt(rateSlider.value)-1)*80;
+      if(streamAcc > interval){ streamAcc = 0; fireOne(); }
+    }
+  }
+
+  function draw(ctx,w,h){
+    ctx.clearRect(0,0,w,h);
+    const srcX = w*0.08, slitX = w*0.34, screenX = w*0.90;
+    const midY = h/2, halfH = h*0.42;
+
+    // background
+    ctx.fillStyle = '#050813'; ctx.fillRect(0,0,w,h);
+
+    // histogram (drawn first, behind everything, as accumulation on screen edge)
+    const bins = 60;
+    const counts = new Array(bins).fill(0);
+    hits.forEach(hh=>{
+      let bi = Math.floor((hh.u+1)/2*bins);
+      bi = Math.max(0,Math.min(bins-1,bi));
+      counts[bi]++;
+    });
+    const maxC = Math.max(1, ...counts);
+    ctx.save();
+    for(let i=0;i<bins;i++){
+      const u0 = -1 + i*(2/bins);
+      const yTop = midY - u0*halfH;
+      const barH = (2*halfH/bins);
+      const len = (counts[i]/maxC) * (screenX-slitX-40);
+      const grad = ctx.createLinearGradient(screenX, 0, screenX-len, 0);
+      grad.addColorStop(0, 'rgba(34,211,238,0.55)');
+      grad.addColorStop(1, 'rgba(34,211,238,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(screenX-len, yTop-barH/2, len, barH*0.9);
+    }
+    ctx.restore();
+
+    // emitter
+    ctx.fillStyle = '#5b7089';
+    ctx.fillRect(srcX-10, midY-16, 14, 32);
+    ctx.fillStyle = '#9fb3c8'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='center';
+    ctx.fillText('SOURCE', srcX-3, midY+30);
+
+    // barrier with two slits
+    const slitGap = 10 + parseFloat(sepSlider.value)*10;
+    const slitCenterOffset = halfH*0.30* (0.6+0.4*parseFloat(sepSlider.value));
+    ctx.strokeStyle = '#1e2740'; ctx.fillStyle='#161d33';
+    ctx.fillRect(slitX-4, 0, 8, midY-slitCenterOffset-slitGap/2);
+    ctx.fillRect(slitX-4, midY-slitCenterOffset+slitGap/2, 8, (midY+slitCenterOffset-slitGap/2)-(midY-slitCenterOffset+slitGap/2));
+    ctx.fillRect(slitX-4, midY+slitCenterOffset+slitGap/2, 8, h-(midY+slitCenterOffset+slitGap/2));
+    ctx.fillStyle='#5b7089'; ctx.font='9px IBM Plex Mono';
+    ctx.fillText('BARRIER', slitX, midY - halfH - 8 < 10 ? 10 : midY-halfH-8);
+
+    // screen line
+    ctx.strokeStyle = '#22d3ee'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(screenX,4); ctx.lineTo(screenX,h-4); ctx.stroke();
+    ctx.fillStyle='#5b7089'; ctx.fillText('SCREEN', screenX, 12);
+
+    const slitYtop = midY - slitCenterOffset;
+    const slitYbot = midY + slitCenterOffset;
+
+    // accumulated dots (fading trail, capped count for perf)
+    ctx.save();
+    const showHits = hits.length>1400? hits.slice(hits.length-1400) : hits;
+    showHits.forEach(hh=>{
+      const yy = midY - hh.u*halfH;
+      ctx.fillStyle = 'rgba(34,211,238,0.55)';
+      ctx.beginPath(); ctx.arc(screenX-3+((hh.jx||0)), yy, 1.6, 0, 7); ctx.fill();
+    });
+    ctx.restore();
+
+    // in-flight particles
+    const now = performance.now();
+    inFlight = inFlight.filter(p=>{
+      const t = Math.min(1, (now-p.t0)/p.dur);
+      const targetY = midY - p.u*halfH;
+      if(!detectorOn){
+        // wave visualization: two expanding ripples from slits, converging; particle only shown near arrival
+        if(t < 0.92){
+          const legT = t/0.92;
+          const wx = slitX + legT*(screenX-slitX);
+          // ripple arcs from each slit
+          ctx.strokeStyle = 'rgba(167,139,250,0.35)';
+          ctx.lineWidth=1;
+          [slitYtop, slitYbot].forEach(sy=>{
+            ctx.beginPath();
+            ctx.arc(slitX, sy, Math.max(2, legT*(screenX-slitX)*0.5), -0.7,0.7);
+            ctx.stroke();
+          });
+          // faint traveling dot midline (position uncertain -> draw as soft blob)
+          ctx.fillStyle='rgba(167,139,250,0.5)';
+          ctx.beginPath(); ctx.arc(wx, (slitYtop+slitYbot)/2 + (targetY-(slitYtop+slitYbot)/2)*legT*0.3, 3,0,7); ctx.fill();
+        } else {
+          // arrival flash
+          const at = (t-0.92)/0.08;
+          ctx.fillStyle = `rgba(34,211,238,${1-at*0.3})`;
+          ctx.beginPath(); ctx.arc(screenX-3, targetY, 3+at*3, 0, 7); ctx.fill();
+        }
+      } else {
+        // particle-like: straight line through chosen slit
+        const chosenY = p.viaSlit<0 ? slitYtop : slitYbot;
+        let px, py;
+        if(t < 0.5){
+          const lt = t/0.5;
+          px = srcX + lt*(slitX-srcX); py = midY + (chosenY-midY)*lt*0.15;
+        } else {
+          const lt = (t-0.5)/0.5;
+          px = slitX + lt*(screenX-slitX); py = chosenY + (targetY-chosenY)*lt;
+        }
+        ctx.strokeStyle='rgba(251,191,36,0.4)'; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(srcX,midY); ctx.lineTo(px,py); ctx.stroke();
+        ctx.fillStyle='#fbbf24';
+        ctx.beginPath(); ctx.arc(px,py,3.2,0,7); ctx.fill();
+      }
+      if(t>=1){
+        hits.push({u:p.u, jx:(Math.random()-0.5)*3});
+        return false;
+      }
+      return true;
+    });
+  }
+
+  regRedraw('duality', canvas, 320, draw);
+
+  let lastT = performance.now();
+  function loop(now){
+    const dt = now-lastT; lastT = now;
+    tick(dt);
+    if(canvas.offsetParent !== null){
+      const {ctx,w,h} = sizeCanvasEl(canvas, 320);
+      draw(ctx,w,h);
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- ============================================================
+     PANEL 2: SUPERPOSITION (Schrödinger's Cat / Qubit)
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-superposition">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> Schr&ouml;dinger's Cat, Made Concrete</h2>
+    <p>Schr&ouml;dinger's famous thought experiment: seal a cat in a box with a device that has a 50/50 quantum chance of releasing poison. Until you open the box, quantum mechanics says the cat is in a <strong class="hl-cyan">superposition</strong> of alive <em>and</em> dead &mdash; not "secretly one or the other and we just don't know which," but genuinely both, at once, right up until the box is opened.</p>
+    <p>Below is that same setup with a tunable dial instead of a fixed 50/50 device, so you can see how the odds shape the outcome.</p>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="stage"><canvas id="spCanvas"></canvas></div>
+      <div class="controls">
+        <div class="ctrl">
+          <label>Superposition mix <span class="val" id="spMixVal">50 / 50</span></label>
+          <input type="range" id="spMix" min="0" max="100" step="1" value="50">
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="spMeasure">Open the Box (Measure)</button>
+        <button class="btn" id="spReset">Reseal Box (New Superposition)</button>
+        <button class="btn" id="spRun100">Run 100 Trials</button>
+        <button class="btn" id="spClearStats">Clear Stats</button>
+      </div>
+      <div class="readout-grid">
+        <div class="readout"><div class="k">P(Alive)</div><div class="v good" id="spPAlive">50%</div></div>
+        <div class="readout"><div class="k">P(Dead)</div><div class="v" id="spPDead" style="color:#f87171;">50%</div></div>
+        <div class="readout"><div class="k">Trials Run</div><div class="v amber" id="spTrials">0</div></div>
+      </div>
+      <div class="stage" style="margin-top:10px;"><canvas id="spHistCanvas"></canvas></div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:0;">
+        <h2>What's actually going on</h2>
+        <p>While the box is closed, the cat isn't "probably alive" the way a coin under your hand is probably heads &mdash; already landed, just hidden from you. The quantum state is a genuine mathematical combination of both outcomes at once, called a <strong class="hl-cyan">superposition</strong>: <span class="hl-amber">|&psi;&rang; = &alpha;|alive&rang; + &beta;|dead&rang;</span>.</p>
+        <p>The mix slider controls &alpha; and &beta; &mdash; the amplitudes. Their squares, |&alpha;|&sup2; and |&beta;|&sup2;, give the probabilities of each outcome once you measure. Opening the box is a <strong>measurement</strong>: it forces the superposition to <strong class="hl-amber">collapse</strong> to one definite outcome, randomly, weighted by those probabilities.</p>
+        <p>Run 100 trials and watch the bar chart below the box: individual outcomes are genuinely random, but over many trials the ratio converges to exactly the probabilities you set &mdash; that convergence is the real, measurable signature of superposition (this is routinely done today with real superconducting qubits, not cats).</p>
+        <div class="note-box"><strong>Why "cat," specifically?</strong> Schr&ouml;dinger invented this scenario in 1935 as a <em>criticism</em> &mdash; to point out how absurd it sounds to scale quantum superposition up to a macroscopic object. The math works identically whether it's a subatomic particle or (hypothetically) a cat; the honest answer for why we never see actual cats in superposition is that any large object is constantly "measured" by its environment (air molecules, light, heat) so its superposition collapses in an instant &mdash; a process called decoherence.</div>
+      </div>
+    </div>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const canvas = document.getElementById('spCanvas');
+  const histCanvas = document.getElementById('spHistCanvas');
+  const mixSlider = document.getElementById('spMix');
+  const mixVal = document.getElementById('spMixVal');
+  const btnMeasure = document.getElementById('spMeasure');
+  const btnReset = document.getElementById('spReset');
+  const btnRun100 = document.getElementById('spRun100');
+  const btnClearStats = document.getElementById('spClearStats');
+  const pAliveEl = document.getElementById('spPAlive');
+  const pDeadEl = document.getElementById('spPDead');
+  const trialsEl = document.getElementById('spTrials');
+
+  let state = 'superposed'; // 'superposed' | 'collapsing' | 'alive' | 'dead'
+  let collapseT0 = 0;
+  let statsAlive = 0, statsDead = 0;
+  let pulsePhase = 0;
+
+  function pAlive(){ return (100-parseFloat(mixSlider.value))/100; }
+
+  function updateProbLabels(){
+    const pa = Math.round(pAlive()*100);
+    pAliveEl.textContent = pa+'%';
+    pDeadEl.textContent = (100-pa)+'%';
+    mixVal.textContent = pa+' / ' + (100-pa);
+  }
+  mixSlider.addEventListener('input', ()=>{
+    updateProbLabels();
+    if(state!=='superposed'){ state='superposed'; }
+  });
+  updateProbLabels();
+
+  function doMeasure(){
+    if(state==='collapsing') return;
+    if(state!=='superposed'){
+      // already collapsed - reseal first conceptually then measure again fresh
+    }
+    state='collapsing'; collapseT0 = performance.now();
+    const outcome = Math.random() < pAlive() ? 'alive' : 'dead';
+    setTimeout(()=>{
+      state = outcome;
+      if(outcome==='alive') statsAlive++; else statsDead++;
+      trialsEl.textContent = statsAlive+statsDead;
+    }, 550);
+  }
+  btnMeasure.addEventListener('click', doMeasure);
+  btnReset.addEventListener('click', ()=>{ state='superposed'; });
+  btnClearStats.addEventListener('click', ()=>{ statsAlive=0; statsDead=0; trialsEl.textContent=0; });
+  btnRun100.addEventListener('click', ()=>{
+    for(let i=0;i<100;i++){
+      const outcome = Math.random() < pAlive() ? 'alive' : 'dead';
+      if(outcome==='alive') statsAlive++; else statsDead++;
+    }
+    trialsEl.textContent = statsAlive+statsDead;
+    state='dead2show'; // trigger a quick visual pulse without messing single-measure flow
+    setTimeout(()=>{ state='superposed'; }, 300);
+  });
+
+  function drawBox(ctx,w,h){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#050813'; ctx.fillRect(0,0,w,h);
+    const bx = w/2, by=h/2, bw=Math.min(w*0.5,220), bh=Math.min(h*0.62,180);
+    pulsePhase += 0.05;
+
+    // box body
+    ctx.strokeStyle='#5b7089'; ctx.lineWidth=2;
+    ctx.strokeRect(bx-bw/2, by-bh/2, bw, bh);
+    ctx.fillStyle='#0f1526'; ctx.fillRect(bx-bw/2, by-bh/2, bw, bh);
+
+    ctx.font = Math.round(bh*0.32)+'px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+
+    if(state==='superposed' || state==='dead2show'){
+      // ghostly overlay of both outcomes, pulsing / flickering opacity
+      const a1 = 0.35+0.25*Math.sin(pulsePhase);
+      const a2 = 0.35+0.25*Math.sin(pulsePhase+Math.PI);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0.15,a1);
+      ctx.fillText('😺', bx-bw*0.16, by);
+      ctx.globalAlpha = Math.max(0.15,a2);
+      ctx.fillText('💀', bx+bw*0.16, by);
+      ctx.restore();
+      ctx.font='10px IBM Plex Mono'; ctx.fillStyle='#9fb3c8';
+      ctx.fillText('BOX CLOSED — SUPERPOSITION', bx, by+bh/2+18);
+
+      // probability wave rings
+      ctx.strokeStyle='rgba(167,139,250,0.3)';
+      for(let i=0;i<3;i++){
+        const r = ((pulsePhase*20+i*30)%90);
+        ctx.globalAlpha = 1-r/90;
+        ctx.beginPath(); ctx.arc(bx,by,bw*0.32+r*0.6,0,7); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    } else if(state==='collapsing'){
+      const t = Math.min(1,(performance.now()-collapseT0)/550);
+      ctx.save();
+      ctx.globalAlpha = 1-t;
+      ctx.fillText('😺', bx-bw*0.16, by);
+      ctx.fillText('💀', bx+bw*0.16, by);
+      ctx.restore();
+      // flash
+      ctx.fillStyle = `rgba(255,255,255,${0.5*Math.sin(t*Math.PI)})`;
+      ctx.fillRect(bx-bw/2, by-bh/2, bw, bh);
+      ctx.font='10px IBM Plex Mono'; ctx.fillStyle='#fbbf24';
+      ctx.fillText('COLLAPSING…', bx, by+bh/2+18);
+    } else {
+      // collapsed to definite outcome
+      const emoji = state==='alive' ? '😺' : '💀';
+      ctx.fillText(emoji, bx, by);
+      ctx.font='11px IBM Plex Mono';
+      ctx.fillStyle = state==='alive' ? '#34d399' : '#f87171';
+      ctx.fillText('MEASURED: '+(state==='alive'?'ALIVE':'DEAD'), bx, by+bh/2+18);
+    }
+  }
+
+  function drawHist(ctx,w,h){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#050813'; ctx.fillRect(0,0,w,h);
+    const total = statsAlive+statsDead;
+    const pad=30;
+    const barW = (w-pad*2)/2 * 0.55;
+    const maxH = h-40;
+    const aliveH = total? (statsAlive/Math.max(statsAlive,statsDead,1))*maxH : 0;
+    const deadH = total? (statsDead/Math.max(statsAlive,statsDead,1))*maxH : 0;
+    const cx1 = w*0.32, cx2=w*0.68;
+
+    ctx.fillStyle='#34d399';
+    ctx.fillRect(cx1-barW/2, h-24-aliveH, barW, aliveH);
+    ctx.fillStyle='#f87171';
+    ctx.fillRect(cx2-barW/2, h-24-deadH, barW, deadH);
+
+    // expected probability line markers
+    const expAliveH = pAlive()*maxH, expDeadH=(1-pAlive())*maxH;
+    ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.setLineDash([4,3]); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(cx1-barW/2-6,h-24-expAliveH); ctx.lineTo(cx1+barW/2+6,h-24-expAliveH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx2-barW/2-6,h-24-expDeadH); ctx.lineTo(cx2+barW/2+6,h-24-expDeadH); ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font='10px IBM Plex Mono'; ctx.textAlign='center'; ctx.fillStyle='#9fb3c8';
+    ctx.fillText('ALIVE: '+statsAlive, cx1, h-8);
+    ctx.fillText('DEAD: '+statsDead, cx2, h-8);
+    ctx.fillStyle='#5b7089';
+    ctx.fillText('dashed line = set probability', w/2, 12);
+  }
+
+  regRedraw('superposition', canvas, 260, drawBox);
+  regRedraw('superposition', histCanvas, 150, drawHist);
+
+  function loop(){
+    if(canvas.offsetParent !== null){
+      const a = sizeCanvasEl(canvas,260); drawBox(a.ctx,a.w,a.h);
+      const b = sizeCanvasEl(histCanvas,150); drawHist(b.ctx,b.w,b.h);
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- ============================================================
+     PANEL 3: UNCERTAINTY PRINCIPLE
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-uncertainty">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> A Wave Packet You Can Squeeze</h2>
+    <p>The Heisenberg Uncertainty Principle is often mis-stated as "you can't measure both position and momentum accurately because your instrument disturbs the particle." That's not really it. The real reason is simpler and stranger: <strong class="hl-cyan">a particle's position and momentum aren't both well-defined numbers at the same time</strong> &mdash; it's a built-in property of what a wave <em>is</em>, with no measurement involved at all.</p>
+    <p>Drag the slider below to squeeze the particle's position wave narrower and watch what happens to its momentum wave.</p>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="stage"><canvas id="unCanvas"></canvas></div>
+      <div class="controls">
+        <div class="ctrl">
+          <label>Position certainty (squeeze &Delta;x) <span class="val" id="unSigVal">Medium</span></label>
+          <input type="range" id="unSig" min="18" max="140" step="1" value="70">
+        </div>
+      </div>
+      <div class="readout-grid">
+        <div class="readout"><div class="k">&Delta;x (position spread)</div><div class="v" id="unDx">&mdash;</div></div>
+        <div class="readout"><div class="k">&Delta;p (momentum spread)</div><div class="v amber" id="unDp">&mdash;</div></div>
+        <div class="readout"><div class="k">&Delta;x &middot; &Delta;p</div><div class="v good" id="unProd">&mdash;</div></div>
+        <div class="readout"><div class="k">Minimum allowed (&#295;/2)</div><div class="v" id="unMin">&mdash;</div></div>
+      </div>
+      <div class="note-box" id="unMsg"><strong>Try it:</strong> push the slider to either extreme. You can make position very certain, or momentum very certain, but the product of the two never drops below the dashed minimum line &mdash; that floor is the uncertainty principle itself.</div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:0;">
+        <h2>Why squeezing one spreads the other</h2>
+        <p>A wave that's sharply localized in space (a tight spike) has to be built by adding together <em>many different wavelengths</em> — that's just a fact about waves, true for sound and water too. Since a particle's momentum in quantum mechanics <em>is</em> its wavelength (via de Broglie's relation <span class="hl-amber">p = h/&lambda;</span>), a position spike built from many wavelengths automatically means momentum is spread over many possible values.</p>
+        <p>Stretch the wave out in space instead (make position uncertain) and it only needs a narrow band of wavelengths to build &mdash; so momentum becomes well-defined. You cannot have a wave that is simultaneously a sharp spike in both position <em>and</em> a single pure wavelength. That trade-off, not clumsy measurement, is the uncertainty principle.</p>
+        <div class="info-box"><strong>Everyday version:</strong> a very short drum hit sounds like a broadband "thud" with no clear pitch, while a sustained flute note has a precise pitch but no precise moment in time. Same trade-off, same math (the Fourier transform), just applied to sound instead of matter waves.</div>
+      </div>
+    </div>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const canvas = document.getElementById('unCanvas');
+  const sigSlider = document.getElementById('unSig');
+  const sigVal = document.getElementById('unSigVal');
+  const dxEl = document.getElementById('unDx');
+  const dpEl = document.getElementById('unDp');
+  const prodEl = document.getElementById('unProd');
+  const minEl = document.getElementById('unMin');
+  const msgEl = document.getElementById('unMsg');
+
+  const HBAR = 1; // natural units for teaching
+  const MINPROD = HBAR/2;
+
+  function sigmaX(){ return parseFloat(sigSlider.value)/100; } // in plot units
+  function sigmaP(){ return MINPROD/sigmaX(); } // exact minimum-uncertainty relation, saturating the bound
+
+  function gauss(x, sigma){ return Math.exp(-(x*x)/(2*sigma*sigma)); }
+
+  function labelFor(v){
+    if(v<40) return 'Very squeezed';
+    if(v<75) return 'Medium';
+    if(v<110) return 'Loose';
+    return 'Very spread out';
+  }
+  sigSlider.addEventListener('input', updateLabels);
+  function updateLabels(){
+    sigVal.textContent = labelFor(parseFloat(sigSlider.value));
+    const sx = sigmaX(), sp = sigmaP();
+    dxEl.textContent = fmt(sx,3);
+    dpEl.textContent = fmt(sp,3);
+    prodEl.textContent = fmt(sx*sp,3);
+    minEl.textContent = fmt(MINPROD,3);
+    if(parseFloat(sigSlider.value) < 30){
+      msgEl.innerHTML = '<strong>Position squeezed hard:</strong> the momentum wave (bottom plot) has spread out dramatically — momentum is now very uncertain.';
+    } else if(parseFloat(sigSlider.value) > 120){
+      msgEl.innerHTML = '<strong>Position spread out wide:</strong> the momentum wave has collapsed to a narrow spike — momentum is now well-defined, position is not.';
+    } else {
+      msgEl.innerHTML = '<strong>Balanced regime:</strong> both position and momentum carry moderate uncertainty. Slide to either extreme to see the trade-off sharpen.';
+    }
+  }
+  updateLabels();
+
+  function drawGraph(ctx, w, h, sigma, color, labelTxt, xMaxUnits){
+    const midY = h/2, baseY=h-6;
+    ctx.strokeStyle='#1e2740'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(6,baseY); ctx.lineTo(w-6,baseY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w/2,4); ctx.lineTo(w/2,baseY); ctx.stroke();
+
+    ctx.beginPath();
+    const plotH = baseY-14;
+    for(let px=6; px<=w-6; px++){
+      const xu = ((px-w/2)/(w/2-6))*xMaxUnits;
+      const yv = gauss(xu, sigma);
+      const py = baseY - yv*plotH;
+      if(px===6) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
+    // fill
+    ctx.lineTo(w-6,baseY); ctx.lineTo(6,baseY); ctx.closePath();
+    ctx.fillStyle = color.replace('1)','0.12)').replace('rgb','rgba').replace(')',',0.12)').replace(',0.12),0.12)',',0.12)');
+    ctx.globalAlpha=0.15; ctx.fillStyle=color; ctx.fill(); ctx.globalAlpha=1;
+
+    // sigma markers
+    ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.setLineDash([3,3]);
+    const sxpx = (sigma/xMaxUnits)*(w/2-6);
+    ctx.beginPath(); ctx.moveTo(w/2-sxpx, baseY); ctx.lineTo(w/2-sxpx, baseY-plotH*gauss(sigma,sigma)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w/2+sxpx, baseY); ctx.lineTo(w/2+sxpx, baseY-plotH*gauss(sigma,sigma)); ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle='#5b7089'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='left';
+    ctx.fillText(labelTxt, 8, 14);
+  }
+
+  function draw(ctx,w,h){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#050813'; ctx.fillRect(0,0,w,h);
+    const halfH = h/2;
+    ctx.save(); ctx.beginPath(); ctx.rect(0,0,w,halfH-2); ctx.clip();
+    drawGraph(ctx, w, halfH-2, sigmaX(), '#22d3ee', 'POSITION  |ψ(x)|²  — narrower = more certain WHERE it is', 3.2);
+    ctx.restore();
+
+    ctx.strokeStyle='#161d33'; ctx.beginPath(); ctx.moveTo(0,halfH); ctx.lineTo(w,halfH); ctx.stroke();
+
+    ctx.save(); ctx.translate(0,halfH+2); ctx.beginPath(); ctx.rect(0,0,w,halfH-2); ctx.clip();
+    drawGraph(ctx, w, halfH-2, sigmaP(), '#fbbf24', 'MOMENTUM  |φ(p)|²  — narrower = more certain HOW FAST', 3.2);
+    ctx.restore();
+  }
+
+  regRedraw('uncertainty', canvas, 340, draw);
+  sigSlider.addEventListener('input', ()=>{ redrawPanel('uncertainty'); });
+})();
+</script>
+
+<!-- ============================================================
+     PANEL 4: QUANTUM TUNNELING
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-tunneling">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> Rolling a Ball at a Hill It Can't Climb</h2>
+    <p>Roll a ball toward a hill that's taller than the ball has energy to climb. Classically, the outcome is never in question: the ball slows down, stops partway up, and rolls back. It <strong>cannot</strong> end up on the other side. Every single time, no exceptions.</p>
+    <p>A quantum particle in the same situation follows a different rule: there's a small but genuine, non-zero chance it simply <strong class="hl-cyan">appears on the other side</strong> of the barrier &mdash; not by going over it, and not by breaking any energy law, but because its wavefunction doesn't drop all the way to zero inside the barrier. Fire particles below and watch.</p>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="stage"><canvas id="tnCanvas"></canvas></div>
+      <div class="controls">
+        <div class="ctrl">
+          <label>Particle energy (E) <span class="val" id="tnEVal">0.45</span></label>
+          <input type="range" id="tnE" min="10" max="90" step="1" value="45">
+        </div>
+        <div class="ctrl">
+          <label>Barrier width <span class="val" id="tnLVal">1.5</span></label>
+          <input type="range" id="tnL" min="4" max="40" step="1" value="15">
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="tnFire">Fire Particle</button>
+        <button class="btn" id="tnFire20">Fire 20</button>
+        <button class="btn" id="tnClear">Reset Stats</button>
+      </div>
+      <div class="readout-grid">
+        <div class="readout"><div class="k">Tunneling Probability (T)</div><div class="v good" id="tnTheory">&mdash;</div></div>
+        <div class="readout"><div class="k">Attempts</div><div class="v" id="tnAttempts">0</div></div>
+        <div class="readout"><div class="k">Tunneled Through</div><div class="v amber" id="tnSuccess">0</div></div>
+        <div class="readout"><div class="k">Observed Rate</div><div class="v magenta" id="tnObs">&mdash;</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:0;">
+        <h2>Why this is even possible</h2>
+        <p>Inside the barrier, the particle's wavefunction doesn't hit a hard wall &mdash; it decays exponentially, getting weaker the deeper it goes, but it doesn't reach exactly zero before it reaches the far side (as long as the barrier isn't infinitely wide or infinitely tall). Whatever sliver of the wave makes it to the other edge continues on as a real, ordinary traveling wave again. <strong class="hl-amber">Its amplitude squared there is the probability the particle is found on the far side.</strong></p>
+        <p>Notice the pattern as you adjust the sliders: raise the particle's energy toward the barrier height, or shrink the barrier's width, and tunneling probability climbs fast. Widen the barrier and it collapses toward zero &mdash; but mathematically never exactly reaches it.</p>
+        <div class="info-box"><strong>This isn't just theory:</strong> tunneling is why the Sun shines (fusing hydrogen nuclei that classically don't have enough energy to overcome their mutual repulsion), how scanning tunneling microscopes image individual atoms, and how flash memory in your phone reads and writes data.</div>
+      </div>
+    </div>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const canvas = document.getElementById('tnCanvas');
+  const eSlider = document.getElementById('tnE');
+  const eVal = document.getElementById('tnEVal');
+  const lSlider = document.getElementById('tnL');
+  const lVal = document.getElementById('tnLVal');
+  const btnFire = document.getElementById('tnFire');
+  const btnFire20 = document.getElementById('tnFire20');
+  const btnClear = document.getElementById('tnClear');
+  const theoryEl = document.getElementById('tnTheory');
+  const attemptsEl = document.getElementById('tnAttempts');
+  const successEl = document.getElementById('tnSuccess');
+  const obsEl = document.getElementById('tnObs');
+
+  const V0 = 1.0; // normalized barrier height
+  let attempts=0, successes=0;
+  let particles = []; // {x, dir, phase:'approach'|'inbarrier'|'reflect'|'transmit', t0}
+
+  function E(){ return parseFloat(eSlider.value)/100; }
+  function Lw(){ return parseFloat(lSlider.value)/10; }
+
+  function transmission(){
+    const e = E();
+    if(e >= V0*0.999) return 0.97; // near/above barrier: mostly passes (simplified)
+    const k2 = Math.sqrt(2*(V0-e));
+    const L = Lw();
+    const sh = Math.sinh(k2*L);
+    const T = 1/(1 + (V0*V0*sh*sh)/(4*e*(V0-e)));
+    return Math.min(0.99, Math.max(0.0005, T));
+  }
+
+  function updateLabels(){
+    eVal.textContent = E().toFixed(2);
+    lVal.textContent = Lw().toFixed(1);
+    theoryEl.textContent = (transmission()*100).toFixed(2)+'%';
+  }
+  eSlider.addEventListener('input', updateLabels);
+  lSlider.addEventListener('input', updateLabels);
+  updateLabels();
+
+  function fireOne(){
+    const tunnels = Math.random() < transmission();
+    particles.push({t0:performance.now(), tunnels, dur:2200});
+    attempts++; if(tunnels) successes++;
+    attemptsEl.textContent = attempts;
+    successEl.textContent = successes;
+    obsEl.textContent = attempts? ((successes/attempts)*100).toFixed(1)+'%' : '—';
+  }
+  btnFire.addEventListener('click', fireOne);
+  btnFire20.addEventListener('click', ()=>{
+    let i=0; const iv=setInterval(()=>{ fireOne(); i++; if(i>=20) clearInterval(iv); }, 180);
+  });
+  btnClear.addEventListener('click', ()=>{
+    attempts=0; successes=0; attemptsEl.textContent=0; successEl.textContent=0; obsEl.textContent='—'; particles=[];
+  });
+
+  function draw(ctx,w,h){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#050813'; ctx.fillRect(0,0,w,h);
+    const groundY = h*0.72;
+    const barrierCX = w*0.5;
+    const barrierWpx = Math.max(18, Lw()*22);
+    const barrierH = (E()<V0*0.999 ? (h*0.5) : (h*0.5)); // constant visual height representing V0
+    const eHeightFrac = Math.min(0.98, E()/V0);
+
+    // ground
+    ctx.strokeStyle='#1e2740'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(10,groundY); ctx.lineTo(w-10,groundY); ctx.stroke();
+
+    // barrier (hill) shape - trapezoid
+    ctx.beginPath();
+    ctx.moveTo(barrierCX-barrierWpx/2-14, groundY);
+    ctx.lineTo(barrierCX-barrierWpx/2, groundY-barrierH);
+    ctx.lineTo(barrierCX+barrierWpx/2, groundY-barrierH);
+    ctx.lineTo(barrierCX+barrierWpx/2+14, groundY);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0,groundY-barrierH,0,groundY);
+    grad.addColorStop(0,'rgba(248,113,113,0.28)');
+    grad.addColorStop(1,'rgba(248,113,113,0.05)');
+    ctx.fillStyle=grad; ctx.fill();
+    ctx.strokeStyle='rgba(248,113,113,0.6)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle='#f87171'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='center';
+    ctx.fillText('BARRIER (V₀)', barrierCX, groundY-barrierH-8);
+
+    // particle "energy line"
+    const energyY = groundY - barrierH*eHeightFrac;
+    ctx.strokeStyle='rgba(34,211,238,0.4)'; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(10,energyY); ctx.lineTo(w-10,energyY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#22d3ee'; ctx.textAlign='left'; ctx.fillText('E', 14, energyY-4);
+
+    const now = performance.now();
+    particles = particles.filter(p=>{
+      const t = (now-p.t0)/p.dur;
+      if(t>1) return false;
+      const startX = 20, endX = w-20;
+      const barLx = barrierCX-barrierWpx/2, barRx = barrierCX+barrierWpx/2;
+      let x, y=groundY-14, alpha=1;
+      if(p.tunnels){
+        // continuous travel left to right, but fades to translucent while inside barrier
+        x = startX + t*(endX-startX);
+        const insideBarrier = x>barLx && x<barRx;
+        alpha = insideBarrier ? 0.22 : 1;
+        ctx.fillStyle = `rgba(52,211,153,${alpha})`;
+      } else {
+        // approach, hit barrier edge, bounce back
+        const approachT = 0.5;
+        if(t < approachT){
+          const lt = t/approachT;
+          x = startX + lt*(barLx-startX+8);
+        } else {
+          const lt = (t-approachT)/(1-approachT);
+          x = (barLx+8) - lt*((barLx+8)-startX);
+        }
+        ctx.fillStyle = 'rgba(248,113,113,0.9)';
+      }
+      ctx.beginPath(); ctx.arc(x,y,7,0,7); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.stroke();
+      return true;
+    });
+
+    ctx.fillStyle='#5b7089'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='left';
+    ctx.fillText('green = tunneled through   ·   red = reflected', 10, h-8);
+  }
+
+  regRedraw('tunneling', canvas, 260, draw);
+  function loop(){
+    if(canvas.offsetParent!==null){ const {ctx,w,h}=sizeCanvasEl(canvas,260); draw(ctx,w,h); }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- ============================================================
+     PANEL 5: ENERGY LEVELS & ATOMS
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-levels">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> Why Neon Signs Only Glow One Color</h2>
+    <p>Heat up a gas and it doesn't glow with every color at once, the way a hot piece of metal does &mdash; it glows in a handful of very specific colors, unique to that element, like a barcode. A neon sign is red-orange because neon atoms can only emit a few exact wavelengths, never anything in between.</p>
+    <p>The reason: an electron bound to an atom can't have just any energy &mdash; only certain fixed values, like rungs on a ladder. Pick two rungs below and watch the electron fall between them, releasing a photon whose color is fixed entirely by the energy gap.</p>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="stage"><canvas id="lvCanvas"></canvas></div>
+      <div class="controls">
+        <div class="ctrl">
+          <label>Start level (n, higher energy)</label>
+          <input type="range" id="lvFrom" min="2" max="6" step="1" value="4">
+        </div>
+        <div class="ctrl">
+          <label>End level (n, lower energy)</label>
+          <input type="range" id="lvTo" min="1" max="5" step="1" value="2">
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="lvEmit">Drop Electron &amp; Emit Photon</button>
+        <button class="btn" id="lvClearSpec">Clear Spectrum</button>
+      </div>
+      <div class="readout-grid">
+        <div class="readout"><div class="k">Energy Released</div><div class="v amber" id="lvEnergy">&mdash;</div></div>
+        <div class="readout"><div class="k">Photon Wavelength</div><div class="v good" id="lvWave">&mdash;</div></div>
+        <div class="readout"><div class="k">Region</div><div class="v" id="lvRegion">&mdash;</div></div>
+      </div>
+      <div class="stage" style="margin-top:10px;"><canvas id="lvSpecCanvas"></canvas></div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:0;">
+        <h2>Reading the ladder</h2>
+        <p>This is the (simplified) hydrogen atom energy ladder: <span class="hl-amber">E<sub>n</sub> = &minus;13.6&nbsp;eV / n&sup2;</span>. Levels are close together near the top and spread apart near the bottom &mdash; n=1 is the tightly-bound ground state, and higher n means the electron is farther out and more loosely held.</p>
+        <p>When the electron drops from a higher rung to a lower one, it emits a photon carrying exactly the energy difference between those two rungs &mdash; no more, no less. Since <span class="hl-cyan">E = hc/&lambda;</span>, a fixed energy gap means a fixed, exact wavelength (color). That's why every hydrogen atom in the universe produces the identical set of spectral lines, and why astronomers can tell what a distant star is made of just from the colors of light it emits.</p>
+        <p>Try a few different (start, end) pairs and watch the spectrum strip below the diagram fill in &mdash; each atom's full "barcode" of lines is called its <strong>emission spectrum</strong>, and it's how elements were first identified in stars light-years away.</p>
+        <div class="note-box"><strong>Simplification:</strong> this uses hydrogen's exact formula for teaching clarity. Heavier atoms like neon have many electrons and more complex ladders, but the core idea &mdash; discrete levels, fixed-energy photons &mdash; is identical.</div>
+      </div>
+    </div>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const canvas = document.getElementById('lvCanvas');
+  const specCanvas = document.getElementById('lvSpecCanvas');
+  const fromSlider = document.getElementById('lvFrom');
+  const toSlider = document.getElementById('lvTo');
+  const btnEmit = document.getElementById('lvEmit');
+  const btnClearSpec = document.getElementById('lvClearSpec');
+  const energyEl = document.getElementById('lvEnergy');
+  const waveEl = document.getElementById('lvWave');
+  const regionEl = document.getElementById('lvRegion');
+
+  const N_LEVELS = 6;
+  function En(n){ return -13.6/(n*n); }
+
+  let photon = null; // {t0, dur, x0,y0,x1,y1, color}
+  let spectrumLines = []; // {wl, color}
+
+  function wavelengthToColor(wl){
+    // classic approximate visible-spectrum mapping, wl in nm
+    let r=0,g=0,b=0;
+    if(wl>=380 && wl<440){ r=-(wl-440)/(440-380); g=0; b=1; }
+    else if(wl>=440 && wl<490){ r=0; g=(wl-440)/(490-440); b=1; }
+    else if(wl>=490 && wl<510){ r=0; g=1; b=-(wl-510)/(510-490); }
+    else if(wl>=510 && wl<580){ r=(wl-510)/(580-510); g=1; b=0; }
+    else if(wl>=580 && wl<645){ r=1; g=-(wl-645)/(645-580); b=0; }
+    else if(wl>=645 && wl<=780){ r=1; g=0; b=0; }
+    else if(wl<380){ r=0.45; g=0; b=0.9; } // UV shown as violet-ish marker
+    else { r=0.55; g=0.05; b=0.05; } // IR shown as deep red marker
+    return `rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+  }
+
+  function computeTransition(){
+    let ni = parseInt(fromSlider.value), nf = parseInt(toSlider.value);
+    if(nf>=ni){ nf = ni-1; if(nf<1) nf=1; }
+    const dE = En(ni) - En(nf); // positive eV released (ni has less negative/higher energy than nf)
+    const wl = 1240/dE; // nm
+    return {ni,nf,dE,wl};
+  }
+
+  function fixLevels(){
+    if(parseInt(toSlider.value) >= parseInt(fromSlider.value)){
+      toSlider.value = Math.max(1, parseInt(fromSlider.value)-1);
+    }
+  }
+  fromSlider.addEventListener('input', fixLevels);
+  toSlider.addEventListener('input', fixLevels);
+
+  btnEmit.addEventListener('click', ()=>{
+    const {ni,nf,dE,wl} = computeTransition();
+    energyEl.textContent = dE.toFixed(2)+' eV';
+    let region;
+    if(wl<380) region='Ultraviolet'; else if(wl>750) region='Infrared'; else region='Visible';
+    waveEl.textContent = wl<0? '—' : Math.round(wl)+' nm';
+    regionEl.textContent = region;
+    const color = wavelengthToColor(wl);
+    photon = {t0:performance.now(), dur:1400, ni, nf, color};
+    spectrumLines.push({wl, color});
+    if(spectrumLines.length>40) spectrumLines.shift();
+  });
+  btnClearSpec.addEventListener('click', ()=>{ spectrumLines=[]; });
+
+  function levelY(n, h, topPad, botPad){
+    // levels spaced by energy (closer together near top / high n)
+    const eMin = En(1), eMax = En(N_LEVELS);
+    const e = En(n);
+    const frac = (e-eMin)/(eMax-eMin); // 0 at n=1 (most negative) .. 1 at n=N (least negative)
+    return h-botPad - frac*(h-topPad-botPad);
+  }
+
+  function draw(ctx,w,h){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#050813'; ctx.fillRect(0,0,w,h);
+    const leftX = 55, rightX = w-20;
+    const topPad=16, botPad=16;
+
+    for(let n=1;n<=N_LEVELS;n++){
+      const y = levelY(n,h,topPad,botPad);
+      ctx.strokeStyle = n===1 ? '#22d3ee' : '#2a3555';
+      ctx.lineWidth = n===1?2:1.3;
+      ctx.beginPath(); ctx.moveTo(leftX,y); ctx.lineTo(rightX,y); ctx.stroke();
+      ctx.fillStyle='#9fb3c8'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='right';
+      ctx.fillText('n='+n, leftX-8, y+3);
+    }
+    // ionization label
+    ctx.fillStyle='#5b7089'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='left';
+    ctx.fillText('E → 0 (free electron)', leftX, topPad-2 < 10? 10: topPad-2);
+
+    const ni = parseInt(fromSlider.value), nf = parseInt(toSlider.value);
+    const yi = levelY(ni,h,topPad,botPad), yf = levelY(nf,h,topPad,botPad);
+    const ex = leftX + (rightX-leftX)*0.28;
+
+    // electron marker + intended transition arrow (static preview)
+    ctx.strokeStyle='rgba(167,139,250,0.6)'; ctx.setLineDash([4,3]); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(ex,yi); ctx.lineTo(ex,yf); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#a78bfa';
+    ctx.beginPath(); ctx.arc(ex, photon? yf: yi, 5,0,7); ctx.fill();
+
+    // animate photon travel
+    if(photon){
+      const t = (performance.now()-photon.t0)/photon.dur;
+      if(t<=1){
+        const px = ex + t*(rightX-ex-10);
+        const py = yf;
+        ctx.strokeStyle = photon.color; ctx.lineWidth=2;
+        // wavy photon squiggle
+        ctx.beginPath();
+        for(let i=0;i<14;i++){
+          const sx = ex+14 + i*((px-ex-14)/14);
+          const sy = py + Math.sin(i*1.3+performance.now()*0.02)*4;
+          if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+        }
+        ctx.stroke();
+        ctx.fillStyle=photon.color;
+        ctx.beginPath(); ctx.arc(px,py,4,0,7); ctx.fill();
+      } else {
+        photon=null;
+      }
+    }
+  }
+
+  function drawSpectrum(ctx,w,h){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#050813'; ctx.fillRect(0,0,w,h);
+    const left=40,right=w-10;
+    // visible spectrum background ruler 380-780nm
+    for(let px=left; px<right; px++){
+      const wl = 380 + (px-left)/(right-left)*(780-380);
+      ctx.fillStyle = wavelengthToColor(wl);
+      ctx.globalAlpha=0.35;
+      ctx.fillRect(px, h*0.55, 1, h*0.3);
+    }
+    ctx.globalAlpha=1;
+    ctx.strokeStyle='#5b7089'; ctx.strokeRect(left,h*0.55,right-left,h*0.3);
+    ctx.fillStyle='#5b7089'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='center';
+    ctx.fillText('380nm', left, h*0.55-4); ctx.fillText('780nm', right, h*0.55-4);
+    ctx.fillText('visible range', (left+right)/2, h-4);
+
+    spectrumLines.forEach(l=>{
+      let px;
+      if(l.wl<380) px = left-10;
+      else if(l.wl>780) px = right+10;
+      else px = left + (l.wl-380)/(780-380)*(right-left);
+      px = Math.max(6,Math.min(w-6,px));
+      ctx.strokeStyle=l.color; ctx.lineWidth=2; ctx.globalAlpha=0.85;
+      ctx.beginPath(); ctx.moveTo(px,4); ctx.lineTo(px,h*0.5); ctx.stroke();
+      ctx.globalAlpha=1;
+    });
+  }
+
+  regRedraw('levels', canvas, 260, draw);
+  regRedraw('levels', specCanvas, 90, drawSpectrum);
+  function loop(){
+    if(canvas.offsetParent!==null){
+      const a=sizeCanvasEl(canvas,260); draw(a.ctx,a.w,a.h);
+      const b=sizeCanvasEl(specCanvas,90); drawSpectrum(b.ctx,b.w,b.h);
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- ============================================================
+     PANEL: NOTES & FORMULAS
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-notes">
+  <div class="card">
+    <h2>1. Wave&ndash;Particle Duality</h2>
+    <p>Two-slit interference intensity on the screen (coherent, no which-path info):</p>
+    <table class="ftab">
+      <tr><th>Quantity</th><th>Relation</th></tr>
+      <tr><td>Interference intensity</td><td><strong>I(&theta;) &prop; cos&sup2;(&pi;d sin&theta;/&lambda;) &middot; sinc&sup2;(&pi;a sin&theta;/&lambda;)</strong></td></tr>
+      <tr><td>No which-path info (incoherent)</td><td><strong>I(&theta;) = I<sub>1</sub>(&theta;) + I<sub>2</sub>(&theta;)</strong> &mdash; envelopes add, no cross term, no fringes</td></tr>
+    </table>
+    <p><strong>Simplified in this tool:</strong> the diffraction envelope is modeled as a Gaussian rather than the exact sinc&sup2; single-slit function, and slit geometry is stylized for visual clarity rather than drawn to physical scale (real fringe spacings are microns).</p>
+  </div>
+  <div class="card">
+    <h2>2. Superposition</h2>
+    <table class="ftab">
+      <tr><th>Quantity</th><th>Relation</th></tr>
+      <tr><td>General qubit state</td><td><strong>|&psi;&rang; = &alpha;|0&rang; + &beta;|1&rang;</strong>, with |&alpha;|&sup2; + |&beta;|&sup2; = 1</td></tr>
+      <tr><td>Measurement outcome probabilities</td><td><strong>P(0) = |&alpha;|&sup2;</strong>, &nbsp; <strong>P(1) = |&beta;|&sup2;</strong></td></tr>
+    </table>
+    <p>This is exactly the mathematics used for real physical qubits in quantum computers today (superconducting circuits, trapped ions, photons) &mdash; the cat is a teaching device, not a real experiment ever performed.</p>
+  </div>
+  <div class="card">
+    <h2>3. Heisenberg Uncertainty Principle</h2>
+    <table class="ftab">
+      <tr><th>Quantity</th><th>Relation</th></tr>
+      <tr><td>Position&ndash;momentum uncertainty</td><td><strong>&Delta;x &middot; &Delta;p &ge; &#295;/2</strong></td></tr>
+      <tr><td>de Broglie relation</td><td><strong>p = h/&lambda;</strong> &mdash; momentum and wavelength are directly linked</td></tr>
+      <tr><td>Energy&ndash;time analogue</td><td><strong>&Delta;E &middot; &Delta;t &ge; &#295;/2</strong> &mdash; same trade-off, applied to energy and duration</td></tr>
+    </table>
+    <p>The simulator sets the wave packets to exactly saturate the bound (&Delta;x&middot;&Delta;p = &#295;/2) for every slider position, which is the theoretical best case (a "minimum uncertainty" Gaussian packet). Real particles are often less tightly matched, giving &Delta;x&middot;&Delta;p strictly greater than &#295;/2.</p>
+  </div>
+  <div class="card">
+    <h2>4. Quantum Tunneling</h2>
+    <table class="ftab">
+      <tr><th>Quantity</th><th>Relation</th></tr>
+      <tr><td>Decay constant inside barrier</td><td><strong>&kappa; = &radic;(2m(V&#8320;&minus;E))/&#295;</strong></td></tr>
+      <tr><td>Transmission probability (E &lt; V&#8320;)</td><td><strong>T = 1 / [1 + V&#8320;&sup2;sinh&sup2;(&kappa;L) / (4E(V&#8320;&minus;E))]</strong></td></tr>
+    </table>
+    <p>This tool uses natural units (&#295; = m = 1, V&#8320; = 1) so the sliders map directly onto E and barrier width L without unit conversion &mdash; the shape of the relationship (T rises with E, falls sharply with L) is exactly correct; only the absolute numbers are stylized for a clean teaching range.</p>
+  </div>
+  <div class="card">
+    <h2>5. Energy Levels & Atomic Spectra</h2>
+    <table class="ftab">
+      <tr><th>Quantity</th><th>Relation</th></tr>
+      <tr><td>Hydrogen energy levels</td><td><strong>E<sub>n</sub> = &minus;13.6 eV / n&sup2;</strong></td></tr>
+      <tr><td>Photon energy from transition</td><td><strong>E<sub>photon</sub> = E<sub>i</sub> &minus; E<sub>f</sub></strong> (i = initial/higher, f = final/lower)</td></tr>
+      <tr><td>Energy&ndash;wavelength conversion</td><td><strong>&lambda; (nm) = 1240 / E (eV)</strong></td></tr>
+    </table>
+    <p>The transitions ending at n=2 (visible light) are historically called the <strong class="hl-cyan">Balmer series</strong> and are the ones responsible for hydrogen's visible red/blue-green spectral lines &mdash; try (from n=3 or 4, to n=2) to see them.</p>
+  </div>
+  <div class="card">
+    <h2>A note on all the simplifications above</h2>
+    <p>Every simulation here trades some rigor for intuition on purpose &mdash; real quantum mechanics requires complex-valued wavefunctions, the full Schr&ouml;dinger equation, and considerably more care around what "measurement" and "collapse" actually mean at a foundational level (a genuinely unsettled question in physics interpretation, not just pedagogy). Treat this tool as a solid, physically-grounded first mental model &mdash; the natural next step from here is an undergraduate quantum mechanics course or textbook (Griffiths' <em>Introduction to Quantum Mechanics</em> is the standard starting point).</p>
+  </div>
+</div>
+`);
+</script>
+
+<script>
+  // Final init — mark Home tab active in nav and do an initial size/draw pass
+  showTab('home');
+</script>
+</body>
+</html>
