@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Bitcoin Explorer — Interactive Blockchain & Mining Simulator</title>
+<style>
+  :root{
+    --navy-950:#050813;
+    --navy-900:#0a0e1a;
+    --navy-800:#0f1526;
+    --navy-700:#161d33;
+    --navy-600:#1e2740;
+    --grid-line:rgba(251,191,36,0.05);
+    --cyan:#22d3ee;
+    --cyan-dim:#0e7490;
+    --amber:#fbbf24;
+    --amber-dim:#92650f;
+    --violet:#a78bfa;
+    --magenta:#f472b6;
+    --text-hi:#e6f1f7;
+    --text-mid:#9fb3c8;
+    --text-dim:#5b7089;
+    --danger:#f87171;
+    --good:#34d399;
+    --mono:'IBM Plex Mono', 'Consolas', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;
+    background:var(--navy-900);
+    color:var(--text-hi);
+    font-family:var(--mono);
+    -webkit-tap-highlight-color:transparent;
+    overflow-x:hidden;
+  }
+  body{
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size:34px 34px;
+    min-height:100vh;
+  }
+  ::selection{ background:var(--amber-dim); color:#fff; }
+
+  .app{ max-width:1180px; margin:0 auto; padding:18px 16px 60px; }
+
+  header.top{
+    display:flex; align-items:center; gap:14px;
+    padding:16px 18px; margin-bottom:16px;
+    background:linear-gradient(180deg, var(--navy-800), var(--navy-900));
+    border:1px solid var(--navy-600);
+    border-left:3px solid var(--amber);
+    position:relative; overflow:hidden;
+  }
+  header.top::after{
+    content:"";
+    position:absolute; top:0; right:0; bottom:0; width:220px;
+    background:radial-gradient(circle at right, rgba(251,191,36,0.10), transparent 70%);
+    pointer-events:none;
+  }
+  .btc-icon{
+    width:46px;height:46px; flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid var(--amber-dim); border-radius:50%;
+    font-size:22px; color:var(--amber); font-weight:700;
+    box-shadow:0 0 18px rgba(251,191,36,0.25) inset;
+  }
+  header.top h1{
+    font-size:17px; margin:0 0 3px; letter-spacing:0.5px; color:var(--text-hi);
+    font-weight:600;
+  }
+  header.top .sub{
+    font-size:11.5px; color:var(--text-dim); letter-spacing:0.4px;
+  }
+  header.top .tag{
+    margin-left:auto; font-size:10px; color:var(--cyan);
+    border:1px solid var(--cyan-dim); padding:4px 8px;
+    letter-spacing:0.6px; white-space:nowrap; display:none;
+  }
+  @media(min-width:640px){ header.top .tag{ display:block; } }
+
+  nav.tabs{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:4px;
+    margin-bottom:16px; scrollbar-width:thin;
+  }
+  nav.tabs::-webkit-scrollbar{ height:5px; }
+  nav.tabs::-webkit-scrollbar-thumb{ background:var(--navy-600); }
+  .tab-btn{
+    flex:0 0 auto;
+    background:var(--navy-800); color:var(--text-mid);
+    border:1px solid var(--navy-600); border-bottom:2px solid var(--navy-600);
+    padding:9px 14px; font-family:var(--mono); font-size:11.5px;
+    letter-spacing:0.3px; cursor:pointer; white-space:nowrap;
+    transition:all .15s ease;
+  }
+  .tab-btn:hover{ color:var(--text-hi); border-color:var(--amber-dim); }
+  .tab-btn.active{
+    color:var(--navy-950); background:var(--amber);
+    border-color:var(--amber); border-bottom:2px solid var(--cyan);
+    font-weight:600;
+  }
+
+  .panel{ display:none; animation:fadein .25s ease; }
+  .panel.active{ display:block; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .card{
+    background:var(--navy-800); border:1px solid var(--navy-600);
+    padding:16px; margin-bottom:14px;
+  }
+  .card h2{
+    margin:0 0 8px; font-size:14.5px; color:var(--amber); letter-spacing:0.4px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card h2 .n{
+    font-size:10px; color:var(--navy-950); background:var(--cyan);
+    padding:2px 6px; letter-spacing:0.5px;
+  }
+  .card p, .card li{ font-size:12.5px; line-height:1.65; color:var(--text-mid); }
+  .card strong{ color:var(--text-hi); font-weight:600; }
+  .card .hl-cyan{ color:var(--cyan); }
+  .card .hl-amber{ color:var(--amber); }
+  .card .mono-sm{ font-size:11px; word-break:break-all; }
+
+  .grid2{ display:grid; grid-template-columns:1fr; gap:14px; }
+  @media(min-width:860px){ .grid2{ grid-template-columns:1.3fr 1fr; } }
+
+  .stage{
+    background:var(--navy-950); border:1px solid var(--navy-600);
+    position:relative; overflow:hidden;
+  }
+  .stage canvas{ display:block; width:100%; height:auto; touch-action:pan-y; }
+
+  .controls{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; align-items:center; }
+  .ctrl{ display:flex; flex-direction:column; gap:4px; min-width:140px; flex:1 1 140px; }
+  .ctrl label{
+    font-size:10px; color:var(--text-dim); letter-spacing:0.5px; text-transform:uppercase;
+    display:flex; justify-content:space-between;
+  }
+  .ctrl label .val{ color:var(--cyan); }
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:4px; background:var(--navy-600);
+    outline:none; border-radius:2px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:15px; height:15px; border-radius:50%;
+    background:var(--amber); cursor:pointer; border:2px solid var(--navy-950);
+    box-shadow:0 0 8px rgba(251,191,36,0.6);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:15px; height:15px; border-radius:50%;
+    background:var(--amber); cursor:pointer; border:2px solid var(--navy-950);
+  }
+  input[type=text], textarea{
+    width:100%; background:var(--navy-900); color:var(--text-hi);
+    border:1px solid var(--navy-600); padding:8px 10px; font-family:var(--mono);
+    font-size:12.5px; outline:none;
+  }
+  input[type=text]:focus, textarea:focus{ border-color:var(--amber-dim); }
+
+  button.btn{
+    font-family:var(--mono); font-size:11.5px; letter-spacing:0.3px;
+    background:var(--navy-700); color:var(--text-hi);
+    border:1px solid var(--amber-dim); padding:9px 14px;
+    cursor:pointer; transition:all .15s ease;
+  }
+  button.btn:hover{ background:var(--amber-dim); color:#fff; }
+  button.btn.primary{ background:var(--amber); color:var(--navy-950); border-color:var(--amber); font-weight:600; }
+  button.btn.primary:hover{ background:#ffd166; }
+  button.btn.cyan{ border-color:var(--cyan-dim); }
+  button.btn.cyan.active, button.btn.toggle.active{
+    background:var(--cyan); color:var(--navy-950); border-color:var(--cyan); font-weight:600;
+  }
+  button.btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btnrow{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+
+  .readout-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+    gap:8px; margin-top:12px;
+  }
+  .readout{ background:var(--navy-900); border:1px solid var(--navy-600); padding:8px 10px; }
+  .readout .k{ font-size:9.5px; color:var(--text-dim); letter-spacing:0.5px; text-transform:uppercase; }
+  .readout .v{ font-size:15px; color:var(--amber); font-weight:600; margin-top:2px; word-break:break-all; }
+  .readout .v.cyan{ color:var(--cyan); }
+  .readout .v.magenta{ color:var(--magenta); }
+  .readout .v.good{ color:var(--good); }
+  .readout .v.bad{ color:var(--danger); }
+  .readout .v.small{ font-size:11px; }
+
+  .note-box{
+    border-left:3px solid var(--cyan); background:rgba(34,211,238,0.06);
+    padding:10px 12px; font-size:12px; color:var(--text-mid); margin-top:12px;
+  }
+  .note-box strong{ color:var(--cyan); }
+  .info-box{
+    border-left:3px solid var(--amber); background:rgba(251,191,36,0.06);
+    padding:10px 12px; font-size:12px; color:var(--text-mid); margin-top:12px;
+  }
+  .info-box strong{ color:var(--amber); }
+
+  table.ftab{ width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
+  table.ftab th, table.ftab td{
+    border:1px solid var(--navy-600); padding:7px 9px; text-align:left; color:var(--text-mid);
+  }
+  table.ftab th{ color:var(--amber); background:var(--navy-900); font-size:10.5px; letter-spacing:0.4px; text-transform:uppercase; }
+  table.ftab td strong{ color:var(--text-hi); }
+
+  .home-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+  .home-card{
+    background:var(--navy-800); border:1px solid var(--navy-600);
+    border-top:2px solid var(--amber); padding:14px; cursor:pointer;
+    transition:all .15s ease;
+  }
+  .home-card:hover{ border-top-color:var(--cyan); transform:translateY(-2px); background:var(--navy-700); }
+  .home-card .ic{ font-size:22px; margin-bottom:6px; }
+  .home-card h3{ margin:0 0 6px; font-size:13px; color:var(--text-hi); }
+  .home-card p{ margin:0; font-size:11.5px; color:var(--text-dim); line-height:1.5; }
+
+  .block-box{
+    border:1px solid var(--navy-600); background:var(--navy-900);
+    padding:10px; font-size:11px; min-width:150px; flex:1 1 150px;
+    position:relative;
+  }
+  .block-box.valid{ border-color:var(--good); box-shadow:0 0 10px rgba(52,211,153,0.15) inset; }
+  .block-box.invalid{ border-color:var(--danger); box-shadow:0 0 10px rgba(248,113,113,0.2) inset; }
+  .block-box .bh{ font-size:9.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.4px; }
+  .block-box .bv{ font-size:10.5px; color:var(--text-hi); word-break:break-all; margin:3px 0 6px; }
+  .block-box .hashline{ color:var(--cyan); }
+  .block-box .prevline{ color:var(--violet); }
+  .block-box.invalid .hashline{ color:var(--danger); }
+
+  footer.app-footer{ text-align:center; font-size:10.5px; color:var(--text-dim); padding:20px 0 4px; letter-spacing:0.4px; }
+  footer.app-footer .amber{ color:var(--amber-dim); }
+
+  .spinner{
+    display:inline-block; width:10px; height:10px; border-radius:50%;
+    border:2px solid var(--navy-600); border-top-color:var(--amber);
+    animation:spin 0.6s linear infinite; margin-right:6px; vertical-align:-1px;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  @media(max-width:520px){
+    header.top h1{ font-size:14.5px; }
+    .card h2{ font-size:13px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="btc-icon">&#8383;</div>
+    <div>
+      <h1>Bitcoin Explorer</h1>
+      <div class="sub">Interactive simulations — real SHA-256 hashing, mining, blockchains & signatures</div>
+    </div>
+    <div class="tag">OFFLINE &middot; REAL CRYPTOGRAPHY</div>
+  </header>
+
+  <nav class="tabs" id="tabNav"></nav>
+
+  <div id="panels"></div>
+
+  <footer class="app-footer">
+    Built for intuition, not just code &middot; <span class="amber">the SHA-256 hashing here is genuinely computed by your browser, not simulated</span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   SHARED HELPERS
+   ============================================================ */
+const DPR_CAP = 3;
+
+function sizeCanvasEl(canvas, fallbackH){
+  const parent = canvas.parentElement;
+  const cs = getComputedStyle(parent);
+  const padX = parseFloat(cs.paddingLeft||0) + parseFloat(cs.paddingRight||0);
+  let cssW = parent.clientWidth - padX;
+  if(cssW <= 0) cssW = canvas.dataset.lastW ? parseFloat(canvas.dataset.lastW) : 320;
+  let cssH = canvas.dataset.origH ? parseFloat(canvas.dataset.origH) : fallbackH;
+  if(!canvas.dataset.origH) canvas.dataset.origH = cssH;
+  const dpr = Math.min(window.devicePixelRatio||1, DPR_CAP);
+  const needW = Math.round(cssW*dpr), needH = Math.round(cssH*dpr);
+  if(canvas.width !== needW || canvas.height !== needH){
+    canvas.width = needW; canvas.height = needH;
+    canvas.style.width = cssW+'px';
+    canvas.style.height = cssH+'px';
+    canvas.dataset.lastW = cssW;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx, w:cssW, h:cssH};
+}
+
+const redrawRegistry = {};
+function regRedraw(panelId, canvas, fallbackH, draw){
+  if(!redrawRegistry[panelId]) redrawRegistry[panelId] = [];
+  redrawRegistry[panelId].push({canvas, fallbackH, draw});
+}
+function redrawPanel(panelId){
+  const list = redrawRegistry[panelId];
+  if(!list) return;
+  list.forEach(item=>{
+    if(item.canvas.offsetParent === null) return;
+    const {ctx,w,h} = sizeCanvasEl(item.canvas, item.fallbackH);
+    item.draw(ctx,w,h);
+  });
+}
+window.addEventListener('resize', ()=>{ redrawPanel(activePanelId); });
+
+function fmt(n, d=2){ return Number(n).toFixed(d); }
+
+// --- Real SHA-256 via SubtleCrypto ---
+async function sha256Hex(message){
+  const enc = new TextEncoder().encode(message);
+  const digest = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function countLeadingZeroBits(hexStr){
+  let bits = 0;
+  for(const ch of hexStr){
+    const v = parseInt(ch,16);
+    if(v===0){ bits += 4; continue; }
+    if(v < 8) bits+=1;
+    if(v < 4) bits+=1;
+    if(v < 2) bits+=1;
+    break;
+  }
+  return bits;
+}
+function meetsTarget(hexStr, difficultyBits){
+  return countLeadingZeroBits(hexStr) >= difficultyBits;
+}
+
+/* ============================================================
+   TAB / PANEL FRAMEWORK
+   ============================================================ */
+const TABS = [
+  {id:'home', label:'Home'},
+  {id:'hashing', label:'1 &middot; Hashing (SHA-256)'},
+  {id:'blockchain', label:'2 &middot; The Blockchain'},
+  {id:'mining', label:'3 &middot; Mining / Proof-of-Work'},
+  {id:'signatures', label:'4 &middot; Digital Signatures'},
+  {id:'merkle', label:'5 &middot; Merkle Trees'},
+  {id:'consensus', label:'6 &middot; Consensus & 51%'},
+  {id:'notes', label:'Notes & Formulas'},
+];
+
+let activePanelId = 'home';
+const tabNav = document.getElementById('tabNav');
+const panelsRoot = document.getElementById('panels');
+
+TABS.forEach(t=>{
+  const b = document.createElement('button');
+  b.className='tab-btn'; b.dataset.tab=t.id; b.innerHTML=t.label;
+  b.addEventListener('click', ()=>showTab(t.id));
+  tabNav.appendChild(b);
+});
+
+function showTab(id){
+  activePanelId = id;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+id));
+  requestAnimationFrame(()=>redrawPanel(id));
+  window.scrollTo({top:0, behavior:'instant'});
+}
+</script>
+
+<!-- ============================================================
+     PANEL: HOME
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel active" id="panel-home">
+  <div class="card">
+    <h2>What this tool is</h2>
+    <p>Bitcoin gets explained with a lot of jargon up front &mdash; "cryptographic hash functions," "proof-of-work," "consensus." This tool flips that: <strong class="hl-amber">every idea gets a hands-on example first</strong>, using the real SHA-256 algorithm your browser actually computes (not a fake animation), so what you see is genuinely how it works under the hood.</p>
+    <p>Six ideas, each with its own lab, roughly in the order they'd click into place:</p>
+  </div>
+  <div class="home-grid">
+    <div class="home-card" data-goto="hashing">
+      <div class="ic">&#128290;</div>
+      <h3>1. Hashing (SHA-256)</h3>
+      <p>Type anything and watch it turn into a fixed-length fingerprint. Change one letter and the whole fingerprint scrambles &mdash; the "avalanche effect" that makes tampering detectable.</p>
+    </div>
+    <div class="home-card" data-goto="blockchain">
+      <div class="ic">&#128279;</div>
+      <h3>2. The Blockchain</h3>
+      <p>A real chain of blocks, each one's hash depending on the one before it. Edit old data and watch every block after it turn red &mdash; that's what makes a blockchain tamper-evident.</p>
+    </div>
+    <div class="home-card" data-goto="mining">
+      <div class="ic">&#9935;&#65039;</div>
+      <h3>3. Mining / Proof-of-Work</h3>
+      <p>The actual race: try nonce after nonce until you find a hash starting with enough zeros. Turn up the difficulty and watch how much harder it gets.</p>
+    </div>
+    <div class="home-card" data-goto="signatures">
+      <div class="ic">&#128273;</div>
+      <h3>4. Digital Signatures</h3>
+      <p>Generate a real public/private keypair, sign a message, and prove you own it &mdash; without ever revealing the private key. Tamper the message and watch verification fail.</p>
+    </div>
+    <div class="home-card" data-goto="merkle">
+      <div class="ic">&#127795;</div>
+      <h3>5. Merkle Trees</h3>
+      <p>How thousands of transactions get compressed into one root hash, and how you can prove a single transaction is included without downloading the whole block.</p>
+    </div>
+    <div class="home-card" data-goto="consensus">
+      <div class="ic">&#9878;&#65039;</div>
+      <h3>6. Consensus & the 51% Attack</h3>
+      <p>Race an honest chain against an attacker's chain and see why the longest valid chain wins &mdash; and just how much computing power it'd take to cheat.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <h2>The one idea that ties all six together</h2>
+    <p>Bitcoin needs thousands of strangers, with no central authority, to agree on a single shared history of who owns what. Every piece in this tool exists to solve one slice of that problem: hashing makes data tamper-evident, chaining links records together, mining makes rewriting history prohibitively expensive, signatures prove ownership without a password, Merkle trees make verification efficient, and the longest-chain rule lets everyone agree on the same version of truth &mdash; automatically, without anyone in charge.</p>
+  </div>
+</div>
+`);
+document.querySelectorAll('#panel-home .home-card').forEach(c=>{
+  c.addEventListener('click', ()=>showTab(c.dataset.goto));
+});
+</script>
+
+<!-- ============================================================
+     PANEL 1: HASHING (SHA-256)
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-hashing">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> Turning Any Text Into a Fingerprint</h2>
+    <p>A <strong class="hl-amber">hash function</strong> takes any input &mdash; a word, a book, a whole database &mdash; and produces a fixed-length string that looks like random noise. Bitcoin uses SHA-256, which always outputs exactly 256 bits (64 hex characters), no matter the input size. The same input always produces the exact same output, but there's no way to work backward from the output to the input, and no way to predict how the output changes without actually recomputing it.</p>
+    <p>Type below and watch your real, live SHA-256 hash appear as you type.</p>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="card" style="margin-bottom:10px;">
+        <h2>Live Hasher</h2>
+        <div class="ctrl">
+          <label>Type anything</label>
+          <input type="text" id="hxInput" value="Hello, Bitcoin!" placeholder="Type a message…">
+        </div>
+        <div class="readout-grid" style="margin-top:10px;">
+          <div class="readout" style="grid-column:1/-1;">
+            <div class="k">SHA-256 Hash (hex)</div>
+            <div class="v cyan mono-sm" id="hxHash">&mdash;</div>
+          </div>
+        </div>
+        <div class="stage" style="margin-top:10px;"><canvas id="hxByteCanvas"></canvas></div>
+        <p style="font-size:10.5px; color:var(--text-dim); margin-top:6px;">Each square is one byte of the hash, colored by its value — pure visual noise, exactly what a good hash should look like.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:0;">
+        <h2>Why this matters for Bitcoin</h2>
+        <p>Bitcoin uses SHA-256 for two big jobs: linking blocks together (each block stores the hash of the one before it) and proof-of-work mining (finding a nonce that makes the block's hash start with enough zeros). Both depend entirely on hashing being <strong>one-way</strong> and <strong>unpredictable</strong>.</p>
+        <div class="info-box"><strong>Try this:</strong> hash "Hello, Bitcoin!" then change just the exclamation point to a period. The two hashes will share almost nothing in common — roughly half the bits flip on average. That's called the <strong class="hl-amber">avalanche effect</strong>, and it's exactly what makes tampering detectable later, in the Blockchain tab.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Avalanche Effect — Two Nearly Identical Messages</h2>
+    <p>Edit message B so it differs from message A by just one character, and compare the hashes below.</p>
+    <div class="controls">
+      <div class="ctrl" style="flex:1 1 260px;">
+        <label>Message A</label>
+        <input type="text" id="avA" value="I am sending 1 BTC to Bob">
+      </div>
+      <div class="ctrl" style="flex:1 1 260px;">
+        <label>Message B</label>
+        <input type="text" id="avB" value="I am sending 2 BTC to Bob">
+      </div>
+    </div>
+    <div class="readout-grid">
+      <div class="readout" style="grid-column:1/-1;"><div class="k">Hash A</div><div class="v small mono-sm" id="avHashA">&mdash;</div></div>
+      <div class="readout" style="grid-column:1/-1;"><div class="k">Hash B</div><div class="v small mono-sm" id="avHashB">&mdash;</div></div>
+      <div class="readout"><div class="k">Bits Different</div><div class="v amber" id="avDiffBits">&mdash;</div></div>
+      <div class="readout"><div class="k">% of 256 Bits Flipped</div><div class="v good" id="avDiffPct">&mdash;</div></div>
+    </div>
+    <div class="note-box"><strong>Notice:</strong> the two input messages differ by a single digit, but the outputs are essentially unrelated — right around 50% of bits flip, which is exactly what you'd get from two <em>completely random</em> 256-bit strings. There is no partial credit in hashing; "close" inputs never give "close" outputs.</div>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const input = document.getElementById('hxInput');
+  const hashEl = document.getElementById('hxHash');
+  const byteCanvas = document.getElementById('hxByteCanvas');
+  let lastBytes = [];
+
+  async function updateHash(){
+    const hex = await sha256Hex(input.value);
+    hashEl.textContent = hex;
+    lastBytes = [];
+    for(let i=0;i<hex.length;i+=2) lastBytes.push(parseInt(hex.substr(i,2),16));
+    redrawPanel('hashing');
+  }
+  input.addEventListener('input', updateHash);
+
+  function drawBytes(ctx,w,h){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#050813'; ctx.fillRect(0,0,w,h);
+    const cols=16, rows=2;
+    const cellW = w/cols, cellH = h/rows;
+    lastBytes.forEach((b,i)=>{
+      const cx = (i%cols)*cellW, cy = Math.floor(i/cols)*cellH;
+      const hue = (b/255)*300;
+      ctx.fillStyle = `hsl(${hue},65%,55%)`;
+      ctx.fillRect(cx+1,cy+1,cellW-2,cellH-2);
+      ctx.fillStyle='rgba(0,0,0,0.55)';
+      ctx.font=Math.max(8,cellH*0.32)+'px IBM Plex Mono';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(b.toString(16).padStart(2,'0'), cx+cellW/2, cy+cellH/2);
+    });
+  }
+  regRedraw('hashing', byteCanvas, 90, drawBytes);
+
+  // Avalanche demo
+  const avA = document.getElementById('avA');
+  const avB = document.getElementById('avB');
+  const avHashA = document.getElementById('avHashA');
+  const avHashB = document.getElementById('avHashB');
+  const avDiffBits = document.getElementById('avDiffBits');
+  const avDiffPct = document.getElementById('avDiffPct');
+
+  function hexToBits(hex){
+    return hex.split('').map(c=>parseInt(c,16).toString(2).padStart(4,'0')).join('');
+  }
+  async function updateAvalanche(){
+    const [ha, hb] = await Promise.all([sha256Hex(avA.value), sha256Hex(avB.value)]);
+    avHashA.textContent = ha;
+    avHashB.textContent = hb;
+    const ba = hexToBits(ha), bb = hexToBits(hb);
+    let diff=0;
+    for(let i=0;i<ba.length;i++) if(ba[i]!==bb[i]) diff++;
+    avDiffBits.textContent = diff + ' / 256';
+    avDiffPct.textContent = ((diff/256)*100).toFixed(1)+'%';
+  }
+  avA.addEventListener('input', updateAvalanche);
+  avB.addEventListener('input', updateAvalanche);
+
+  updateHash();
+  updateAvalanche();
+})();
+</script>
+
+<!-- ============================================================
+     PANEL 2: THE BLOCKCHAIN
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-blockchain">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> A Chain You Can Try to Tamper With</h2>
+    <p>Each block below stores some data, the hash of the <em>previous</em> block, and its own hash (computed from its data + that previous hash, using real SHA-256). That's the entire trick of a "blockchain" — each block is cryptographically stitched to the one before it.</p>
+    <p><strong class="hl-amber">Try editing the data in Block 1</strong> (an old block). Because of the avalanche effect from the last tab, its hash changes completely — but Block 2 is still pointing at the <em>old</em> hash. Watch every block after it turn red.</p>
+  </div>
+  <div class="card">
+    <div id="bcChainRow" style="display:flex; flex-wrap:wrap; gap:10px; align-items:stretch;"></div>
+    <div class="btnrow">
+      <button class="btn primary" id="bcFix">Re-Mine Chain From the Break (Fix It)</button>
+      <button class="btn" id="bcReset">Reset to Original Chain</button>
+    </div>
+    <div class="readout-grid">
+      <div class="readout"><div class="k">Chain Status</div><div class="v good" id="bcStatus">All blocks valid</div></div>
+      <div class="readout"><div class="k">Broken Link Starts At</div><div class="v" id="bcBreakAt">&mdash;</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>What "re-mining" really means</h2>
+    <p>Clicking "Re-Mine Chain From the Break" instantly recalculates every downstream hash here — but on the real Bitcoin network, each of those recalculations isn't a single hash, it's a full proof-of-work race (see the next tab) that takes real electricity and real time, currently averaging 10 minutes <em>per block</em> across the entire network. Rewriting old history means re-doing that race for every single block since — and doing it faster than everyone else combined. That's the real reason old Bitcoin blocks are effectively permanent.</p>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const row = document.getElementById('bcChainRow');
+  const statusEl = document.getElementById('bcStatus');
+  const breakAtEl = document.getElementById('bcBreakAt');
+  const btnFix = document.getElementById('bcFix');
+  const btnReset = document.getElementById('bcReset');
+
+  const ORIGINAL_DATA = [
+    'Genesis Block — no prior history',
+    'Alice pays Bob 1.0 BTC',
+    'Bob pays Carol 0.4 BTC',
+    'Carol pays Dave 0.15 BTC',
+  ];
+
+  let blocks = []; // {index, data, prevHash, hash}
+
+  async function computeHash(b){
+    return sha256Hex('idx:'+b.index+'|data:'+b.data+'|prev:'+b.prevHash);
+  }
+
+  async function buildOriginalChain(){
+    blocks = ORIGINAL_DATA.map((d,i)=>({index:i, data:d, prevHash: i===0?'0'.repeat(64):'', hash:''}));
+    let prev = '0'.repeat(64);
+    for(const b of blocks){
+      b.prevHash = prev;
+      b.hash = await computeHash(b);
+      prev = b.hash;
+    }
+    render();
+  }
+
+  async function recomputeFromEdit(editedIdx){
+    // recompute only the edited block's own hash; downstream prevHash pointers stay stale (simulating tamper)
+    const b = blocks[editedIdx];
+    b.hash = await computeHash(b);
+    render();
+  }
+
+  async function fixChainFromBreak(){
+    let prev = blocks[0].prevHash; // genesis prevHash stays 0^64
+    for(let i=0;i<blocks.length;i++){
+      const b = blocks[i];
+      b.prevHash = prev;
+      b.hash = await computeHash(b);
+      prev = b.hash;
+    }
+    render();
+  }
+
+  function isValid(i){
+    if(i===0) return true;
+    return blocks[i].prevHash === blocks[i-1].hash;
+  }
+
+  function render(){
+    row.innerHTML='';
+    let breakIdx = -1;
+    blocks.forEach((b,i)=>{
+      const valid = isValid(i);
+      if(!valid && breakIdx===-1) breakIdx = i;
+    });
+    blocks.forEach((b,i)=>{
+      const valid = isValid(i);
+      const div = document.createElement('div');
+      div.className = 'block-box ' + (valid?'valid':'invalid');
+      div.innerHTML = `
+        <div class="bh">Block ${b.index}${b.index===0?' (genesis)':''}</div>
+        <textarea rows="2" style="width:100%;font-size:10.5px;margin:4px 0 6px;" data-idx="${i}" ${b.index===0?'':''}>${b.data}</textarea>
+        <div class="bh">Prev Hash</div>
+        <div class="bv prevline">${b.prevHash.slice(0,16)}&hellip;</div>
+        <div class="bh">This Block's Hash</div>
+        <div class="bv hashline">${b.hash.slice(0,16)}&hellip;</div>
+        <div class="bh" style="color:${valid?'#34d399':'#f87171'};">${valid?'✓ LINK VALID':'✗ LINK BROKEN'}</div>
+      `;
+      row.appendChild(div);
+      if(i < blocks.length-1){
+        const arrow = document.createElement('div');
+        arrow.style.cssText='display:flex;align-items:center;color:#5b7089;font-size:16px;';
+        arrow.textContent='→';
+        row.appendChild(arrow);
+      }
+    });
+    row.querySelectorAll('textarea').forEach(ta=>{
+      ta.addEventListener('input', (e)=>{
+        const idx = parseInt(e.target.dataset.idx);
+        blocks[idx].data = e.target.value;
+        recomputeFromEdit(idx);
+      });
+    });
+
+    if(breakIdx===-1){
+      statusEl.textContent = 'All blocks valid';
+      statusEl.className = 'v good';
+      breakAtEl.textContent = '—';
+    } else {
+      statusEl.textContent = `Chain broken from Block ${breakIdx} onward`;
+      statusEl.className = 'v bad';
+      breakAtEl.textContent = 'Block ' + breakIdx;
+    }
+  }
+
+  btnFix.addEventListener('click', fixChainFromBreak);
+  btnReset.addEventListener('click', buildOriginalChain);
+
+  buildOriginalChain();
+})();
+</script>
+
+<!-- ============================================================
+     PANEL 3: MINING / PROOF-OF-WORK
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-mining">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> The Actual Race Miners Run</h2>
+    <p>A block is only valid if its hash starts with enough zero bits — say the first 16 bits (4 hex characters) must all be zero. There's no clever way to construct a message that hashes to that; the only method anyone has ever found is to keep changing a number (the <strong class="hl-amber">nonce</strong>) and re-hashing until you get lucky. Hit "Start Mining" below and watch it happen, hash by real hash.</p>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="ctrl">
+          <label>Block header (fixed data you're mining)</label>
+          <input type="text" id="mnHeader" value="Block #124 | prevHash:0000a3f9c2… | Alice→Bob 1.0 BTC, Bob→Carol 0.4 BTC">
+        </div>
+        <div class="controls">
+          <div class="ctrl">
+            <label>Difficulty (required leading zero bits) <span class="val" id="mnDiffVal">16</span></label>
+            <input type="range" id="mnDiff" min="4" max="24" step="1" value="16">
+          </div>
+        </div>
+        <div class="btnrow">
+          <button class="btn primary" id="mnStart">&#9654; Start Mining</button>
+          <button class="btn" id="mnStop" disabled>&#9724; Stop</button>
+          <button class="btn" id="mnReset">Reset</button>
+        </div>
+        <div class="readout-grid">
+          <div class="readout"><div class="k">Current Nonce</div><div class="v" id="mnNonce">0</div></div>
+          <div class="readout"><div class="k">Attempts</div><div class="v" id="mnAttempts">0</div></div>
+          <div class="readout"><div class="k">Hash Rate</div><div class="v cyan" id="mnRate">0 H/s</div></div>
+          <div class="readout"><div class="k">Elapsed</div><div class="v" id="mnTime">0.0s</div></div>
+          <div class="readout"><div class="k">Expected Attempts (2^bits)</div><div class="v amber" id="mnExpected">&mdash;</div></div>
+          <div class="readout" style="grid-column:1/-1;"><div class="k">Latest Hash Tried</div><div class="v small mono-sm" id="mnLatestHash">&mdash;</div></div>
+        </div>
+        <div id="mnFoundBox" class="note-box" style="display:none;">
+          <strong>&#9989; Block mined!</strong> Nonce <span id="mnFoundNonce"></span> produced a hash with enough leading zeros in <span id="mnFoundTime"></span>s, after <span id="mnFoundAttempts"></span> attempts.
+          <div class="mono-sm" style="margin-top:6px; color:var(--good);" id="mnFoundHash"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:0;">
+        <h2>Reading the numbers</h2>
+        <p>Each extra bit of required difficulty <strong>doubles</strong> the expected number of attempts — going from 16 to 20 bits isn't 25% harder, it's <strong class="hl-amber">16&times; harder</strong>. That's why Bitcoin's real difficulty (adjusted every ~2 weeks to keep blocks arriving every ~10 minutes) climbs so fast as more mining hardware joins the network.</p>
+        <p>Notice there's no pattern to when a valid nonce shows up — sometimes it's fast, sometimes it takes far longer than the expected average. That randomness is fundamental, not a limitation of this demo: <strong>hashing has no shortcuts</strong>, so "keep guessing" really is the best strategy anyone has.</p>
+        <div class="info-box"><strong>Scale check:</strong> the real Bitcoin network currently searches on the order of hundreds of exahashes per second (10<sup>20</sup>+ hashes/sec) across specialized ASIC hardware, worldwide, continuously — this browser tab searches maybe a few hundred to a few thousand hashes/sec. That gap is intentional context for how large-scale mining actually is.</div>
+      </div>
+    </div>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const headerInput = document.getElementById('mnHeader');
+  const diffSlider = document.getElementById('mnDiff');
+  const diffVal = document.getElementById('mnDiffVal');
+  const btnStart = document.getElementById('mnStart');
+  const btnStop = document.getElementById('mnStop');
+  const btnReset = document.getElementById('mnReset');
+  const nonceEl = document.getElementById('mnNonce');
+  const attemptsEl = document.getElementById('mnAttempts');
+  const rateEl = document.getElementById('mnRate');
+  const timeEl = document.getElementById('mnTime');
+  const expectedEl = document.getElementById('mnExpected');
+  const latestHashEl = document.getElementById('mnLatestHash');
+  const foundBox = document.getElementById('mnFoundBox');
+  const foundNonceEl = document.getElementById('mnFoundNonce');
+  const foundTimeEl = document.getElementById('mnFoundTime');
+  const foundAttemptsEl = document.getElementById('mnFoundAttempts');
+  const foundHashEl = document.getElementById('mnFoundHash');
+
+  let mining = false;
+  let nonce = 0, attempts = 0, startTime = 0;
+  let rateWindowStart = 0, rateWindowAttempts = 0;
+
+  function updateExpected(){
+    const bits = parseInt(diffSlider.value);
+    diffVal.textContent = bits;
+    const expected = Math.pow(2,bits);
+    expectedEl.textContent = expected >= 1e6 ? expected.toExponential(2) : Math.round(expected).toLocaleString();
+  }
+  diffSlider.addEventListener('input', updateExpected);
+  updateExpected();
+
+  async function mineStep(){
+    if(!mining) return;
+    const batchSize = 15;
+    for(let i=0;i<batchSize;i++){
+      const candidate = headerInput.value + '|nonce:' + nonce;
+      const hex = await sha256Hex(candidate);
+      attempts++; rateWindowAttempts++;
+      const bits = parseInt(diffSlider.value);
+      if(meetsTarget(hex, bits)){
+        mining = false;
+        const elapsed = (performance.now()-startTime)/1000;
+        foundBox.style.display='block';
+        foundNonceEl.textContent = nonce;
+        foundTimeEl.textContent = elapsed.toFixed(2);
+        foundAttemptsEl.textContent = attempts.toLocaleString();
+        foundHashEl.textContent = hex;
+        latestHashEl.textContent = hex;
+        nonceEl.textContent = nonce;
+        attemptsEl.textContent = attempts.toLocaleString();
+        timeEl.textContent = elapsed.toFixed(1)+'s';
+        btnStart.disabled=false; btnStop.disabled=true;
+        return;
+      }
+      latestHashEl.textContent = hex;
+      nonce++;
+    }
+    nonceEl.textContent = nonce;
+    attemptsEl.textContent = attempts.toLocaleString();
+    timeEl.textContent = ((performance.now()-startTime)/1000).toFixed(1)+'s';
+
+    const now = performance.now();
+    if(now - rateWindowStart > 400){
+      const rate = rateWindowAttempts / ((now-rateWindowStart)/1000);
+      rateEl.textContent = Math.round(rate).toLocaleString()+' H/s';
+      rateWindowStart = now; rateWindowAttempts = 0;
+    }
+
+    if(mining) requestAnimationFrame(mineStep);
+  }
+
+  btnStart.addEventListener('click', ()=>{
+    mining = true;
+    startTime = performance.now();
+    rateWindowStart = startTime; rateWindowAttempts = 0;
+    foundBox.style.display='none';
+    btnStart.disabled=true; btnStop.disabled=false;
+    mineStep();
+  });
+  btnStop.addEventListener('click', ()=>{
+    mining = false;
+    btnStart.disabled=false; btnStop.disabled=true;
+  });
+  btnReset.addEventListener('click', ()=>{
+    mining=false; nonce=0; attempts=0;
+    nonceEl.textContent='0'; attemptsEl.textContent='0'; rateEl.textContent='0 H/s'; timeEl.textContent='0.0s';
+    latestHashEl.textContent='—'; foundBox.style.display='none';
+    btnStart.disabled=false; btnStop.disabled=true;
+  });
+})();
+</script>
+
+<!-- ============================================================
+     PANEL 4: DIGITAL SIGNATURES
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-signatures">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> Proving You Own Coins Without a Password</h2>
+    <p>Bitcoin has no usernames or passwords. Instead, every wallet is a real <strong class="hl-amber">key pair</strong>: a private key you keep completely secret, and a public key (derived from it) that's safe to share with the entire world. To spend coins, you <strong>sign</strong> the transaction with your private key — anyone can then verify that signature using only your public key, proving the transaction really came from you, without you ever revealing the private key itself.</p>
+    <p>Generate a real keypair below (ECDSA, the same family of algorithm Bitcoin uses) and sign an actual message with it.</p>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="card" style="margin-bottom:10px;">
+        <h2>Step 1 — Your Wallet</h2>
+        <div class="btnrow"><button class="btn primary" id="sgGenKeys">Generate New Keypair</button></div>
+        <div class="readout-grid">
+          <div class="readout" style="grid-column:1/-1;"><div class="k">Public Key (safe to share)</div><div class="v cyan small mono-sm" id="sgPubKey">Click "Generate" first…</div></div>
+          <div class="readout" style="grid-column:1/-1;"><div class="k">Private Key</div><div class="v bad small" id="sgPrivKey">&#128274; kept secret in-memory — never shown, exactly like a real wallet</div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:10px;">
+        <h2>Step 2 — Sign a Transaction</h2>
+        <div class="ctrl"><label>Transaction message</label>
+          <input type="text" id="sgMessage" value="Pay 0.5 BTC to Bob's address">
+        </div>
+        <div class="btnrow"><button class="btn primary" id="sgSign">Sign With Private Key</button></div>
+        <div class="readout-grid">
+          <div class="readout" style="grid-column:1/-1;"><div class="k">Signature</div><div class="v amber small mono-sm" id="sgSignature">&mdash;</div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <h2>Step 3 — Anyone Can Verify</h2>
+        <div class="ctrl"><label>Message being verified (try editing this!)</label>
+          <input type="text" id="sgVerifyMsg" value="Pay 0.5 BTC to Bob's address">
+        </div>
+        <div class="btnrow"><button class="btn primary" id="sgVerify">Verify Signature</button></div>
+        <div class="readout-grid">
+          <div class="readout"><div class="k">Result</div><div class="v" id="sgResult">&mdash;</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:0;">
+        <h2>What just happened</h2>
+        <p>The signature is a mathematical proof, computed from the message and the private key together, that only someone holding that exact private key could have produced — yet checking it (Step 3) only ever needs the <strong class="hl-cyan">public</strong> key. That asymmetry is the whole point.</p>
+        <p><strong class="hl-amber">Now go edit the message in Step 3</strong> — even one character — and verify again. The signature was computed for the exact original wording, so it will fail against anything else. This is exactly how Bitcoin prevents a transaction from being altered after it's signed (change the amount or recipient, and the signature no longer matches).</p>
+        <div class="note-box"><strong>Your Bitcoin address</strong> is actually derived from your public key (hashed down further for a shorter, more usable format) — so "sending money to an address" really means "creating an output that only the matching private key can later sign to spend."</div>
+      </div>
+    </div>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const btnGen = document.getElementById('sgGenKeys');
+  const pubKeyEl = document.getElementById('sgPubKey');
+  const msgInput = document.getElementById('sgMessage');
+  const btnSign = document.getElementById('sgSign');
+  const sigEl = document.getElementById('sgSignature');
+  const verifyMsgInput = document.getElementById('sgVerifyMsg');
+  const btnVerify = document.getElementById('sgVerify');
+  const resultEl = document.getElementById('sgResult');
+
+  let keyPair = null;
+  let lastSignature = null;
+  let signedMessage = '';
+
+  function buf2hex(buf){ return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+
+  btnGen.addEventListener('click', async ()=>{
+    keyPair = await crypto.subtle.generateKey(
+      {name:'ECDSA', namedCurve:'P-256'}, true, ['sign','verify']
+    );
+    const raw = await crypto.subtle.exportKey('raw', keyPair.publicKey);
+    pubKeyEl.textContent = buf2hex(raw);
+    sigEl.textContent = '—'; resultEl.textContent='—'; resultEl.className='v';
+    lastSignature = null;
+  });
+
+  btnSign.addEventListener('click', async ()=>{
+    if(!keyPair){ alert('Generate a keypair first.'); return; }
+    const enc = new TextEncoder().encode(msgInput.value);
+    const sig = await crypto.subtle.sign({name:'ECDSA', hash:'SHA-256'}, keyPair.privateKey, enc);
+    lastSignature = sig;
+    signedMessage = msgInput.value;
+    sigEl.textContent = buf2hex(sig);
+    verifyMsgInput.value = msgInput.value;
+    resultEl.textContent='—'; resultEl.className='v';
+  });
+
+  btnVerify.addEventListener('click', async ()=>{
+    if(!keyPair || !lastSignature){ alert('Generate keys and sign a message first.'); return; }
+    const enc = new TextEncoder().encode(verifyMsgInput.value);
+    const ok = await crypto.subtle.verify({name:'ECDSA', hash:'SHA-256'}, keyPair.publicKey, lastSignature, enc);
+    resultEl.textContent = ok ? '✓ VALID — signature matches' : '✗ INVALID — message was altered';
+    resultEl.className = 'v ' + (ok?'good':'bad');
+  });
+})();
+</script>
+
+<!-- ============================================================
+     PANEL 5: MERKLE TREES
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-merkle">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> Compressing Thousands of Transactions Into One Hash</h2>
+    <p>A real Bitcoin block can hold thousands of transactions, but the block header only stores <strong class="hl-amber">one</strong> hash representing all of them: the <strong>Merkle root</strong>. It's built by hashing transactions in pairs, then hashing those results in pairs, and so on up to a single root — like a tournament bracket, but for hashes.</p>
+    <p>Edit a transaction below and watch the change ripple all the way up to the root.</p>
+  </div>
+  <div class="card">
+    <h2>8 Transactions in This Block</h2>
+    <div id="mkTxList" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:8px;"></div>
+    <div class="btnrow">
+      <span style="font-size:11px;color:var(--text-dim);align-self:center;">Click a transaction number below the tree to see its Merkle proof path.</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="stage"><canvas id="mkTreeCanvas"></canvas></div>
+    <div class="btnrow" id="mkLeafBtns"></div>
+    <div class="readout-grid">
+      <div class="readout" style="grid-column:1/-1;"><div class="k">Merkle Root</div><div class="v cyan small mono-sm" id="mkRoot">&mdash;</div></div>
+      <div class="readout" style="grid-column:1/-1;" id="mkProofBox"><div class="k">Merkle Proof (select a transaction above)</div><div class="v small" id="mkProof">&mdash;</div></div>
+    </div>
+    <div class="note-box"><strong>What a proof buys you:</strong> to prove transaction #3 is really in this block, you don't need all 8 transactions — just #3 itself plus the 3 highlighted "sibling" hashes shown above. Anyone can recompute up to the root with just those 4 hashes and confirm it matches the block header. That's how lightweight ("SPV") Bitcoin wallets verify payments without downloading the entire blockchain.</div>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const txListEl = document.getElementById('mkTxList');
+  const canvas = document.getElementById('mkTreeCanvas');
+  const leafBtnsEl = document.getElementById('mkLeafBtns');
+  const rootEl = document.getElementById('mkRoot');
+  const proofEl = document.getElementById('mkProof');
+
+  const DEFAULT_TX = [
+    'Alice→Bob 1.0 BTC','Bob→Carol 0.4 BTC','Carol→Dave 0.15 BTC','Dave→Eve 0.05 BTC',
+    'Eve→Frank 0.3 BTC','Frank→Grace 0.2 BTC','Grace→Heidi 0.6 BTC','Heidi→Alice 0.1 BTC'
+  ];
+  let txs = DEFAULT_TX.slice();
+  let levels = []; // levels[0] = leaf hashes, ... levels[last] = [root]
+  let selectedLeaf = -1;
+
+  async function buildTree(){
+    const leafHashes = await Promise.all(txs.map(t=>sha256Hex('tx:'+t)));
+    levels = [leafHashes];
+    let cur = leafHashes;
+    while(cur.length>1){
+      const next = [];
+      for(let i=0;i<cur.length;i+=2){
+        const pair = cur[i] + (cur[i+1]||cur[i]);
+        next.push(await sha256Hex(pair));
+      }
+      levels.push(next);
+      cur = next;
+    }
+    rootEl.textContent = levels[levels.length-1][0];
+    redrawPanel('merkle');
+    updateProof();
+  }
+
+  function renderTxInputs(){
+    txListEl.innerHTML='';
+    txs.forEach((t,i)=>{
+      const wrap = document.createElement('div');
+      wrap.innerHTML = `<label style="font-size:9.5px;color:var(--text-dim);">TX ${i}</label>`;
+      const inp = document.createElement('input');
+      inp.type='text'; inp.value=t; inp.style.fontSize='11px';
+      inp.addEventListener('input', ()=>{ txs[i]=inp.value; buildTree(); });
+      wrap.appendChild(inp);
+      txListEl.appendChild(wrap);
+    });
+  }
+
+  function renderLeafBtns(){
+    leafBtnsEl.innerHTML='';
+    for(let i=0;i<txs.length;i++){
+      const b = document.createElement('button');
+      b.className='btn' + (i===selectedLeaf?' cyan active':'');
+      b.textContent = 'Prove TX '+i;
+      b.addEventListener('click', ()=>{ selectedLeaf = i; renderLeafBtns(); updateProof(); redrawPanel('merkle'); });
+      leafBtnsEl.appendChild(b);
+    }
+  }
+
+  function proofPath(){
+    // returns array of {level, siblingIndex} needed to reconstruct root from selectedLeaf
+    if(selectedLeaf<0) return [];
+    const path = [];
+    let idx = selectedLeaf;
+    for(let lvl=0; lvl<levels.length-1; lvl++){
+      const isRight = idx%2===1;
+      const sibIdx = isRight ? idx-1 : idx+1;
+      const arr = levels[lvl];
+      const sibHash = arr[sibIdx] !== undefined ? arr[sibIdx] : arr[idx];
+      path.push({level:lvl, index:idx, sibIndex: (sibIdx<arr.length? sibIdx: idx), sibHash});
+      idx = Math.floor(idx/2);
+    }
+    return path;
+  }
+
+  function updateProof(){
+    if(selectedLeaf<0){ proofEl.textContent='—'; return; }
+    const path = proofPath();
+    proofEl.innerHTML = path.map((p,i)=>`Level ${p.level}: sibling hash <span style="color:var(--amber)">${p.sibHash.slice(0,12)}…</span>`).join('<br>');
+  }
+
+  function nodePositions(w,h){
+    // levels[0] leaves at bottom, root at top
+    const nLevels = levels.length;
+    const pad = 30;
+    const usableH = h - pad*2;
+    const positions = []; // positions[level][index] = {x,y}
+    for(let lvl=0; lvl<nLevels; lvl++){
+      const arr = levels[lvl];
+      const y = h - pad - (lvl/(nLevels-1||1))*usableH;
+      const row = [];
+      const n = arr.length;
+      for(let i=0;i<n;i++){
+        const x = (w/(n+1))*(i+1);
+        row.push({x,y});
+      }
+      positions.push(row);
+    }
+    return positions;
+  }
+
+  function draw(ctx,w,h){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#050813'; ctx.fillRect(0,0,w,h);
+    if(!levels.length) return;
+    const pos = nodePositions(w,h);
+    const path = selectedLeaf>=0 ? proofPath() : [];
+    const highlightSet = new Set(path.map(p=>p.level+'_'+p.sibIndex));
+    const mainPathSet = new Set();
+    { let idx=selectedLeaf;
+      for(let lvl=0; lvl<levels.length; lvl++){ mainPathSet.add(lvl+'_'+idx); idx=Math.floor(idx/2); }
+    }
+
+    // draw lines parent-child
+    ctx.strokeStyle='#1e2740'; ctx.lineWidth=1;
+    for(let lvl=0; lvl<levels.length-1; lvl++){
+      pos[lvl].forEach((p,i)=>{
+        const parentIdx = Math.floor(i/2);
+        const pp = pos[lvl+1][parentIdx];
+        if(!pp) return;
+        ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(pp.x,pp.y); ctx.stroke();
+      });
+    }
+
+    // draw nodes
+    for(let lvl=0; lvl<levels.length; lvl++){
+      pos[lvl].forEach((p,i)=>{
+        const key = lvl+'_'+i;
+        const isMain = mainPathSet.has(key);
+        const isSib = highlightSet.has(key);
+        const r = lvl===levels.length-1 ? 7 : 5;
+        ctx.beginPath(); ctx.arc(p.x,p.y,r,0,7);
+        ctx.fillStyle = isMain ? '#22d3ee' : (isSib ? '#fbbf24' : '#2a3555');
+        ctx.fill();
+        ctx.strokeStyle='#050813'; ctx.lineWidth=1; ctx.stroke();
+        if(lvl===0){
+          ctx.fillStyle='#5b7089'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='center';
+          ctx.fillText('tx'+i, p.x, p.y+16);
+        }
+        if(lvl===levels.length-1){
+          ctx.fillStyle='#22d3ee'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='center';
+          ctx.fillText('ROOT', p.x, p.y-12);
+        }
+      });
+    }
+  }
+
+  regRedraw('merkle', canvas, 220, draw);
+  renderTxInputs();
+  renderLeafBtns();
+  buildTree();
+})();
+</script>
+
+<!-- ============================================================
+     PANEL 6: CONSENSUS & 51% ATTACK
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-consensus">
+  <div class="card">
+    <h2><span class="n">SIMPLE EXAMPLE</span> Racing Two Chains Against Each Other</h2>
+    <p>Everyone on the Bitcoin network follows one simple rule: <strong class="hl-amber">always trust the longest valid chain</strong>. If someone tries to cheat — say, spend the same coins twice — they'd need to secretly build an alternate chain that ends up <em>longer</em> than the honest one, racing in secret against the entire rest of the network combined.</p>
+    <p>Set how much of the network's total mining power an attacker controls, then race their secret chain against the honest chain below.</p>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="stage"><canvas id="csCanvas"></canvas></div>
+      <div class="controls">
+        <div class="ctrl">
+          <label>Attacker's share of network hash power <span class="val" id="csShareVal">30%</span></label>
+          <input type="range" id="csShare" min="5" max="70" step="1" value="30">
+        </div>
+        <div class="ctrl">
+          <label>Confirmations merchant waits for <span class="val" id="csConfVal">3</span></label>
+          <input type="range" id="csConf" min="1" max="10" step="1" value="3">
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="csRace">&#9654; Run One Race (Animated)</button>
+        <button class="btn" id="csTrials">Run 1000 Trials (Fast)</button>
+        <button class="btn" id="csReset">Reset</button>
+      </div>
+      <div class="readout-grid">
+        <div class="readout"><div class="k">Theoretical Success Chance</div><div class="v amber" id="csTheory">&mdash;</div></div>
+        <div class="readout"><div class="k">Empirical (from trials)</div><div class="v good" id="csEmpirical">&mdash;</div></div>
+        <div class="readout"><div class="k">Trials Run</div><div class="v" id="csTrialsRun">0</div></div>
+        <div class="readout"><div class="k">Last Race Result</div><div class="v" id="csLastResult">&mdash;</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:0;">
+        <h2>Why this makes rewriting history so hard</h2>
+        <p>Whoever has more hash power finds blocks faster on average. If the attacker has less than the honest network (q &lt; p), their secret chain falls further behind the longer both sides race — the probability they ever catch up drops <strong class="hl-amber">exponentially</strong> with every confirmation the merchant waits for.</p>
+        <p>That's why merchants wait for confirmations before treating a payment as final: with 3 confirmations, even a well-resourced attacker with 30% of the network has only a small chance of pulling off a successful double-spend; by 6 confirmations (Bitcoin's traditional "safe" threshold for large payments) it becomes vanishingly unlikely for anyone without genuinely controlling more than half the network.</p>
+        <div class="info-box"><strong>The "51%" in "51% attack":</strong> once an attacker controls more hash power than everyone else combined (q &gt; p), they're no longer racing from behind — they can eventually out-build any honest chain no matter how many confirmations pass. That's the one scenario proof-of-work can't defend against by design; the whole system instead relies on it being economically irrational (attacking the network you've invested enormous hardware and electricity into tends to crash the very asset you're attacking).</div>
+      </div>
+    </div>
+  </div>
+</div>
+`);
+</script>
+<script>
+(function(){
+  const canvas = document.getElementById('csCanvas');
+  const shareSlider = document.getElementById('csShare');
+  const shareVal = document.getElementById('csShareVal');
+  const confSlider = document.getElementById('csConf');
+  const confVal = document.getElementById('csConfVal');
+  const btnRace = document.getElementById('csRace');
+  const btnTrials = document.getElementById('csTrials');
+  const btnReset = document.getElementById('csReset');
+  const theoryEl = document.getElementById('csTheory');
+  const empiricalEl = document.getElementById('csEmpirical');
+  const trialsRunEl = document.getElementById('csTrialsRun');
+  const lastResultEl = document.getElementById('csLastResult');
+
+  let trialsRun=0, trialsSuccess=0;
+  let raceHonest=[], raceAttacker=[], racing=false, raceOutcome=null;
+
+  function q(){ return parseFloat(shareSlider.value)/100; }
+  function z(){ return parseInt(confSlider.value); }
+
+  function theoreticalP(){
+    const qq=q(), pp=1-qq, zz=z();
+    if(qq>=pp) return 0.999; // attacker with >=50% eventually wins almost surely
+    return Math.pow(qq/pp, zz);
+  }
+
+  function updateLabels(){
+    shareVal.textContent = Math.round(q()*100)+'%';
+    confVal.textContent = z();
+    theoryEl.textContent = (theoreticalP()*100).toFixed(2)+'%';
+  }
+  shareSlider.addEventListener('input', updateLabels);
+  confSlider.addEventListener('input', updateLabels);
+  updateLabels();
+
+  function simulateOneRace(){
+    let h=0,a=0;
+    const target = z();
+    const log=[]; // sequence of 'H' or 'A'
+    while(h<target){
+      if(Math.random()<q()){ a++; log.push('A'); } else { h++; log.push('H'); }
+      if(log.length>4000) break; // safety
+    }
+    // after honest reaches target confirmations, attacker keeps racing until it gives up or catches up
+    // simplified: attacker attack succeeds if a>=h at the moment honest reaches target (secret chain already longer or equal+1)
+    const success = a>h;
+    return {success, h, a, log};
+  }
+
+  btnTrials.addEventListener('click', ()=>{
+    let localSuccess=0;
+    for(let i=0;i<1000;i++){
+      if(simulateOneRace().success) localSuccess++;
+    }
+    trialsRun += 1000; trialsSuccess += localSuccess;
+    trialsRunEl.textContent = trialsRun.toLocaleString();
+    empiricalEl.textContent = ((trialsSuccess/trialsRun)*100).toFixed(2)+'%';
+  });
+
+  btnReset.addEventListener('click', ()=>{
+    trialsRun=0; trialsSuccess=0;
+    trialsRunEl.textContent='0'; empiricalEl.textContent='—'; lastResultEl.textContent='—'; lastResultEl.className='v';
+    raceHonest=[]; raceAttacker=[]; racing=false;
+  });
+
+  btnRace.addEventListener('click', ()=>{
+    if(racing) return;
+    const result = simulateOneRace();
+    racing = true;
+    raceHonest=[]; raceAttacker=[];
+    let i=0;
+    const iv = setInterval(()=>{
+      if(i>=result.log.length){
+        clearInterval(iv); racing=false;
+        lastResultEl.textContent = result.success ? 'ATTACK SUCCEEDED (reorg)' : 'HONEST CHAIN WON — safe';
+        lastResultEl.className = 'v ' + (result.success?'bad':'good');
+        trialsRun+=1; if(result.success) trialsSuccess+=1;
+        trialsRunEl.textContent = trialsRun.toLocaleString();
+        empiricalEl.textContent = ((trialsSuccess/trialsRun)*100).toFixed(2)+'%';
+        return;
+      }
+      const step = result.log[i];
+      if(step==='H') raceHonest.push(1); else raceAttacker.push(1);
+      i++;
+      redrawPanel('consensus');
+    }, 90);
+  });
+
+  function draw(ctx,w,h){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#050813'; ctx.fillRect(0,0,w,h);
+    const rowH = h*0.32, yHonest = h*0.28, yAttacker = h*0.72;
+    const blockW = 20, gap=4, startX=50;
+
+    ctx.fillStyle='#9fb3c8'; ctx.font='11px IBM Plex Mono'; ctx.textAlign='left';
+    ctx.fillText('HONEST CHAIN', 10, yHonest-18);
+    ctx.fillText('ATTACKER (secret) CHAIN', 10, yAttacker-18);
+
+    ctx.strokeStyle='#1e2740';
+    ctx.beginPath(); ctx.moveTo(10,yHonest); ctx.lineTo(w-10,yHonest); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(10,yAttacker); ctx.lineTo(w-10,yAttacker); ctx.stroke();
+
+    raceHonest.forEach((_,i)=>{
+      const x = startX + i*(blockW+gap);
+      ctx.fillStyle = '#34d399';
+      ctx.fillRect(x, yHonest-11, blockW, 22);
+    });
+    raceAttacker.forEach((_,i)=>{
+      const x = startX + i*(blockW+gap);
+      ctx.fillStyle = '#f87171';
+      ctx.fillRect(x, yAttacker-11, blockW, 22);
+    });
+
+    ctx.fillStyle='#5b7089'; ctx.font='10px IBM Plex Mono';
+    ctx.fillText('blocks so far — honest: '+raceHonest.length+'   attacker: '+raceAttacker.length, 10, h-8);
+
+    // confirmation target marker
+    const target = z();
+    const tx = startX + (target-0.5)*(blockW+gap);
+    if(tx < w-10){
+      ctx.strokeStyle='rgba(34,211,238,0.5)'; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(tx, yHonest-20); ctx.lineTo(tx, yHonest+20); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#22d3ee'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='center';
+      ctx.fillText('target', tx, yHonest-24);
+    }
+  }
+
+  regRedraw('consensus', canvas, 220, draw);
+})();
+</script>
+
+<!-- ============================================================
+     PANEL: NOTES & FORMULAS
+     ============================================================ -->
+<script>
+panelsRoot.insertAdjacentHTML('beforeend', `
+<div class="panel" id="panel-notes">
+  <div class="card">
+    <h2>1. Hashing (SHA-256)</h2>
+    <table class="ftab">
+      <tr><th>Property</th><th>Detail</th></tr>
+      <tr><td>Output size</td><td><strong>256 bits</strong> (64 hex characters), regardless of input length</td></tr>
+      <tr><td>Determinism</td><td>Same input always produces the exact same output</td></tr>
+      <tr><td>One-way</td><td>No known way to recover the input from the output except brute-force guessing</td></tr>
+      <tr><td>Avalanche effect</td><td>A 1-bit input change flips roughly <strong>50%</strong> of output bits on average</td></tr>
+    </table>
+    <p>This tool computes SHA-256 for real, using your browser's built-in <code>crypto.subtle.digest</code> — nothing here is simulated or approximated.</p>
+  </div>
+  <div class="card">
+    <h2>2 & 3. Blockchain & Proof-of-Work</h2>
+    <table class="ftab">
+      <tr><th>Quantity</th><th>Relation</th></tr>
+      <tr><td>Block hash</td><td><strong>H<sub>n</sub> = SHA256(SHA256(header<sub>n</sub> + nonce))</strong>, where header<sub>n</sub> includes H<sub>n&minus;1</sub></td></tr>
+      <tr><td>Valid block condition</td><td><strong>H<sub>n</sub> &lt; target</strong> &mdash; equivalent to requiring some number of leading zero bits</td></tr>
+      <tr><td>Expected attempts at difficulty d bits</td><td><strong>2<sup>d</sup></strong></td></tr>
+    </table>
+    <p><strong>Simplified here:</strong> real Bitcoin applies SHA-256 twice (double-SHA256) and hashes a compact 80-byte header (version, previous hash, Merkle root, timestamp, difficulty target, nonce) — this tool hashes a plain text string once per attempt for clarity, but the leading-zero-bits mining logic is exactly the real algorithm.</p>
+  </div>
+  <div class="card">
+    <h2>4. Digital Signatures (ECDSA)</h2>
+    <p>Bitcoin originally used ECDSA over the <strong>secp256k1</strong> curve; this tool uses the browser's built-in <strong>P-256</strong> curve instead (secp256k1 isn't implemented by browsers' native WebCrypto API) — the math and security properties demonstrated are the same family of algorithm, just a different named curve.</p>
+    <table class="ftab">
+      <tr><th>Quantity</th><th>Role</th></tr>
+      <tr><td>Private key</td><td>A large random number, kept secret — proves ownership</td></tr>
+      <tr><td>Public key</td><td>Derived from the private key via elliptic-curve point multiplication (one-way — can't be reversed)</td></tr>
+      <tr><td>Bitcoin address</td><td>A shortened, hashed, checksum-protected representation of the public key</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>5. Merkle Trees</h2>
+    <table class="ftab">
+      <tr><th>Quantity</th><th>Relation</th></tr>
+      <tr><td>Leaf hash</td><td><strong>H(tx<sub>i</sub>)</strong></td></tr>
+      <tr><td>Parent hash</td><td><strong>H(left_child + right_child)</strong></td></tr>
+      <tr><td>Proof size for N transactions</td><td><strong>log&#8322;(N)</strong> sibling hashes needed to verify any one transaction</td></tr>
+    </table>
+    <p>For a block of, say, 2,048 transactions, proving any single one is included takes only <strong class="hl-amber">11</strong> sibling hashes — not the other 2,047 transactions. That logarithmic scaling is what makes lightweight mobile wallets practical.</p>
+  </div>
+  <div class="card">
+    <h2>6. Consensus & the 51% Attack</h2>
+    <table class="ftab">
+      <tr><th>Quantity</th><th>Relation</th></tr>
+      <tr><td>Attacker catch-up probability (simplified)</td><td><strong>P &asymp; (q/p)<sup>z</sup></strong> for q &lt; p</td></tr>
+      <tr><td>Variables</td><td>q = attacker's hash-power share, p = 1&minus;q (honest share), z = confirmations waited</td></tr>
+    </table>
+    <p><strong>Simplified here:</strong> this ratio formula is a widely-used approximation. Satoshi Nakamoto's original whitepaper derives a more precise version using a Poisson-distributed race between the two chains, which converges to essentially the same conclusion — attacker success probability shrinks exponentially with more confirmations, as long as they control under 50% of total hash power.</p>
+  </div>
+  <div class="card">
+    <h2>A note on all the simplifications above</h2>
+    <p>Real Bitcoin involves considerably more machinery than fits in a teaching tool — transaction scripts (Bitcoin Script), UTXO accounting, the exact 80-byte block header format, mempool fee markets, SegWit/Taproot upgrades, and peer-to-peer network propagation rules, among others. What's simulated here is accurate at the level of the core cryptographic and game-theoretic ideas; the natural next step is Satoshi Nakamoto's original 2008 whitepaper ("Bitcoin: A Peer-to-Peer Electronic Cash System"), which is short, surprisingly readable, and covers everything in this tool directly.</p>
+  </div>
+</div>
+`);
+</script>
+
+<script>
+  showTab('home');
+</script>
+</body>
+</html>
