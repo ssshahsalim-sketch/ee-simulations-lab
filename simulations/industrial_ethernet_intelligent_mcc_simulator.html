@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial Ethernet & Allen-Bradley Intelligent MCC Network Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        rockwell: {
+                            red: '#D9232A',
+                            darkRed: '#9E1319',
+                            slate: '#1E293B',
+                            gold: '#F59E0B'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom animations & LED styling */
+        .led-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+        .led-green { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .led-red { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
+        .led-yellow { background-color: #eab308; box-shadow: 0 0 8px #eab308; }
+        .led-off { background-color: #334155; box-shadow: none; }
+        .led-pulse { animation: blink 0.6s infinite alternate; }
+
+        @keyframes blink {
+            from { opacity: 0.3; }
+            to { opacity: 1; }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Pulse glow effect for traced paths */
+        .path-active {
+            stroke-dasharray: 8;
+            animation: dash 1s linear infinite;
+        }
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -16;
+            }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans overflow-hidden bg-slate-950 text-slate-200">
+
+    <!-- TOP HEADER -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-lg z-20">
+        <div class="flex items-center space-x-3">
+            <div class="bg-rockwell-red text-white p-2 rounded-lg font-black text-lg tracking-wider flex items-center shadow-md">
+                <i class="fa-solid font-mono mr-2 text-xl">AB</i>
+                <span>MCC-NET SIM</span>
+            </div>
+            <div>
+                <h1 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    Industrial Ethernet & Allen-Bradley Intelligent MCC Network Simulator
+                    <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-slate-800 text-cyan-400 border border-cyan-500/30">Edu Edition 2026</span>
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Interactive ControlLogix, PowerFlex VFD, SMC Soft Starter, E300 Overload & CIP Network Simulator</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <!-- Global Action Traces -->
+            <button onclick="triggerSequence('START')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-md transition active:scale-95">
+                <i class="fa-solid fa-play"></i> Trace Start Cmd
+            </button>
+            <button onclick="triggerSequence('SPEED')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-md transition active:scale-95">
+                <i class="fa-solid fa-gauge-high"></i> Trace Speed Ref
+            </button>
+            <button onclick="triggerSequence('FAULT')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-md transition active:scale-95">
+                <i class="fa-solid fa-triangle-exclamation"></i> Trace Fault
+            </button>
+            
+            <div class="h-6 w-px bg-slate-700 mx-1"></div>
+
+            <button onclick="toggleSound()" id="soundBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-md text-xs border border-slate-700 transition" title="Toggle Sound FX">
+                <i class="fa-solid fa-volume-xmark text-slate-400"></i>
+            </button>
+            <button onclick="openTroubleModal()" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-md transition">
+                <i class="fa-solid fa-bug"></i> Troubleshooting Lab
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN APP WRAPPER -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- SIDE NAVIGATION BAR -->
+        <nav class="w-16 md:w-56 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 select-none">
+            <div class="p-2 space-y-1">
+                <div class="text-[10px] font-bold text-slate-500 uppercase px-3 py-1 hidden md:block tracking-wider">Sim Mode</div>
+                
+                <button onclick="switchTab('topology')" id="tab-btn-topology" class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-cyan-400 bg-slate-800/80 border border-cyan-500/20 transition">
+                    <i class="fa-solid fa-network-wired text-base w-5 text-center"></i>
+                    <span class="hidden md:inline">Network Topology</span>
+                </button>
+
+                <button onclick="switchTab('mcc')" id="tab-btn-mcc" class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
+                    <i class="fa-solid fa-industry text-base w-5 text-center"></i>
+                    <span class="hidden md:inline">MCC Devices & Motor</span>
+                </button>
+
+                <button onclick="switchTab('switch')" id="tab-btn-switch" class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
+                    <i class="fa-solid fa-server text-base w-5 text-center"></i>
+                    <span class="hidden md:inline">Ethernet Switch & MAC</span>
+                </button>
+
+                <button onclick="switchTab('protocol')" id="tab-btn-protocol" class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
+                    <i class="fa-solid fa-layer-group text-base w-5 text-center"></i>
+                    <span class="hidden md:inline">CIP & Protocols</span>
+                </button>
+
+                <button onclick="switchTab('plc')" id="tab-btn-plc" class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
+                    <i class="fa-solid fa-microchip text-base w-5 text-center"></i>
+                    <span class="hidden md:inline">PLC Tags & Scan</span>
+                </button>
+
+                <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
+                    <i class="fa-solid fa-code-compare text-base w-5 text-center"></i>
+                    <span class="hidden md:inline">Hardwired vs Network</span>
+                </button>
+
+                <button onclick="switchTab('traffic')" id="tab-btn-traffic" class="tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
+                    <i class="fa-solid fa-list-check text-base w-5 text-center"></i>
+                    <span class="hidden md:inline">Live Traffic Monitor</span>
+                </button>
+            </div>
+
+            <!-- Quick Status Widget -->
+            <div class="p-3 bg-slate-950/80 border-t border-slate-800 m-2 rounded-lg hidden md:block">
+                <div class="text-[11px] font-semibold text-slate-400 mb-1 flex justify-between">
+                    <span>PLC Scan Cycle</span>
+                    <span id="scanTimeDisp" class="text-emerald-400 font-mono">4.2 ms</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div id="scanBar" class="bg-emerald-500 h-full w-2/3 transition-all"></div>
+                </div>
+                <div class="mt-2 text-[10px] text-slate-500 flex justify-between items-center">
+                    <span>Network Packet Rate</span>
+                    <span id="packetRateDisp" class="text-cyan-400 font-mono">24 pkts/s</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- MAIN DISPLAY VIEWPORT -->
+        <main class="flex-1 bg-slate-950 flex flex-col overflow-hidden relative">
+            
+            <!-- VIEW TAB 1: TOPOLOGY NETWORK CANVAS -->
+            <div id="tab-topology" class="tab-content flex-1 flex flex-col p-4 overflow-y-auto space-y-4 custom-scrollbar">
+                
+                <!-- Educational Concept Banner -->
+                <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between text-xs shadow-lg">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                            <i class="fa-solid fa-lightbulb text-base"></i>
+                        </div>
+                        <div>
+                            <span class="font-bold text-slate-200">KEY CONCEPT: The Switch Does Not Decide Motor Actions!</span>
+                            <p class="text-slate-400 text-[11px]">The Ethernet switch only forwards layer 2 frames based on MAC addresses. The **PLC Logic** formats the CIP command payload, and the **PowerFlex VFD / MCC Device** interprets the payload to trigger hardware outputs.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 shrink-0">
+                        <label class="text-[11px] text-slate-400 flex items-center space-x-1 cursor-pointer">
+                            <input type="checkbox" id="chkShowDataDirection" checked onchange="renderTopology()" class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+                            <span>Show Direction Indicators</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- TOPOLOGY CANVAS & DIAGRAM CONTAINER -->
+                <div class="flex-1 bg-slate-900/90 rounded-xl border border-slate-800 p-4 relative min-h-[460px] flex flex-col shadow-inner overflow-hidden">
+                    
+                    <div class="flex justify-between items-center mb-2 z-10">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-300">EtherNet/IP Network Map</span>
+                            <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">Star Topology</span>
+                        </div>
+                        <div class="flex items-center space-x-3 text-xs">
+                            <div class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span><span class="text-slate-400">PLC Output</span></div>
+                            <div class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span><span class="text-slate-400">Device Feedback</span></div>
+                            <div class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span><span class="text-slate-400">HMI Command</span></div>
+                        </div>
+                    </div>
+
+                    <!-- SVG Canvas Overlay for Cable Connections & Packets -->
+                    <div id="topologyContainer" class="relative flex-1 w-full h-full min-h-[380px] bg-slate-950/60 rounded-lg border border-slate-800/80 overflow-hidden">
+                        <svg id="networkSvg" class="absolute inset-0 w-full h-full pointer-events-none z-0">
+                            <!-- Cable Lines and Packet Circles rendered via JS -->
+                        </svg>
+
+                        <!-- Nodes will be rendered here dynamically with absolute position -->
+                        <div id="nodeContainer" class="relative w-full h-full z-10"></div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM QUICK DIAGNOSTIC INFORMATION PANEL -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800 text-xs">
+                        <h3 class="font-bold text-slate-200 mb-2 flex items-center justify-between">
+                            <span>Selected Node Inspector</span>
+                            <span id="inspectNodeIp" class="font-mono text-cyan-400 text-[11px]">192.168.1.20</span>
+                        </h3>
+                        <div id="nodeDetailsBox" class="space-y-1.5 text-slate-300">
+                            <div class="flex justify-between"><span>Device Name:</span><span id="nodeDetName" class="font-semibold">PowerFlex 525 VFD</span></div>
+                            <div class="flex justify-between"><span>MAC Address:</span><span id="nodeDetMac" class="font-mono text-slate-400">00:1A:2B:3C:4D:20</span></div>
+                            <div class="flex justify-between"><span>Connected Port:</span><span id="nodeDetPort" class="text-cyan-400 font-bold">Port 3</span></div>
+                            <div class="flex justify-between"><span>Command Source:</span><span id="nodeDetSource" class="text-emerald-400 font-bold">Network Ethernet</span></div>
+                            <div class="flex justify-between"><span>Cable Connection:</span><span id="nodeDetStatus" class="text-emerald-400">Connected (100Mbps)</span></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800 text-xs flex flex-col justify-between">
+                        <h3 class="font-bold text-slate-200 mb-2">Simulate Network Faults</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="toggleCable('vfd1')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-left transition flex items-center justify-between">
+                                <span>VFD Cable</span>
+                                <span id="btnCableVfd" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">Connected</span>
+                            </button>
+                            <button onclick="toggleCable('smc1')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-left transition flex items-center justify-between">
+                                <span>SMC Cable</span>
+                                <span id="btnCableSmc" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">Connected</span>
+                            </button>
+                            <button onclick="toggleCable('e300')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-left transition flex items-center justify-between">
+                                <span>E300 Cable</span>
+                                <span id="btnCableE300" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">Connected</span>
+                            </button>
+                            <button onclick="toggleDuplicateIp()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-left transition flex items-center justify-between">
+                                <span>Duplicate IP</span>
+                                <span id="btnDupIp" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 font-bold">Normal</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800 text-xs">
+                        <h3 class="font-bold text-slate-200 mb-2">Live End-to-End Execution Trace</h3>
+                        <div id="liveTraceBox" class="bg-slate-950 p-2 rounded border border-slate-800 font-mono text-[11px] h-20 overflow-y-auto space-y-1 custom-scrollbar text-slate-400">
+                            <div>[00:00.00] System initialized and listening...</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- VIEW TAB 2: INTELLIGENT MCC DEVICES & MOTOR CONTROL -->
+            <div id="tab-mcc" class="tab-content hidden flex-1 flex flex-col p-4 overflow-y-auto space-y-4 custom-scrollbar">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    
+                    <!-- POWERFLEX VFD PANEL -->
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col justify-between space-y-4 shadow-lg">
+                        <div>
+                            <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+                                <div>
+                                    <h2 class="font-bold text-slate-100 flex items-center gap-2">
+                                        <i class="fa-solid fa-compact-disc text-cyan-400"></i> PowerFlex 525 VFD
+                                    </h2>
+                                    <p class="text-[10px] text-slate-400">Node IP: 192.168.1.20 | Motor #1 Control</p>
+                                </div>
+                                <span id="vfdStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">STOPPED</span>
+                            </div>
+
+                            <!-- VFD Keypad / Display -->
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 mb-3 font-mono">
+                                <div class="flex justify-between text-cyan-400 text-xs mb-1">
+                                    <span>FREQ COMMAND:</span>
+                                    <span id="vfdCmdFreqDisp" class="font-bold">45.0 Hz</span>
+                                </div>
+                                <div class="flex justify-between text-emerald-400 text-xs mb-1">
+                                    <span>OUTPUT FREQ:</span>
+                                    <span id="vfdOutFreqDisp" class="font-bold">0.0 Hz</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-400 mt-2 border-t border-slate-800/80 pt-2">
+                                    <div>Current: <span id="vfdCurrentDisp" class="text-slate-200">0.0 A</span></div>
+                                    <div>RPM: <span id="vfdRpmDisp" class="text-slate-200">0 RPM</span></div>
+                                    <div>Voltage: <span id="vfdVoltDisp" class="text-slate-200">0 V</span></div>
+                                    <div>DC Bus: <span id="vfdDcBusDisp" class="text-slate-200">325 V</span></div>
+                                </div>
+                            </div>
+
+                            <!-- Interactive VFD Controls -->
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-[11px] text-slate-300 font-semibold flex justify-between">
+                                        <span>PLC Speed Reference (0 - 60 Hz)</span>
+                                        <span id="sliderValDisp" class="text-cyan-400 font-mono">45.0 Hz</span>
+                                    </label>
+                                    <input type="range" id="speedRefSlider" min="0" max="60" value="45" step="0.5" oninput="updateSpeedRef(this.value)" class="w-full mt-1 accent-cyan-500 cursor-pointer">
+                                </div>
+
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button onclick="vfdCmd('START')" class="py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs shadow transition active:scale-95">START</button>
+                                    <button onclick="vfdCmd('STOP')" class="py-2 bg-red-600 hover:bg-red-500 text-white rounded font-bold text-xs shadow transition active:scale-95">STOP</button>
+                                    <button onclick="vfdCmd('JOG')" class="py-2 bg-amber-600 hover:bg-amber-500 text-white rounded font-bold text-xs shadow transition active:scale-95">JOG</button>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <button onclick="toggleDirection()" id="btnDirection" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700">Dir: FORWARD</button>
+                                    <button onclick="resetVfdFault()" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700">FAULT RESET</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Command Source Selector Concept -->
+                        <div class="bg-slate-950/80 p-2.5 rounded border border-slate-800 text-xs">
+                            <label class="block text-[10px] text-slate-400 mb-1 font-semibold">VFD Command Source (P046 Parameter)</label>
+                            <select id="vfdCmdSourceSelect" onchange="changeVfdCmdSource(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded text-slate-200 text-xs p-1 focus:outline-none focus:border-cyan-500">
+                                <option value="EtherNet/IP" selected>EtherNet/IP Network (Default)</option>
+                                <option value="Keypad">Local Keypad (Locks out PLC Network Cmds)</option>
+                                <option value="Terminal">Hardwired Digital Input Terminals</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- SMC SOFT STARTER & E300 OVERLOAD PANEL -->
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col justify-between space-y-4 shadow-lg">
+                        <div>
+                            <!-- SMC SOFT STARTER SECTION -->
+                            <div class="border-b border-slate-800 pb-3 mb-3">
+                                <div class="flex justify-between items-center mb-2">
+                                    <div>
+                                        <h2 class="font-bold text-slate-100 flex items-center gap-2">
+                                            <i class="fa-solid fa-bolt text-amber-400"></i> SMC Soft Starter
+                                        </h2>
+                                        <p class="text-[10px] text-slate-400">Node IP: 192.168.1.21 | Soft Start Motor #2</p>
+                                    </div>
+                                    <span id="smcStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">OFF</span>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 mb-2 font-mono text-xs bg-slate-950 p-2 rounded border border-slate-800">
+                                    <div>SCR Ramp: <span id="smcRampDisp" class="text-amber-400">0%</span></div>
+                                    <div>Current: <span id="smcCurrDisp" class="text-slate-200">0.0 A</span></div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="smcCmd('START')" class="py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs">SMC START</button>
+                                    <button onclick="smcCmd('STOP')" class="py-1.5 bg-red-600 hover:bg-red-500 text-white rounded font-bold text-xs">SMC STOP</button>
+                                </div>
+                            </div>
+
+                            <!-- E300 ELECTRONIC OVERLOAD SECTION -->
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <div>
+                                        <h2 class="font-bold text-slate-100 flex items-center gap-2">
+                                            <i class="fa-solid fa-shield-halved text-emerald-400"></i> E300 Overload Relay
+                                        </h2>
+                                        <p class="text-[10px] text-slate-400">Node IP: 192.168.1.22 | Motor Protection</p>
+                                    </div>
+                                    <span id="e300StatusBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">HEALTHY</span>
+                                </div>
+
+                                <div class="bg-slate-950 p-2 rounded border border-slate-800 text-xs space-y-1 font-mono mb-2">
+                                    <div class="flex justify-between"><span>Thermal Capacity Used:</span><span id="e300ThermalDisp" class="text-cyan-400">0%</span></div>
+                                    <div class="flex justify-between"><span>Motor FLA Setting:</span><span class="text-slate-300">22.0 A</span></div>
+                                    <div class="flex justify-between"><span>Trip Class:</span><span class="text-slate-300">Class 10</span></div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="simulateOverloadFault()" class="py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded font-bold text-xs">Inject Overload</button>
+                                    <button onclick="resetE300Trip()" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-xs">E300 Reset</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded border border-slate-800">
+                            <strong>Note:</strong> The E300 sends diagnostic warnings over CIP prior to tripping, allowing PLC predictive maintenance alarms.
+                        </div>
+                    </div>
+
+                    <!-- DYNAMIC ANIMATED MOTOR VISUALIZER -->
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col justify-between space-y-3 shadow-lg">
+                        <div>
+                            <h2 class="font-bold text-slate-100 mb-1 flex items-center gap-2">
+                                <i class="fa-solid fa-fan text-cyan-400"></i> 3-Phase Induction Motor
+                            </h2>
+                            <p class="text-[10px] text-slate-400">Physical Load Simulation & Feedback Loop</p>
+                            
+                            <!-- Animated Spin Graphic -->
+                            <div class="my-4 flex flex-col items-center justify-center relative">
+                                <div class="w-36 h-36 rounded-full border-4 border-slate-800 bg-slate-950 flex items-center justify-center relative shadow-inner">
+                                    <!-- Fan blades SVG -->
+                                    <svg id="motorFanSvg" class="w-28 h-28 text-cyan-500 transition-transform duration-300" viewBox="0 0 100 100">
+                                        <circle cx="50" cy="50" r="12" fill="currentColor"/>
+                                        <path d="M50,38 C40,20 20,20 30,38 Z" fill="currentColor" opacity="0.8"/>
+                                        <path d="M62,50 C80,40 80,20 62,30 Z" fill="currentColor" opacity="0.8"/>
+                                        <path d="M50,62 C60,80 80,80 70,62 Z" fill="currentColor" opacity="0.8"/>
+                                        <path d="M38,50 C20,60 20,80 38,70 Z" fill="currentColor" opacity="0.8"/>
+                                    </svg>
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <span id="motorCenterRpm" class="font-mono text-xs font-bold bg-slate-900/90 px-2 py-0.5 rounded border border-slate-700 text-slate-200">0 RPM</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 text-xs">
+                                <div>
+                                    <div class="flex justify-between text-[11px] text-slate-400 mb-0.5">
+                                        <span>Motor Speed</span>
+                                        <span id="motorSpeedPct" class="font-mono text-cyan-400">0%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                                        <div id="motorSpeedBar" class="bg-cyan-500 h-full w-0 transition-all duration-200"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex justify-between text-[11px] text-slate-400 mb-0.5">
+                                        <span>Motor Torque</span>
+                                        <span id="motorTorqueVal" class="font-mono text-emerald-400">0.0 Nm</span>
+                                    </div>
+                                    <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                                        <div id="motorTorqueBar" class="bg-emerald-500 h-full w-0 transition-all duration-200"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- HMI MINI CONTROLLER -->
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                            <h3 class="text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                                <span>PanelView HMI Screen</span>
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            </h3>
+                            <div class="grid grid-cols-2 gap-1.5 mt-2">
+                                <button onclick="triggerSequence('START')" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-[11px] font-bold rounded border border-slate-700">HMI START</button>
+                                <button onclick="vfdCmd('STOP')" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-red-400 text-[11px] font-bold rounded border border-slate-700">HMI STOP</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- VIEW TAB 3: ETHERNET SWITCH & MAC LEARNING -->
+            <div id="tab-switch" class="tab-content hidden flex-1 flex flex-col p-4 overflow-y-auto space-y-4 custom-scrollbar">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    
+                    <!-- Managed Switch Port Visualizer -->
+                    <div class="lg:col-span-2 bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg space-y-4">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                            <div>
+                                <h2 class="font-bold text-slate-100 flex items-center gap-2">
+                                    <i class="fa-solid fa-server text-cyan-400"></i> Stratix Managed Ethernet Switch
+                                </h2>
+                                <p class="text-[10px] text-slate-400">IP: 192.168.1.2 | Layer 2 Switching Engine</p>
+                            </div>
+                            <div class="flex items-center space-x-2 text-xs">
+                                <button onclick="toggleSwitchPower()" id="btnSwitchPower" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold transition">Power: ON</button>
+                            </div>
+                        </div>
+
+                        <!-- Physical Ports Grid -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="switchPortsGrid">
+                            <!-- Populated via JS -->
+                        </div>
+
+                        <!-- Frame Forwarding Rules Box -->
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs text-slate-300 space-y-1">
+                            <strong class="text-cyan-400 block mb-1">Ethernet Switch Behavior Principles:</strong>
+                            <ul class="list-disc list-inside space-y-1 text-[11px] text-slate-400">
+                                <li><strong>Ingress:</strong> Switch inspects the <em>Source MAC Address</em> of incoming frames to populate its internal MAC Table.</li>
+                                <li><strong>Egress:</strong> Switch inspects the <em>Destination MAC Address</em> to lookup the target outbound port.</li>
+                                <li><strong>Unknown Unicast / Broadcast:</strong> If Destination MAC is unknown or standard broadcast (FF:FF:FF:FF:FF:FF), frame is flooded to all ports except ingress.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- MAC Address Table Box -->
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+                                <h3 class="font-bold text-slate-100 text-sm">Switch MAC Address Table</h3>
+                                <button onclick="clearMacTable()" class="text-[10px] text-slate-400 hover:text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Clear CAM Table</button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs font-mono">
+                                    <thead class="text-[10px] uppercase bg-slate-950 text-slate-400 border-b border-slate-800">
+                                        <tr>
+                                            <th class="p-1.5">Port</th>
+                                            <th class="p-1.5">MAC Address</th>
+                                            <th class="p-1.5">VLAN</th>
+                                            <th class="p-1.5">Age</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="macTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+                                        <!-- Dynamically generated -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950 p-2.5 rounded border border-slate-800 text-[11px] text-slate-400 mt-4">
+                            <i class="fa-solid fa-circle-info text-cyan-400 mr-1"></i> The switch updates this table in real-time as packets travel through network ports.
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- VIEW TAB 4: PROTOCOLS & CIP OBJECT MODEL -->
+            <div id="tab-protocol" class="tab-content hidden flex-1 flex flex-col p-4 overflow-y-auto space-y-4 custom-scrollbar">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    
+                    <!-- Protocol Stack Decomposition -->
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg space-y-3">
+                        <h2 class="font-bold text-slate-100 flex items-center gap-2 border-b border-slate-800 pb-2">
+                            <i class="fa-solid fa-layer-group text-cyan-400"></i> EtherNet/IP & CIP Protocol Encapsulation
+                        </h2>
+
+                        <div class="space-y-2 text-xs font-mono">
+                            <div class="bg-slate-950 p-2.5 rounded border border-cyan-500/30 text-cyan-300">
+                                <div class="font-bold text-[11px] text-cyan-400 mb-0.5">APPLICATION LAYER: CIP (Common Industrial Protocol)</div>
+                                <div>Payload: Class 0x01 | Instance 0x01 | Attribute: SpeedRef=45.0Hz</div>
+                            </div>
+                            <div class="bg-slate-950 p-2.5 rounded border border-emerald-500/30 text-emerald-300">
+                                <div class="font-bold text-[11px] text-emerald-400 mb-0.5">TRANSPORT LAYER: TCP / UDP (Port 44818 / 2222)</div>
+                                <div>UDP for I/O implicit data (fast cyclics) | TCP for explicit messaging (config)</div>
+                            </div>
+                            <div class="bg-slate-950 p-2.5 rounded border border-amber-500/30 text-amber-300">
+                                <div class="font-bold text-[11px] text-amber-400 mb-0.5">NETWORK LAYER: IP Header</div>
+                                <div>Src IP: 192.168.1.10 (PLC) -> Dst IP: 192.168.1.20 (VFD)</div>
+                            </div>
+                            <div class="bg-slate-950 p-2.5 rounded border border-purple-500/30 text-purple-300">
+                                <div class="font-bold text-[11px] text-purple-400 mb-0.5">DATA LINK / PHYSICAL LAYER: Ethernet II</div>
+                                <div>Src MAC: 00:1A:2B:3C:4D:10 -> Dst MAC: 00:1A:2B:3C:4D:20</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CIP Object Model Inspector -->
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg space-y-3">
+                        <h2 class="font-bold text-slate-100 flex items-center gap-2 border-b border-slate-800 pb-2">
+                            <i class="fa-solid fa-cubes text-cyan-400"></i> Interactive CIP Object Hierarchy
+                        </h2>
+
+                        <p class="text-xs text-slate-400">
+                            EtherNet/IP organizes device data into standardized object classes.
+                        </p>
+
+                        <div class="space-y-2 text-xs">
+                            <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                                <span class="text-cyan-400 font-bold font-mono">Identity Object (Class ID 0x01)</span>
+                                <p class="text-[11px] text-slate-400">Vendor ID, Device Type, Product Code, Revision, Serial Number.</p>
+                            </div>
+                            <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                                <span class="text-emerald-400 font-bold font-mono">Assembly Object (Class ID 0x04)</span>
+                                <p class="text-[11px] text-slate-400">Binds multiple attributes into I/O assemblies for fast cyclic data exchange.</p>
+                            </div>
+                            <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                                <span class="text-amber-400 font-bold font-mono">Motor Data / Drive Object (Class ID 0x2A / 0x29)</span>
+                                <p class="text-[11px] text-slate-400">Command Register (Start/Stop/Dir) and Speed Setpoint Attributes.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- IP CONFIG & PING TOOL SECTION -->
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg space-y-3">
+                    <h2 class="font-bold text-slate-100 text-sm flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span><i class="fa-solid fa-network-wired text-cyan-400 mr-2"></i> Network Ping Tool & IP Diagnostic Utility</span>
+                        <span class="text-xs text-slate-400 font-normal">Subnet Mask: 255.255.255.0</span>
+                    </h2>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <select id="pingSourceSelect" class="bg-slate-950 border border-slate-700 rounded text-slate-200 text-xs p-2">
+                            <option value="plc">Source: PLC (192.168.1.10)</option>
+                            <option value="hmi">Source: HMI (192.168.1.30)</option>
+                            <option value="laptop">Source: Laptop (192.168.1.50)</option>
+                        </select>
+                        <span class="text-xs text-slate-400">-></span>
+                        <select id="pingTargetSelect" class="bg-slate-950 border border-slate-700 rounded text-slate-200 text-xs p-2">
+                            <option value="vfd">Target: VFD (192.168.1.20)</option>
+                            <option value="smc">Target: SMC (192.168.1.21)</option>
+                            <option value="e300">Target: E300 (192.168.1.22)</option>
+                        </select>
+                        <button onclick="executePing()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-4 py-2 rounded text-xs transition">
+                            <i class="fa-solid fa-terminal mr-1"></i> PING TARGET
+                        </button>
+                    </div>
+
+                    <div id="pingConsole" class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 h-28 overflow-y-auto custom-scrollbar">
+                        <div class="text-slate-500">Ready to execute ICMP ping echo request...</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- VIEW TAB 5: PLC TAG VISUALIZER & SCAN CYCLE -->
+            <div id="tab-plc" class="tab-content hidden flex-1 flex flex-col p-4 overflow-y-auto space-y-4 custom-scrollbar">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    
+                    <!-- PLC TAG MONITOR TABLE -->
+                    <div class="lg:col-span-2 bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg space-y-3">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                            <h2 class="font-bold text-slate-100 flex items-center gap-2">
+                                <i class="fa-solid fa-microchip text-cyan-400"></i> ControlLogix PLC Controller Tags
+                            </h2>
+                            <span class="text-xs text-slate-400">Task: Periodic (10ms)</span>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs font-mono">
+                                <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-2">Tag Name</th>
+                                        <th class="p-2">Data Type</th>
+                                        <th class="p-2">Current Value</th>
+                                        <th class="p-2">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="plcTagTableBody" class="divide-y divide-slate-800 text-slate-300">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- PLC SCAN CYCLE VISUALIZER -->
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg space-y-3 flex flex-col justify-between">
+                        <div>
+                            <h2 class="font-bold text-slate-100 text-sm border-b border-slate-800 pb-2 mb-3">PLC Continuous Scan Cycle</h2>
+
+                            <div class="space-y-2 text-xs">
+                                <div id="scanStep1" class="bg-slate-950 p-2.5 rounded border border-slate-800 flex items-center justify-between">
+                                    <span>1. Read Physical Inputs & Network Assemblies</span>
+                                    <i class="fa-solid fa-check text-emerald-400"></i>
+                                </div>
+                                <div id="scanStep2" class="bg-slate-950 p-2.5 rounded border border-slate-800 flex items-center justify-between">
+                                    <span>2. Execute Ladder / FBD Control Routine</span>
+                                    <i class="fa-solid fa-circle-notch fa-spin text-cyan-400"></i>
+                                </div>
+                                <div id="scanStep3" class="bg-slate-950 p-2.5 rounded border border-slate-800 flex items-center justify-between">
+                                    <span>3. Update Output Buffer Registers</span>
+                                    <i class="fa-solid fa-check text-emerald-400"></i>
+                                </div>
+                                <div id="scanStep4" class="bg-slate-950 p-2.5 rounded border border-slate-800 flex items-center justify-between">
+                                    <span>4. Ethernet Overhead & CIP Communication</span>
+                                    <i class="fa-solid fa-check text-emerald-400"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded border border-slate-800 text-xs text-slate-400">
+                            <strong>Cycle Time:</strong> <span class="text-emerald-400 font-mono">4.2 ms</span>
+                            <p class="text-[10px] mt-1">EtherNet/IP Implicit I/O cyclic updates occur asynchronously to the PLC logic scan execution.</p>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- VIEW TAB 6: HARDWIRED VS NETWORK COMPARISON -->
+            <div id="tab-comparison" class="tab-content hidden flex-1 flex flex-col p-4 overflow-y-auto space-y-4 custom-scrollbar">
+                
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg space-y-4">
+                    <h2 class="font-bold text-slate-100 text-base border-b border-slate-800 pb-2">
+                        Architectural Comparison: Hardwired Discrete I/O vs Ethernet Communication
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <!-- HARDWIRED SIDE -->
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                            <h3 class="font-bold text-amber-400 flex items-center gap-2">
+                                <i class="fa-solid fa-plug text-base"></i> Traditional Hardwired Architecture
+                            </h3>
+
+                            <ul class="space-y-2 text-slate-300 text-[11px]">
+                                <li class="bg-slate-900 p-2 rounded">
+                                    <strong>Wiring:</strong> Requires individual copper conductors for Start (DO), Stop (DO), Fault (DI), Speed Ref (4-20mA AO), Speed Feedback (4-20mA AI).
+                                </li>
+                                <li class="bg-slate-900 p-2 rounded">
+                                    <strong>Diagnostics:</strong> Limited to binary fault contact status. No detailed motor current, thermal capacity, or fault codes available.
+                                </li>
+                                <li class="bg-slate-900 p-2 rounded">
+                                    <strong>Installation Cost:</strong> High labor costs for pull wires, termination, labeling, and troubleshooting broken connections.
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- ETHERNET SIDE -->
+                        <div class="bg-slate-950 p-4 rounded-xl border border-cyan-500/30 space-y-3">
+                            <h3 class="font-bold text-cyan-400 flex items-center gap-2">
+                                <i class="fa-solid fa-network-wired text-base"></i> Intelligent Ethernet Architecture
+                            </h3>
+
+                            <ul class="space-y-2 text-slate-300 text-[11px]">
+                                <li class="bg-slate-900 p-2 rounded">
+                                    <strong>Wiring:</strong> Single industrial Ethernet CAT6 / RJ45 cable carries all control commands, speed references, and diagnostic telemetry.
+                                </li>
+                                <li class="bg-slate-900 p-2 rounded">
+                                    <strong>Diagnostics:</strong> Full access to internal VFD parameters, torque, DC bus voltage, ground fault warnings, overload trip history, and thermal status.
+                                </li>
+                                <li class="bg-slate-900 p-2 rounded">
+                                    <strong>Flexibility:</strong> Modify control behavior and speed scaling entirely in PLC ladder software without changing physical MCC panel wiring.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- VIEW TAB 7: LIVE TRAFFIC MONITOR (WIRESHARK SIMULATOR) -->
+            <div id="tab-traffic" class="tab-content hidden flex-1 flex flex-col p-4 overflow-y-auto space-y-4 custom-scrollbar">
+                
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg flex-1 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+                            <h2 class="font-bold text-slate-100 flex items-center gap-2 text-sm">
+                                <i class="fa-solid fa-list-check text-cyan-400"></i> Real-time Network Frame Traffic Capture
+                            </h2>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="clearTrafficLog()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs border border-slate-700">Clear Logs</button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs font-mono">
+                                <thead class="bg-slate-950 text-slate-400 border-b border-slate-800 text-[10px] uppercase">
+                                    <tr>
+                                        <th class="p-2">No.</th>
+                                        <th class="p-2">Time</th>
+                                        <th class="p-2">Source</th>
+                                        <th class="p-2">Destination</th>
+                                        <th class="p-2">Protocol</th>
+                                        <th class="p-2">Length</th>
+                                        <th class="p-2">Info / CIP Command</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trafficTableBody" class="divide-y divide-slate-800/80 text-slate-300">
+                                    <!-- Packets inserted live via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs text-slate-400 mt-4 flex items-center justify-between">
+                        <span>Click any row to inspect full Ethernet frame headers and CIP payload details.</span>
+                        <span id="capturedCountDisp" class="font-mono text-cyan-400">Captured: 0 frames</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
+    </div>
+
+    <!-- TROUBLESHOOTING MODAL -->
+    <div id="troubleModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-xl p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-bug text-purple-400"></i> Troubleshooting Challenge Lab
+                </h3>
+                <button onclick="closeTroubleModal()" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <p class="text-slate-300">
+                    Select a real-world industrial breakdown scenario to diagnose using the simulator tools:
+                </p>
+
+                <div class="space-y-2">
+                    <button onclick="loadScenario(1)" class="w-full text-left p-3 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 transition">
+                        <div class="font-bold text-cyan-400 mb-0.5">Scenario #1: VFD Motor Will Not Start</div>
+                        <div class="text-slate-400 text-[11px]">PLC sends start command, but the VFD motor status remains STOPPED.</div>
+                    </button>
+
+                    <button onclick="loadScenario(2)" class="w-full text-left p-3 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 transition">
+                        <div class="font-bold text-amber-400 mb-0.5">Scenario #2: Communication Timeout & Offline Device</div>
+                        <div class="text-slate-400 text-[11px]">PLC tags show COMM_FAULT = TRUE for Node 192.168.1.20.</div>
+                    </button>
+
+                    <button onclick="loadScenario(3)" class="w-full text-left p-3 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 transition">
+                        <div class="font-bold text-emerald-400 mb-0.5">Scenario #3: Overload Relay Trip & Interlock Lockout</div>
+                        <div class="text-slate-400 text-[11px]">E300 relay active trip prevents motor energization.</div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center border-t border-slate-800 pt-3">
+                <span id="activeScenarioLabel" class="text-[11px] text-slate-400">No active challenge selected</span>
+                <button onclick="closeTroubleModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-semibold">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PACKET INSPECTOR MODAL -->
+    <div id="packetModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl font-mono text-xs">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-cyan-400 flex items-center gap-2">
+                    <i class="fa-solid fa-microchip"></i> Ethernet Frame Payload Inspector
+                </h3>
+                <button onclick="closePacketModal()" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div id="packetModalContent" class="space-y-2 text-slate-300 bg-slate-950 p-3 rounded border border-slate-800">
+                <!-- Populated dynamically -->
+            </div>
+
+            <div class="text-right">
+                <button onclick="closePacketModal()" class="px-4 py-1 bg-slate-800 text-slate-200 rounded">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT SIMULATION ENGINE -->
+    <script>
+        
+        // System Network Nodes Registry
+        const nodes = {
+            plc: { name: "ControlLogix PLC", ip: "192.168.1.10", mac: "00:1A:2B:3C:4D:10", port: "Port 1", type: "controller", x: 15, y: 25, connected: true },
+            hmi: { name: "PanelView HMI", ip: "192.168.1.30", mac: "00:1A:2B:3C:4D:30", port: "Port 2", type: "hmi", x: 15, y: 70, connected: true },
+            switch: { name: "Stratix Switch", ip: "192.168.1.2", mac: "00:1A:2B:3C:4D:02", port: "-", type: "switch", x: 50, y: 48, connected: true },
+            vfd1: { name: "PowerFlex 525 VFD", ip: "192.168.1.20", mac: "00:1A:2B:3C:4D:20", port: "Port 3", type: "vfd", x: 85, y: 15, connected: true, cmdSource: "EtherNet/IP" },
+            smc1: { name: "SMC Soft Starter", ip: "192.168.1.21", mac: "00:1A:2B:3C:4D:21", port: "Port 4", type: "smc", x: 85, y: 48, connected: true },
+            e300: { name: "E300 Overload Relay", ip: "192.168.1.22", mac: "00:1A:2B:3C:4D:22", port: "Port 5", type: "e300", x: 85, y: 80, connected: true },
+            laptop: { name: "Eng. Laptop", ip: "192.168.1.50", mac: "00:1A:2B:3C:4D:50", port: "Port 6", type: "laptop", x: 50, y: 88, connected: true }
+        };
+
+        // Network Cables List
+        const cables = [
+            { from: 'plc', to: 'switch' },
+            { from: 'hmi', to: 'switch' },
+            { from: 'vfd1', to: 'switch' },
+            { from: 'smc1', to: 'switch' },
+            { from: 'e300', to: 'switch' },
+            { from: 'laptop', to: 'switch' }
+        ];
+
+        // PLC Tag Table Engine
+        let plcTags = {
+            "Motor01_Start": { type: "BOOL", val: false, desc: "PLC Start Command Tag" },
+            "Motor01_Stop": { type: "BOOL", val: false, desc: "PLC Stop Command Tag" },
+            "Motor01_SpeedRef": { type: "REAL", val: 45.0, desc: "Speed Reference (Hz)" },
+            "Motor01_RunStatus": { type: "BOOL", val: false, desc: "Feedback Run Status" },
+            "Motor01_ActualSpeed": { type: "REAL", val: 0.0, desc: "Actual Frequency Feedback" },
+            "Motor01_Current": { type: "REAL", val: 0.0, desc: "Motor Current Feedback (A)" },
+            "Motor01_Fault": { type: "BOOL", val: false, desc: "General Drive Fault Flag" },
+            "Comm_Fault_Node20": { type: "BOOL", val: false, desc: "EtherNet/IP Timeout Warning" }
+        };
+
+        // Motor Physics & Device States
+        let vfdState = {
+            cmdStart: false,
+            direction: "FORWARD",
+            cmdFreq: 45.0,
+            outFreq: 0.0,
+            rpm: 0,
+            current: 0.0,
+            voltage: 0,
+            dcBus: 325,
+            fault: false,
+            mode: "STOPPED"
+        };
+
+        let smcState = {
+            running: false,
+            rampPct: 0,
+            current: 0
+        };
+
+        let e300State = {
+            thermalPct: 0,
+            tripped: false
+        };
+
+        let activePackets = [];
+        let capturedTraffic = [];
+        let trafficPacketCounter = 1;
+        let macTable = {};
+        let soundEnabled = false;
+
+        let audioCtx = null;
+        function playTone(freq, duration) {
+            if (!soundEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e){}
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            let btn = document.getElementById("soundBtn");
+            if (soundEnabled) {
+                btn.innerHTML = `<i class="fa-solid fa-volume-high text-cyan-400"></i>`;
+            } else {
+                btn.innerHTML = `<i class="fa-solid fa-volume-xmark text-slate-400"></i>`;
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('text-cyan-400', 'bg-slate-800/80', 'border-cyan-500/20');
+                el.classList.add('text-slate-400');
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const btn = document.getElementById(`tab-btn-${tabId}`);
+            if (btn) {
+                btn.classList.add('text-cyan-400', 'bg-slate-800/80', 'border-cyan-500/20');
+                btn.classList.remove('text-slate-400');
+            }
+
+            if (tabId === 'topology') renderTopology();
+            if (tabId === 'switch') renderSwitchPorts();
+            if (tabId === 'plc') renderPlcTags();
+        }
+
+        function renderTopology() {
+            const svg = document.getElementById("networkSvg");
+            const container = document.getElementById("nodeContainer");
+            if (!svg || !container) return;
+
+            svg.innerHTML = "";
+            container.innerHTML = "";
+
+            const showDir = document.getElementById("chkShowDataDirection")?.checked;
+
+            // 1. Draw Cables
+            cables.forEach(cable => {
+                const n1 = nodes[cable.from];
+                const n2 = nodes[cable.to];
+                if (!n1 || !n2) return;
+
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", `${n1.x}%`);
+                line.setAttribute("y1", `${n1.y}%`);
+                line.setAttribute("x2", `${n2.x}%`);
+                line.setAttribute("y2", `${n2.y}%`);
+                
+                let isConn = n1.connected && n2.connected;
+                line.setAttribute("stroke", isConn ? "#334155" : "#ef4444");
+                line.setAttribute("stroke-width", "3");
+                line.setAttribute("stroke-dasharray", isConn ? "none" : "5,5");
+
+                svg.appendChild(line);
+            });
+
+            // 2. Render Node Graphics
+            Object.keys(nodes).forEach(key => {
+                const node = nodes[key];
+                const div = document.createElement("div");
+                div.className = `absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer p-2.5 rounded-xl border transition-all duration-200 select-none ${
+                    node.connected ? 'bg-slate-900/90 border-slate-700 hover:border-cyan-500' : 'bg-red-950/80 border-red-800'
+                }`;
+                div.style.left = `${node.x}%`;
+                div.style.top = `${node.y}%`;
+                div.onclick = () => selectNode(key);
+
+                let icon = 'fa-desktop';
+                if (node.type === 'controller') icon = 'fa-microchip text-cyan-400';
+                if (node.type === 'hmi') icon = 'fa-tv text-amber-400';
+                if (node.type === 'switch') icon = 'fa-server text-cyan-400';
+                if (node.type === 'vfd') icon = 'fa-compact-disc text-cyan-400';
+                if (node.type === 'smc') icon = 'fa-bolt text-amber-400';
+                if (node.type === 'e300') icon = 'fa-shield-halved text-emerald-400';
+                if (node.type === 'laptop') icon = 'fa-laptop text-slate-400';
+
+                div.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid ${icon} text-base"></i>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-200 leading-tight">${node.name}</div>
+                            <div class="text-[9px] font-mono text-cyan-400">${node.ip}</div>
+                        </div>
+                        <span class="led-indicator ${node.connected ? 'led-green' : 'led-red'}"></span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function selectNode(key) {
+            const node = nodes[key];
+            if (!node) return;
+            document.getElementById("inspectNodeIp").innerText = node.ip;
+            document.getElementById("nodeDetName").innerText = node.name;
+            document.getElementById("nodeDetMac").innerText = node.mac;
+            document.getElementById("nodeDetPort").innerText = node.port;
+            document.getElementById("nodeDetSource").innerText = node.cmdSource || "EtherNet/IP Network";
+            document.getElementById("nodeDetStatus").innerText = node.connected ? "Connected (100Mbps)" : "DISCONNECTED";
+        }
+
+        function triggerSequence(type) {
+            if (type === 'START') {
+                logTrace("HMI operator pressed START button.");
+                dispatchPacket('hmi', 'plc', 'HMI Command: Motor Start = TRUE', 'CIP / TCP', '#f59e0b', () => {
+                    plcTags["Motor01_Start"].val = true;
+                    logTrace("PLC evaluated routine -> Command queued for PowerFlex 525.");
+                    dispatchPacket('plc', 'vfd1', 'CIP Class 0x29: Start=1, Freq=45Hz', 'EtherNet/IP Implicit', '#22d3ee', () => {
+                        if (nodes.vfd1.cmdSource === 'EtherNet/IP') {
+                            vfdState.cmdStart = true;
+                            vfdState.mode = "RUNNING";
+                            logTrace("VFD received start command -> Inverter firing PWM.");
+                            playTone(440, 0.2);
+                        } else {
+                            logTrace("WARNING: VFD received command but is locked in LOCAL KEYPAD mode!");
+                        }
+                    });
+                });
+            } else if (type === 'SPEED') {
+                logTrace("Speed Reference setpoint modified to 45.0 Hz.");
+                dispatchPacket('plc', 'vfd1', 'CIP Write: FreqRef = 45.0 Hz', 'EtherNet/IP Explicit', '#22d3ee', () => {
+                    logTrace("VFD updated frequency setpoint register.");
+                    playTone(550, 0.15);
+                });
+            } else if (type === 'FAULT') {
+                logTrace("E300 Trip active -> Overload fault frame sent to PLC.");
+                dispatchPacket('e300', 'plc', 'CIP Alarm: Thermal Capacity 100% Exceeded', 'EtherNet/IP Implicit', '#f59e0b', () => {
+                    plcTags["Motor01_Fault"].val = true;
+                    vfdState.cmdStart = false;
+                    vfdState.mode = "FAULTED";
+                    logTrace("PLC received trip status -> Interlock opened -> Motor Stopped.");
+                });
+            }
+        }
+
+        function dispatchPacket(srcKey, dstKey, payloadStr, proto, colorHex, onComplete) {
+            const src = nodes[srcKey];
+            const dst = nodes[dstKey];
+            const sw = nodes.switch;
+            if (!src || !dst) return;
+
+            // Learn MAC Address
+            macTable[src.mac] = { port: src.port, age: "0s" };
+            renderMacTable();
+
+            // Hop 1: Src -> Switch
+            animatePacketHop(src, sw, colorHex, () => {
+                // Hop 2: Switch -> Dst
+                animatePacketHop(sw, dst, colorHex, () => {
+                    logTraffic(src.ip, dst.ip, proto, payloadStr);
+                    if (onComplete) onComplete();
+                });
+            });
+        }
+
+        function animatePacketHop(n1, n2, color, done) {
+            const svg = document.getElementById("networkSvg");
+            if (!svg) { if (done) done(); return; }
+
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("r", "6");
+            circle.setAttribute("fill", color);
+            circle.setAttribute("cx", `${n1.x}%`);
+            circle.setAttribute("cy", `${n1.y}%`);
+            svg.appendChild(circle);
+
+            let startTime = performance.now();
+            let duration = 600; // ms
+
+            function step(now) {
+                let progress = (now - startTime) / duration;
+                if (progress > 1) progress = 1;
+
+                let curX = n1.x + (n2.x - n1.x) * progress;
+                let curY = n1.y + (n2.y - n1.y) * progress;
+
+                circle.setAttribute("cx", `${curX}%`);
+                circle.setAttribute("cy", `${curY}%`);
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    svg.removeChild(circle);
+                    if (done) done();
+                }
+            }
+            requestAnimationFrame(step);
+        }
+
+        function updatePhysics() {
+            // VFD Acceleration Ramping
+            if (vfdState.cmdStart && nodes.vfd1.connected && !vfdState.fault) {
+                if (vfdState.outFreq < vfdState.cmdFreq) {
+                    vfdState.outFreq = Math.min(vfdState.cmdFreq, vfdState.outFreq + 0.4);
+                } else if (vfdState.outFreq > vfdState.cmdFreq) {
+                    vfdState.outFreq = Math.max(vfdState.cmdFreq, vfdState.outFreq - 0.4);
+                }
+            } else {
+                vfdState.outFreq = Math.max(0, vfdState.outFreq - 0.6);
+            }
+
+            vfdState.rpm = Math.round((vfdState.outFreq / 60) * 1800);
+            vfdState.current = vfdState.outFreq > 0 ? (vfdState.outFreq / 60 * 18.2).toFixed(1) : 0.0;
+            vfdState.voltage = Math.round((vfdState.outFreq / 60) * 460);
+
+            // Update PLC Tag feedbacks
+            plcTags["Motor01_ActualSpeed"].val = vfdState.outFreq;
+            plcTags["Motor01_Current"].val = parseFloat(vfdState.current);
+            plcTags["Motor01_RunStatus"].val = vfdState.outFreq > 0;
+
+            // DOM Visual Updates
+            const fan = document.getElementById("motorFanSvg");
+            if (fan) {
+                let rotSpeed = vfdState.outFreq * 10;
+                fan.style.transform = `rotate(${Date.now() / (100 - vfdState.outFreq + 1)}deg)`;
+            }
+
+            document.getElementById("vfdCmdFreqDisp").innerText = `${vfdState.cmdFreq.toFixed(1)} Hz`;
+            document.getElementById("vfdOutFreqDisp").innerText = `${vfdState.outFreq.toFixed(1)} Hz`;
+            document.getElementById("vfdCurrentDisp").innerText = `${vfdState.current} A`;
+            document.getElementById("vfdRpmDisp").innerText = `${vfdState.rpm} RPM`;
+            document.getElementById("vfdVoltDisp").innerText = `${vfdState.voltage} V`;
+            document.getElementById("motorCenterRpm").innerText = `${vfdState.rpm} RPM`;
+
+            document.getElementById("motorSpeedPct").innerText = `${Math.round((vfdState.outFreq / 60) * 100)}%`;
+            document.getElementById("motorSpeedBar").style.width = `${(vfdState.outFreq / 60) * 100}%`;
+
+            let torque = vfdState.outFreq > 0 ? (vfdState.current * 2.5).toFixed(1) : "0.0";
+            document.getElementById("motorTorqueVal").innerText = `${torque} Nm`;
+            document.getElementById("motorTorqueBar").style.width = `${Math.min(100, (torque / 50) * 100)}%`;
+
+            requestAnimationFrame(updatePhysics);
+        }
+
+        function vfdCmd(type) {
+            if (type === 'START') triggerSequence('START');
+            if (type === 'STOP') {
+                vfdState.cmdStart = false;
+                plcTags["Motor01_Start"].val = false;
+                logTrace("Operator requested Motor STOP.");
+            }
+        }
+
+        function updateSpeedRef(val) {
+            vfdState.cmdFreq = parseFloat(val);
+            plcTags["Motor01_SpeedRef"].val = vfdState.cmdFreq;
+            document.getElementById("sliderValDisp").innerText = `${vfdState.cmdFreq.toFixed(1)} Hz`;
+        }
+
+        function toggleCable(nodeKey) {
+            nodes[nodeKey].connected = !nodes[nodeKey].connected;
+            renderTopology();
+            let btn = document.getElementById(`btnCable${nodeKey.toUpperCase()}`);
+            if (btn) {
+                btn.innerText = nodes[nodeKey].connected ? "Connected" : "DISCONNECTED";
+                btn.className = nodes[nodeKey].connected 
+                    ? "text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold"
+                    : "text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold";
+            }
+        }
+
+        function changeVfdCmdSource(val) {
+            nodes.vfd1.cmdSource = val;
+            logTrace(`VFD Command Source Parameter P046 updated to [${val}].`);
+        }
+
+        function logTrace(msg) {
+            const box = document.getElementById("liveTraceBox");
+            if (!box) return;
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement("div");
+            div.innerText = `[${time}] ${msg}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function logTraffic(src, dst, proto, info) {
+            capturedTraffic.unshift({
+                num: trafficPacketCounter++,
+                time: new Date().toLocaleTimeString(),
+                src: src,
+                dst: dst,
+                proto: proto,
+                length: 64,
+                info: info
+            });
+
+            const tbody = document.getElementById("trafficTableBody");
+            if (!tbody) return;
+
+            tbody.innerHTML = capturedTraffic.slice(0, 15).map(p => `
+                <tr class="hover:bg-slate-800/60 cursor-pointer" onclick="inspectPacket(${p.num})">
+                    <td class="p-2 text-slate-500">${p.num}</td>
+                    <td class="p-2">${p.time}</td>
+                    <td class="p-2 font-mono text-cyan-400">${p.src}</td>
+                    <td class="p-2 font-mono text-emerald-400">${p.dst}</td>
+                    <td class="p-2"><span class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px] text-cyan-300">${p.proto}</span></td>
+                    <td class="p-2">${p.length}</td>
+                    <td class="p-2 text-slate-300">${p.info}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById("capturedCountDisp").innerText = `Captured: ${capturedTraffic.length} frames`;
+        }
+
+        function renderSwitchPorts() {
+            const grid = document.getElementById("switchPortsGrid");
+            if (!grid) return;
+            grid.innerHTML = Object.keys(nodes).filter(k => k !== 'switch').map(k => {
+                const n = nodes[k];
+                return `
+                    <div class="bg-slate-950 p-2.5 rounded-lg border ${n.connected ? 'border-slate-800' : 'border-red-900/60'} text-xs space-y-1">
+                        <div class="flex justify-between items-center font-bold">
+                            <span class="text-cyan-400">${n.port}</span>
+                            <span class="led-indicator ${n.connected ? 'led-green' : 'led-red'}"></span>
+                        </div>
+                        <div class="text-[11px] text-slate-200">${n.name}</div>
+                        <div class="text-[10px] font-mono text-slate-400">${n.mac}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderMacTable() {
+            const tbody = document.getElementById("macTableBody");
+            if (!tbody) return;
+            tbody.innerHTML = Object.keys(macTable).map(mac => `
+                <tr>
+                    <td class="p-1.5 font-bold text-cyan-400">${macTable[mac].port}</td>
+                    <td class="p-1.5 font-mono">${mac}</td>
+                    <td class="p-1.5">VLAN 1</td>
+                    <td class="p-1.5 text-slate-500">${macTable[mac].age}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPlcTags() {
+            const tbody = document.getElementById("plcTagTableBody");
+            if (!tbody) return;
+            tbody.innerHTML = Object.keys(plcTags).map(t => `
+                <tr class="hover:bg-slate-800/40">
+                    <td class="p-2 font-bold text-cyan-300">${t}</td>
+                    <td class="p-2 text-slate-400">${plcTags[t].type}</td>
+                    <td class="p-2 font-mono font-bold ${plcTags[t].val ? 'text-emerald-400' : 'text-slate-300'}">${plcTags[t].val}</td>
+                    <td class="p-2 text-slate-400 text-[11px]">${plcTags[t].desc}</td>
+                </tr>
+            `).join('');
+        }
+
+        function executePing() {
+            const srcKey = document.getElementById("pingSourceSelect").value;
+            const dstKey = document.getElementById("pingTargetSelect").value;
+            const consoleBox = document.getElementById("pingConsole");
+            const src = nodes[srcKey];
+            const dst = nodes[dstKey];
+
+            consoleBox.innerHTML = `PING ${dst.ip} (${dst.name}) with 32 bytes of data:<br>`;
+            
+            setTimeout(() => {
+                if (src.connected && dst.connected) {
+                    consoleBox.innerHTML += `Reply from ${dst.ip}: bytes=32 time=1.2ms TTL=64<br>`;
+                    consoleBox.innerHTML += `Reply from ${dst.ip}: bytes=32 time=0.9ms TTL=64<br>`;
+                    consoleBox.innerHTML += `<span class="text-emerald-400">Ping statistics: Packets: Sent = 2, Received = 2, Lost = 0 (0% loss).</span>`;
+                } else {
+                    consoleBox.innerHTML += `<span class="text-red-400">Request timed out. Destination host unreachable.</span><br>`;
+                }
+            }, 500);
+        }
+
+        function openTroubleModal() { document.getElementById("troubleModal").classList.remove("hidden"); }
+        function closeTroubleModal() { document.getElementById("troubleModal").classList.add("hidden"); }
+        function closePacketModal() { document.getElementById("packetModal").classList.add("hidden"); }
+
+        function loadScenario(id) {
+            closeTroubleModal();
+            if (id === 1) {
+                changeVfdCmdSource('Keypad');
+                logTrace("SCENARIO LOADED: VFD is in Local Keypad mode. Try running Start trace and observe failure!");
+            }
+        }
+
+        // INITIALIZATION ON WINDOW LOAD
+        window.onload = function() {
+            renderTopology();
+            renderSwitchPorts();
+            renderPlcTags();
+            requestAnimationFrame(updatePhysics);
+            logTrace("Simulator initialized. Ready for network commands.");
+        }
+    </script>
+</body>
+</html>
