@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arc-Flash Study & Electrical Safety Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fffbe1',
+                            100: '#fff3c2',
+                            400: '#facc15',
+                            500: '#eab308',
+                            600: '#ca8a04',
+                            700: '#a16207',
+                            900: '#713f12',
+                        },
+                        danger: {
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c'
+                        },
+                        warning: {
+                            500: '#f97316',
+                            600: '#ea580c'
+                        },
+                        success: {
+                            500: '#10b981',
+                            600: '#059669'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 1); }
+
+        /* Arc Glow & Particle effects */
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.8)); }
+            50% { filter: drop-shadow(0 0 35px rgba(250, 204, 21, 1)); }
+        }
+        .arc-active { animation: pulse-glow 0.3s infinite alternate; }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        .crt-overlay::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        /* Tooltip styling */
+        [data-tooltip] { position: relative; }
+        [data-tooltip]:hover::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 10px;
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-size: 11px;
+            border-radius: 6px;
+            white-space: nowrap;
+            z-index: 50;
+            border: 1px solid #334155;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden selection:bg-brand-500 selection:text-slate-950">
+
+    <header class="bg-slate-900/90 border-b border-slate-800 backdrop-blur sticky top-0 z-40 px-4 py-2.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="bg-amber-500/20 text-amber-400 p-2 rounded-lg border border-amber-500/30">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <div>
+                <h1 class="text-base font-bold tracking-wide text-white flex items-center gap-2">
+                    ArcFlash Pro <span class="bg-amber-500/10 text-amber-400 text-xs px-2 py-0.5 rounded border border-amber-500/20 font-mono">SIMULATOR 2026</span>
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Interactive Electrical Arc-Flash Study & Safety Engineering Tool</p>
+            </div>
+        </div>
+
+        <!-- System Quick Stats -->
+        <div class="hidden lg:flex items-center space-x-6 text-xs font-mono bg-slate-950/60 px-4 py-1.5 rounded-lg border border-slate-800">
+            <div><span class="text-slate-500">SYS VOLT:</span> <span id="hdr-voltage" class="text-amber-400 font-bold">415 V</span></div>
+            <div class="h-3 w-px bg-slate-800"></div>
+            <div><span class="text-slate-500">BOLTED Isc:</span> <span id="hdr-fault-current" class="text-red-400 font-bold">24.8 kA</span></div>
+            <div class="h-3 w-px bg-slate-800"></div>
+            <div><span class="text-slate-500">ARCING Iarc:</span> <span id="hdr-arcing-current" class="text-orange-400 font-bold">16.4 kA</span></div>
+            <div class="h-3 w-px bg-slate-800"></div>
+            <div><span class="text-slate-500">INCIDENT ENERGY:</span> <span id="hdr-energy" class="text-red-500 font-bold">7.82 cal/cm²</span></div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <button id="btn-theme-toggle" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition" title="Toggle Light/Dark Theme">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+            </button>
+            <button onclick="openModal('modal-disclaimer')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Disclaimer
+            </button>
+            <button onclick="triggerArcFlashSimulation()" class="px-4 py-1.5 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-xs rounded-lg shadow-lg shadow-red-900/40 transition flex items-center gap-1.5 uppercase tracking-wider animate-pulse">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Initiate Arc Flash
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 hidden md:flex">
+            <div class="p-3 border-b border-slate-800">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Simulation Workflows</p>
+                <div class="space-y-1">
+                    <button onclick="switchTab('dashboard')" class="nav-btn active w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-left transition bg-amber-500/10 text-amber-400 border border-amber-500/30" data-tab="dashboard">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                        Main Dashboard & SLD
+                    </button>
+                    <button onclick="switchTab('system-model')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition" data-tab="system-model">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                        System Model & Inputs
+                    </button>
+                    <button onclick="switchTab('short-circuit')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition" data-tab="short-circuit">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Short Circuit & Arcing Current
+                    </button>
+                    <button onclick="switchTab('protection-tcc')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition" data-tab="protection-tcc">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                        Protection & TCC Curves
+                    </button>
+                    <button onclick="switchTab('boundaries-ppe')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition" data-tab="boundaries-ppe">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        Safety Boundaries & PPE
+                    </button>
+                    <button onclick="switchTab('loto-procedure')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition" data-tab="loto-procedure">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                        Safe Work (LOTO) Workflow
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-3 border-b border-slate-800">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Analysis & Scenarios</p>
+                <div class="space-y-1">
+                    <button onclick="switchTab('what-if')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition" data-tab="what-if">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                        "What-If?" Scenario Matrix
+                    </button>
+                    <button onclick="switchTab('preset-scenarios')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition" data-tab="preset-scenarios">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        Pre-set Fault Scenarios
+                    </button>
+                    <button onclick="switchTab('training-quiz')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition" data-tab="training-quiz">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                        Safety Training & Quiz
+                    </button>
+                    <button onclick="switchTab('calculations')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition" data-tab="calculations">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        Math & Formulas Panel
+                    </button>
+                    <button onclick="switchTab('study-report')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition" data-tab="study-report">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Engineering Study Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Workflow Progress Indicator -->
+            <div class="mt-auto p-3 border-t border-slate-800 bg-slate-950/40">
+                <div class="flex items-center justify-between mb-1.5 text-[11px] font-semibold text-slate-400">
+                    <span>Study Progress</span>
+                    <span id="workflow-percent" class="text-amber-400">20%</span>
+                </div>
+                <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div id="workflow-bar" class="bg-gradient-to-r from-amber-500 to-red-500 h-full w-[20%] transition-all duration-300"></div>
+                </div>
+                <div class="mt-2 text-[10px] text-slate-500 flex justify-between font-mono">
+                    <span>MODEL</span>
+                    <span>SC</span>
+                    <span>TCC</span>
+                    <span>ARC</span>
+                    <span>REPORT</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT VIEWPORT -->
+        <main class="flex-1 overflow-y-auto bg-slate-950 p-4 md:p-6">
+
+            <section id="tab-dashboard" class="tab-content space-y-6">
+                <!-- Educational Alert Banner -->
+                <div class="bg-amber-950/40 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3 text-xs text-amber-200/90 leading-relaxed shadow-sm">
+                    <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <div>
+                        <span class="font-bold text-amber-400 uppercase tracking-wider">Educational Simulation Notice:</span>
+                        This simulator provides an interactive physics-based approximation of 3-phase arc-flash behavior based on IEEE 1584 & NFPA 70E concepts. Real-world arc flash studies must be conducted by qualified professional electrical engineers using certified software, validated short-circuit data, and strict workplace safety protocols.
+                    </div>
+                </div>
+
+                <!-- One-Line Diagram Canvas & Controls Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Single-Line Diagram Interactive Viewport (2 cols) -->
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl flex flex-col">
+                        <div class="bg-slate-800/80 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                                <h2 class="text-sm font-bold text-white tracking-wide uppercase">Interactive Electrical One-Line Diagram (SLD)</h2>
+                            </div>
+                            <div class="flex items-center space-x-2 text-xs">
+                                <span class="text-slate-400">Click component for properties</span>
+                                <button onclick="resetSimulation()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">Reset View</button>
+                            </div>
+                        </div>
+
+                        <!-- SLD Canvas Container -->
+                        <div class="relative flex-1 min-h-[420px] bg-slate-950 crt-overlay p-4 flex items-center justify-center">
+                            <canvas id="sld-canvas" class="w-full h-full block cursor-pointer"></canvas>
+                            
+                            <!-- Arc Overlay Flash Effect -->
+                            <div id="arc-flash-overlay" class="absolute inset-0 bg-amber-100/0 pointer-events-none transition-colors duration-100"></div>
+
+                            <!-- Live Fault Event Log Overlay -->
+                            <div class="absolute bottom-3 left-3 right-3 bg-slate-900/90 border border-slate-800 backdrop-blur rounded-lg p-2.5 flex items-center justify-between text-xs font-mono">
+                                <div class="flex items-center space-x-3">
+                                    <span class="text-slate-500">EVENT LOG:</span>
+                                    <span id="sld-event-status" class="text-emerald-400 font-semibold">System Operating Normally (3-Phase Balanced)</span>
+                                </div>
+                                <div class="flex items-center space-x-2 text-[11px] text-slate-400">
+                                    <span>TRIP TIME: <strong id="sld-trip-timer" class="text-amber-400">0 ms</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Selected Component Inspector & Real-time Gauges -->
+                    <div class="space-y-6">
+                        <!-- Incident Energy Gauge Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Simulated Incident Energy</h3>
+                                <span id="hazard-badge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30">CATEGORY 2</span>
+                            </div>
+
+                            <div class="flex flex-col items-center justify-center my-2">
+                                <div class="relative w-44 h-24 overflow-hidden">
+                                    <canvas id="energy-gauge-canvas" width="176" height="96"></canvas>
+                                </div>
+                                <div class="text-center mt-1">
+                                    <span id="gauge-energy-val" class="text-3xl font-black text-amber-400 mono tracking-tight">7.82</span>
+                                    <span class="text-xs text-slate-400 font-semibold">cal/cm²</span>
+                                </div>
+                                <p class="text-[11px] text-slate-400 mt-1 text-center">at <span id="gauge-dist-val" class="text-slate-200 font-semibold">18 in (457 mm)</span> working distance</p>
+                            </div>
+
+                            <!-- Hazard Level Scale -->
+                            <div class="grid grid-cols-4 gap-1 mt-4 text-center text-[10px] font-bold">
+                                <div class="bg-emerald-950/60 text-emerald-400 py-1 rounded border border-emerald-800/40">LOW<br>&lt; 1.2</div>
+                                <div class="bg-amber-950/60 text-amber-400 py-1 rounded border border-amber-800/40">MOD<br>1.2-8</div>
+                                <div class="bg-orange-950/60 text-orange-400 py-1 rounded border border-orange-800/40">HIGH<br>8-40</div>
+                                <div class="bg-red-950/60 text-red-400 py-1 rounded border border-red-800/40">EXTREME<br>&gt; 40</div>
+                            </div>
+                        </div>
+
+                        <!-- Active Component Property Inspector -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Component Inspector
+                                </h3>
+                                <span id="inspector-comp-type" class="text-[11px] font-mono text-amber-400">BUSBAR</span>
+                            </div>
+
+                            <div id="inspector-body" class="space-y-2 text-xs">
+                                <div class="flex justify-between py-1 border-b border-slate-800/50">
+                                    <span class="text-slate-400">Location Tag:</span>
+                                    <span id="insp-tag" class="font-bold text-white font-mono">MAIN_LV_BUS</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-800/50">
+                                    <span class="text-slate-400">Nominal Voltage:</span>
+                                    <span id="insp-volt" class="font-bold text-slate-200 font-mono">415 V</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-800/50">
+                                    <span class="text-slate-400">Bolted Fault Current ($I_{bf}$):</span>
+                                    <span id="insp-ibf" class="font-bold text-red-400 font-mono">24.82 kA</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-800/50">
+                                    <span class="text-slate-400">Arcing Fault Current ($I_{arc}$):</span>
+                                    <span id="insp-iarc" class="font-bold text-orange-400 font-mono">16.38 kA</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-800/50">
+                                    <span class="text-slate-400">Breaker Trip Time ($T_{clear}$):</span>
+                                    <span id="insp-tclear" class="font-bold text-amber-400 font-mono">100 ms</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-800/50">
+                                    <span class="text-slate-400">Arc Flash Boundary ($D_B$):</span>
+                                    <span id="insp-boundary" class="font-bold text-purple-400 font-mono">1.82 m</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-Time Oscilloscope Waveform Panel -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-white">Oscilloscope Fault Transient Waveform Monitor</h3>
+                        </div>
+                        <div class="flex items-center space-x-4 text-xs font-mono">
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-sky-400"></span> Voltage ($V_{L-N}$)</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-red-500"></span> Fault Current ($I_a$)</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-amber-400"></span> Arcing Voltage ($V_{arc}$)</span>
+                        </div>
+                    </div>
+                    <div class="h-44 w-full bg-slate-950 rounded-lg overflow-hidden border border-slate-800 relative crt-overlay">
+                        <canvas id="scope-canvas" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-system-model" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Electrical Network Parameter Configuration</h2>
+                        <p class="text-xs text-slate-400">Adjust power grid, transformer, cable, and motor parameters to recalculate fault levels.</p>
+                    </div>
+                    <button onclick="recalculateAll()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-lg shadow transition">Apply & Recalculate</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    
+                    <!-- Utility Source Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+                        <div class="flex items-center space-x-2 border-b border-slate-800 pb-2">
+                            <span class="p-1.5 bg-sky-500/20 text-sky-400 rounded">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            </span>
+                            <h3 class="text-xs font-bold text-white uppercase">1. Utility Source</h3>
+                        </div>
+
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1">Utility Short-Circuit MVA</label>
+                                <input type="number" id="inp-utility-mva" value="250" step="10" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-amber-400 focus:border-amber-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Utility Voltage (Primary kV)</label>
+                                <input type="number" id="inp-utility-kv" value="11" step="0.5" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 focus:border-amber-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Utility Source X/R Ratio</label>
+                                <input type="number" id="inp-utility-xr" value="15" step="1" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 focus:border-amber-500 outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transformer Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+                        <div class="flex items-center space-x-2 border-b border-slate-800 pb-2">
+                            <span class="p-1.5 bg-amber-500/20 text-amber-400 rounded">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                            </span>
+                            <h3 class="text-xs font-bold text-white uppercase">2. Step-Down Transformer</h3>
+                        </div>
+
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1">Rating (kVA)</label>
+                                <input type="number" id="inp-tx-kva" value="1000" step="50" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-amber-400 focus:border-amber-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Secondary Bus Voltage (V)</label>
+                                <input type="number" id="inp-tx-sec-v" value="415" step="5" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 focus:border-amber-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Percent Impedance (%Z)</label>
+                                <input type="number" id="inp-tx-z" value="5.75" step="0.25" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 focus:border-amber-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Transformer X/R Ratio</label>
+                                <input type="number" id="inp-tx-xr" value="8" step="0.5" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 focus:border-amber-500 outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cable Feeder Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+                        <div class="flex items-center space-x-2 border-b border-slate-800 pb-2">
+                            <span class="p-1.5 bg-emerald-500/20 text-emerald-400 rounded">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            </span>
+                            <h3 class="text-xs font-bold text-white uppercase">3. Feeder Cable Run</h3>
+                        </div>
+
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1">Cable Length (Meters)</label>
+                                <input type="number" id="inp-cable-len" value="25" step="5" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-amber-400 focus:border-amber-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Conductor Size (mm² Cu)</label>
+                                <select id="inp-cable-size" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 focus:border-amber-500 outline-none">
+                                    <option value="95">95 mm² (R=0.232, X=0.078 Ω/km)</option>
+                                    <option value="185" selected>185 mm² (R=0.128, X=0.075 Ω/km)</option>
+                                    <option value="240">240 mm² (R=0.098, X=0.073 Ω/km)</option>
+                                    <option value="300">300 mm² (R=0.079, X=0.072 Ω/km)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Parallel Sets</label>
+                                <input type="number" id="inp-cable-parallel" value="2" min="1" max="6" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 focus:border-amber-500 outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Motor Load Contribution Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+                        <div class="flex items-center space-x-2 border-b border-slate-800 pb-2">
+                            <span class="p-1.5 bg-purple-500/20 text-purple-400 rounded">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            </span>
+                            <h3 class="text-xs font-bold text-white uppercase">4. Motor Fault Contribution</h3>
+                        </div>
+
+                        <div class="space-y-3 text-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-400">Include Motors?</span>
+                                <input type="checkbox" id="inp-motor-active" checked class="w-4 h-4 accent-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Total Connected Motor Power (kW)</label>
+                                <input type="number" id="inp-motor-kw" value="200" step="25" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-amber-400 focus:border-amber-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Motor Subtransient $X''d$ (pu)</label>
+                                <input type="number" id="inp-motor-xd" value="0.17" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 focus:border-amber-500 outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-short-circuit" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Short-Circuit & Arcing Current Calculation Module</h2>
+                        <p class="text-xs text-slate-400">IEEE 1584 electrode orientation, enclosure geometry, and gap distance physics engine.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Geometry & Physics Controls -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+                        <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider">Electrode & Enclosure Parameters</h3>
+
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1">Electrode Configuration</label>
+                                <select id="inp-electrode-config" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-slate-200 focus:border-amber-500 outline-none">
+                                    <option value="VCB" selected>VCB: Vertical Electrodes inside Box</option>
+                                    <option value="VCBB">VCBB: Vertical Electrodes inside Box with Barrier</option>
+                                    <option value="HCB">HCB: Horizontal Electrodes inside Box</option>
+                                    <option value="VOA">VOA: Vertical Electrodes in Open Air</option>
+                                    <option value="HOA">HOA: Horizontal Electrodes in Open Air</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-slate-400 mb-1">Electrode Gap ($G$, mm)</label>
+                                <div class="flex items-center space-x-3">
+                                    <input type="range" id="inp-gap-slider" min="10" max="100" value="32" class="flex-1 accent-amber-500">
+                                    <span id="gap-val-display" class="font-mono text-amber-400 font-bold w-12 text-right">32 mm</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-slate-400 mb-1">Enclosure Size (Height x Width x Depth mm)</label>
+                                <select id="inp-enclosure-size" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-slate-200 focus:border-amber-500 outline-none">
+                                    <option value="small">Small Box (508 x 508 x 508 mm)</option>
+                                    <option value="medium" selected>Standard Switchgear (610 x 610 x 610 mm)</option>
+                                    <option value="large">Large MCC Cubicle (914 x 914 x 914 mm)</option>
+                                </select>
+                            </div>
+
+                            <div class="pt-2 border-t border-slate-800">
+                                <label class="block text-slate-400 mb-1">Fault Type Selection</label>
+                                <div class="grid grid-cols-2 gap-2 font-mono text-[11px]">
+                                    <button onclick="setFaultType('3ph')" id="btn-ft-3ph" class="px-2 py-1.5 bg-amber-500/20 text-amber-400 border border-amber-500/40 rounded text-center">3-Phase Arc</button>
+                                    <button onclick="setFaultType('slg')" id="btn-ft-slg" class="px-2 py-1.5 bg-slate-800 text-slate-400 border border-slate-700 rounded text-center">Phase-to-Ground</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Comparison Table & Physics Explanation -->
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Calculated Short-Circuit vs Arcing Current</h3>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 font-mono">
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                <span class="text-[10px] text-slate-500 block">3-PHASE BOLTED ($I_{bf}$)</span>
+                                <span id="sc-ibf-val" class="text-xl font-bold text-red-400">24.82 kA</span>
+                            </div>
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                <span class="text-[10px] text-slate-500 block">ARCING CURRENT ($I_{arc}$)</span>
+                                <span id="sc-iarc-val" class="text-xl font-bold text-orange-400">16.38 kA</span>
+                            </div>
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                <span class="text-[10px] text-slate-500 block">ARC REDUCTION RATIO</span>
+                                <span id="sc-ratio-val" class="text-xl font-bold text-amber-400">66.0 %</span>
+                            </div>
+                        </div>
+
+                        <!-- Physics Explanation Box -->
+                        <div class="bg-slate-950/80 border border-slate-800 rounded-lg p-3 text-xs leading-relaxed text-slate-300 space-y-2">
+                            <div class="font-bold text-amber-400 flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Why is Arcing Current ($I_{arc}$) lower than Bolted Fault Current ($I_{bf}$)?
+                            </div>
+                            <p>An electric arc introduces a dynamic non-linear plasma impedance $Z_{arc}$ into the fault circuit. This additional resistance reduces the total RMS current flowing through the circuit. As a critical consequence, protective devices (breakers/fuses) may trip in their inverse-time region rather than instantaneous region, significantly increasing clearing time and resulting in severe arc-flash energy release!</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-protection-tcc" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Protection Coordination & Log-Log TCC Curve Studio</h2>
+                        <p class="text-xs text-slate-400">Interactive Time-Current Characteristic (TCC) log-log graph with adjustable pickup settings.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- TCC Canvas Graph (2 cols) -->
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col">
+                        <div class="flex items-center justify-between mb-2 text-xs">
+                            <span class="font-bold text-slate-300 uppercase">Log-Log Time Current Curve (TCC)</span>
+                            <div class="flex items-center space-x-3 font-mono text-[11px]">
+                                <span class="text-red-400">● $I_{bf}$ Operating Point</span>
+                                <span class="text-orange-400">▲ $I_{arc}$ Operating Point</span>
+                            </div>
+                        </div>
+                        <div class="h-[400px] w-full bg-slate-950 rounded-lg border border-slate-800 relative">
+                            <canvas id="tcc-canvas" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Breaker Settings Panel -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+                        <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider">Main ACB Trip Unit Settings</h3>
+
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1">Long-Time Pickup ($I_r$, Amps)</label>
+                                <input type="number" id="inp-tcc-lt" value="1600" step="100" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-amber-400 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Short-Time Pickup ($I_{sd}$, x $I_r$)</label>
+                                <input type="number" id="inp-tcc-st" value="4.0" step="0.5" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Short-Time Delay ($t_{sd}$, Seconds)</label>
+                                <input type="number" id="inp-tcc-stdelay" value="0.10" step="0.05" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Instantaneous Pickup ($I_i$, x $I_r$)</label>
+                                <input type="number" id="inp-tcc-inst" value="10.0" step="1.0" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Breaker Mechanical Opening Time</label>
+                                <input type="number" id="inp-tcc-mech" value="0.04" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 font-mono text-slate-200 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono space-y-1">
+                            <div class="text-slate-400 text-[10px]">DERIVED CLEARING TIMES:</div>
+                            <div class="flex justify-between"><span>At $I_{bf}$ (24.8 kA):</span><span id="tcc-clear-ibf" class="text-red-400 font-bold">40 ms</span></div>
+                            <div class="flex justify-between"><span>At $I_{arc}$ (16.4 kA):</span><span id="tcc-clear-iarc" class="text-orange-400 font-bold">140 ms</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-boundaries-ppe" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Arc-Flash Safety Boundaries & Interactive PPE Selection</h2>
+                        <p class="text-xs text-slate-400">NFPA 70E approach boundaries and technician personal protective equipment matching.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Boundary Visualizer Canvas -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col">
+                        <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">Approach Distance Visualization</h3>
+                        <div class="h-[320px] w-full bg-slate-950 rounded-lg border border-slate-800 relative">
+                            <canvas id="boundary-canvas" class="w-full h-full block"></canvas>
+                        </div>
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-xs font-mono">
+                            <div class="bg-slate-950 p-2 rounded border border-purple-500/30 text-purple-300">
+                                ARC FLASH BOUNDARY ($D_B$): <strong id="bnd-afb-val">1.82 m</strong>
+                            </div>
+                            <div class="bg-slate-950 p-2 rounded border border-red-500/30 text-red-300">
+                                RESTRICTED APPROACH: <strong id="bnd-rest-val">0.30 m</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PPE Visual Matcher Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4 shadow-xl">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xs font-bold text-white uppercase tracking-wider">PPE Suitability Evaluator</h3>
+                            <span id="ppe-status-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">SUITABLE PPE</span>
+                        </div>
+
+                        <!-- Energy Match Bar -->
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2 text-xs">
+                            <div class="flex justify-between font-mono">
+                                <span class="text-slate-400">Hazard Incident Energy:</span>
+                                <span id="ppe-req-energy" class="text-amber-400 font-bold">7.82 cal/cm²</span>
+                            </div>
+                            <div class="flex justify-between font-mono">
+                                <span class="text-slate-400">Selected PPE Arc Rating (ATPV):</span>
+                                <span id="ppe-selected-rating" class="text-emerald-400 font-bold">12.0 cal/cm²</span>
+                            </div>
+                        </div>
+
+                        <!-- Interactive Checkboxes for PPE Gear -->
+                        <div class="space-y-2 text-xs">
+                            <p class="text-slate-400 font-bold text-[11px] uppercase">Select Technician Gear:</p>
+                            <label class="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800 cursor-pointer hover:bg-slate-800/50">
+                                <span>Arc-Rated Hood & Face Shield (12 cal/cm²)</span>
+                                <input type="checkbox" id="chk-ppe-hood" checked onchange="updatePPERating()" class="w-4 h-4 accent-amber-500">
+                            </label>
+                            <label class="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800 cursor-pointer hover:bg-slate-800/50">
+                                <span>Long-Sleeve Arc-Rated Coverall (8 cal/cm²)</span>
+                                <input type="checkbox" id="chk-ppe-suit" checked onchange="updatePPERating()" class="w-4 h-4 accent-amber-500">
+                            </label>
+                            <label class="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800 cursor-pointer hover:bg-slate-800/50">
+                                <span>Voltage-Rated Insulating Gloves (Class 00)</span>
+                                <input type="checkbox" id="chk-ppe-gloves" checked onchange="updatePPERating()" class="w-4 h-4 accent-amber-500">
+                            </label>
+                            <label class="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800 cursor-pointer hover:bg-slate-800/50">
+                                <span>Leather Safety Footwear & Ear Plugs</span>
+                                <input type="checkbox" id="chk-ppe-boots" checked onchange="updatePPERating()" class="w-4 h-4 accent-amber-500">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-loto-procedure" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Electrically Safe Work Condition (LOTO) Workflow</h2>
+                        <p class="text-xs text-slate-400">Step-by-step interactive lockout/tagout & zero-voltage verification protocol.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-3" id="loto-step-container">
+                        <!-- LOTO Interactive Steps injected via JS -->
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">Safe Condition Status</h3>
+                            <div id="loto-status-card" class="bg-slate-950 p-4 rounded-lg border border-red-500/30 text-center space-y-2">
+                                <span class="text-3xl">⚠️</span>
+                                <h4 class="text-sm font-bold text-red-400 uppercase">System Energized & Unsafe</h4>
+                                <p class="text-xs text-slate-400">Complete all 6 mandatory steps to establish an Electrically Safe Work Condition.</p>
+                            </div>
+                        </div>
+
+                        <button onclick="resetLOTO()" class="mt-4 w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded border border-slate-700">
+                            Reset Procedure
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-what-if" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">"What-If?" Arc-Flash Sensitivity Matrix</h2>
+                        <p class="text-xs text-slate-400">Compare impact of protective settings, working distance, and clearing speed.</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+                    <table class="w-full text-xs text-left font-mono">
+                        <thead class="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Scenario Description</th>
+                                <th class="p-3">Fault $I_{bf}$</th>
+                                <th class="p-3">Trip Time</th>
+                                <th class="p-3">Distance</th>
+                                <th class="p-3">Incident Energy</th>
+                                <th class="p-3">Hazard Category</th>
+                            </tr>
+                        </thead>
+                        <tbody id="whatif-table-body" class="divide-y divide-slate-800 text-slate-300">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="tab-preset-scenarios" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Pre-set Industrial Fault Scenarios</h2>
+                        <p class="text-xs text-slate-400">Quick-load common field configurations and maintenance conditions.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="preset-card-container">
+                    <!-- Preset Cards injected via JS -->
+                </div>
+            </section>
+
+            <section id="tab-training-quiz" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Arc-Flash Safety Assessment & Quiz</h2>
+                        <p class="text-xs text-slate-400">Test your understanding of electrical safety and IEEE/NFPA standards.</p>
+                    </div>
+                </div>
+
+                <div class="max-w-2xl bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4 shadow-xl" id="quiz-container">
+                    <!-- Quiz injected by JS -->
+                </div>
+            </section>
+
+            <section id="tab-calculations" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Step-by-Step Engineering Calculation Math Panel</h2>
+                        <p class="text-xs text-slate-400">Full mathematical derivation for short-circuit, arcing current, and incident energy.</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 font-mono text-xs space-y-4 text-slate-300 leading-relaxed">
+                    <div class="p-3 bg-slate-950 border border-slate-800 rounded">
+                        <h3 class="font-bold text-amber-400 mb-2">1. Short Circuit Impedance Breakdown</h3>
+                        <p>Utility Impedance ($Z_{util}$): $Z_{util} = \frac{V_{sec}^2}{S_{sc}} = \frac{0.415^2}{250} = 0.000688 \, \Omega$</p>
+                        <p>Transformer Impedance ($Z_{tx}$): $Z_{tx} = \frac{\%Z}{100} \cdot \frac{V_{sec}^2}{S_{tx}} = 0.0575 \cdot \frac{0.415^2}{1.0} = 0.009903 \, \Omega$</p>
+                        <p>Total Impedance ($Z_{total}$): $Z_{total} = Z_{util} + Z_{tx} + Z_{cable} = 0.01059 \, \Omega$</p>
+                        <p class="text-emerald-400 mt-1 font-bold">Bolted Fault Current ($I_{bf}$): $I_{bf} = \frac{V_{sec}}{\sqrt{3} \cdot Z_{total}} = \frac{415}{1.732 \cdot 0.01059} = 22.62 \, \text{kA}$</p>
+                    </div>
+
+                    <div class="p-3 bg-slate-950 border border-slate-800 rounded">
+                        <h3 class="font-bold text-amber-400 mb-2">2. Arcing Current Derivation (IEEE 1584 Fit)</h3>
+                        <p>For LV Enclosed Switchgear ($V \le 1.0\,\text{kV}$):</p>
+                        <p>$\log_{10}(I_{arc}) = K + 0.662 \cdot \log_{10}(I_{bf}) + 0.0966 \cdot V + 0.000526 \cdot G$</p>
+                        <p class="text-orange-400 mt-1 font-bold">Calculated $I_{arc} = 16.38 \, \text{kA}$</p>
+                    </div>
+
+                    <div class="p-3 bg-slate-950 border border-slate-800 rounded">
+                        <h3 class="font-bold text-amber-400 mb-2">3. Incident Energy & Arc Flash Boundary</h3>
+                        <p>Incident Energy ($E$): $E = 4.184 \cdot C_f \cdot E_n \cdot \left(\frac{t}{0.2}\right) \cdot \left(\frac{610^x}{D^x}\right) = 7.82 \, \text{cal/cm}^2$</p>
+                        <p>Arc Flash Boundary ($D_B$): $D_B = \sqrt[x]{\frac{E_{610}}{1.2}} \cdot 610 = 1820 \, \text{mm} \, (1.82 \, \text{m})$</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-study-report" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Formal Engineering Arc-Flash Hazard Study Report</h2>
+                        <p class="text-xs text-slate-400">Printable engineering report suitable for safety documentation.</p>
+                    </div>
+                    <button onclick="window.print()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        Print / Export PDF
+                    </button>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-8 space-y-6 text-slate-200" id="printable-report">
+                    <div class="flex justify-between items-start border-b border-slate-800 pb-4">
+                        <div>
+                            <h1 class="text-xl font-bold text-white">ARC-FLASH HAZARD ANALYSIS REPORT</h1>
+                            <p class="text-xs text-slate-400 font-mono mt-1">IEEE 1584-2018 & NFPA 70E Educational Evaluation</p>
+                        </div>
+                        <div class="text-right text-xs font-mono">
+                            <p class="text-slate-400">DATE: <span id="rpt-date">2026-08-14</span></p>
+                            <p class="text-slate-400">STATUS: <span class="text-emerald-400 font-bold">COMPLETED</span></p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6 text-xs font-mono">
+                        <div class="space-y-1.5 bg-slate-950 p-4 rounded border border-slate-800">
+                            <p class="font-bold text-amber-400 uppercase mb-2">System Parameters</p>
+                            <p>Nominal Voltage: <span id="rpt-volt">415 V</span></p>
+                            <p>Transformer Rating: <span id="rpt-tx">1000 kVA</span></p>
+                            <p>Utility Short-Circuit: <span id="rpt-sc-mva">250 MVA</span></p>
+                        </div>
+                        <div class="space-y-1.5 bg-slate-950 p-4 rounded border border-slate-800">
+                            <p class="font-bold text-red-400 uppercase mb-2">Fault & Hazard Results</p>
+                            <p>Bolted Fault ($I_{bf}$): <span id="rpt-ibf">24.82 kA</span></p>
+                            <p>Arcing Current ($I_{arc}$): <span id="rpt-iarc">16.38 kA</span></p>
+                            <p>Incident Energy: <span id="rpt-energy" class="font-bold text-amber-400">7.82 cal/cm²</span></p>
+                            <p>Arc Flash Boundary: <span id="rpt-afb" class="font-bold text-purple-400">1.82 m</span></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Disclaimer Modal -->
+    <div id="modal-disclaimer" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <h3 class="text-base font-bold text-amber-400 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                Engineering Safety Disclaimer
+            </h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+                This simulator is designed strictly as an <strong>educational and training tool</strong> to aid understanding of short-circuit mechanics, arcing current phenomena, and protection coordination.
+            </p>
+            <p class="text-xs text-slate-300 leading-relaxed">
+                It uses simplified physical approximations and fit curves based on IEEE 1584 / NFPA 70E principles. <strong>It MUST NOT be used for actual electrical system design, equipment labeling, or real-world work safety compliance.</strong> Real arc-flash studies require licensed Professional Engineers (PE), verified nameplate data, and certified engineering software.
+            </p>
+            <div class="flex justify-end">
+                <button onclick="closeModal('modal-disclaimer')" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-lg">
+                    I Understand & Accept
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            // Electrical Grid
+            voltage: 415,           // Bus Voltage V
+            utilityMVA: 250,        // Utility Short Circuit MVA
+            utilityXR: 15,          // Utility X/R ratio
+            txKVA: 1000,            // Transformer kVA
+            txZPercent: 5.75,       // Transformer %Z
+            txXR: 8,                // Transformer X/R
+            cableLen: 25,           // Feeder cable length m
+            cableSize: 185,         // mm2
+            cableParallel: 2,       // parallel runs
+            motorsActive: true,
+            motorKW: 200,           // total motor power kW
+            motorXd: 0.17,          // Motor subtransient reactance
+
+            // Geometry & Arcing Parameters
+            electrodeConfig: 'VCB',  // VCB, VCBB, HCB, VOA, HOA
+            gapMm: 32,              // Electrode gap mm
+            enclosureSize: 'medium',// small, medium, large
+            workingDistMm: 457,     // 18 inches = 457 mm
+            faultType: '3ph',       // '3ph', 'slg'
+
+            // Protection Unit Settings
+            ltPickup: 1600,         // Amps
+            stPickup: 4.0,          // multiplier
+            stDelay: 0.10,          // sec
+            instPickup: 10.0,       // multiplier
+            breakerMechTime: 0.04,  // sec
+
+            // Calculated Output Cache
+            ibfKa: 24.82,
+            iarcKa: 16.38,
+            tripTimeSec: 0.10,
+            incidentEnergy: 7.82,   // cal/cm2
+            arcFlashBoundaryM: 1.82,
+
+            // Interactive state
+            simulatingArc: false,
+            arcAnimationProgress: 0,
+            selectedComponent: 'busbar',
+            lotoCompletedSteps: 0,
+            quizScore: 0,
+            currentQuizIndex: 0
+        };
+
+        function calculatePhysics() {
+            const V = state.voltage;
+            const V_kV = V / 1000.0;
+            const V_LN = V / Math.sqrt(3);
+
+            // 1. Utility Impedance
+            const Z_util = (V_kV * V_kV) / state.utilityMVA; // Ohms
+
+            // 2. Transformer Impedance
+            const S_tx_MVA = state.txKVA / 1000.0;
+            const Z_tx = (state.txZPercent / 100.0) * ((V_kV * V_kV) / S_tx_MVA); // Ohms
+
+            // 3. Cable Impedance
+            // 185mm2 Cu approx 0.128 Ohm/km R, 0.075 Ohm/km X
+            const R_cable_per_km = 0.128 / state.cableParallel;
+            const X_cable_per_km = 0.075 / state.cableParallel;
+            const Z_cable = (Math.sqrt(R_cable_per_km*R_cable_per_km + X_cable_per_km*X_cable_per_km) * state.cableLen) / 1000.0;
+
+            // Total Grid Impedance
+            const Z_grid = Z_util + Z_tx + Z_cable;
+
+            // Grid Short Circuit Current
+            let I_grid_A = V_LN / Z_grid;
+
+            // Motor Contribution
+            let I_motor_A = 0;
+            if (state.motorsActive) {
+                const I_flc_motor = (state.motorKW * 1000.0) / (Math.sqrt(3) * V * 0.85 * 0.90);
+                I_motor_A = I_flc_motor / state.motorXd; // approx subtransient surge
+            }
+
+            // Total Bolted Fault Current (kA)
+            let I_bf = (I_grid_A + I_motor_A) / 1000.0;
+            if (state.faultType === 'slg') I_bf *= 0.85; // approximate ground fault reduction
+            state.ibfKa = Math.max(1.0, Math.min(I_bf, 100.0));
+
+            // 4. Arcing Current (IEEE 1584 simplified educational fit)
+            // Arcing current is less than bolted fault due to plasma arc resistance
+            let gapFactor = 1.0 - (state.gapMm - 32) * 0.002;
+            let configFactor = (state.electrodeConfig === 'HCB') ? 0.72 : 0.66;
+            let I_arc = state.ibfKa * configFactor * gapFactor;
+            state.iarcKa = Math.max(0.5, Math.min(I_arc, state.ibfKa * 0.95));
+
+            // 5. Breaker Clearing Time Derivation
+            const I_arc_A = state.iarcKa * 1000.0;
+            let tripTime = 1.0; // default 1s
+
+            const stPickupA = state.ltPickup * state.stPickup;
+            const instPickupA = state.ltPickup * state.instPickup;
+
+            if (I_arc_A >= instPickupA) {
+                tripTime = state.breakerMechTime; // Instantaneous trip
+            } else if (I_arc_A >= stPickupA) {
+                tripTime = state.stDelay + state.breakerMechTime; // Short time delay trip
+            } else {
+                // Inverse time long time region approximation
+                let ratio = I_arc_A / state.ltPickup;
+                tripTime = Math.max(state.breakerMechTime, 3600.0 / (ratio * ratio));
+            }
+            state.tripTimeSec = tripTime;
+
+            // 6. Incident Energy (cal/cm2)
+            // E = 4.184 * Cf * En * (t / 0.2) * (610^x / D^x)
+            const t_sec = state.tripTimeSec;
+            const D_mm = state.workingDistMm;
+            const distExponent = 1.6;
+
+            let E_610 = 0.053 * state.iarcKa * t_sec * 5.0; // normalized at 610mm
+            let E_calc = E_610 * Math.pow(610.0 / D_mm, distExponent);
+            state.incidentEnergy = Math.max(0.1, Math.min(E_calc, 120.0));
+
+            // 7. Arc Flash Boundary (Distance where E = 1.2 cal/cm2)
+            let D_boundary_mm = Math.pow(E_610 / 1.2, 1.0 / distExponent) * 610.0;
+            state.arcFlashBoundaryM = Math.max(0.3, D_boundary_mm / 1000.0);
+
+            // Update UI elements
+            updateUIDisplays();
+        }
+
+        function updateUIDisplays() {
+            // Header stats
+            document.getElementById('hdr-voltage').innerText = `${state.voltage} V`;
+            document.getElementById('hdr-fault-current').innerText = `${state.ibfKa.toFixed(1)} kA`;
+            document.getElementById('hdr-arcing-current').innerText = `${state.iarcKa.toFixed(1)} kA`;
+            document.getElementById('hdr-energy').innerText = `${state.incidentEnergy.toFixed(2)} cal/cm²`;
+
+            // Dashboard Inspector
+            document.getElementById('gauge-energy-val').innerText = state.incidentEnergy.toFixed(2);
+            document.getElementById('gauge-dist-val').innerText = `${(state.workingDistMm/25.4).toFixed(0)} in (${state.workingDistMm} mm)`;
+            document.getElementById('insp-volt').innerText = `${state.voltage} V`;
+            document.getElementById('insp-ibf').innerText = `${state.ibfKa.toFixed(2)} kA`;
+            document.getElementById('insp-iarc').innerText = `${state.iarcKa.toFixed(2)} kA`;
+            document.getElementById('insp-tclear').innerText = `${(state.tripTimeSec * 1000).toFixed(0)} ms`;
+            document.getElementById('insp-boundary').innerText = `${state.arcFlashBoundaryM.toFixed(2)} m`;
+
+            // Short Circuit Tab
+            document.getElementById('sc-ibf-val').innerText = `${state.ibfKa.toFixed(2)} kA`;
+            document.getElementById('sc-iarc-val').innerText = `${state.iarcKa.toFixed(2)} kA`;
+            document.getElementById('sc-ratio-val').innerText = `${((state.iarcKa/state.ibfKa)*100).toFixed(1)} %`;
+
+            // TCC Tab
+            document.getElementById('tcc-clear-ibf').innerText = `${(state.breakerMechTime*1000).toFixed(0)} ms`;
+            document.getElementById('tcc-clear-iarc').innerText = `${(state.tripTimeSec*1000).toFixed(0)} ms`;
+
+            // Boundaries Tab
+            document.getElementById('bnd-afb-val').innerText = `${state.arcFlashBoundaryM.toFixed(2)} m`;
+
+            // Report Tab
+            document.getElementById('rpt-volt').innerText = `${state.voltage} V`;
+            document.getElementById('rpt-tx').innerText = `${state.txKVA} kA`;
+            document.getElementById('rpt-ibf').innerText = `${state.ibfKa.toFixed(2)} kA`;
+            document.getElementById('rpt-iarc').innerText = `${state.iarcKa.toFixed(2)} kA`;
+            document.getElementById('rpt-energy').innerText = `${state.incidentEnergy.toFixed(2)} cal/cm²`;
+            document.getElementById('rpt-afb').innerText = `${state.arcFlashBoundaryM.toFixed(2)} m`;
+
+            // Hazard Category Badge
+            const badge = document.getElementById('hazard-badge');
+            if (state.incidentEnergy < 1.2) {
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                badge.innerText = "CATEGORY 0 / LOW";
+            } else if (state.incidentEnergy < 8.0) {
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30";
+                badge.innerText = "CATEGORY 2 / MODERATE";
+            } else if (state.incidentEnergy < 40.0) {
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30";
+                badge.innerText = "CATEGORY 4 / HIGH";
+            } else {
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30";
+                badge.innerText = "EXTREME DANGER";
+            }
+
+            drawEnergyGauge();
+            drawSLD();
+            drawTCC();
+            drawBoundaries();
+            renderWhatIfMatrix();
+        }
+
+        function drawEnergyGauge() {
+            const canvas = document.getElementById('energy-gauge-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h - 10;
+            const radius = 70;
+
+            // Background Arc
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, Math.PI, 2 * Math.PI);
+            ctx.lineWidth = 14;
+            ctx.strokeStyle = '#1e293b';
+            ctx.stroke();
+
+            // Colored Arc Segments
+            let maxEnergy = 40.0;
+            let pct = Math.min(state.incidentEnergy / maxEnergy, 1.0);
+            let targetAngle = Math.PI + pct * Math.PI;
+
+            let gradient = ctx.createLinearGradient(0, 0, w, 0);
+            gradient.addColorStop(0, '#10b981'); // Emerald
+            gradient.addColorStop(0.3, '#facc15'); // Yellow
+            gradient.addColorStop(0.7, '#f97316'); // Orange
+            gradient.addColorStop(1, '#ef4444'); // Red
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, Math.PI, targetAngle);
+            ctx.lineWidth = 14;
+            ctx.strokeStyle = gradient;
+            ctx.stroke();
+
+            // Needle
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(targetAngle - Math.PI / 2);
+            ctx.beginPath();
+            ctx.moveTo(-3, 0);
+            ctx.lineTo(0, -radius + 5);
+            ctx.lineTo(3, 0);
+            ctx.fillStyle = '#f8fafc';
+            ctx.fill();
+            ctx.restore();
+
+            // Pin center
+            ctx.beginPath();
+            ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fill();
+        }
+
+        function drawSLD() {
+            const canvas = document.getElementById('sld-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            // Adjust resolution
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Node coordinates
+            const cx = w / 2;
+            const yUtility = 40;
+            const yTx = 110;
+            const yBreaker = 200;
+            const yBusbar = 280;
+            const yMotor = 360;
+
+            // Draw Busbar & Lines
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#38bdf8'; // Sky blue
+
+            // Utility to Tx
+            ctx.beginPath();
+            ctx.moveTo(cx, yUtility + 15);
+            ctx.lineTo(cx, yTx - 20);
+            ctx.stroke();
+
+            // Tx to Breaker
+            ctx.beginPath();
+            ctx.moveTo(cx, yTx + 20);
+            ctx.lineTo(cx, yBreaker - 15);
+            ctx.stroke();
+
+            // Breaker to Bus
+            ctx.beginPath(); ctx.moveTo(cx, yBreaker + 15); ctx.lineTo(cx, yBusbar); ctx.stroke();
+
+            // Main Busbar (Horizontal)
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = state.simulatingArc ? '#f59e0b' : '#38bdf8';
+            ctx.beginPath();
+            ctx.moveTo(cx - 140, yBusbar);
+            ctx.lineTo(cx + 140, yBusbar);
+            ctx.stroke();
+
+            // Bus to Motor
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.beginPath(); ctx.moveTo(cx - 80, yBusbar); ctx.lineTo(cx - 80, yMotor - 20); ctx.stroke();
+
+            // Components Graphics
+            // 1. Utility Icon
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(cx, yUtility, 15, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 10px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('UTILITY', cx, yUtility - 20);
+
+            // 2. Transformer Icon (Dual Interlocking Circles)
+            ctx.beginPath(); ctx.arc(cx, yTx - 8, 14, 0, 2*Math.PI); ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx, yTx + 8, 14, 0, 2*Math.PI); ctx.stroke();
+            ctx.fillText('1000 kVA TX', cx + 60, yTx + 4);
+
+            // 3. Air Circuit Breaker (ACB)
+            ctx.fillStyle = state.simulatingArc ? '#ef4444' : '#10b981';
+            ctx.fillRect(cx - 12, yBreaker - 12, 24, 24);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('ACB', cx + 35, yBreaker + 4);
+
+            // 4. Busbar Label
+            ctx.fillStyle = '#facc15';
+            ctx.fillText('MAIN 415V BUS', cx + 110, yBusbar + 4);
+
+            // 5. Motor Icon
+            ctx.beginPath(); ctx.arc(cx - 80, yMotor, 18, 0, 2*Math.PI); ctx.fillStyle = '#0f172a'; ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillText('M', cx - 80, yMotor + 4);
+            ctx.fillText('200kW MOTOR', cx - 80, yMotor + 32);
+
+            // ARC FLASH ANIMATION EFFECT
+            if (state.simulatingArc) {
+                // Bright Arc Burst at Busbar
+                const t = Date.now() / 50;
+                const arcRadius = 25 + Math.sin(t) * 10;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, yBusbar, arcRadius, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(250, 204, 21, 0.8)';
+                ctx.shadowColor = '#ef4444';
+                ctx.shadowBlur = 30;
+                ctx.fill();
+
+                // Plasma Sparks
+                for (let i = 0; i < 12; i++) {
+                    let angle = (i / 12) * Math.PI * 2 + t * 0.1;
+                    let sparkDist = arcRadius + Math.random() * 25;
+                    ctx.beginPath();
+                    ctx.moveTo(cx, yBusbar);
+                    ctx.lineTo(cx + Math.cos(angle) * sparkDist, yBusbar + Math.sin(angle) * sparkDist);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+
+        function drawTCC() {
+            const canvas = document.getElementById('tcc-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Log-Log Grid Background
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+
+            for (let x = 0; x < w; x += 40) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+            }
+            for (let y = 0; y < h; y += 40) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+            }
+
+            // TCC Curve Plotting (Simplified inverse time representation)
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = '#facc15'; // Amber trip curve
+
+            ctx.beginPath();
+            ctx.moveTo(60, 20);
+            ctx.lineTo(120, 180);
+            ctx.lineTo(240, 280);
+            ctx.lineTo(w - 40, 280);
+            ctx.stroke();
+
+            // Operating Point Indicators
+            // Bolted Fault Dot
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath(); ctx.arc(w - 60, 280, 6, 0, 2*Math.PI); ctx.fill();
+
+            // Arcing Current Triangle
+            ctx.fillStyle = '#f97316';
+            ctx.beginPath();
+            ctx.moveTo(200, 275);
+            ctx.lineTo(208, 288);
+            ctx.lineTo(192, 288);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawBoundaries() {
+            const canvas = document.getElementById('boundary-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Scale factor (px per meter)
+            const scale = 50.0;
+
+            // 1. Arc Flash Boundary Circle
+            let afbRadius = state.arcFlashBoundaryM * scale;
+            ctx.beginPath();
+            ctx.arc(cx, cy, afbRadius, 0, 2*Math.PI);
+            ctx.fillStyle = 'rgba(168, 85, 247, 0.15)'; // Purple glow
+            ctx.fill();
+            ctx.strokeStyle = '#c084fc';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 2. Restricted Approach Boundary Circle
+            let restRadius = 0.30 * scale;
+            ctx.beginPath();
+            ctx.arc(cx, cy, restRadius, 0, 2*Math.PI);
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+            ctx.fill();
+            ctx.strokeStyle = '#ef4444';
+            ctx.stroke();
+
+            // Center Switchboard Cubicle
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(cx - 20, cy - 20, 40, 40);
+            ctx.strokeStyle = '#facc15';
+            ctx.strokeRect(cx - 20, cy - 20, 40, 40);
+
+            // Technician Avatar at Working Distance
+            let techDistPx = (state.workingDistMm / 1000.0) * scale;
+            let techX = cx + techDistPx;
+
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath(); ctx.arc(techX, cy, 8, 0, 2*Math.PI); ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '10px JetBrains Mono';
+            ctx.fillText('TECHNICIAN', techX - 25, cy + 20);
+        }
+
+        function drawScopeWaveform() {
+            const canvas = document.getElementById('scope-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            const w = canvas.width;
+            const h = canvas.height;
+            const cy = h / 2;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Grid lines
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
+
+            // Sine Wave Parameters
+            const t = Date.now() / 150;
+            ctx.lineWidth = 2;
+
+            // Voltage Waveform (Sky Blue)
+            ctx.strokeStyle = '#38bdf8';
+            ctx.beginPath();
+            for (let x = 0; x < w; x++) {
+                let angle = (x / 20) + t;
+                let y = cy + Math.sin(angle) * 35;
+                if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Fault Waveform during simulation
+            if (state.simulatingArc) {
+                ctx.strokeStyle = '#ef4444';
+                ctx.beginPath();
+                for (let x = 0; x < w; x++) {
+                    let angle = (x / 10) + t * 2;
+                    let surge = Math.exp(-x / 150) * 20; // DC offset decay
+                    let y = cy + Math.sin(angle) * 55 + surge;
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+            requestAnimationFrame(drawScopeWaveform);
+        }
+
+        function triggerArcFlashSimulation() {
+            if (state.simulatingArc) return;
+
+            state.simulatingArc = true;
+            document.getElementById('sld-event-status').className = "text-red-400 font-bold animate-pulse";
+            document.getElementById('sld-event-status').innerText = "⚠️ ARC FLASH FAULT DETECTED - PLASMA DISCHARGE IN PROGRESS";
+
+            const overlay = document.getElementById('arc-flash-overlay');
+            overlay.className = "absolute inset-0 bg-amber-400/30 pointer-events-none transition-colors duration-100 arc-active";
+
+            let startTime = Date.now();
+            let durationMs = state.tripTimeSec * 1000;
+
+            let timerInterval = setInterval(() => {
+                let elapsed = Date.now() - startTime;
+                document.getElementById('sld-trip-timer').innerText = `${Math.min(elapsed, durationMs).toFixed(0)} ms`;
+
+                if (elapsed >= durationMs) {
+                    clearInterval(timerInterval);
+                    state.simulatingArc = false;
+                    overlay.className = "absolute inset-0 bg-amber-100/0 pointer-events-none transition-colors duration-100";
+                    document.getElementById('sld-event-status').className = "text-emerald-400 font-semibold";
+                    document.getElementById('sld-event-status').innerText = "CLEARED: ACB Main Breaker Tripped Successfully";
+                }
+            }, 10);
+        }
+
+        const lotoSteps = [
+            { title: "1. Identify Power Sources", desc: "Consult single-line diagrams & electrical schematics." },
+            { title: "2. Disconnect & Open Breaker", desc: "Rack out main ACB and verify physical contact gap." },
+            { title: "3. Apply Lockout / Tagout", desc: "Attach safety padlock and warning tag at isolation point." },
+            { title: "4. Release Stored Energy", desc: "Discharge capacitor banks and spring mechanisms." },
+            { title: "5. Test for Absence of Voltage", desc: "Use calibrated 1000V rated multimeter (Live-Dead-Live method)." },
+            { title: "6. Apply Temporary Protective Earthing", desc: "Install short-circuit grounding leads prior to touch." }
+        ];
+
+        function renderLOTOWorkflow() {
+            const container = document.getElementById('loto-step-container');
+            if (!container) return;
+
+            container.innerHTML = lotoSteps.map((s, idx) => `
+                <div onclick="advanceLOTO(${idx})" class="p-3 bg-slate-900 border ${idx <= state.lotoCompletedSteps ? 'border-emerald-500/50 bg-emerald-950/10' : 'border-slate-800'} rounded-lg cursor-pointer transition flex items-start gap-3">
+                    <span class="w-6 h-6 rounded-full ${idx < state.lotoCompletedSteps ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'} flex items-center justify-center font-bold text-xs shrink-0">
+                        ${idx < state.lotoCompletedSteps ? '✓' : idx + 1}
+                    </span>
+                    <div>
+                        <h4 class="text-xs font-bold text-white">${s.title}</h4>
+                        <p class="text-[11px] text-slate-400 mt-0.5">${s.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function advanceLOTO(idx) {
+            if (idx === state.lotoCompletedSteps) {
+                state.lotoCompletedSteps++;
+                renderLOTOWorkflow();
+
+                if (state.lotoCompletedSteps === 6) {
+                    const card = document.getElementById('loto-status-card');
+                    card.className = "bg-emerald-950/40 p-4 rounded-lg border border-emerald-500/40 text-center space-y-2";
+                    card.innerHTML = `
+                        <span class="text-3xl">🛡️</span>
+                        <h4 class="text-sm font-bold text-emerald-400 uppercase">Electrically Safe Work Condition Established</h4>
+                        <p class="text-xs text-slate-300">System zero-voltage verified. Safe for qualified technician work.</p>
+                    `;
+                }
+            }
+        }
+
+        function resetLOTO() {
+            state.lotoCompletedSteps = 0;
+            renderLOTOWorkflow();
+            const card = document.getElementById('loto-status-card');
+            card.className = "bg-slate-950 p-4 rounded-lg border border-red-500/30 text-center space-y-2";
+            card.innerHTML = `
+                <span class="text-3xl">⚠️</span>
+                <h4 class="text-sm font-bold text-red-400 uppercase">System Energized & Unsafe</h4>
+                <p class="text-xs text-slate-400">Complete all 6 mandatory steps to establish an Electrically Safe Work Condition.</p>
+            `;
+        }
+
+        function renderWhatIfMatrix() {
+            const tbody = document.getElementById('whatif-table-body');
+            if (!tbody) return;
+
+            const scenarios = [
+                { desc: "Current Baseline", distance: state.workingDistMm, delay: state.stDelay },
+                { desc: "Reduced Clearing Time (Fast Arc Relay)", distance: state.workingDistMm, delay: 0.02 },
+                { desc: "Increased Working Distance (36 in)", distance: 914, delay: state.stDelay },
+                { desc: "Delayed Protection (Slow Trip)", distance: state.workingDistMm, delay: 0.50 }
+            ];
+
+            tbody.innerHTML = scenarios.map(sc => {
+                let t_clear = sc.delay + state.breakerMechTime;
+                let E = 4.184 * 0.053 * state.iarcKa * t_clear * 5.0 * Math.pow(610.0 / sc.distance, 1.6);
+                let cat = E < 1.2 ? "Category 0" : E < 8.0 ? "Category 2" : "Category 4";
+                return `
+                    <tr class="hover:bg-slate-800/40">
+                        <td class="p-3 font-semibold text-white">${sc.desc}</td>
+                        <td class="p-3 text-red-400">${state.ibfKa.toFixed(1)} kA</td>
+                        <td class="p-3 text-amber-400">${(t_clear*1000).toFixed(0)} ms</td>
+                        <td class="p-3 text-slate-300">${sc.distance} mm</td>
+                        <td class="p-3 font-bold text-orange-400">${E.toFixed(2)} cal/cm²</td>
+                        <td class="p-3">${cat}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        const presetData = [
+            { name: "Baseline Switchboard Arc", desc: "Standard 415V switchgear with 1000kVA transformer.", gap: 32, stDelay: 0.10 },
+            { name: "Slow Feeder Protection", desc: "Delayed trip resulting in severe incident energy surge.", gap: 32, stDelay: 0.40 },
+            { name: "Compact Motor Control Center", desc: "Tight electrode gap (20mm) inside MCC cubicle.", gap: 20, stDelay: 0.05 }
+        ];
+
+        function renderPresets() {
+            const container = document.getElementById('preset-card-container');
+            if (!container) return;
+
+            container.innerHTML = presetData.map((p, idx) => `
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 hover:border-amber-500/40 transition">
+                    <h3 class="text-xs font-bold text-amber-400 uppercase">${p.name}</h3>
+                    <p class="text-xs text-slate-400 leading-relaxed">${p.desc}</p>
+                    <button onclick="loadPreset(${idx})" class="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 rounded border border-slate-700">
+                        Load Scenario
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function loadPreset(idx) {
+            const p = presetData[idx];
+            state.gapMm = p.gap;
+            state.stDelay = p.stDelay;
+            document.getElementById('inp-gap-slider').value = p.gap;
+            document.getElementById('gap-val-display').innerText = `${p.gap} mm`;
+            document.getElementById('inp-tcc-stdelay').value = p.stDelay;
+            calculatePhysics();
+            switchTab('dashboard');
+        }
+
+        const quizQuestions = [
+            {
+                q: "Why is Arcing Current ($I_{arc}$) typically lower than Bolted Fault Current ($I_{bf}$)?",
+                opts: ["Plasma arc introduces extra non-linear resistance", "Breakers reduce voltage immediately", "Motors absorb fault current", "Cables overheat and stop current"],
+                ans: 0,
+                explain: "The electric arc column consists of hot ionized gas (plasma) which adds dynamic arc resistance $Z_{arc}$ into the circuit path."
+            },
+            {
+                q: "Which parameter has the most dramatic exponential effect on reducing Incident Energy?",
+                opts: ["Increasing system voltage", "Increasing working distance from the arc", "Increasing transformer kVA", "Increasing cable length"],
+                ans: 1,
+                explain: "Incident energy decreases inversely with distance squared (or exponent ~1.5 to 2.0). Doubling distance reduces energy by 3x to 4x."
+            }
+        ];
+
+        function renderQuiz() {
+            const container = document.getElementById('quiz-container');
+            if (!container) return;
+
+            const q = quizQuestions[state.currentQuizIndex];
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center text-xs text-slate-400 font-mono">
+                        <span>QUESTION ${state.currentQuizIndex + 1} OF ${quizQuestions.length}</span>
+                        <span>SCORE: ${state.quizScore}</span>
+                    </div>
+                    <h3 class="text-sm font-bold text-white">${q.q}</h3>
+                    <div class="space-y-2">
+                        ${q.opts.map((opt, i) => `
+                            <button onclick="answerQuiz(${i})" class="w-full text-left p-3 bg-slate-950 border border-slate-800 hover:border-amber-500/50 rounded-lg text-xs text-slate-300 transition">
+                                ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function answerQuiz(selected) {
+            const q = quizQuestions[state.currentQuizIndex];
+            if (selected === q.ans) state.quizScore += 10;
+
+            if (state.currentQuizIndex < quizQuestions.length - 1) {
+                state.currentQuizIndex++;
+                renderQuiz();
+            } else {
+                document.getElementById('quiz-container').innerHTML = `
+                    <div class="text-center py-8 space-y-3">
+                        <span class="text-4xl">🏆</span>
+                        <h3 class="text-base font-bold text-white">Quiz Completed!</h3>
+                        <p class="text-xs text-slate-400">Final Score: <strong class="text-amber-400">${state.quizScore} Points</strong></p>
+                        <button onclick="state.currentQuizIndex=0; state.quizScore=0; renderQuiz();" class="px-4 py-2 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg">Retake Quiz</button>
+                    </div>
+                `;
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-amber-500/10', 'text-amber-400', 'border', 'border-amber-500/30');
+                btn.classList.add('text-slate-400');
+            });
+
+            const activeTab = document.getElementById(`tab-${tabId}`);
+            if (activeTab) activeTab.classList.remove('hidden');
+
+            const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active', 'bg-amber-500/10', 'text-amber-400', 'border', 'border-amber-500/30');
+                activeBtn.classList.remove('text-slate-400');
+            }
+
+            // Redraw active canvases
+            setTimeout(() => {
+                drawSLD();
+                drawTCC();
+                drawBoundaries();
+            }, 50);
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        window.onload = function() {
+            // Gap slider event
+            const gapSlider = document.getElementById('inp-gap-slider');
+            if (gapSlider) {
+                gapSlider.addEventListener('input', (e) => {
+                    state.gapMm = parseFloat(e.target.value);
+                    document.getElementById('gap-val-display').innerText = `${state.gapMm} mm`;
+                    calculatePhysics();
+                });
+            }
+
+            // Input fields change handlers
+            ['inp-utility-mva', 'inp-tx-kva', 'inp-tx-z', 'inp-cable-len', 'inp-tcc-stdelay'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', recalculateAll);
+            });
+
+            // Initial calculation & rendering
+            calculatePhysics();
+            renderLOTOWorkflow();
+            renderPresets();
+            renderQuiz();
+            drawScopeWaveform();
+        };
+
+        function recalculateAll() {
+            state.utilityMVA = parseFloat(document.getElementById('inp-utility-mva').value) || 250;
+            state.txKVA = parseFloat(document.getElementById('inp-tx-kva').value) || 1000;
+            state.txZPercent = parseFloat(document.getElementById('inp-tx-z').value) || 5.75;
+            state.cableLen = parseFloat(document.getElementById('inp-cable-len').value) || 25;
+            state.stDelay = parseFloat(document.getElementById('inp-tcc-stdelay').value) || 0.10;
+            calculatePhysics();
+        }
+
+        function resetSimulation() {
+            state.simulatingArc = false;
+            calculatePhysics();
+        }
+    </script>
+</body>
+</html>
