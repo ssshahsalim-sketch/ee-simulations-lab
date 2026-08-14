@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arc Flash Hazard Simulator | Apna Electromechanic Service</title>
+<style>
+  @font-face {
+    font-family: 'IBM Plex Mono Local';
+    src: local('IBM Plex Mono');
+  }
+  :root{
+    --bg:#0a1424;
+    --bg2:#0d1a2e;
+    --panel:#0f1f38;
+    --panel2:#0c1930;
+    --grid:rgba(110,200,255,0.055);
+    --border:rgba(120,200,255,0.16);
+    --border-strong:rgba(120,200,255,0.32);
+    --cyan:#22d3ee;
+    --cyan-dim:#0e7490;
+    --amber:#fbbf24;
+    --amber-dim:#92650f;
+    --text:#dce8f5;
+    --text-dim:#8fa3bc;
+    --text-faint:#5b7089;
+    --danger:#f87171;
+    --danger-glow:rgba(248,113,113,0.45);
+    --success:#4ade80;
+    --warn:#fb923c;
+    --radius:3px;
+    --mono: 'IBM Plex Mono', 'IBM Plex Mono Local', ui-monospace, 'Courier New', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--mono);}
+  body{
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+      linear-gradient(rgba(110,200,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(110,200,255,0.02) 1px, transparent 1px);
+    background-size: 88px 88px, 88px 88px, 22px 22px, 22px 22px;
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  ::selection{background:var(--cyan);color:#00131a;}
+  a{color:var(--cyan);}
+  h1,h2,h3,h4{font-family:var(--mono);font-weight:600;letter-spacing:0.02em;margin:0 0 8px 0;}
+  header.top{
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, rgba(15,31,56,0.9), rgba(10,20,36,0.6));
+    padding:18px 20px 14px 20px;
+    position:sticky; top:0; z-index:50;
+    backdrop-filter: blur(6px);
+  }
+  .brand-row{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;max-width:1400px;margin:0 auto;}
+  .brand{font-size:11px;letter-spacing:0.14em;color:var(--text-faint);text-transform:uppercase;}
+  .title{font-size:20px;color:var(--cyan);display:flex;align-items:center;gap:10px;}
+  .title .zap{color:var(--amber);}
+  .subtitle{font-size:11.5px;color:var(--text-dim);max-width:1400px;margin:6px auto 0 auto;}
+  nav.tabs{
+    max-width:1400px;margin:14px auto 0 auto;
+    display:flex;gap:6px;flex-wrap:wrap;
+  }
+  nav.tabs button{
+    background:var(--panel2);
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:0.03em;
+    padding:9px 13px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    transition:all .15s ease;
+    display:flex; align-items:center; gap:6px;
+  }
+  nav.tabs button .num{color:var(--text-faint);font-size:10px;}
+  nav.tabs button:hover{border-color:var(--border-strong);color:var(--text);}
+  nav.tabs button.active{
+    background:rgba(34,211,238,0.1);
+    border-color:var(--cyan);
+    color:var(--cyan);
+  }
+  nav.tabs button.active .num{color:var(--cyan);}
+  main{max-width:1400px;margin:0 auto;padding:20px;}
+  .panel{
+    display:none;
+  }
+  .panel.active{display:block;animation:fadein .18s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px;
+    margin-bottom:16px;
+  }
+  .card h2{color:var(--cyan);font-size:14px;text-transform:uppercase;letter-spacing:0.08em;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:14px;}
+  .card h3{color:var(--amber);font-size:12.5px;text-transform:uppercase;letter-spacing:0.05em;margin:14px 0 8px 0;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+  @media (max-width:880px){.grid2,.grid3{grid-template-columns:1fr;}}
+  p{color:var(--text-dim);font-size:12.5px;line-height:1.65;margin:0 0 10px 0;}
+  .lead{color:var(--text);font-size:13.5px;}
+  .field{margin-bottom:14px;}
+  .field label{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-dim);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.04em;}
+  .field label .val{color:var(--cyan);font-weight:600;}
+  input[type=range]{
+    -webkit-appearance:none;width:100%;height:4px;background:var(--border-strong);border-radius:2px;outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--cyan);cursor:pointer;
+    box-shadow:0 0 8px rgba(34,211,238,0.7);border:2px solid #001621;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:15px;height:15px;border-radius:50%;background:var(--cyan);cursor:pointer;border:2px solid #001621;
+    box-shadow:0 0 8px rgba(34,211,238,0.7);
+  }
+  select, input[type=text], input[type=number]{
+    width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    font-family:var(--mono);font-size:12.5px;padding:8px 9px;border-radius:var(--radius);
+  }
+  select:focus, input:focus{outline:1px solid var(--cyan);border-color:var(--cyan);}
+  .btn{
+    background:rgba(34,211,238,0.1);border:1px solid var(--cyan);color:var(--cyan);
+    font-family:var(--mono);font-size:12px;padding:9px 14px;border-radius:var(--radius);cursor:pointer;
+    letter-spacing:0.03em;transition:all .15s ease;
+  }
+  .btn:hover{background:rgba(34,211,238,0.22);}
+  .btn.amber{border-color:var(--amber);color:var(--amber);background:rgba(251,191,36,0.08);}
+  .btn.amber:hover{background:rgba(251,191,36,0.2);}
+  .readout-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px;}
+  .readout{
+    background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;
+  }
+  .readout .label{font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.05em;}
+  .readout .value{font-size:19px;color:var(--cyan);font-weight:600;margin-top:3px;}
+  .readout .value.amber{color:var(--amber);}
+  .readout .value.danger{color:var(--danger);}
+  .readout .unit{font-size:10.5px;color:var(--text-faint);margin-left:3px;}
+  table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:8px;}
+  th,td{border:1px solid var(--border);padding:7px 9px;text-align:left;color:var(--text-dim);}
+  th{background:var(--panel2);color:var(--cyan);text-transform:uppercase;font-size:10px;letter-spacing:0.04em;}
+  tr.hl td{color:var(--text);background:rgba(34,211,238,0.05);}
+  .pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10.5px;border:1px solid var(--border-strong);color:var(--text-dim);}
+  .pill.on{background:rgba(34,211,238,0.15);color:var(--cyan);border-color:var(--cyan);}
+  canvas{display:block;width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius);touch-action:pan-y;}
+  .warnbox{
+    border:1px solid var(--danger);background:rgba(248,113,113,0.08);border-radius:var(--radius);
+    padding:11px 13px;font-size:11.5px;color:#fca5a5;margin-top:10px;
+  }
+  .notebox{
+    border:1px solid var(--border-strong);background:rgba(34,211,238,0.05);border-radius:var(--radius);
+    padding:11px 13px;font-size:11.5px;color:var(--text-dim);margin-top:10px;
+  }
+  .footer-note{text-align:center;color:var(--text-faint);font-size:10.5px;margin-top:30px;letter-spacing:0.03em;}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:880px){.split{grid-template-columns:1fr;}}
+  .ppe-figure{display:flex;justify-content:center;align-items:center;padding:10px 0;}
+  .cat-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:52px;height:52px;border-radius:50%;font-size:22px;font-weight:700;
+    border:2px solid currentColor;
+  }
+  .formula{
+    font-family:var(--mono);background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:10px 12px;font-size:12px;color:var(--amber);margin:8px 0;overflow-x:auto;white-space:nowrap;
+  }
+  .kv{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-dim);padding:4px 0;border-bottom:1px dashed var(--border);}
+  .kv b{color:var(--text);}
+  label.chk{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-dim);cursor:pointer;margin-bottom:8px;}
+  label.chk input{accent-color:var(--cyan);}
+  #labelPreview{
+    background:#fff;color:#000;border-radius:2px;padding:0;width:340px;max-width:100%;
+    font-family:Arial, sans-serif;overflow:hidden;border:3px solid #000;
+  }
+  #labelPreview .lp-head{background:var(--danger);color:#fff;text-align:center;font-weight:800;font-size:15px;padding:6px 4px;letter-spacing:0.06em;}
+  #labelPreview .lp-body{padding:8px 10px;}
+  #labelPreview .lp-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid #ddd;}
+  #labelPreview .lp-row b{font-size:11px;}
+  #labelPreview .lp-big{font-size:20px;font-weight:800;text-align:center;padding:6px 0;}
+  #labelPreview .lp-cat{background:#fff3cd;text-align:center;font-weight:800;font-size:13px;padding:5px;border:1px solid #000;margin:6px 0;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand-row">
+    <div class="brand">Apna Electromechanic Service &mdash; Engineering Tools Suite</div>
+    <div class="brand" id="clockTag"></div>
+  </div>
+  <div class="title"><span class="zap">&#9889;</span> Arc Flash Hazard Simulator</div>
+  <div class="subtitle">IEEE 1584-2002 incident energy calculations &middot; NFPA 70E PPE categories &middot; offline, single-file</div>
+  <nav class="tabs" id="tabNav"></nav>
+</header>
+
+<main>
+
+  <!-- TAB 1: OVERVIEW -->
+  <section class="panel" id="panel-0">
+    <div class="card">
+      <h2>What Is Arc Flash?</h2>
+      <div class="grid2">
+        <div>
+          <p class="lead">An <b style="color:var(--amber)">arc flash</b> is a thermal explosion released when a fault current jumps through air between conductors (or from a conductor to ground) instead of flowing through the intended path. Unlike a simple electric shock, which needs a completed circuit through the body, an arc flash can injure someone who never touches anything &mdash; it's the released heat, pressure wave, and molten metal spray that cause harm.</p>
+          <p>A bolted three-phase fault ionises the air. Once ionised, air conducts almost like a wire, and the arc can sustain itself until a protective device interrupts it. Temperatures inside the arc plasma can reach roughly 19,000&deg;C &mdash; about four times hotter than the surface of the sun &mdash; for the fraction of a second the arc burns.</p>
+          <h3>Arc Flash vs Electric Shock</h3>
+          <table>
+            <tr><th></th><th>Electric Shock</th><th>Arc Flash</th></tr>
+            <tr><td>Mechanism</td><td>Current through the body</td><td>Radiant heat + pressure wave</td></tr>
+            <tr><td>Contact needed?</td><td>Yes &mdash; completes a circuit</td><td>No &mdash; proximity is enough</td></tr>
+            <tr><td>Typical injury</td><td>Muscle lock, cardiac effects, burns at entry/exit</td><td>Severe skin burns, hearing/eye damage, blast trauma</td></tr>
+            <tr><td>Governing standard</td><td>IEC 60479-1</td><td>IEEE 1584 / NFPA 70E</td></tr>
+          </table>
+        </div>
+        <div>
+          <canvas id="ovCanvas" height="360"></canvas>
+          <p style="text-align:center;font-size:10.5px;color:var(--text-faint);margin-top:6px;">Simulated arc fault inside a switchboard &mdash; click to trigger</p>
+        </div>
+      </div>
+      <div class="warnbox">This tool is for training and estimation only. Real arc flash risk assessments must be performed by a qualified person using the current edition of IEEE 1584 / NFPA 70E, with actual system study data (available fault current, protective device curves, working distances). Never treat simulator output as a substitute for a field-verified arc flash label.</div>
+    </div>
+  </section>
+
+  <!-- TAB 2: INCIDENT ENERGY CALCULATOR -->
+  <section class="panel" id="panel-1">
+    <div class="card">
+      <h2>Incident Energy Calculator &mdash; IEEE 1584-2002</h2>
+      <div class="grid2">
+        <div>
+          <div class="field">
+            <label>Bolted Fault Current (Ibf) <span class="val" id="v_ibf">25.0 kA</span></label>
+            <input type="range" id="s_ibf" min="1" max="106" step="0.1" value="25">
+          </div>
+          <div class="field">
+            <label>System Voltage <span class="val" id="v_kv">0.415 kV</span></label>
+            <input type="range" id="s_kv" min="0.208" max="15" step="0.001" value="0.415">
+          </div>
+          <div class="field">
+            <label>Conductor Gap (G) <span class="val" id="v_gap">32 mm</span></label>
+            <input type="range" id="s_gap" min="6" max="153" step="1" value="32">
+          </div>
+          <div class="field">
+            <label>Working Distance (D) <span class="val" id="v_dist">455 mm</span></label>
+            <input type="range" id="s_dist" min="150" max="1200" step="5" value="455">
+          </div>
+          <div class="field">
+            <label>Arc Duration / Clearing Time (t) <span class="val" id="v_t">0.20 s</span></label>
+            <input type="range" id="s_t" min="0.01" max="2" step="0.01" value="0.2">
+          </div>
+          <div class="field">
+            <label>Equipment / Enclosure Type</label>
+            <select id="s_equip">
+              <option value="open" data-x="2.000" data-k1="-0.792">Open Air</option>
+              <option value="panel" data-x="1.641" data-k1="-0.555" selected>Panel / MCC (low voltage)</option>
+              <option value="switchgear-lv" data-x="1.473" data-k1="-0.555">Switchgear (low voltage)</option>
+              <option value="switchgear-mv" data-x="0.973" data-k1="-0.555">Switchgear (medium voltage)</option>
+              <option value="cable" data-x="2.000" data-k1="-0.555">Cable / Junction Box</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Grounding</label>
+            <select id="s_ground">
+              <option value="grounded" selected>Grounded / Solidly Grounded (K2 = -0.113)</option>
+              <option value="ungrounded">Ungrounded / High-Resistance Grounded (K2 = 0)</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <canvas id="calcCanvas" height="220"></canvas>
+          <div class="readout-grid">
+            <div class="readout"><div class="label">Arcing Current (Ia)</div><div class="value" id="r_ia">-- <span class="unit">kA</span></div></div>
+            <div class="readout"><div class="label">Incident Energy (E)</div><div class="value amber" id="r_e">-- <span class="unit">cal/cm&sup2;</span></div></div>
+            <div class="readout"><div class="label">Arc Flash Boundary</div><div class="value" id="r_boundary">-- <span class="unit">mm</span></div></div>
+            <div class="readout"><div class="label">Required PPE Category</div><div class="value danger" id="r_cat">--</div></div>
+          </div>
+          <div class="notebox" id="calcNote">Adjust the sliders to see how fault current, gap, distance, and clearing time change the incident energy delivered to a person standing at the working distance.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: PPE CATEGORY -->
+  <section class="panel" id="panel-2">
+    <div class="card">
+      <h2>PPE Category Selector &mdash; NFPA 70E Table 130.7(C)(15)</h2>
+      <p>This tab uses the incident energy computed on the previous tab (<b id="ppeSourceE" style="color:var(--amber)">--</b> cal/cm&sup2;) to show the minimum arc-rated PPE category, and lets you compare all five bands.</p>
+      <div class="grid2">
+        <div>
+          <div class="ppe-figure"><canvas id="ppeCanvas" width="260" height="360" style="width:220px;height:auto;"></canvas></div>
+          <div style="text-align:center;">
+            <span class="cat-badge" id="ppeBadge" style="color:var(--cyan);">0</span>
+          </div>
+          <div style="text-align:center;margin-top:8px;font-size:12.5px;color:var(--text);" id="ppeLabel">Category 0</div>
+        </div>
+        <div>
+          <table>
+            <tr><th>Category</th><th>Min. Arc Rating</th><th>Typical PPE</th></tr>
+            <tr id="cat_row_0"><td>0</td><td>&mdash;</td><td>Untreated cotton, arc-rated face shield optional</td></tr>
+            <tr id="cat_row_1"><td>1</td><td>4 cal/cm&sup2;</td><td>Arc-rated shirt &amp; pants or coverall, face shield, hard hat</td></tr>
+            <tr id="cat_row_2"><td>2</td><td>8 cal/cm&sup2;</td><td>AR shirt/pants + AR flash suit hood, balaclava</td></tr>
+            <tr id="cat_row_3"><td>3</td><td>25 cal/cm&sup2;</td><td>AR flash suit (multi-layer), hood, gloves, leather footwear</td></tr>
+            <tr id="cat_row_4"><td>4</td><td>40 cal/cm&sup2;</td><td>Heavy multi-layer flash suit, hood, gloves, all seams AR-taped</td></tr>
+          </table>
+          <div class="warnbox" id="dangerZone" style="display:none;">Incident energy exceeds 40 cal/cm&sup2;. This is beyond standard PPE ratings &mdash; NFPA 70E treats this as requiring de-energised work wherever possible. No PPE combination is considered adequate at this level for routine work.</div>
+          <h3 style="margin-top:16px;">Rubber Insulating Glove Class (shock protection, separate from PPE category)</h3>
+          <table>
+            <tr><th>Class</th><th>Max Use Voltage (AC)</th></tr>
+            <tr><td>00</td><td>500 V</td></tr>
+            <tr><td>0</td><td>1,000 V</td></tr>
+            <tr><td>1</td><td>7,500 V</td></tr>
+            <tr><td>2</td><td>17,000 V</td></tr>
+            <tr><td>3</td><td>26,500 V</td></tr>
+            <tr><td>4</td><td>36,000 V</td></tr>
+          </table>
+          <p style="margin-top:8px;font-size:11px;">Glove class is selected from system voltage (per ASTM D120 / IS 4770), independent of the arc flash PPE category above &mdash; both are required together on live work.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: PROTECTIVE DEVICE IMPACT -->
+  <section class="panel" id="panel-3">
+    <div class="card">
+      <h2>Protective Device Impact &mdash; Why Fast Tripping Matters</h2>
+      <p class="lead">Incident energy is directly proportional to arc duration. The same fault, cleared quickly by a well-coordinated relay/breaker versus slowly by an upstream or miscoordinated device, can be the difference between PPE Category 1 and a fatality. Adjust clearing times below &mdash; fault current, voltage, gap, and distance are shared with the Calculator tab.</p>
+      <div class="split">
+        <div class="card" style="border-color:var(--success);">
+          <h3 style="color:var(--success);">Scenario A &mdash; Fast Clearing</h3>
+          <div class="field">
+            <label>Clearing Time <span class="val" id="v_tA">0.10 s</span></label>
+            <input type="range" id="s_tA" min="0.01" max="2" step="0.01" value="0.1">
+          </div>
+          <div class="readout-grid">
+            <div class="readout"><div class="label">Incident Energy</div><div class="value" id="r_eA" style="color:var(--success);">--</div></div>
+            <div class="readout"><div class="label">PPE Category</div><div class="value" id="r_catA" style="color:var(--success);">--</div></div>
+          </div>
+        </div>
+        <div class="card" style="border-color:var(--danger);">
+          <h3 style="color:var(--danger);">Scenario B &mdash; Slow / Miscoordinated Clearing</h3>
+          <div class="field">
+            <label>Clearing Time <span class="val" id="v_tB">1.00 s</span></label>
+            <input type="range" id="s_tB" min="0.01" max="2" step="0.01" value="1.0">
+          </div>
+          <div class="readout-grid">
+            <div class="readout"><div class="label">Incident Energy</div><div class="value danger" id="r_eB">--</div></div>
+            <div class="readout"><div class="label">PPE Category</div><div class="value danger" id="r_catB">--</div></div>
+          </div>
+        </div>
+      </div>
+      <canvas id="cmpCanvas" height="140" style="margin-top:14px;"></canvas>
+      <div class="notebox" id="cmpNote">The bar chart above compares incident energy at the two clearing times on a common scale, with PPE category thresholds marked.</div>
+      <h3>Why This Happens</h3>
+      <p>Devices that reduce arc duration directly reduce incident energy: current-limiting fuses, properly coordinated instantaneous relay elements, differential (87) protection, arc-flash-relay light/current sensing schemes, and maintenance-mode switches that temporarily lower an instantaneous pickup while work is performed nearby. This is the same protective-device logic used across the relay simulators in this suite &mdash; the speed of the trip decision is a safety variable, not just a reliability one.</p>
+    </div>
+  </section>
+
+  <!-- TAB 5: LABEL GENERATOR -->
+  <section class="panel" id="panel-4">
+    <div class="card">
+      <h2>Arc Flash Label Generator</h2>
+      <p>Generates a field-style warning label from the values on the Calculator tab. Fill in the equipment identifiers, then export or print.</p>
+      <div class="grid2">
+        <div>
+          <div class="field"><label>Equipment ID / Name</label><input type="text" id="lblEquip" value="MCC-1, Panel A"></div>
+          <div class="field"><label>Location</label><input type="text" id="lblLoc" value="Main Electrical Room"></div>
+          <div class="field"><label>Prepared By</label><input type="text" id="lblBy" value=""></div>
+          <div class="field"><label>Date</label><input type="text" id="lblDate" value=""></div>
+          <button class="btn" id="printLabelBtn">Print Label</button>
+        </div>
+        <div>
+          <div id="labelPreview">
+            <div class="lp-head">&#9888; WARNING &mdash; ARC FLASH &amp; SHOCK HAZARD</div>
+            <div class="lp-body">
+              <div class="lp-row"><span>Equipment</span><b id="lp_equip">MCC-1, Panel A</b></div>
+              <div class="lp-row"><span>Location</span><b id="lp_loc">Main Electrical Room</b></div>
+              <div class="lp-row"><span>Nominal Voltage</span><b id="lp_v">415 V</b></div>
+              <div class="lp-big" id="lp_e">-- cal/cm&sup2;</div>
+              <div class="lp-cat" id="lp_cat">PPE CATEGORY --</div>
+              <div class="lp-row"><span>Arc Flash Boundary</span><b id="lp_bound">-- mm</b></div>
+              <div class="lp-row"><span>Working Distance</span><b id="lp_dist">-- mm</b></div>
+              <div class="lp-row"><span>Glove Class</span><b id="lp_glove">--</b></div>
+              <div class="lp-row"><span>Prepared By / Date</span><b id="lp_by">--</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notebox">This label is illustrative only, styled after common field labels. Real arc flash labels must follow ANSI Z535.4 requirements and be issued from a documented, engineer-reviewed study.</div>
+    </div>
+  </section>
+
+  <!-- TAB 6: FORMULAS -->
+  <section class="panel" id="panel-5">
+    <div class="card">
+      <h2>Formulas &amp; Standards Reference</h2>
+      <p>All calculations in this tool use the IEEE 1584-2002 empirical model, which remains widely taught and used for estimation. Site-specific studies should use the current IEEE 1584-2018 edition with full equipment class/box-size lookup tables and a qualified engineer's review.</p>
+
+      <h3>1. Arcing Current</h3>
+      <p>For systems &lt; 1 kV:</p>
+      <div class="formula">lg(Ia) = K + 0.662&middot;lg(Ibf) + 0.0966&middot;V + 0.000526&middot;G + 0.5588&middot;V&middot;lg(Ibf) &minus; 0.00304&middot;G&middot;lg(Ibf)</div>
+      <p>For systems &ge; 1 kV:</p>
+      <div class="formula">lg(Ia) = 0.00402 + 0.983&middot;lg(Ibf)</div>
+      <p>K = &minus;0.153 for open air, &minus;0.097 for a box/enclosure. V = system voltage (kV), G = gap (mm), Ibf = bolted fault current (kA).</p>
+
+      <h3>2. Normalised Incident Energy (at 610 mm, 0.2 s)</h3>
+      <div class="formula">lg(En) = K1 + K2 + 1.081&middot;lg(Ia) + 0.0011&middot;G</div>
+      <p>K1 = &minus;0.792 (open air) or &minus;0.555 (box). K2 = 0 (ungrounded/HRG) or &minus;0.113 (grounded).</p>
+
+      <h3>3. Incident Energy at Working Distance</h3>
+      <div class="formula">E (cal/cm&sup2;) = 4.184 &middot; Cf &middot; En &middot; (t / 0.2) &middot; (610 / D)<sup>x</sup></div>
+      <p>Cf = 1.5 for systems &le; 1 kV, 1.0 above. t = arc duration (s), D = working distance (mm), x = distance exponent from the table below.</p>
+
+      <h3>4. Arc Flash Boundary</h3>
+      <div class="formula">DB (mm) = [4.184 &middot; Cf &middot; En &middot; (t / 0.2) &middot; 610<sup>x</sup> / EB]<sup>1/x</sup></div>
+      <p>EB = 1.2 cal/cm&sup2;, the accepted onset-of-second-degree-burn threshold used to define the boundary distance.</p>
+
+      <h3>Distance Exponent (x) by Equipment Class</h3>
+      <table>
+        <tr><th>Equipment</th><th>x</th></tr>
+        <tr><td>Open air</td><td>2.000</td></tr>
+        <tr><td>Switchgear (LV)</td><td>1.473</td></tr>
+        <tr><td>Panel / MCC (LV)</td><td>1.641</td></tr>
+        <tr><td>Cable / junction box</td><td>2.000</td></tr>
+        <tr><td>Switchgear (MV)</td><td>0.973</td></tr>
+      </table>
+
+      <h3>Standards Referenced</h3>
+      <ul style="color:var(--text-dim);font-size:12px;line-height:1.8;">
+        <li>IEEE 1584-2002 / 1584-2018 &mdash; Guide for Performing Arc-Flash Hazard Calculations</li>
+        <li>NFPA 70E &mdash; Standard for Electrical Safety in the Workplace (PPE category tables)</li>
+        <li>ANSI Z535.4 &mdash; Product Safety Signs and Labels</li>
+        <li>ASTM D120 / IS 4770 &mdash; Rubber insulating glove classes</li>
+        <li>IEC 60479-1 &mdash; Effects of current on human beings (shock, referenced for comparison)</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<div class="footer-note">Apna Electromechanic Service &mdash; Engineering Tools Suite &middot; Offline single-file tool &middot; Training &amp; estimation use only</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Tab infrastructure ---------- */
+  var TABS = [
+    {id:0, label:"Overview"},
+    {id:1, label:"Incident Energy Calc"},
+    {id:2, label:"PPE Category"},
+    {id:3, label:"Protective Device Impact"},
+    {id:4, label:"Label Generator"},
+    {id:5, label:"Formulas & Standards"}
+  ];
+  var navEl = document.getElementById('tabNav');
+  var panels = {};
+  var onShowHandlers = {};
+  TABS.forEach(function(t){
+    var btn = document.createElement('button');
+    btn.innerHTML = '<span class="num">0'+(t.id+1)+'</span> '+t.label;
+    btn.addEventListener('click', function(){ showTab(t.id); });
+    navEl.appendChild(btn);
+    panels[t.id] = {btn:btn, el: document.getElementById('panel-'+t.id)};
+  });
+  function showTab(id){
+    TABS.forEach(function(t){
+      var isActive = t.id === id;
+      panels[t.id].btn.classList.toggle('active', isActive);
+      panels[t.id].el.classList.toggle('active', isActive);
+    });
+    if (onShowHandlers[id]) onShowHandlers[id].forEach(function(fn){ fn(); });
+  }
+  function onShow(id, fn){
+    if (!onShowHandlers[id]) onShowHandlers[id] = [];
+    onShowHandlers[id].push(fn);
+  }
+  showTab(0);
+
+  var clockTag = document.getElementById('clockTag');
+  function tickClock(){
+    var d = new Date();
+    clockTag.textContent = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+  }
+  tickClock(); setInterval(tickClock, 1000);
+
+  /* ---------- HiDPI-safe canvas sizing helper ---------- */
+  function sizeCanvasEl(canvas, fallbackH){
+    var parent = canvas.parentElement;
+    var cs = getComputedStyle(parent);
+    var pad = (parseFloat(cs.paddingLeft)||0) + (parseFloat(cs.paddingRight)||0);
+    var cssW = Math.max(50, parent.clientWidth - pad);
+    var cssH = canvas.dataset.cssH ? parseFloat(canvas.dataset.cssH) : (canvas.getAttribute('height') ? parseFloat(canvas.getAttribute('height')) : fallbackH);
+    canvas.dataset.cssH = cssH;
+    var dpr = window.devicePixelRatio || 1;
+    var newW = Math.round(cssW * dpr);
+    var newH = Math.round(cssH * dpr);
+    if (canvas._lastW === newW && canvas._lastH === newH) return false;
+    canvas.width = newW; canvas.height = newH;
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas._lastW = newW; canvas._lastH = newH;
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return true;
+  }
+
+  var redrawRegistry = []; // {panelId, fn}
+  function regRedraw(panelId, fn){
+    redrawRegistry.push({panelId:panelId, fn:fn});
+    onShow(panelId, fn);
+  }
+  window.addEventListener('resize', function(){
+    redrawRegistry.forEach(function(r){
+      var panel = panels[r.panelId];
+      if (panel && panel.el.classList.contains('active')) r.fn();
+    });
+  });
+
+  /* ================= TAB 1: OVERVIEW ANIMATION ================= */
+  (function(){
+    var cv = document.getElementById('ovCanvas');
+    var ctx = cv.getContext('2d');
+    var arcing = false, arcT = 0, particles = [];
+    function draw(){
+      sizeCanvasEl(cv, 360);
+      var w = cv.clientWidth, h = cv.clientHeight;
+      ctx.clearRect(0,0,w,h);
+      // panel cabinet
+      var px = w*0.18, py = h*0.1, pw = w*0.64, ph = h*0.75;
+      ctx.fillStyle = '#152a47';
+      ctx.fillRect(px,py,pw,ph);
+      ctx.strokeStyle = 'rgba(120,200,255,0.4)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px,py,pw,ph);
+      // busbars
+      var busY = py + ph*0.35;
+      var colors = ['#f87171','#fbbf24','#4ade80'];
+      for (var i=0;i<3;i++){
+        ctx.fillStyle = colors[i];
+        ctx.fillRect(px+pw*0.25 + i*22, busY, 10, ph*0.4);
+      }
+      // gap label
+      ctx.fillStyle = 'rgba(220,232,245,0.7)';
+      ctx.font = '11px monospace';
+      ctx.fillText('L1', px+pw*0.25+3, busY-6);
+      ctx.fillText('L2', px+pw*0.25+22+3, busY-6);
+      ctx.fillText('L3', px+pw*0.25+44+3, busY-6);
+
+      if (arcing){
+        arcT += 1;
+        var cx = px+pw*0.25+16, cx2 = px+pw*0.25+44+5;
+        var midY = busY + ph*0.15;
+        // flash glow
+        var glowR = Math.min(140, arcT*7);
+        var grad = ctx.createRadialGradient((cx+cx2)/2, midY, 5, (cx+cx2)/2, midY, glowR);
+        grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+        grad.addColorStop(0.25, 'rgba(180,220,255,0.55)');
+        grad.addColorStop(1, 'rgba(180,220,255,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc((cx+cx2)/2, midY, glowR, 0, Math.PI*2); ctx.fill();
+        // jagged arc bolt
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2 + Math.random()*2;
+        ctx.beginPath();
+        ctx.moveTo(cx, midY);
+        var steps = 6;
+        for (var s=1;s<steps;s++){
+          var t = s/steps;
+          ctx.lineTo(cx + (cx2-cx)*t + (Math.random()-0.5)*14, midY + (Math.random()-0.5)*20);
+        }
+        ctx.lineTo(cx2, midY);
+        ctx.stroke();
+        // particles
+        if (arcT < 26 && Math.random()<0.8){
+          for (var pn=0;pn<3;pn++){
+            particles.push({x:(cx+cx2)/2, y:midY, vx:(Math.random()-0.5)*6, vy:(Math.random()-1.3)*5, life:30+Math.random()*20});
+          }
+        }
+        particles.forEach(function(p){
+          p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.life--;
+        });
+        particles = particles.filter(function(p){return p.life>0;});
+        ctx.fillStyle = '#fbbf24';
+        particles.forEach(function(p){
+          ctx.globalAlpha = Math.max(0, p.life/40);
+          ctx.beginPath(); ctx.arc(p.x,p.y,2,0,Math.PI*2); ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        if (arcT > 40 && particles.length===0){ arcing=false; arcT=0; }
+      } else {
+        ctx.fillStyle = 'rgba(220,232,245,0.4)';
+        ctx.font = '11px monospace';
+        ctx.fillText('click to simulate an arc fault', px+8, py+ph+18);
+      }
+      requestAnimationFrame(draw);
+    }
+    cv.addEventListener('click', function(){ if(!arcing){arcing=true; arcT=0; particles=[];} });
+    regRedraw(0, function(){}); // ensure sizing hook exists on show
+    onShow(0, function(){ sizeCanvasEl(cv,360); });
+    draw();
+  })();
+
+  /* ================= SHARED CALC STATE / MATH ================= */
+  var Calc = {};
+  function log10(x){ return Math.log(x)/Math.LN10; }
+
+  function computeArcingCurrent(Ibf, V, G, isOpenAir){
+    // Ibf in kA, V in kV, G in mm
+    if (V < 1){
+      var K = isOpenAir ? -0.153 : -0.097;
+      var lgIa = K + 0.662*log10(Ibf) + 0.0966*V + 0.000526*G + 0.5588*V*log10(Ibf) - 0.00304*G*log10(Ibf);
+      return Math.pow(10, lgIa);
+    } else {
+      var lgIa2 = 0.00402 + 0.983*log10(Ibf);
+      return Math.pow(10, lgIa2);
+    }
+  }
+
+  function computeEn(Ia, G, K1, K2){
+    var lgEn = K1 + K2 + 1.081*log10(Ia) + 0.0011*G;
+    return Math.pow(10, lgEn); // J/cm^2 normalized
+  }
+
+  function computeIncidentEnergy(params){
+    // params: Ibf(kA), V(kV), G(mm), D(mm), t(s), x, K1, grounded(bool), isOpenAir(bool)
+    var Ia = computeArcingCurrent(params.Ibf, params.V, params.G, params.isOpenAir);
+    var K2 = params.grounded ? -0.113 : 0;
+    var En = computeEn(Ia, params.G, params.K1, K2);
+    var Cf = params.V <= 1 ? 1.5 : 1.0;
+    var E_J = 4.184 * Cf * En * (params.t/0.2) * Math.pow(610/params.D, params.x);
+    var E_cal = E_J; // 4.184 already converts J->cal-equivalent scaling per IEEE formula (E result is in cal/cm^2 when using 4.184 factor per standard formula form)
+    var EB = 1.2; // cal/cm^2 boundary threshold
+    var DB = Math.pow( (4.184 * Cf * En * (params.t/0.2) * Math.pow(610, params.x)) / EB, 1/params.x );
+    return {Ia: Ia, E: E_cal, DB: DB};
+  }
+
+  function ppeCategory(E){
+    if (E <= 0.01) return 0;
+    if (E < 4) return 0;
+    if (E < 8) return 1;
+    if (E < 25) return 2;
+    if (E < 40) return 3;
+    return 4; // will be flagged as "exceeds" if > 40 handled separately
+  }
+  function ppeCategoryExceeds(E){ return E > 40; }
+
+  /* ================= TAB 2: CALCULATOR ================= */
+  (function(){
+    var s_ibf = document.getElementById('s_ibf');
+    var s_kv = document.getElementById('s_kv');
+    var s_gap = document.getElementById('s_gap');
+    var s_dist = document.getElementById('s_dist');
+    var s_t = document.getElementById('s_t');
+    var s_equip = document.getElementById('s_equip');
+    var s_ground = document.getElementById('s_ground');
+
+    var v_ibf = document.getElementById('v_ibf');
+    var v_kv = document.getElementById('v_kv');
+    var v_gap = document.getElementById('v_gap');
+    var v_dist = document.getElementById('v_dist');
+    var v_t = document.getElementById('v_t');
+
+    var r_ia = document.getElementById('r_ia');
+    var r_e = document.getElementById('r_e');
+    var r_boundary = document.getElementById('r_boundary');
+    var r_cat = document.getElementById('r_cat');
+    var calcNote = document.getElementById('calcNote');
+
+    var cv = document.getElementById('calcCanvas');
+    var ctx = cv.getContext('2d');
+
+    function currentParams(){
+      var Ibf = parseFloat(s_ibf.value);
+      var V = parseFloat(s_kv.value);
+      var G = parseFloat(s_gap.value);
+      var D = parseFloat(s_dist.value);
+      var t = parseFloat(s_t.value);
+      var opt = s_equip.options[s_equip.selectedIndex];
+      var x = parseFloat(opt.dataset.x);
+      var K1 = parseFloat(opt.dataset.k1);
+      var isOpenAir = s_equip.value === 'open';
+      var grounded = s_ground.value === 'grounded';
+      return {Ibf:Ibf, V:V, G:G, D:D, t:t, x:x, K1:K1, isOpenAir:isOpenAir, grounded:grounded};
+    }
+
+    function drawBar(E){
+      sizeCanvasEl(cv, 220);
+      var w = cv.clientWidth, h = cv.clientHeight;
+      ctx.clearRect(0,0,w,h);
+      var maxE = 50;
+      var barMaxW = w - 100;
+      var thresholds = [
+        {v:4, label:'Cat 1', color:'#4ade80'},
+        {v:8, label:'Cat 2', color:'#fbbf24'},
+        {v:25, label:'Cat 3', color:'#fb923c'},
+        {v:40, label:'Cat 4', color:'#f87171'}
+      ];
+      var baseY = 40;
+      // scale ticks
+      ctx.strokeStyle = 'rgba(120,200,255,0.2)';
+      ctx.fillStyle = 'rgba(220,232,245,0.5)';
+      ctx.font = '10px monospace';
+      for (var g=0; g<=maxE; g+=10){
+        var gx = 70 + (g/maxE)*barMaxW;
+        ctx.beginPath(); ctx.moveTo(gx, baseY-6); ctx.lineTo(gx, baseY+70); ctx.stroke();
+        ctx.fillText(g, gx-6, baseY+86);
+      }
+      // threshold markers
+      thresholds.forEach(function(th){
+        var tx = 70 + (Math.min(th.v,maxE)/maxE)*barMaxW;
+        ctx.strokeStyle = th.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(tx, baseY-10); ctx.lineTo(tx, baseY+74); ctx.stroke();
+        ctx.fillStyle = th.color;
+        ctx.font = '9px monospace';
+        ctx.fillText(th.label, tx-10, baseY-14);
+      });
+      // bar
+      var bw = Math.min(E, maxE)/maxE * barMaxW;
+      var barColor = E<4 ? '#4ade80' : E<8 ? '#fbbf24' : E<25 ? '#fb923c' : '#f87171';
+      var grad = ctx.createLinearGradient(70,0,70+bw,0);
+      grad.addColorStop(0, barColor+'55');
+      grad.addColorStop(1, barColor);
+      ctx.fillStyle = grad;
+      ctx.fillRect(70, baseY, bw, 34);
+      ctx.strokeStyle = barColor;
+      ctx.strokeRect(70,baseY,Math.max(bw,2),34);
+      ctx.fillStyle = '#dce8f5';
+      ctx.font = '11px monospace';
+      ctx.fillText('Incident Energy: '+E.toFixed(2)+' cal/cm\u00b2', 70, baseY+50);
+      if (E > maxE){
+        ctx.fillStyle = '#f87171';
+        ctx.fillText('(scale capped at 50 \u2014 actual value shown numerically above)', 70, baseY+65);
+      }
+    }
+
+    function update(){
+      v_ibf.textContent = parseFloat(s_ibf.value).toFixed(1)+' kA';
+      v_kv.textContent = parseFloat(s_kv.value).toFixed(3)+' kV';
+      v_gap.textContent = s_gap.value+' mm';
+      v_dist.textContent = s_dist.value+' mm';
+      v_t.textContent = parseFloat(s_t.value).toFixed(2)+' s';
+
+      var p = currentParams();
+      var res = computeIncidentEnergy(p);
+      Calc.lastParams = p;
+      Calc.lastResult = res;
+
+      r_ia.innerHTML = res.Ia.toFixed(2)+' <span class="unit">kA</span>';
+      r_e.innerHTML = res.E.toFixed(2)+' <span class="unit">cal/cm\u00b2</span>';
+      r_boundary.innerHTML = res.DB.toFixed(0)+' <span class="unit">mm</span>';
+      var cat = ppeCategory(res.E);
+      var exceeds = ppeCategoryExceeds(res.E);
+      r_cat.textContent = exceeds ? 'EXCEEDS CAT 4' : ('Category '+cat);
+      r_cat.className = 'value ' + (exceeds ? 'danger' : (cat<=1?'':'amber'));
+
+      if (exceeds){
+        calcNote.innerHTML = '<b style="color:var(--danger);">Danger:</b> incident energy exceeds the 40 cal/cm\u00b2 Category 4 limit. No standard PPE combination is considered adequate here \u2014 this fault should be cleared far faster, or the work de-energised.';
+      } else {
+        calcNote.textContent = 'Adjust the sliders to see how fault current, gap, distance, and clearing time change the incident energy delivered to a person standing at the working distance.';
+      }
+      drawBar(res.E);
+      // propagate to other tabs
+      if (window.__updatePPETab) window.__updatePPETab();
+      if (window.__updateCmpTab) window.__updateCmpTab();
+      if (window.__updateLabelTab) window.__updateLabelTab();
+    }
+
+    [s_ibf,s_kv,s_gap,s_dist,s_t,s_equip,s_ground].forEach(function(el){
+      el.addEventListener('input', update);
+      el.addEventListener('change', update);
+    });
+    regRedraw(1, function(){ drawBar(Calc.lastResult ? Calc.lastResult.E : 0); });
+    update();
+  })();
+
+  /* ================= TAB 3: PPE CATEGORY VISUAL ================= */
+  (function(){
+    var cv = document.getElementById('ppeCanvas');
+    var ctx = cv.getContext('2d');
+    var badge = document.getElementById('ppeBadge');
+    var label = document.getElementById('ppeLabel');
+    var srcE = document.getElementById('ppeSourceE');
+    var dangerZone = document.getElementById('dangerZone');
+    var catColors = ['#5b7089','#4ade80','#fbbf24','#fb923c','#f87171'];
+
+    function drawFigure(cat, exceeds){
+      var w = cv.width/(window.devicePixelRatio||1), h = cv.height/(window.devicePixelRatio||1);
+      var dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.clearRect(0,0,w,h);
+      var cx = w/2;
+      var color = exceeds ? '#7f1d1d' : catColors[cat];
+      // head
+      ctx.fillStyle = '#e8c9a0';
+      ctx.beginPath(); ctx.arc(cx, 40, 20, 0, Math.PI*2); ctx.fill();
+      // hard hat / hood depending on category
+      if (cat >= 2 || exceeds){
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(cx, 38, 26, Math.PI, 0); ctx.fill();
+        ctx.fillRect(cx-28, 30, 56, 10);
+        // face shield tint
+        ctx.fillStyle = 'rgba(150,200,255,0.35)';
+        ctx.fillRect(cx-16, 30, 32, 22);
+      } else if (cat === 1) {
+        ctx.strokeStyle = color; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.arc(cx,38,24,Math.PI*0.9,Math.PI*2.1); ctx.stroke();
+        ctx.fillStyle = 'rgba(150,200,255,0.3)';
+        ctx.fillRect(cx-14,32,28,18);
+      } else {
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(cx-22,20,44,8);
+      }
+      // torso
+      var torsoW = cat>=3 || exceeds ? 70 : cat===2?60:cat===1?52:44;
+      ctx.fillStyle = color;
+      ctx.fillRect(cx-torsoW/2, 62, torsoW, 130);
+      // layered suit lines for higher categories
+      if (cat>=2 || exceeds){
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+        for (var i=0;i<3;i++){
+          ctx.beginPath(); ctx.moveTo(cx-torsoW/2, 80+i*30); ctx.lineTo(cx+torsoW/2, 80+i*30); ctx.stroke();
+        }
+      }
+      // arms
+      ctx.fillStyle = color;
+      ctx.fillRect(cx-torsoW/2-14, 66, 14, 90);
+      ctx.fillRect(cx+torsoW/2, 66, 14, 90);
+      // gloves
+      ctx.fillStyle = '#3b2a1a';
+      ctx.fillRect(cx-torsoW/2-16, 150, 18, 20);
+      ctx.fillRect(cx+torsoW/2-2, 150, 18, 20);
+      // legs
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(cx-torsoW/2, 192, torsoW/2-3, 90);
+      ctx.fillRect(cx+3, 192, torsoW/2-3, 90);
+      // boots
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(cx-torsoW/2-2, 276, torsoW/2, 16);
+      ctx.fillRect(cx+2, 276, torsoW/2, 16);
+
+      if (exceeds){
+        ctx.strokeStyle = '#f87171'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(cx-40,10); ctx.lineTo(cx+40,300); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx+40,10); ctx.lineTo(cx-40,300); ctx.stroke();
+      }
+    }
+
+    window.__updatePPETab = function(){
+      var res = Calc.lastResult;
+      if (!res) return;
+      var cat = ppeCategory(res.E);
+      var exceeds = ppeCategoryExceeds(res.E);
+      srcE.textContent = res.E.toFixed(2);
+      badge.textContent = exceeds ? '!' : cat;
+      var color = exceeds ? '#f87171' : catColors[cat];
+      badge.style.color = color;
+      label.textContent = exceeds ? 'Exceeds Category 4 \u2014 Extreme Danger' : ('Category '+cat);
+      label.style.color = color;
+      dangerZone.style.display = exceeds ? 'block' : 'none';
+      for (var i=0;i<=4;i++){
+        var row = document.getElementById('cat_row_'+i);
+        row.classList.toggle('hl', (!exceeds && i===cat));
+      }
+      drawFigure(cat, exceeds);
+    };
+    regRedraw(2, function(){ if (window.__updatePPETab) window.__updatePPETab(); });
+  })();
+
+  /* ================= TAB 4: PROTECTIVE DEVICE IMPACT ================= */
+  (function(){
+    var s_tA = document.getElementById('s_tA');
+    var s_tB = document.getElementById('s_tB');
+    var v_tA = document.getElementById('v_tA');
+    var v_tB = document.getElementById('v_tB');
+    var r_eA = document.getElementById('r_eA');
+    var r_eB = document.getElementById('r_eB');
+    var r_catA = document.getElementById('r_catA');
+    var r_catB = document.getElementById('r_catB');
+    var cv = document.getElementById('cmpCanvas');
+    var ctx = cv.getContext('2d');
+    var cmpNote = document.getElementById('cmpNote');
+
+    function calcWith(t){
+      if (!Calc.lastParams) return null;
+      var p = Object.assign({}, Calc.lastParams, {t: t});
+      return computeIncidentEnergy(p);
+    }
+
+    function drawCompare(EA, EB){
+      sizeCanvasEl(cv, 140);
+      var w = cv.clientWidth, h = cv.clientHeight;
+      ctx.clearRect(0,0,w,h);
+      var maxE = Math.max(10, EA, EB, 40) * 1.1;
+      var barMaxW = w - 140;
+      function bar(y, E, color, labelTxt){
+        var bw = (E/maxE) * barMaxW;
+        ctx.fillStyle = color;
+        ctx.fillRect(90, y, Math.max(bw,2), 26);
+        ctx.fillStyle = '#dce8f5';
+        ctx.font = '11px monospace';
+        ctx.fillText(labelTxt, 6, y+17);
+        ctx.fillText(E.toFixed(2)+' cal/cm\u00b2', 96+bw, y+17);
+      }
+      bar(20, EA, '#4ade80', 'A');
+      bar(66, EB, '#f87171', 'B');
+    }
+
+    window.__updateCmpTab = function(){
+      var resA = calcWith(parseFloat(s_tA.value));
+      var resB = calcWith(parseFloat(s_tB.value));
+      if (!resA || !resB) return;
+      v_tA.textContent = parseFloat(s_tA.value).toFixed(2)+' s';
+      v_tB.textContent = parseFloat(s_tB.value).toFixed(2)+' s';
+      r_eA.textContent = resA.E.toFixed(2)+' cal/cm\u00b2';
+      r_eB.textContent = resB.E.toFixed(2)+' cal/cm\u00b2';
+      var catA = ppeCategory(resA.E), exA = ppeCategoryExceeds(resA.E);
+      var catB = ppeCategory(resB.E), exB = ppeCategoryExceeds(resB.E);
+      r_catA.textContent = exA ? 'Exceeds Cat 4' : ('Category '+catA);
+      r_catB.textContent = exB ? 'Exceeds Cat 4' : ('Category '+catB);
+      var ratio = resB.E / Math.max(0.01, resA.E);
+      cmpNote.innerHTML = 'At the same fault current, clearing '+ (ratio>1?('<b style="color:var(--danger);">'+ratio.toFixed(1)+'&times; slower</b>'):'faster') +' in Scenario B raised incident energy from '+resA.E.toFixed(2)+' to '+resB.E.toFixed(2)+' cal/cm\u00b2.';
+      drawCompare(resA.E, resB.E);
+    };
+    [s_tA,s_tB].forEach(function(el){ el.addEventListener('input', window.__updateCmpTab); });
+    regRedraw(3, function(){ if (window.__updateCmpTab) window.__updateCmpTab(); });
+  })();
+
+  /* ================= TAB 5: LABEL GENERATOR ================= */
+  (function(){
+    var lblEquip = document.getElementById('lblEquip');
+    var lblLoc = document.getElementById('lblLoc');
+    var lblBy = document.getElementById('lblBy');
+    var lblDate = document.getElementById('lblDate');
+    var printBtn = document.getElementById('printLabelBtn');
+
+    function gloveClass(V_kV){
+      var Vac = V_kV*1000;
+      if (Vac<=500) return 'Class 00';
+      if (Vac<=1000) return 'Class 0';
+      if (Vac<=7500) return 'Class 1';
+      if (Vac<=17000) return 'Class 2';
+      if (Vac<=26500) return 'Class 3';
+      return 'Class 4';
+    }
+
+    window.__updateLabelTab = function(){
+      var res = Calc.lastResult, p = Calc.lastParams;
+      if (!res || !p) return;
+      document.getElementById('lp_equip').textContent = lblEquip.value || '\u2014';
+      document.getElementById('lp_loc').textContent = lblLoc.value || '\u2014';
+      document.getElementById('lp_v').textContent = (p.V*1000).toFixed(0)+' V';
+      var cat = ppeCategory(res.E), exceeds = ppeCategoryExceeds(res.E);
+      document.getElementById('lp_e').textContent = res.E.toFixed(1)+' cal/cm\u00b2';
+      document.getElementById('lp_cat').textContent = exceeds ? 'EXCEEDS CATEGORY 4' : ('PPE CATEGORY '+cat);
+      document.getElementById('lp_bound').textContent = res.DB.toFixed(0)+' mm';
+      document.getElementById('lp_dist').textContent = p.D+' mm';
+      document.getElementById('lp_glove').textContent = gloveClass(p.V);
+      var by = lblBy.value || '\u2014';
+      var dt = lblDate.value || new Date().toLocaleDateString();
+      document.getElementById('lp_by').textContent = by+' / '+dt;
+    };
+    [lblEquip,lblLoc,lblBy,lblDate].forEach(function(el){ el.addEventListener('input', window.__updateLabelTab); });
+    printBtn.addEventListener('click', function(){
+      var w = window.open('', '_blank');
+      w.document.write('<html><head><title>Arc Flash Label</title></head><body>'+document.getElementById('labelPreview').outerHTML+'</body></html>');
+      w.document.close();
+      w.focus();
+      setTimeout(function(){ w.print(); }, 300);
+    });
+    regRedraw(4, function(){ if (window.__updateLabelTab) window.__updateLabelTab(); });
+  })();
+
+})();
+</script>
+</body>
+</html>
