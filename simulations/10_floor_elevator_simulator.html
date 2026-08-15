@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>10-Floor Interactive Elevator Control Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+            color: #e2e8f0;
+            user-select: none;
+        }
+        
+        .font-mono-tech {
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .font-header {
+            font-family: 'Chakra Petch', sans-serif;
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+
+        /* Door animations */
+        .door-panel {
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Digital Display matrix glow */
+        .display-glow {
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.75), 0 0 20px rgba(56, 189, 248, 0.4);
+        }
+        
+        .display-glow-amber {
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.75), 0 0 20px rgba(251, 191, 36, 0.4);
+        }
+
+        .display-glow-red {
+            text-shadow: 0 0 10px rgba(248, 113, 113, 0.75), 0 0 20px rgba(248, 113, 113, 0.4);
+        }
+
+        /* Button illumination */
+        .btn-call-active {
+            background-color: #f59e0b !important;
+            color: #000000 !important;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.8);
+            border-color: #fbbf24 !important;
+        }
+
+        .btn-cabin-active {
+            background-color: #0284c7 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.8);
+            border-color: #38bdf8 !important;
+        }
+
+        /* LED Indicator lights */
+        .led-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+        }
+        .led-green { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+        .led-red { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
+        .led-amber { background-color: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+        .led-off { background-color: #334155; box-shadow: none; }
+
+        /* IR Beam animation */
+        @keyframes beamPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.9; }
+        }
+        .ir-beam-active {
+            animation: beamPulse 1s infinite;
+        }
+
+        /* Flashing warning */
+        @keyframes flashRed {
+            0%, 100% { background-color: rgba(239, 68, 68, 0.2); }
+            50% { background-color: rgba(239, 68, 68, 0.7); }
+        }
+        .alarm-flash {
+            animation: flashRed 0.6s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Top Header Bar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 sticky top-0 z-40 shadow-lg">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 text-white p-2 rounded-lg shadow-md">
+                    <i class="fa-solid fa-elevator text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold font-header tracking-wide text-white flex items-center gap-2">
+                        ELEV-TECH 1000 
+                        <span class="text-xs bg-blue-900/80 text-blue-300 border border-blue-700 px-2 py-0.5 rounded font-mono">PRO V3.4</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">10-Floor Industrial Elevator Motion & Safety Controller Simulator</p>
+                </div>
+            </div>
+
+            <!-- Global Controls & Status Badges -->
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Mode Badge -->
+                <div class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                    <span class="text-xs text-slate-400">MODE:</span>
+                    <button id="modeToggleBtn" onclick="toggleOperationMode()" class="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded hover:bg-emerald-900 transition">
+                        AUTOMATIC
+                    </button>
+                </div>
+
+                <!-- Simulation Speed -->
+                <div class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                    <span class="text-xs text-slate-400"><i class="fa-solid fa-gauge-high mr-1"></i>SPEED:</span>
+                    <select id="speedSelect" onchange="setSpeedMultiplier(this.value)" class="bg-slate-900 text-xs font-mono text-cyan-400 border border-slate-700 rounded px-1.5 py-0.5 focus:outline-none">
+                        <option value="0.5">0.5x</option>
+                        <option value="1" selected>1.0x</option>
+                        <option value="2">2.0x</option>
+                        <option value="4">4.0x</option>
+                    </select>
+                </div>
+
+                <!-- Sound Toggle -->
+                <button id="soundBtn" onclick="toggleAudio()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition">
+                    <i id="soundIcon" class="fa-solid fa-volume-high text-cyan-400"></i>
+                    <span id="soundLabel">SOUND ON</span>
+                </button>
+
+                <!-- Educational Mode Toggle -->
+                <button id="explainToggleBtn" onclick="toggleExplainMode()" class="bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-lightbulb text-yellow-400"></i>
+                    <span>EXPLAIN: <span id="explainStateText" class="text-yellow-400">ON</span></span>
+                </button>
+
+                <!-- System Master Reset -->
+                <button onclick="resetSystem()" class="bg-red-950/80 hover:bg-red-900 border border-red-800 text-red-300 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>RESET</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: Building Shaft & Floor Landing Controls (5 cols) -->
+        <section class="lg:col-span-5 bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col shadow-xl">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-800 mb-3">
+                <h2 class="font-header text-lg text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-building text-blue-400"></i>
+                    10-STORY SHAFT & LANDINGS
+                </h2>
+                <span class="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded border border-slate-700 font-mono">HEIGHT: 35m</span>
+            </div>
+
+            <!-- Shaft Container -->
+            <div class="relative flex-1 bg-slate-950 border-2 border-slate-800 rounded-lg overflow-hidden flex flex-col justify-between min-h-[640px] p-1">
+                <!-- Vertical Guide Rails -->
+                <div class="absolute inset-y-0 left-1/2 w-1 bg-slate-800 -translate-x-1/2 pointer-events-none"></div>
+                <div class="absolute inset-y-0 left-[20%] w-0.5 bg-slate-900 pointer-events-none"></div>
+                <div class="absolute inset-y-0 right-[20%] w-0.5 bg-slate-900 pointer-events-none"></div>
+
+                <!-- Floor levels container rendered dynamically -->
+                <div id="buildingFloorsContainer" class="relative w-full h-full flex flex-col justify-between">
+                    <!-- Floors 10 down to 1 generated via JavaScript -->
+                </div>
+
+                <!-- Animated Elevator Cabin Container inside Shaft -->
+                <div id="elevatorCabinVisual" class="absolute left-[24%] width-[52%] w-[52%] h-[9%] bg-slate-800 border-2 border-slate-600 rounded shadow-2xl transition-all duration-300 ease-linear z-20 flex flex-col overflow-hidden" style="bottom: 0%;">
+                    
+                    <!-- Top Mechanical Header / Overhead Indicator -->
+                    <div class="bg-slate-900 border-b border-slate-700 px-2 py-0.5 flex justify-between items-center text-[10px] font-mono text-cyan-400">
+                        <span id="cabinTopFloorDisp">F01</span>
+                        <div class="flex items-center space-x-1">
+                            <span id="cabinTopDirDisp" class="text-amber-400">● IDLE</span>
+                        </div>
+                    </div>
+
+                    <!-- Interior Cabin & Sliding Doors Area -->
+                    <div class="relative flex-1 bg-slate-900 flex items-center justify-center overflow-hidden">
+                        <!-- Interior Light & Passengers Background -->
+                        <div class="absolute inset-0 bg-gradient-to-b from-yellow-100/10 to-slate-800 flex items-center justify-center">
+                            <i class="fa-solid fa-users text-slate-600 text-lg opacity-60"></i>
+                        </div>
+
+                        <!-- Infrared Safety Beam line overlay -->
+                        <div id="visualIrBeam" class="absolute inset-x-0 h-0.5 bg-red-500 top-1/2 -translate-y-1/2 z-30 opacity-0 pointer-events-none transition-opacity"></div>
+
+                        <!-- Left Sliding Door -->
+                        <div id="leftDoorPanel" class="door-panel absolute left-0 top-0 bottom-0 w-1/2 bg-gradient-to-r from-slate-700 to-slate-600 border-r border-slate-900 z-20 flex items-center justify-end pr-1 shadow-md">
+                            <div class="w-1 h-8 bg-slate-500 rounded-full"></div>
+                        </div>
+
+                        <!-- Right Sliding Door -->
+                        <div id="rightDoorPanel" class="door-panel absolute right-0 top-0 bottom-0 w-1/2 bg-gradient-to-l from-slate-700 to-slate-600 border-l border-slate-900 z-20 flex items-center justify-start pl-1 shadow-md">
+                            <div class="w-1 h-8 bg-slate-500 rounded-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Door Status Strip -->
+                    <div class="bg-slate-950 px-1 py-0.5 text-[9px] font-mono text-slate-400 flex justify-between items-center border-t border-slate-800">
+                        <span>DOOR: <span id="cabinDoorStatusText" class="text-emerald-400 font-bold">CLOSED</span></span>
+                        <span id="cabinSensorStatusIcon" class="text-emerald-400"><i class="fa-solid fa-shield-halved"></i></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CENTER COLUMN: Elevator Cabin Controller & Main Digital Panel (3 cols) -->
+        <section class="lg:col-span-3 flex flex-col gap-4">
+            
+            <!-- Large Digital Display Panel -->
+            <div class="bg-slate-950 border-2 border-slate-800 rounded-xl p-4 shadow-xl flex flex-col items-center justify-center relative overflow-hidden">
+                <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-1">Overhead Digital Display</div>
+                
+                <div class="w-full bg-black/90 border border-slate-800 rounded-lg p-3 text-center flex flex-col items-center justify-center">
+                    <div id="mainDisplayFloor" class="font-mono-tech text-5xl font-bold text-cyan-400 display-glow leading-none">
+                        01
+                    </div>
+                    
+                    <div class="flex items-center justify-center gap-2 mt-2">
+                        <span id="mainDisplayDir" class="font-mono-tech text-sm text-amber-400 display-glow-amber font-bold">
+                            ● IDLE
+                        </span>
+                        <span class="text-slate-600">|</span>
+                        <span id="mainDisplayStatus" class="font-mono-tech text-xs text-emerald-400">
+                            DOOR CLOSED
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Emergency / Fault Banner overlay on display -->
+                <div id="displayAlertBanner" class="hidden absolute inset-0 bg-red-950/95 border-2 border-red-600 rounded-xl p-3 flex flex-col items-center justify-center text-center z-10">
+                    <i id="displayAlertIcon" class="fa-solid fa-triangle-exclamation text-red-500 text-2xl mb-1 animate-bounce"></i>
+                    <div id="displayAlertTitle" class="font-header font-bold text-red-200 text-sm">EMERGENCY STOP</div>
+                    <div id="displayAlertDesc" class="text-[10px] text-red-300 mt-0.5">Safety line tripped. Operations halted.</div>
+                </div>
+            </div>
+
+            <!-- Cabin Operating Panel (COP) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl flex-1 flex flex-col">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                    <h3 class="font-header text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-cyan-400"></i>
+                        CABIN PANEL (COP)
+                    </h3>
+                    <span class="text-[10px] text-slate-400 font-mono">INSIDE ELEVATOR</span>
+                </div>
+
+                <!-- Floor Buttons Grid (10 down to 1) -->
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <!-- Floor buttons 10 through 1 -->
+                    <button onclick="pressCabinButton(10)" id="cabinBtn-10" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-lg font-mono-tech font-bold text-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <span class="text-xs text-slate-400">FL</span> 10
+                    </button>
+                    <button onclick="pressCabinButton(9)" id="cabinBtn-9" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-lg font-mono-tech font-bold text-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <span class="text-xs text-slate-400">FL</span> 09
+                    </button>
+                    <button onclick="pressCabinButton(8)" id="cabinBtn-8" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-lg font-mono-tech font-bold text-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <span class="text-xs text-slate-400">FL</span> 08
+                    </button>
+                    <button onclick="pressCabinButton(7)" id="cabinBtn-7" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-lg font-mono-tech font-bold text-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <span class="text-xs text-slate-400">FL</span> 07
+                    </button>
+                    <button onclick="pressCabinButton(6)" id="cabinBtn-6" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-lg font-mono-tech font-bold text-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <span class="text-xs text-slate-400">FL</span> 06
+                    </button>
+                    <button onclick="pressCabinButton(5)" id="cabinBtn-5" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-lg font-mono-tech font-bold text-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <span class="text-xs text-slate-400">FL</span> 05
+                    </button>
+                    <button onclick="pressCabinButton(4)" id="cabinBtn-4" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-lg font-mono-tech font-bold text-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <span class="text-xs text-slate-400">FL</span> 04
+                    </button>
+                    <button onclick="pressCabinButton(3)" id="cabinBtn-3" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-lg font-mono-tech font-bold text-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <span class="text-xs text-slate-400">FL</span> 03
+                    </button>
+                    <button onclick="pressCabinButton(2)" id="cabinBtn-2" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-lg font-mono-tech font-bold text-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <span class="text-xs text-slate-400">FL</span> 02
+                    </button>
+                    <button onclick="pressCabinButton(1)" id="cabinBtn-1" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-lg font-mono-tech font-bold text-lg flex items-center justify-center gap-2 transition active:scale-95">
+                        <span class="text-xs text-slate-400">G</span> 01
+                    </button>
+                </div>
+
+                <!-- Auxiliary Control Buttons -->
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+                    <button onclick="handleOpenDoorBtn()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 p-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95">
+                        <i class="fa-solid fa-arrows-left-right"></i> OPEN
+                    </button>
+                    <button onclick="handleCloseDoorBtn()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 p-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95">
+                        <i class="fa-solid fa-compress text-xs"></i> CLOSE
+                    </button>
+                    <button id="doorHoldBtn" onclick="toggleDoorHold()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 p-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95">
+                        <i class="fa-solid fa-hand"></i> HOLD
+                    </button>
+                    <button id="alarmBtn" onclick="triggerAlarm()" class="bg-amber-950/80 hover:bg-amber-900 border border-amber-800 text-amber-300 p-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95">
+                        <i class="fa-solid fa-bell"></i> ALARM
+                    </button>
+                </div>
+
+                <!-- Emergency Stop Lockout Switch -->
+                <div class="mt-3 pt-3 border-t border-slate-800 flex justify-center">
+                    <button id="emergencyStopBtn" onclick="toggleEmergencyStop()" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-2.5 px-3 rounded-lg text-xs shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider transition transform active:scale-95">
+                        <i class="fa-solid fa-power-off text-base"></i> EMERGENCY STOP
+                    </button>
+                </div>
+            </div>
+
+            <!-- Door Safety Sensor Controller Box -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-xl flex flex-col gap-2">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="font-semibold text-slate-300 flex items-center gap-1.5">
+                        <i class="fa-solid fa-rays text-red-400"></i> IR DOOR SENSOR
+                    </span>
+                    <span id="sensorStatusBadge" class="font-mono text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded">CLEAR</span>
+                </div>
+                <button id="obstructSensorBtn" onclick="toggleDoorObstruction()" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-1.5 px-2 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-user-ninja text-amber-400"></i>
+                    <span>TRIGGER OBSTRUCTION</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Engineering Controller, Drive System & Diagnostic Diagnostics (4 cols) -->
+        <section class="lg:col-span-4 flex flex-col gap-4">
+            
+            <!-- Elevator Controller Parameter Live Matrix -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+                    <h3 class="font-header text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-microchip text-indigo-400"></i>
+                        ELEVATOR CONTROLLER (PLC/MCU)
+                    </h3>
+                    <span class="text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 px-2 py-0.5 rounded font-mono">LIVE</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                        <div class="text-[10px] text-slate-500">CURRENT FLOOR</div>
+                        <div id="diagCurrentFloor" class="text-sm text-cyan-400 font-bold">1</div>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                        <div class="text-[10px] text-slate-500">TARGET FLOOR</div>
+                        <div id="diagTargetFloor" class="text-sm text-amber-400 font-bold">NONE</div>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                        <div class="text-[10px] text-slate-500">SYSTEM STATE</div>
+                        <div id="diagState" class="text-xs text-emerald-400 font-bold truncate">IDLE</div>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                        <div class="text-[10px] text-slate-500">DIRECTION</div>
+                        <div id="diagDirection" class="text-xs text-slate-300 font-bold">IDLE</div>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                        <div class="text-[10px] text-slate-500">DOOR STATE</div>
+                        <div id="diagDoorState" class="text-xs text-emerald-400 font-bold">CLOSED</div>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                        <div class="text-[10px] text-slate-500">MOTOR DRIVE</div>
+                        <div id="diagMotorStatus" class="text-xs text-slate-400 font-bold">STOPPED</div>
+                    </div>
+                </div>
+
+                <!-- Active Queue View -->
+                <div class="mt-3 pt-3 border-t border-slate-800">
+                    <div class="flex justify-between items-center text-xs mb-1.5">
+                        <span class="text-slate-400 font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-list-ol text-cyan-400"></i> DISPATCH REQUEST QUEUE
+                        </span>
+                        <span id="queueLengthBadge" class="text-[10px] font-mono text-slate-500">0 pending</span>
+                    </div>
+                    <div id="requestQueueDisplay" class="bg-slate-950 border border-slate-800 rounded p-2 min-h-[42px] flex flex-wrap gap-1.5 items-center">
+                        <span class="text-xs text-slate-600 font-mono italic">Queue empty</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VFD / Motor Traction Drive Power Simulation -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+                    <h3 class="font-header text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-yellow-400"></i>
+                        VFD & TRACTION MOTOR DRIVE
+                    </h3>
+                    <span id="powerSupplyStatus" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono">3-PHASE 480V ON</span>
+                </div>
+
+                <!-- Drive Flow Visualization Diagram -->
+                <div class="flex items-center justify-between text-[10px] font-mono bg-slate-950 p-2 rounded border border-slate-800 mb-3 text-center">
+                    <div class="flex flex-col items-center">
+                        <span class="text-slate-400">MAIN PWR</span>
+                        <span id="flowPwrLed" class="led-dot led-green mt-1"></span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-700"></i>
+                    <div class="flex flex-col items-center">
+                        <span class="text-slate-400">VFD INVERTER</span>
+                        <span id="flowVfdLed" class="led-dot led-off mt-1"></span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-700"></i>
+                    <div class="flex flex-col items-center">
+                        <span class="text-slate-400">MOTOR RUN</span>
+                        <span id="flowMotorLed" class="led-dot led-off mt-1"></span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-700"></i>
+                    <div class="flex flex-col items-center">
+                        <span class="text-slate-400">BRAKE RELEASE</span>
+                        <span id="flowBrakeLed" class="led-dot led-off mt-1"></span>
+                    </div>
+                </div>
+
+                <!-- Motor Speed Progress Gauge -->
+                <div>
+                    <div class="flex justify-between text-xs font-mono mb-1">
+                        <span class="text-slate-400">MOTOR SPEED (RPM / FREQ):</span>
+                        <span id="motorSpeedText" class="text-cyan-400 font-bold">0 RPM (0 Hz)</span>
+                    </div>
+                    <div class="w-full bg-slate-950 border border-slate-800 rounded-full h-3 overflow-hidden p-0.5">
+                        <div id="motorSpeedBar" class="bg-gradient-to-r from-cyan-500 to-blue-600 h-full w-0 rounded-full transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <!-- Cabin Load Weight Simulator -->
+                <div class="mt-4 pt-3 border-t border-slate-800">
+                    <div class="flex justify-between items-center text-xs mb-1">
+                        <span class="text-slate-300 font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-weight-hanging text-amber-400"></i> CABIN PASSENGER LOAD
+                        </span>
+                        <span id="loadWeightDisplay" class="font-mono text-cyan-400 font-bold">150 kg / 630 kg</span>
+                    </div>
+                    <input type="range" id="loadSlider" min="0" max="800" value="150" oninput="updateCabinLoad(this.value)" class="w-full h-2 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-cyan-400 border border-slate-800">
+                    <div class="flex justify-between text-[9px] text-slate-500 font-mono mt-1">
+                        <span>0 kg (Empty)</span>
+                        <span class="text-amber-500 font-bold">630 kg (LIMIT)</span>
+                        <span>800 kg (Overload)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hardware & Safety Sensor IO Status Matrix -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+                    <h3 class="font-header text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-emerald-400"></i>
+                        SAFETY LINE & SENSOR I/O
+                    </h3>
+                    <span class="text-[10px] text-slate-400 font-mono">DIGITAL INPUTS</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                    <div class="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800">
+                        <span class="text-slate-400">Upper Limit SW</span>
+                        <span id="sensorUpperLimit" class="led-dot led-green"></span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800">
+                        <span class="text-slate-400">Lower Limit SW</span>
+                        <span id="sensorLowerLimit" class="led-dot led-green"></span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800">
+                        <span class="text-slate-400">Door Close Interlock</span>
+                        <span id="sensorDoorClosed" class="led-dot led-green"></span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800">
+                        <span class="text-slate-400">Door Open Interlock</span>
+                        <span id="sensorDoorOpen" class="led-dot led-off"></span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800">
+                        <span class="text-slate-400">Infrared Safety Sensor</span>
+                        <span id="sensorIrBeam" class="led-dot led-green"></span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800">
+                        <span class="text-slate-400">Overload Sensor</span>
+                        <span id="sensorOverload" class="led-dot led-green"></span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- BOTTOM SECTION: Educational Explanations, Event Log & Fault Injections (Full Width) -->
+        <section class="lg:col-span-12 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Educational Interactive Explanation Card -->
+            <div id="educationalExplanationCard" class="lg:col-span-4 bg-indigo-950/60 border border-indigo-800 rounded-xl p-4 shadow-xl flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between border-b border-indigo-800/80 pb-2 mb-2">
+                        <h4 class="font-header text-sm text-yellow-300 flex items-center gap-2">
+                            <i class="fa-solid fa-graduation-cap text-yellow-400"></i>
+                            EDUCATIONAL LOGIC INSIGHT
+                        </h4>
+                        <span class="text-[10px] bg-indigo-900 text-indigo-200 px-2 py-0.5 rounded font-mono">EXPLAIN MODE</span>
+                    </div>
+                    <h5 id="explainTopicTitle" class="text-xs font-bold text-white mb-1">ELEVATOR IN IDLE STATE</h5>
+                    <p id="explainTopicContent" class="text-xs text-indigo-200 leading-relaxed">
+                        The elevator controller is currently monitoring hall and cabin request inputs. The mechanical brake is engaged, motor current is zero, and door interlocks confirm the cabin doors are safely latched closed.
+                    </p>
+                </div>
+                <div class="mt-3 text-[10px] text-indigo-400 font-mono border-t border-indigo-900/60 pt-2 flex items-center justify-between">
+                    <span>Target: Safety & Control Mechanics</span>
+                    <button onclick="nextExplanationTip()" class="text-yellow-400 hover:underline">Next Tip <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                </div>
+            </div>
+
+            <!-- Fault Injection Training Panel -->
+            <div class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+                    <h4 class="font-header text-sm text-red-400 flex items-center gap-2">
+                        <i class="fa-solid fa-bug text-red-500"></i>
+                        FAULT INJECTION & SIMULATION
+                    </h4>
+                    <span class="text-[10px] bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded font-mono">TRAINING</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-xs flex-1">
+                    <button onclick="injectFault('POWER_FAILURE')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 p-2 rounded-lg font-medium flex items-center gap-2 transition text-left">
+                        <i class="fa-solid fa-plug-circle-xmark text-yellow-400"></i>
+                        <span>Power Failure</span>
+                    </button>
+                    <button onclick="injectFault('MOTOR_FAULT')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 p-2 rounded-lg font-medium flex items-center gap-2 transition text-left">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                        <span>Motor Trip</span>
+                    </button>
+                    <button onclick="injectFault('DOOR_FAULT')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 p-2 rounded-lg font-medium flex items-center gap-2 transition text-left">
+                        <i class="fa-solid fa-door-closed text-cyan-400"></i>
+                        <span>Door Sensor Fail</span>
+                    </button>
+                    <button onclick="injectFault('FLOOR_SENSOR_FAULT')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 p-2 rounded-lg font-medium flex items-center gap-2 transition text-left">
+                        <i class="fa-solid fa-tower-cell text-purple-400"></i>
+                        <span>Floor Sensor Error</span>
+                    </button>
+                </div>
+
+                <button onclick="clearFaults()" class="mt-3 w-full bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 text-xs font-semibold py-1.5 rounded-lg transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-screwdriver-wrench"></i> CLEAR FAULTS & RESTORE SYSTEM
+                </button>
+            </div>
+
+            <!-- Event Console Log Box -->
+            <div class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+                    <h4 class="font-header text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-terminal text-slate-400"></i>
+                        REAL-TIME SIMULATION EVENT LOG
+                    </h4>
+                    <button onclick="clearLog()" class="text-[10px] text-slate-400 hover:text-white underline font-mono">CLEAR LOG</button>
+                </div>
+                
+                <div id="eventLogContainer" class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 h-36 overflow-y-auto font-mono text-[11px] space-y-1">
+                    <!-- Dynamic logs stream here -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal Screen (Startup / Help) -->
+    <div id="startupModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="bg-blue-600 text-white p-3 rounded-xl shadow-lg">
+                    <i class="fa-solid fa-elevator text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold font-header text-white">10-FLOOR ELEVATOR SIMULATOR</h2>
+                    <p class="text-sm text-slate-400">Interactive Elevator Motion, Door & Safety Controller Simulation</p>
+                </div>
+            </div>
+
+            <div class="space-y-3 text-sm text-slate-300 border-y border-slate-800 py-4 my-4">
+                <p>Welcome to the industrial elevator engineering simulation tool. Learn and experiment with standard elevator operation mechanics:</p>
+                <ul class="list-disc list-inside space-y-1 text-slate-400 text-xs font-mono">
+                    <li><strong class="text-slate-200">SCAN Scheduling Logic:</strong> Serves passenger requests in sequence without wasteful direction changing.</li>
+                    <li><strong class="text-slate-200">Safety Interlocks:</strong> Infrared door safety curtain, load limit sensor, and emergency stop line.</li>
+                    <li><strong class="text-slate-200">Traction & VFD Drive:</strong> Real-time motor acceleration, frequency modulation, and deceleration positioning.</li>
+                    <li><strong class="text-slate-200">Fault Injection Mode:</strong> Test how modern elevator safety logic responds to power failures and motor trips.</li>
+                </ul>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-end gap-3">
+                <button onclick="startSimulation('explain')" class="bg-indigo-900 hover:bg-indigo-800 border border-indigo-700 text-indigo-200 px-4 py-2 rounded-xl font-semibold text-xs flex items-center gap-2 transition">
+                    <i class="fa-solid fa-lightbulb"></i> EXPLAIN HOW IT WORKS
+                </button>
+                <button onclick="startSimulation('fault')" class="bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 px-4 py-2 rounded-xl font-semibold text-xs flex items-center gap-2 transition">
+                    <i class="fa-solid fa-bug"></i> FAULT TRAINING MODE
+                </button>
+                <button onclick="startSimulation('normal')" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-xl font-bold text-xs shadow-lg shadow-blue-600/30 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-play"></i> START SIMULATION
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        // --- ELEVATOR CONSTANTS & STATE MACHINE DEFINITIONS ---
+        const TOTAL_FLOORS = 10;
+        
+        const STATES = {
+            IDLE: 'IDLE',
+            DOOR_OPENING: 'DOOR_OPENING',
+            DOOR_OPEN: 'DOOR_OPEN',
+            DOOR_CLOSING: 'DOOR_CLOSING',
+            MOVING_UP: 'MOVING_UP',
+            MOVING_DOWN: 'MOVING_DOWN',
+            ARRIVING: 'ARRIVING',
+            EMERGENCY_STOP: 'EMERGENCY_STOP',
+            FAULT: 'FAULT',
+            POWER_FAILURE: 'POWER_FAILURE'
+        };
+
+        const DIRECTIONS = {
+            UP: 'UP',
+            DOWN: 'DOWN',
+            IDLE: 'IDLE'
+        };
+
+        // --- ELEVATOR SYSTEM STATE ---
+        let currentFloor = 1;         // 1 to 10
+        let targetFloor = null;       // 1 to 10 or null
+        let systemState = STATES.IDLE;
+        let direction = DIRECTIONS.IDLE;
+        let doorState = 'CLOSED';      // CLOSED, OPENING, OPEN, CLOSING
+        let isDoorHeld = false;
+        let isSensorObstructed = false;
+        let cabinLoadKg = 150;        // Max capacity 630kg
+        let isEmergencyStop = false;
+        let isAlarmActive = false;
+        let activeFault = null;        // null or fault string
+        let operationMode = 'AUTO';    // AUTO or MANUAL
+        let speedMultiplier = 1.0;
+        let isAudioEnabled = true;
+        let isExplainMode = true;
+
+        // Dispatch Queues
+        let cabinRequests = new Set();
+        let hallRequestsUp = new Set();
+        let hallRequestsDown = new Set();
+
+        // Timers & Animation Handle
+        let doorTimer = null;
+        let motionInterval = null;
+        let motorSpeedRpm = 0;
+        let currentFloorPosition = 1.0; // Floating point position for smooth animation
+
+        // Web Audio Context initialization
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    audioCtx = new AudioContext();
+                }
+            }
+        }
+
+        function playBeep(freq = 600, duration = 0.1, type = 'sine') {
+            if (!isAudioEnabled) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e){}
+        }
+
+        function playChime() {
+            if (!isAudioEnabled) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
+                // High chime sequence (C5 then G5)
+                const osc1 = audioCtx.createOscillator();
+                const gain1 = audioCtx.createGain();
+                osc1.frequency.setValueAtTime(523.25, now);
+                gain1.gain.setValueAtTime(0.1, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc1.connect(gain1);
+                gain1.connect(audioCtx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.4);
+
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.frequency.setValueAtTime(783.99, now + 0.15);
+                gain2.gain.setValueAtTime(0.12, now + 0.15);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+                osc2.connect(gain2);
+                gain2.connect(audioCtx.destination);
+                osc2.start(now + 0.15);
+                osc2.stop(now + 0.7);
+            } catch(e){}
+        }
+
+        function renderBuildingFloors() {
+            const container = document.getElementById('buildingFloorsContainer');
+            container.innerHTML = '';
+
+            for (let f = TOTAL_FLOORS; f >= 1; f--) {
+                const floorDiv = document.createElement('div');
+                floorDiv.className = 'relative flex-1 border-b border-slate-800/80 flex items-center justify-between px-3 text-xs font-mono';
+                
+                const isTop = f === TOTAL_FLOORS;
+                const isGround = f === 1;
+
+                floorDiv.innerHTML = `
+                    <!-- Left Floor Label & Indicator -->
+                    <div class="flex items-center space-x-2 z-10">
+                        <span class="font-bold font-mono-tech ${f === currentFloor ? 'text-cyan-400' : 'text-slate-500'}">
+                            ${f < 10 ? '0' + f : f} ${f === 1 ? '(G)' : ''}
+                        </span>
+                        <span id="floorHallIndicator-${f}" class="text-[10px] text-slate-600 font-bold">●</span>
+                    </div>
+
+                    <!-- Right External Hall Call Buttons -->
+                    <div class="flex items-center space-x-1 z-10">
+                        ${!isTop ? `
+                            <button id="hallUpBtn-${f}" onclick="pressHallButton(${f}, 'UP')" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 flex items-center justify-center text-[10px] transition active:scale-90">
+                                <i class="fa-solid fa-chevron-up"></i>
+                            </button>
+                        ` : '<div class="w-6 h-6"></div>'}
+                        ${!isGround ? `
+                            <button id="hallDownBtn-${f}" onclick="pressHallButton(${f}, 'DOWN')" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 flex items-center justify-center text-[10px] transition active:scale-90">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                        ` : '<div class="w-6 h-6"></div>'}
+                    </div>
+                `;
+                container.appendChild(floorDiv);
+            }
+        }
+
+        function updateUI() {
+            // Update Cabin Vertical Position
+            // Shaft has 10 floors; floor 1 is bottom (0%), floor 10 is top (90%)
+            const bottomPercent = ((currentFloorPosition - 1) / (TOTAL_FLOORS - 1)) * 90;
+            const cabinEl = document.getElementById('elevatorCabinVisual');
+            cabinEl.style.bottom = `${bottomPercent}%`;
+
+            // Update Overhead Display & Indicators
+            const displayFloorStr = Math.round(currentFloorPosition) < 10 ? `0${Math.round(currentFloorPosition)}` : `${Math.round(currentFloorPosition)}`;
+            document.getElementById('mainDisplayFloor').innerText = displayFloorStr;
+            document.getElementById('cabinTopFloorDisp').innerText = `FL ${displayFloorStr}`;
+
+            // Update Direction Displays
+            let dirText = '● IDLE';
+            let dirClass = 'text-amber-400';
+            if (direction === DIRECTIONS.UP) {
+                dirText = '▲ UP';
+                dirClass = 'text-emerald-400';
+            } else if (direction === DIRECTIONS.DOWN) {
+                dirText = '▼ DOWN';
+                dirClass = 'text-cyan-400';
+            }
+            document.getElementById('mainDisplayDir').innerText = dirText;
+            document.getElementById('mainDisplayDir').className = `font-mono-tech text-sm ${dirClass} display-glow-amber font-bold`;
+            document.getElementById('cabinTopDirDisp').innerText = dirText;
+            document.getElementById('diagDirection').innerText = direction;
+
+            // Door Panels Visual State
+            const leftDoor = document.getElementById('leftDoorPanel');
+            const rightDoor = document.getElementById('rightDoorPanel');
+            const cabinDoorStatusText = document.getElementById('cabinDoorStatusText');
+
+            if (doorState === 'OPEN') {
+                leftDoor.style.transform = 'translateX(-100%)';
+                rightDoor.style.transform = 'translateX(100%)';
+                cabinDoorStatusText.innerText = 'OPEN';
+                cabinDoorStatusText.className = 'text-amber-400 font-bold';
+            } else if (doorState === 'CLOSED') {
+                leftDoor.style.transform = 'translateX(0%)';
+                rightDoor.style.transform = 'translateX(0%)';
+                cabinDoorStatusText.innerText = 'CLOSED';
+                cabinDoorStatusText.className = 'text-emerald-400 font-bold';
+            } else if (doorState === 'OPENING') {
+                leftDoor.style.transform = 'translateX(-50%)';
+                rightDoor.style.transform = 'translateX(50%)';
+                cabinDoorStatusText.innerText = 'OPENING';
+                cabinDoorStatusText.className = 'text-cyan-400 font-bold';
+            } else if (doorState === 'CLOSING') {
+                leftDoor.style.transform = 'translateX(-25%)';
+                rightDoor.style.transform = 'translateX(25%)';
+                cabinDoorStatusText.innerText = 'CLOSING';
+                cabinDoorStatusText.className = 'text-amber-300 font-bold';
+            }
+
+            // Display Status Line
+            document.getElementById('mainDisplayStatus').innerText = `DOOR ${doorState}`;
+            document.getElementById('diagDoorState').innerText = doorState;
+
+            // Controller Diagnostics Matrix
+            document.getElementById('diagCurrentFloor').innerText = Math.round(currentFloorPosition);
+            document.getElementById('diagTargetFloor').innerText = targetFloor ? targetFloor : 'NONE';
+            document.getElementById('diagState').innerText = systemState;
+
+            // Update Motor Drive Indicators & Speed Bar
+            const motorStatusEl = document.getElementById('diagMotorStatus');
+            const speedBar = document.getElementById('motorSpeedBar');
+            const speedText = document.getElementById('motorSpeedText');
+
+            if (systemState === STATES.MOVING_UP || systemState === STATES.MOVING_DOWN) {
+                motorStatusEl.innerText = 'RUNNING';
+                motorStatusEl.className = 'text-xs text-emerald-400 font-bold animate-pulse';
+                motorSpeedRpm = Math.min(1500, motorSpeedRpm + 100);
+            } else {
+                motorStatusEl.innerText = 'STOPPED';
+                motorStatusEl.className = 'text-xs text-slate-400 font-bold';
+                motorSpeedRpm = Math.max(0, motorSpeedRpm - 150);
+            }
+
+            const speedPct = Math.round((motorSpeedRpm / 1500) * 100);
+            speedBar.style.width = `${speedPct}%`;
+            speedText.innerText = `${motorSpeedRpm} RPM (${Math.round(speedPct * 0.6)} Hz)`;
+
+            // VFD Flow Diagram LEDs
+            document.getElementById('flowPwrLed').className = activeFault === 'POWER_FAILURE' ? 'led-dot led-red' : 'led-dot led-green';
+            document.getElementById('flowVfdLed').className = (systemState === STATES.MOVING_UP || systemState === STATES.MOVING_DOWN) ? 'led-dot led-green' : 'led-dot led-off';
+            document.getElementById('flowMotorLed').className = motorSpeedRpm > 0 ? 'led-dot led-green' : 'led-dot led-off';
+            document.getElementById('flowBrakeLed').className = (systemState === STATES.MOVING_UP || systemState === STATES.MOVING_DOWN) ? 'led-dot led-green' : 'led-dot led-off';
+
+            // Safety Line Sensor Matrix
+            document.getElementById('sensorUpperLimit').className = currentFloorPosition >= 10 ? 'led-dot led-amber' : 'led-dot led-green';
+            document.getElementById('sensorLowerLimit').className = currentFloorPosition <= 1 ? 'led-dot led-amber' : 'led-dot led-green';
+            document.getElementById('sensorDoorClosed').className = doorState === 'CLOSED' ? 'led-dot led-green' : 'led-dot led-off';
+            document.getElementById('sensorDoorOpen').className = doorState === 'OPEN' ? 'led-dot led-green' : 'led-dot led-off';
+            document.getElementById('sensorIrBeam').className = isSensorObstructed ? 'led-dot led-red' : 'led-dot led-green';
+            document.getElementById('sensorOverload').className = cabinLoadKg > 630 ? 'led-dot led-red' : 'led-dot led-green';
+
+            // IR Beam visual on cabin
+            const beamEl = document.getElementById('visualIrBeam');
+            if (isSensorObstructed) {
+                beamEl.classList.remove('opacity-0');
+                beamEl.classList.add('ir-beam-active');
+            } else {
+                beamEl.classList.add('opacity-0');
+                beamEl.classList.remove('ir-beam-active');
+            }
+
+            // Button Illumination Updates
+            updateButtonIllumination();
+
+            // Request Queue Rendering
+            renderQueueDisplay();
+
+            // Alert Banners
+            const alertBanner = document.getElementById('displayAlertBanner');
+            if (isEmergencyStop || activeFault || cabinLoadKg > 630) {
+                alertBanner.classList.remove('hidden');
+                if (isEmergencyStop) {
+                    document.getElementById('displayAlertTitle').innerText = 'EMERGENCY STOP';
+                    document.getElementById('displayAlertDesc').innerText = 'Cabin stop switch activated';
+                } else if (cabinLoadKg > 630) {
+                    document.getElementById('displayAlertTitle').innerText = 'OVERLOAD DETECTED';
+                    document.getElementById('displayAlertDesc').innerText = `${cabinLoadKg}kg exceeds max 630kg limit`;
+                } else if (activeFault) {
+                    document.getElementById('displayAlertTitle').innerText = 'SYSTEM FAULT';
+                    document.getElementById('displayAlertDesc').innerText = activeFault;
+                }
+            } else {
+                alertBanner.classList.add('hidden');
+            }
+        }
+
+        function updateButtonIllumination() {
+            // Cabin buttons
+            for (let f = 1; f <= TOTAL_FLOORS; f++) {
+                const cabinBtn = document.getElementById(`cabinBtn-${f}`);
+                if (cabinBtn) {
+                    if (cabinRequests.has(f)) {
+                        cabinBtn.classList.add('btn-cabin-active');
+                    } else {
+                        cabinBtn.classList.remove('btn-cabin-active');
+                    }
+                }
+
+                // Hall Up/Down buttons
+                const hallUp = document.getElementById(`hallUpBtn-${f}`);
+                const hallDown = document.getElementById(`hallDownBtn-${f}`);
+                if (hallUp) {
+                    if (hallRequestsUp.has(f)) {
+                        hallUp.classList.add('btn-call-active');
+                    } else {
+                        hallUp.classList.remove('btn-call-active');
+                    }
+                }
+                if (hallDown) {
+                    if (hallRequestsDown.has(f)) {
+                        hallDown.classList.add('btn-call-active');
+                    } else {
+                        hallDown.classList.remove('btn-call-active');
+                    }
+                }
+            }
+        }
+
+        function renderQueueDisplay() {
+            const queueContainer = document.getElementById('requestQueueDisplay');
+            const allRequests = Array.from(new Set([...cabinRequests, ...hallRequestsUp, ...hallRequestsDown])).sort((a,b) => a - b);
+            
+            document.getElementById('queueLengthBadge').innerText = `${allRequests.length} pending`;
+
+            if (allRequests.length === 0) {
+                queueContainer.innerHTML = `<span class="text-xs text-slate-600 font-mono italic">Queue empty</span>`;
+                return;
+            }
+
+            queueContainer.innerHTML = '';
+            allRequests.forEach(req => {
+                const badge = document.createElement('span');
+                const isCurrentTarget = req === targetFloor;
+                badge.className = `text-[11px] font-mono px-2 py-0.5 rounded border ${isCurrentTarget ? 'bg-amber-950 text-amber-300 border-amber-600 animate-pulse font-bold' : 'bg-slate-800 text-slate-300 border-slate-700'}`;
+                badge.innerText = `FL ${req < 10 ? '0' + req : req}${isCurrentTarget ? ' (TARGET)' : ''}`;
+                queueContainer.appendChild(badge);
+            });
+        }
+
+        function logEvent(message, type = 'info') {
+            const container = document.getElementById('eventLogContainer');
+            const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+            
+            const logEntry = document.createElement('div');
+            let typeColor = 'text-slate-300';
+            if (type === 'warn') typeColor = 'text-amber-400';
+            if (type === 'error') typeColor = 'text-red-400';
+            if (type === 'success') typeColor = 'text-emerald-400';
+
+            logEntry.className = `${typeColor} flex items-start space-x-2`;
+            logEntry.innerHTML = `<span class="text-slate-500 font-mono text-[10px]">[${timeStr}]</span> <span>${message}</span>`;
+            
+            container.appendChild(logEntry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('eventLogContainer').innerHTML = '';
+            logEvent('Event log cleared', 'info');
+        }
+
+        function processControllerTick() {
+            // Check critical safety faults before moving
+            if (isEmergencyStop || activeFault || cabinLoadKg > 630) {
+                if (systemState !== STATES.EMERGENCY_STOP && systemState !== STATES.FAULT) {
+                    systemState = isEmergencyStop ? STATES.EMERGENCY_STOP : STATES.FAULT;
+                }
+                updateUI();
+                return;
+            }
+
+            // Door obstacle safety check during closing
+            if (doorState === 'CLOSING' && isSensorObstructed) {
+                logEvent('Infrared safety beam broken! Reopening doors.', 'warn');
+                openDoors();
+                updateUI();
+                return;
+            }
+
+            // If doors are OPEN or OPENING/CLOSING, elevator cannot start moving
+            if (doorState !== 'CLOSED') {
+                updateUI();
+                return;
+            }
+
+            // Main Elevator SCAN Scheduling Controller
+            if (systemState === STATES.IDLE || systemState === STATES.ARRIVING) {
+                selectNextTargetFloor();
+            }
+
+            if (targetFloor !== null) {
+                if (targetFloor > currentFloor) {
+                    systemState = STATES.MOVING_UP;
+                    direction = DIRECTIONS.UP;
+                    moveElevatorStep(1);
+                } else if (targetFloor < currentFloor) {
+                    systemState = STATES.MOVING_DOWN;
+                    direction = DIRECTIONS.DOWN;
+                    moveElevatorStep(-1);
+                } else {
+                    // Reached target floor!
+                    arriveAtFloor(targetFloor);
+                }
+            } else {
+                systemState = STATES.IDLE;
+                direction = DIRECTIONS.IDLE;
+            }
+
+            updateUI();
+        }
+
+        function selectNextTargetFloor() {
+            const allReqs = [...cabinRequests, ...hallRequestsUp, ...hallRequestsDown];
+            if (allReqs.length === 0) {
+                targetFloor = null;
+                return;
+            }
+
+            // SCAN / Elevator Algorithm logic:
+            if (direction === DIRECTIONS.UP) {
+                // Look for requests above current floor
+                const above = allReqs.filter(f => f > currentFloor).sort((a,b) => a - b);
+                if (above.length > 0) {
+                    targetFloor = above[0];
+                } else {
+                    // Turn around, serve highest requested floor below
+                    const below = allReqs.filter(f => f < currentFloor).sort((a,b) => b - a);
+                    if (below.length > 0) {
+                        targetFloor = below[0];
+                        direction = DIRECTIONS.DOWN;
+                    }
+                }
+            } else if (direction === DIRECTIONS.DOWN) {
+                // Look for requests below current floor
+                const below = allReqs.filter(f => f < currentFloor).sort((a,b) => b - a);
+                if (below.length > 0) {
+                    targetFloor = below[0];
+                } else {
+                    // Turn around, serve lowest requested floor above
+                    const above = allReqs.filter(f => f > currentFloor).sort((a,b) => a - b);
+                    if (above.length > 0) {
+                        targetFloor = above[0];
+                        direction = DIRECTIONS.UP;
+                    }
+                }
+            } else {
+                // Idle direction: find closest request
+                let closest = allReqs[0];
+                let minDiff = Math.abs(currentFloor - closest);
+                allReqs.forEach(req => {
+                    const diff = Math.abs(currentFloor - req);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closest = req;
+                    }
+                });
+                targetFloor = closest;
+                if (targetFloor > currentFloor) direction = DIRECTIONS.UP;
+                else if (targetFloor < currentFloor) direction = DIRECTIONS.DOWN;
+            }
+        }
+
+        function moveElevatorStep(stepDir) {
+            // Speed factor: 1 floor = 1.0 step per second at 1.0x speed
+            const stepDelta = (0.05 * speedMultiplier) * stepDir;
+            currentFloorPosition += stepDelta;
+
+            // Clamp positions to valid 1..10 range
+            if (currentFloorPosition > 10) currentFloorPosition = 10;
+            if (currentFloorPosition < 1) currentFloorPosition = 1;
+
+            const roundedFloor = Math.round(currentFloorPosition);
+
+            // Floor transition check
+            if (roundedFloor !== currentFloor) {
+                currentFloor = roundedFloor;
+                logEvent(`Passing Floor ${currentFloor}`, 'info');
+
+                // Check intermediate stops if request matches current travel direction
+                if (shouldStopAtCurrentFloor(currentFloor)) {
+                    targetFloor = currentFloor;
+                }
+            }
+        }
+
+        function shouldStopAtCurrentFloor(floor) {
+            if (cabinRequests.has(floor)) return true;
+            if (direction === DIRECTIONS.UP && hallRequestsUp.has(floor)) return true;
+            if (direction === DIRECTIONS.DOWN && hallRequestsDown.has(floor)) return true;
+            return false;
+        }
+
+        function arriveAtFloor(floor) {
+            systemState = STATES.ARRIVING;
+            currentFloor = floor;
+            currentFloorPosition = floor; // Snap exact positioning
+            logEvent(`Elevator arrived accurately at Target Floor ${floor}`, 'success');
+            playChime();
+
+            // Clear requests served at this floor
+            cabinRequests.delete(floor);
+            if (direction === DIRECTIONS.UP || hallRequestsUp.has(floor)) hallRequestsUp.delete(floor);
+            if (direction === DIRECTIONS.DOWN || hallRequestsDown.has(floor)) hallRequestsDown.delete(floor);
+
+            openDoors();
+        }
+
+        function openDoors() {
+            if (doorState === 'OPEN' || doorState === 'OPENING') return;
+            doorState = 'OPENING';
+            systemState = STATES.DOOR_OPENING;
+            logEvent('Door open command initiated', 'info');
+            playBeep(450, 0.2);
+
+            clearTimeout(doorTimer);
+            doorTimer = setTimeout(() => {
+                doorState = 'OPEN';
+                systemState = STATES.DOOR_OPEN;
+                logEvent('Doors fully opened. Dwell timer active.', 'info');
+
+                // Schedule door auto-closing dwell timer if not held
+                scheduleDoorCloseTimer();
+            }, 800 / speedMultiplier);
+        }
+
+        function scheduleDoorCloseTimer() {
+            clearTimeout(doorTimer);
+            doorTimer = setTimeout(() => {
+                if (!isDoorHeld && !isSensorObstructed) {
+                    closeDoors();
+                } else {
+                    scheduleDoorCloseTimer(); // Retry dwell check
+                }
+            }, 3000 / speedMultiplier);
+        }
+
+        function closeDoors() {
+            if (doorState === 'CLOSED' || doorState === 'CLOSING') return;
+            if (isSensorObstructed) {
+                logEvent('Cannot close doors: Safety sensor obstructed!', 'warn');
+                return;
+            }
+            if (cabinLoadKg > 630) {
+                logEvent('Cannot close doors: Cabin overload!', 'error');
+                return;
+            }
+
+            doorState = 'CLOSING';
+            systemState = STATES.DOOR_CLOSING;
+            logEvent('Door closing sequence initiated', 'info');
+            playBeep(350, 0.2);
+
+            clearTimeout(doorTimer);
+            doorTimer = setTimeout(() => {
+                doorState = 'CLOSED';
+                systemState = STATES.IDLE;
+                logEvent('Doors fully locked and sealed.', 'info');
+            }, 800 / speedMultiplier);
+        }
+
+        function pressCabinButton(floor) {
+            playBeep(800, 0.08);
+            if (isEmergencyStop || activeFault === 'POWER_FAILURE') return;
+
+            logEvent(`Cabin panel button ${floor} pressed`, 'info');
+            cabinRequests.add(floor);
+            updateUI();
+
+            if (isExplainMode) {
+                updateExplanationCard(
+                    `CABIN FLOOR ${floor} REQUEST REGISTERED`,
+                    `The elevator controller stored floor ${floor} into the cabin request memory. The SCAN scheduling logic will evaluate current direction and position before starting motor movement.`
+                );
+            }
+        }
+
+        function pressHallButton(floor, dir) {
+            playBeep(700, 0.08);
+            if (isEmergencyStop || activeFault === 'POWER_FAILURE') return;
+
+            logEvent(`Hall call button pressed at Floor ${floor} [${dir}]`, 'info');
+            if (dir === 'UP') hallRequestsUp.add(floor);
+            if (dir === 'DOWN') hallRequestsDown.add(floor);
+            updateUI();
+
+            if (isExplainMode) {
+                updateExplanationCard(
+                    `EXTERNAL HALL CALL AT FLOOR ${floor}`,
+                    `Passenger pressed the ${dir} call button on Floor ${floor}. The central elevator algorithm calculates direction vectors and dispatches the car to serve landing calls efficiently.`
+                );
+            }
+        }
+
+        function handleOpenDoorBtn() {
+            playBeep(600, 0.05);
+            if (systemState === STATES.MOVING_UP || systemState === STATES.MOVING_DOWN) {
+                logEvent('Door open inhibited while elevator is in motion!', 'warn');
+                return;
+            }
+            openDoors();
+        }
+
+        function handleCloseDoorBtn() {
+            playBeep(600, 0.05);
+            if (doorState === 'OPEN') {
+                closeDoors();
+            }
+        }
+
+        function toggleDoorHold() {
+            playBeep(500, 0.05);
+            isDoorHeld = !isDoorHeld;
+            const btn = document.getElementById('doorHoldBtn');
+            if (isDoorHeld) {
+                btn.classList.add('bg-amber-600', 'text-white');
+                logEvent('Door Hold switch ACTIVATED. Doors will remain open.', 'warn');
+            } else {
+                btn.classList.remove('bg-amber-600', 'text-white');
+                logEvent('Door Hold switch DEACTIVATED.', 'info');
+            }
+        }
+
+        function toggleDoorObstruction() {
+            playBeep(400, 0.1, 'sawtooth');
+            isSensorObstructed = !isSensorObstructed;
+            const btn = document.getElementById('obstructSensorBtn');
+            const badge = document.getElementById('sensorStatusBadge');
+
+            if (isSensorObstructed) {
+                btn.classList.add('bg-red-900', 'text-red-200');
+                badge.innerText = 'OBSTRUCTED';
+                badge.className = 'font-mono text-[10px] bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded';
+                logEvent('Infrared Door Safety Curtain OBSTRUCTED', 'warn');
+            } else {
+                btn.classList.remove('bg-red-900', 'text-red-200');
+                badge.innerText = 'CLEAR';
+                badge.className = 'font-mono text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded';
+                logEvent('Infrared Door Safety Curtain CLEAR', 'info');
+            }
+            updateUI();
+        }
+
+        function updateCabinLoad(val) {
+            cabinLoadKg = parseInt(val);
+            document.getElementById('loadWeightDisplay').innerText = `${cabinLoadKg} kg / 630 kg`;
+            if (cabinLoadKg > 630) {
+                logEvent(`CABIN OVERLOAD! Weight ${cabinLoadKg}kg exceeds 630kg rated load limit.`, 'error');
+                playBeep(200, 0.3, 'sawtooth');
+            }
+            updateUI();
+        }
+
+        function toggleEmergencyStop() {
+            isEmergencyStop = !isEmergencyStop;
+            const btn = document.getElementById('emergencyStopBtn');
+            if (isEmergencyStop) {
+                btn.className = "w-full bg-red-600 text-white font-bold py-2.5 px-3 rounded-lg text-xs shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider transition alarm-flash";
+                logEvent('EMERGENCY STOP BUTTON TRIPPED! Motor current cut.', 'error');
+                playBeep(150, 0.5, 'square');
+            } else {
+                btn.className = "w-full bg-red-700 hover:bg-red-600 text-white font-bold py-2.5 px-3 rounded-lg text-xs shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider transition transform active:scale-95";
+                logEvent('Emergency stop reset. Restoring safety line state.', 'info');
+            }
+            updateUI();
+        }
+
+        function triggerAlarm() {
+            playBeep(900, 0.4, 'triangle');
+            logEvent('CABIN AUDIBLE ALARM ACTIVATED BY PASSENGER', 'warn');
+            const btn = document.getElementById('alarmBtn');
+            btn.classList.add('animate-pulse', 'bg-red-600', 'text-white');
+            setTimeout(() => {
+                btn.classList.remove('animate-pulse', 'bg-red-600', 'text-white');
+            }, 2000);
+        }
+
+        function injectFault(faultType) {
+            activeFault = faultType;
+            logEvent(`FAULT INJECTED: ${faultType}`, 'error');
+            playBeep(200, 0.4, 'sawtooth');
+
+            if (isExplainMode) {
+                updateExplanationCard(
+                    `SAFETY FAULT INJECTED: ${faultType}`,
+                    `The simulator generated a synthetic hardware fault (${faultType}). Modern elevator safety circuits immediately open the main contactors and inhibit motor control to prevent passenger hazards.`
+                );
+            }
+            updateUI();
+        }
+
+        function clearFaults() {
+            activeFault = null;
+            isEmergencyStop = false;
+            cabinLoadKg = 150;
+            isSensorObstructed = false;
+            document.getElementById('loadSlider').value = 150;
+            document.getElementById('loadWeightDisplay').innerText = '150 kg / 630 kg';
+            logEvent('All system faults cleared. Safety line restored.', 'success');
+            updateUI();
+        }
+
+        function toggleOperationMode() {
+            operationMode = operationMode === 'AUTO' ? 'MANUAL' : 'AUTO';
+            const btn = document.getElementById('modeToggleBtn');
+            btn.innerText = operationMode === 'AUTO' ? 'AUTOMATIC' : 'SERVICE / MANUAL';
+            btn.className = operationMode === 'AUTO' ? 
+                'text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded hover:bg-emerald-900 transition' :
+                'text-xs font-bold text-amber-400 bg-amber-950/60 border border-amber-800 px-2 py-0.5 rounded hover:bg-amber-900 transition';
+            logEvent(`Elevator operation mode changed to ${operationMode}`, 'info');
+        }
+
+        function setSpeedMultiplier(val) {
+            speedMultiplier = parseFloat(val);
+            logEvent(`Simulation speed set to ${speedMultiplier}x`, 'info');
+        }
+
+        function toggleAudio() {
+            isAudioEnabled = !isAudioEnabled;
+            const icon = document.getElementById('soundIcon');
+            const label = document.getElementById('soundLabel');
+            if (isAudioEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-cyan-400';
+                label.innerText = 'SOUND ON';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                label.innerText = 'SOUND OFF';
+            }
+        }
+
+        function toggleExplainMode() {
+            isExplainMode = !isExplainMode;
+            document.getElementById('explainStateText').innerText = isExplainMode ? 'ON' : 'OFF';
+            logEvent(`Educational explanation mode set to ${isExplainMode ? 'ON' : 'OFF'}`, 'info');
+        }
+
+        function updateExplanationCard(title, content) {
+            document.getElementById('explainTopicTitle').innerText = title;
+            document.getElementById('explainTopicContent').innerText = content;
+        }
+
+        const explanationTips = [
+            {
+                title: "VFD FREQUENCY MODULATION",
+                content: "Variable Frequency Drives (VFD) smoothly accelerate the induction motor by gradually ramping up frequency (0 to 60Hz), preventing mechanical jerk during takeoff and landing."
+            },
+            {
+                title: "REDUNDANT DOOR INTERLOCKS",
+                content: "Mechanical floor door locks and electrical microswitches must confirm 100% closure before the controller can release the traction brake and supply motor current."
+            },
+            {
+                title: "SCAN ALGORITHM EFFICIENCY",
+                content: "Elevators group passenger requests by travel direction. The elevator continues upward serving all upper calls before reversing direction to handle downward traffic."
+            }
+        ];
+        let tipIdx = 0;
+        function nextExplanationTip() {
+            tipIdx = (tipIdx + 1) % explanationTips.length;
+            updateExplanationCard(explanationTips[tipIdx].title, explanationTips[tipIdx].content);
+        }
+
+        function resetSystem() {
+            clearTimeout(doorTimer);
+            currentFloor = 1;
+            currentFloorPosition = 1.0;
+            targetFloor = null;
+            systemState = STATES.IDLE;
+            direction = DIRECTIONS.IDLE;
+            doorState = 'CLOSED';
+            isDoorHeld = false;
+            isSensorObstructed = false;
+            cabinLoadKg = 150;
+            isEmergencyStop = false;
+            activeFault = null;
+            cabinRequests.clear();
+            hallRequestsUp.clear();
+            hallRequestsDown.clear();
+
+            document.getElementById('loadSlider').value = 150;
+            document.getElementById('loadWeightDisplay').innerText = '150 kg / 630 kg';
+            
+            logEvent('Master System Reset Executed. Elevator homed to Floor 1.', 'warn');
+            updateUI();
+        }
+
+        function startSimulation(mode) {
+            initAudio();
+            document.getElementById('startupModal').classList.add('hidden');
+            if (mode === 'explain') {
+                isExplainMode = true;
+                toggleExplainMode();
+            } else if (mode === 'fault') {
+                injectFault('POWER_FAILURE');
+            }
+            logEvent('Simulation interface initialized and running.', 'success');
+        }
+
+        window.onload = function() {
+            renderBuildingFloors();
+            updateUI();
+            logEvent('10-Floor Elevator Simulator Ready.', 'info');
+
+            // Main 50ms High-Precision Controller Clock Loop
+            setInterval(() => {
+                processControllerTick();
+            }, 50);
+        };
+    </script>
+</body>
+</html>
