@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Wood Furniture Design & Transformation Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; user-select: none; }
+        /* Custom scrollbar styling for technical CAD look */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        
+        .canvas-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
+        .glass-panel { background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .cad-grid-bg { background-image: radial-gradient(#374151 1px, transparent 1px); background-size: 16px 16px; }
+        
+        /* Custom tooltip & transformation range slider styling */
+        input[type=range] {
+            accent-color: #f59e0b;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 h-screen flex flex-col overflow-hidden">
+
+    <!-- TOP TOOLBAR -->
+    <header class="h-14 bg-gray-950 border-b border-gray-800 px-4 flex items-center justify-between z-20 shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-amber-600 text-white p-2 rounded-lg flex items-center justify-center font-bold text-lg shadow-lg">
+                <i class="fa-solid fa-cubes-stacked"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm md:text-base text-gray-100 flex items-center gap-2">
+                    WoodCAD 3D <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Transformation Studio</span>
+                </h1>
+                <p class="text-[10px] text-gray-400">Parametric Furniture & Interactive Kinematics Simulator</p>
+            </div>
+        </div>
+
+        <!-- Central Action Tools -->
+        <div class="hidden lg:flex items-center bg-gray-900 border border-gray-800 rounded-lg p-1 space-x-1">
+            <button id="tool-select" onclick="setMode('select')" class="tool-btn active px-3 py-1.5 rounded text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition flex items-center gap-1.5" title="Select / Orbit (Esc)">
+                <i class="fa-solid fa-hand-pointer"></i> Select
+            </button>
+            <button id="tool-translate" onclick="setMode('translate')" class="tool-btn px-3 py-1.5 rounded text-xs font-medium text-gray-300 hover:bg-gray-800 transition flex items-center gap-1.5" title="Move Component (W)">
+                <i class="fa-solid fa-arrows-up-down-left-right"></i> Move
+            </button>
+            <button id="tool-rotate" onclick="setMode('rotate')" class="tool-btn px-3 py-1.5 rounded text-xs font-medium text-gray-300 hover:bg-gray-800 transition flex items-center gap-1.5" title="Rotate Component (E)">
+                <i class="fa-solid fa-rotate"></i> Rotate
+            </button>
+            <button id="tool-scale" onclick="setMode('scale')" class="tool-btn px-3 py-1.5 rounded text-xs font-medium text-gray-300 hover:bg-gray-800 transition flex items-center gap-1.5" title="Scale Dimensions (R)">
+                <i class="fa-solid fa-expand"></i> Scale
+            </button>
+            <div class="h-4 w-px bg-gray-800 mx-1"></div>
+            <button onclick="toggleSnap()" id="btn-snap" class="px-2.5 py-1.5 rounded text-xs font-medium bg-gray-800 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5" title="Toggle Grid & Face Snap">
+                <i class="fa-solid fa-magnet"></i> Snap: ON
+            </button>
+        </div>
+
+        <!-- Top Right File Actions & Presets -->
+        <div class="flex items-center space-x-2">
+            <!-- Preset Selector -->
+            <select id="preset-select" onchange="loadPreset(this.value)" class="bg-gray-900 border border-gray-700 text-xs rounded-lg px-2.5 py-1.5 text-gray-200 focus:outline-none focus:border-amber-500">
+                <option value="cot-stair">Demo 1: Cot → Stair Transformation</option>
+                <option value="fold-table">Demo 2: Foldable Wall Desk</option>
+                <option value="chair-ladder">Demo 3: Convertible Chair Step-Ladder</option>
+                <option value="empty">Empty Workspace</option>
+            </select>
+
+            <button onclick="undo()" class="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition" title="Undo (Ctrl+Z)">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <button onclick="redo()" class="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition" title="Redo (Ctrl+Y)">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+
+            <div class="h-4 w-px bg-gray-800 mx-1"></div>
+
+            <button onclick="openTechDrawing()" class="px-3 py-1.5 bg-sky-700 hover:bg-sky-600 text-white rounded-lg text-xs font-medium transition flex items-center gap-1.5" title="Generate 2D CAD Blueprint">
+                <i class="fa-solid fa-drafting-compass"></i> Blueprint
+            </button>
+
+            <button onclick="openExportModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+                <i class="fa-solid fa-download"></i> Export
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE CONTAINER -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- LEFT PANEL: COMPONENT LIBRARY & ASSEMBLES -->
+        <aside class="w-72 bg-gray-950 border-r border-gray-800 flex flex-col z-10 shrink-0">
+            <!-- Tabs Header -->
+            <div class="flex border-b border-gray-800 text-xs font-medium text-gray-400">
+                <button onclick="switchLeftTab('library')" id="tab-btn-library" class="flex-1 py-2.5 text-amber-500 border-b-2 border-amber-500 bg-gray-900/50 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-shapes"></i> Add Parts
+                </button>
+                <button onclick="switchLeftTab('materials')" id="tab-btn-materials" class="flex-1 py-2.5 hover:text-gray-200 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-tree"></i> Materials
+                </button>
+                <button onclick="switchLeftTab('tree')" id="tab-btn-tree" class="flex-1 py-2.5 hover:text-gray-200 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-sitemap"></i> Model Tree
+                </button>
+            </div>
+
+            <!-- Tab 1: Library Content -->
+            <div id="tab-content-library" class="flex-1 overflow-y-auto p-3 space-y-4">
+                <!-- Add Custom Part Card -->
+                <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 space-y-2">
+                    <div class="flex items-center justify-between text-xs font-semibold text-gray-300">
+                        <span><i class="fa-solid fa-plus text-amber-500 mr-1"></i> Custom Board / Beam</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                            <label class="text-[10px] text-gray-400 block">Length (X mm)</label>
+                            <input type="number" id="new-part-l" value="800" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-gray-200 focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 block">Width (Y mm)</label>
+                            <input type="number" id="new-part-w" value="400" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-gray-200 focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 block">Thickness (Z mm)</label>
+                            <input type="number" id="new-part-t" value="18" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-gray-200 focus:border-amber-500">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="createCustomWoodComponent()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-medium py-1 rounded transition text-xs flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-cube"></i> Add Part
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Standard Component Presets Grid -->
+                <div>
+                    <h3 class="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Standard Wooden Stock</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="addPresetComponent('rectangular_board')" class="p-2.5 bg-gray-900 border border-gray-800 hover:border-amber-500/50 rounded-lg text-left transition group">
+                            <i class="fa-solid fa-vector-square text-amber-500 mb-1 group-hover:scale-110 transition-transform"></i>
+                            <div class="text-xs font-medium text-gray-200">Rect Board</div>
+                            <div class="text-[10px] text-gray-500">600 × 300 × 18 mm</div>
+                        </button>
+                        <button onclick="addPresetComponent('plywood_panel')" class="p-2.5 bg-gray-900 border border-gray-800 hover:border-amber-500/50 rounded-lg text-left transition group">
+                            <i class="fa-solid fa-layer-group text-amber-500 mb-1 group-hover:scale-110 transition-transform"></i>
+                            <div class="text-xs font-medium text-gray-200">Plywood Sheet</div>
+                            <div class="text-[10px] text-gray-500">1200 × 600 × 12 mm</div>
+                        </button>
+                        <button onclick="addPresetComponent('wooden_beam')" class="p-2.5 bg-gray-900 border border-gray-800 hover:border-amber-500/50 rounded-lg text-left transition group">
+                            <i class="fa-solid fa-square-minus text-amber-500 mb-1 group-hover:scale-110 transition-transform"></i>
+                            <div class="text-xs font-medium text-gray-200">Square Post</div>
+                            <div class="text-[10px] text-gray-500">750 × 45 × 45 mm</div>
+                        </button>
+                        <button onclick="addPresetComponent('round_dowel')" class="p-2.5 bg-gray-900 border border-gray-800 hover:border-amber-500/50 rounded-lg text-left transition group">
+                            <i class="fa-solid fa-circle text-amber-500 mb-1 group-hover:scale-110 transition-transform"></i>
+                            <div class="text-xs font-medium text-gray-200">Safety Bar</div>
+                            <div class="text-[10px] text-gray-500">Ø16 × 500 mm</div>
+                        </button>
+                        <button onclick="addPresetComponent('stair_tread')" class="p-2.5 bg-gray-900 border border-gray-800 hover:border-amber-500/50 rounded-lg text-left transition group">
+                            <i class="fa-solid fa-stairs text-amber-500 mb-1 group-hover:scale-110 transition-transform"></i>
+                            <div class="text-xs font-medium text-gray-200">Stair Step</div>
+                            <div class="text-[10px] text-gray-500">500 × 200 × 25 mm</div>
+                        </button>
+                        <button onclick="addPresetComponent('shelf_panel')" class="p-2.5 bg-gray-900 border border-gray-800 hover:border-amber-500/50 rounded-lg text-left transition group">
+                            <i class="fa-solid fa-table-cells text-amber-500 mb-1 group-hover:scale-110 transition-transform"></i>
+                            <div class="text-xs font-medium text-gray-200">Shelf Plank</div>
+                            <div class="text-[10px] text-gray-500">800 × 250 × 18 mm</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Hardware & Connectors -->
+                <div>
+                    <h3 class="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Hardware & Hinges</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="addHardware('hinge')" class="p-2 bg-gray-900 border border-gray-800 hover:border-sky-500/50 rounded-lg text-left transition">
+                            <i class="fa-solid fa-door-open text-sky-400 mb-1"></i>
+                            <div class="text-xs font-medium text-gray-200">Brass Hinge</div>
+                            <div class="text-[10px] text-gray-500">Pivot joint</div>
+                        </button>
+                        <button onclick="addHardware('l_bracket')" class="p-2 bg-gray-900 border border-gray-800 hover:border-sky-500/50 rounded-lg text-left transition">
+                            <i class="fa-solid fa-turn-down text-sky-400 mb-1"></i>
+                            <div class="text-xs font-medium text-gray-200">Corner Bracket</div>
+                            <div class="text-[10px] text-gray-500">Rigid L-Bracket</div>
+                        </button>
+                        <button onclick="addHardware('dowel_pin')" class="p-2 bg-gray-900 border border-gray-800 hover:border-sky-500/50 rounded-lg text-left transition">
+                            <i class="fa-solid fa-grip-lines-vertical text-sky-400 mb-1"></i>
+                            <div class="text-xs font-medium text-gray-200">Wood Dowel</div>
+                            <div class="text-[10px] text-gray-500">Internal joint pin</div>
+                        </button>
+                        <button onclick="addHardware('locking_pin')" class="p-2 bg-gray-900 border border-gray-800 hover:border-sky-500/50 rounded-lg text-left transition">
+                            <i class="fa-solid fa-lock text-sky-400 mb-1"></i>
+                            <div class="text-xs font-medium text-gray-200">Locking Latch</div>
+                            <div class="text-[10px] text-gray-500">Safety lock pin</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Materials Selector -->
+            <div id="tab-content-materials" class="hidden flex-1 overflow-y-auto p-3 space-y-3">
+                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Timber Species & Finishes</h3>
+                <div class="space-y-2">
+                    <button onclick="setWoodMaterial('pine')" class="w-full flex items-center justify-between p-2 rounded bg-gray-900 border border-gray-800 hover:border-amber-500/50 transition">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 rounded bg-[#e8c39e] border border-amber-600"></div>
+                            <span class="text-xs text-gray-200">Natural Pine</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500">Softwood</span>
+                    </button>
+                    <button onclick="setWoodMaterial('oak')" class="w-full flex items-center justify-between p-2 rounded bg-gray-900 border border-gray-800 hover:border-amber-500/50 transition">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 rounded bg-[#b8860b] border border-amber-800"></div>
+                            <span class="text-xs text-gray-200">European Oak</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500">Hardwood</span>
+                    </button>
+                    <button onclick="setWoodMaterial('teak')" class="w-full flex items-center justify-between p-2 rounded bg-gray-900 border border-gray-800 hover:border-amber-500/50 transition">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 rounded bg-[#8b5a2b] border border-amber-900"></div>
+                            <span class="text-xs text-gray-200">Teak Wood</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500">Premium</span>
+                    </button>
+                    <button onclick="setWoodMaterial('walnut')" class="w-full flex items-center justify-between p-2 rounded bg-gray-900 border border-gray-800 hover:border-amber-500/50 transition">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 rounded bg-[#4a2e18] border border-amber-950"></div>
+                            <span class="text-xs text-gray-200">Dark Walnut</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500">Hardwood</span>
+                    </button>
+                    <button onclick="setWoodMaterial('plywood')" class="w-full flex items-center justify-between p-2 rounded bg-gray-900 border border-gray-800 hover:border-amber-500/50 transition">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 rounded bg-[#d2b48c] border border-amber-400"></div>
+                            <span class="text-xs text-gray-200">Birch Plywood</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500">Engineered</span>
+                    </button>
+                    <button onclick="setWoodMaterial('mdf')" class="w-full flex items-center justify-between p-2 rounded bg-gray-900 border border-gray-800 hover:border-amber-500/50 transition">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 rounded bg-[#a08260] border border-amber-700"></div>
+                            <span class="text-xs text-gray-200">Raw MDF</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500">Smooth Board</span>
+                    </button>
+                </div>
+
+                <div class="pt-4 border-t border-gray-800 space-y-3">
+                    <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Surface Properties</h3>
+                    <div>
+                        <div class="flex justify-between text-xs text-gray-400 mb-1">
+                            <span>Varnish Gloss</span>
+                            <span id="roughness-val">0.5</span>
+                        </div>
+                        <input type="range" min="0" max="1" step="0.05" value="0.5" oninput="updateMaterialParam('roughness', this.value)" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs text-gray-400 mb-1">
+                            <span>Technical CAD Shading</span>
+                        </div>
+                        <button onclick="toggleCADShading()" id="btn-cad-shading" class="w-full py-1.5 bg-gray-800 text-xs text-gray-300 rounded border border-gray-700 hover:bg-gray-700">
+                            Toggle Wireframe / Solid CAD
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Model Tree Hierarchy -->
+            <div id="tab-content-tree" class="hidden flex-1 overflow-y-auto p-3">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Assembly Tree</h3>
+                    <button onclick="createGroupFromSelection()" class="text-xs text-amber-400 hover:underline">
+                        <i class="fa-solid fa-object-group"></i> Group Selected
+                    </button>
+                </div>
+                <div id="tree-container" class="space-y-1 text-xs">
+                    <!-- Dynamic Component Tree Items Render Here -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER: 3D DESIGN WORKSPACE -->
+        <main class="flex-1 relative flex flex-col bg-gray-950 cad-grid-bg">
+            <!-- Floating Viewport Controls Header Bar -->
+            <div class="absolute top-3 left-3 z-10 flex items-center space-x-2">
+                <div class="bg-gray-900/90 border border-gray-800 rounded-lg p-1 flex items-center space-x-1 backdrop-blur shadow-md text-xs">
+                    <button onclick="setViewCamera('iso')" class="px-2 py-1 text-gray-300 hover:bg-gray-800 rounded" title="Isometric View">ISO</button>
+                    <button onclick="setViewCamera('top')" class="px-2 py-1 text-gray-300 hover:bg-gray-800 rounded" title="Top View">TOP</button>
+                    <button onclick="setViewCamera('front')" class="px-2 py-1 text-gray-300 hover:bg-gray-800 rounded" title="Front View">FRONT</button>
+                    <button onclick="setViewCamera('side')" class="px-2 py-1 text-gray-300 hover:bg-gray-800 rounded" title="Side View">SIDE</button>
+                    <div class="h-4 w-px bg-gray-700 mx-1"></div>
+                    <button onclick="toggleCameraProjection()" id="btn-cam-proj" class="px-2 py-1 text-amber-400 hover:bg-gray-800 rounded" title="Toggle Perspective / Orthographic">Perspective</button>
+                </div>
+
+                <div class="bg-gray-900/90 border border-gray-800 rounded-lg p-1 flex items-center space-x-1 backdrop-blur shadow-md text-xs">
+                    <button onclick="resetCamera()" class="px-2.5 py-1 text-gray-300 hover:bg-gray-800 rounded flex items-center gap-1">
+                        <i class="fa-solid fa-arrows-to-dot"></i> Reset Camera
+                    </button>
+                </div>
+            </div>
+
+            <!-- Top Right Display Mode Badges -->
+            <div class="absolute top-3 right-3 z-10 flex items-center space-x-2">
+                <div class="bg-gray-900/90 border border-gray-800 rounded-lg px-3 py-1 flex items-center gap-2 backdrop-blur shadow-md text-xs">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="dimensions-badge" class="font-mono text-gray-300">1 unit = 1 mm</span>
+                </div>
+            </div>
+
+            <!-- THREE.JS CANVAS CONTAINER -->
+            <div id="three-canvas-container" class="w-full flex-1"></div>
+
+            <!-- BOTTOM PANEL: TIMELINE & TRANSFORMATION CONTROLS -->
+            <div class="h-48 bg-gray-950 border-t border-gray-800 flex flex-col shrink-0 z-10">
+                <!-- Panel Tabs & Main Slider Header -->
+                <div class="h-10 border-b border-gray-800 px-4 flex items-center justify-between bg-gray-900/60">
+                    <div class="flex items-center space-x-4">
+                        <span class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-sliders"></i> Transformation Kinematics
+                        </span>
+                        <div class="flex space-x-1 bg-gray-950 border border-gray-800 rounded-lg p-0.5 text-xs">
+                            <button onclick="setTransformationPreset(0)" class="px-3 py-1 rounded bg-amber-600 text-white font-medium hover:bg-amber-500 transition">
+                                <i class="fa-solid fa-bed mr-1"></i> Mode A (Bed / Desk)
+                            </button>
+                            <button onclick="setTransformationPreset(1)" class="px-3 py-1 rounded text-gray-300 hover:bg-gray-800 transition">
+                                <i class="fa-solid fa-stairs mr-1"></i> Mode B (Stair / Folding)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Nav Tab Links -->
+                    <div class="flex space-x-2 text-xs">
+                        <button onclick="switchBottomTab('timeline')" id="btab-timeline" class="px-3 py-1 bg-gray-800 text-amber-400 rounded-t border-t border-x border-gray-700 font-medium">
+                            <i class="fa-solid fa-play mr-1"></i> Kinematic Slider
+                        </button>
+                        <button onclick="switchBottomTab('bom')" id="btab-bom" class="px-3 py-1 text-gray-400 hover:text-white rounded-t font-medium">
+                            <i class="fa-solid fa-list-check mr-1"></i> Cutting List / BOM
+                        </button>
+                        <button onclick="switchBottomTab('optimizer')" id="btab-optimizer" class="px-3 py-1 text-gray-400 hover:text-white rounded-t font-medium">
+                            <i class="fa-solid fa-scissors mr-1"></i> Sheet Optimizer
+                        </button>
+                        <button onclick="switchBottomTab('physics')" id="btab-physics" class="px-3 py-1 text-gray-400 hover:text-white rounded-t font-medium">
+                            <i class="fa-solid fa-weight-hanging mr-1"></i> Load Simulation
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bottom Tab Contents -->
+                <div class="flex-1 p-3 overflow-y-auto bg-gray-950">
+                    <!-- Tab Content: Timeline Slider -->
+                    <div id="bcontent-timeline" class="h-full flex flex-col justify-center max-w-4xl mx-auto space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-gray-300">Kinematic Transformation Progress:</span>
+                            <span id="transform-percent-text" class="text-sm font-mono font-bold text-amber-400">0% (Bed State)</span>
+                        </div>
+                        
+                        <div class="flex items-center space-x-4">
+                            <button onclick="toggleTransformAnimation()" id="btn-play-transform" class="w-10 h-10 rounded-full bg-amber-600 hover:bg-amber-500 text-white flex items-center justify-center text-sm shadow-lg transition shrink-0">
+                                <i class="fa-solid fa-play" id="play-icon"></i>
+                            </button>
+
+                            <input type="range" id="transform-slider" min="0" max="100" value="0" step="0.5" oninput="onTransformSliderInput(this.value)" class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-amber-500">
+                        </div>
+
+                        <!-- Educational Engineering Warning Banner -->
+                        <div class="bg-amber-950/40 border border-amber-500/30 rounded px-3 py-1.5 flex items-center justify-between text-[11px] text-amber-300">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                                <span>Note: Educational Kinematic Simulation. Physical furniture requires hinge load clearance checks and safety locking pins according to child-safety regulations.</span>
+                            </div>
+                            <button onclick="runDesignCheck()" class="px-2 py-0.5 bg-amber-600 hover:bg-amber-500 text-white rounded font-medium text-[10px]">
+                                Run Design Diagnostics
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: BOM & Cutting List -->
+                    <div id="bcontent-bom" class="hidden h-full">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-xs font-bold text-gray-300">Bill of Materials & Timber Estimate</h4>
+                            <div class="text-xs text-amber-400 font-mono">
+                                Total Material Cost: $<span id="total-cost-val">0.00</span>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-gray-300">
+                                <thead class="bg-gray-900 text-gray-400 uppercase text-[10px]">
+                                    <tr>
+                                        <th class="p-1.5">Part Name</th>
+                                        <th class="p-1.5">Qty</th>
+                                        <th class="p-1.5">Length (mm)</th>
+                                        <th class="p-1.5">Width (mm)</th>
+                                        <th class="p-1.5">Thickness (mm)</th>
+                                        <th class="p-1.5">Material</th>
+                                        <th class="p-1.5">Est. Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bom-table-body" class="divide-y divide-gray-800 font-mono">
+                                    <!-- Dynamic BOM rows inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Sheet Cutting Optimizer -->
+                    <div id="bcontent-optimizer" class="hidden h-full flex items-center space-x-4">
+                        <div class="w-48 text-xs space-y-2">
+                            <h4 class="font-bold text-gray-300">Stock Sheet Config</h4>
+                            <div>
+                                <label class="text-[10px] text-gray-400">Standard Plywood Sheet (mm)</label>
+                                <input type="text" value="2440 × 1220 mm" disabled class="w-full bg-gray-900 border border-gray-800 rounded px-2 py-1 text-gray-400">
+                            </div>
+                            <div class="text-[11px] text-gray-400">
+                                Efficiency: <span id="opt-efficiency" class="text-emerald-400 font-bold">84.2%</span><br>
+                                Waste: <span id="opt-waste" class="text-amber-400 font-bold">15.8%</span>
+                            </div>
+                        </div>
+                        <!-- Canvas Visualizer for 2D Bin Packing -->
+                        <div class="flex-1 h-full bg-gray-900 border border-gray-800 rounded p-2 flex items-center justify-center">
+                            <canvas id="optimizer-canvas" class="max-h-full max-w-full rounded border border-gray-700"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Educational Load Simulation -->
+                    <div id="bcontent-physics" class="hidden h-full flex items-center justify-between">
+                        <div class="space-y-2 max-w-md">
+                            <h4 class="text-xs font-bold text-gray-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-weight-hanging text-amber-500"></i> FEA Bending Stress & Deflection Visualizer
+                            </h4>
+                            <div class="flex items-center space-x-2 text-xs">
+                                <span class="text-gray-400">Apply Load Weight:</span>
+                                <button onclick="setSimulatedLoad(10)" class="px-2 py-1 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded">10 kg</button>
+                                <button onclick="setSimulatedLoad(25)" class="px-2 py-1 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded">25 kg</button>
+                                <button onclick="setSimulatedLoad(50)" class="px-2 py-1 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded">50 kg</button>
+                                <button onclick="setSimulatedLoad(75)" class="px-2 py-1 bg-amber-600 text-white rounded font-bold">75 kg</button>
+                            </div>
+                            <p class="text-[10px] text-gray-400">Visualizes bending strain under weight. Green indicates safe elastic zone; Red highlights maximum bending moment.</p>
+                        </div>
+                        <div class="bg-gray-900 border border-gray-800 rounded p-3 text-xs font-mono space-y-1">
+                            <div>Est. Deflection: <span id="sim-deflection" class="text-amber-400">1.84 mm</span></div>
+                            <div>Max Bending Stress: <span id="sim-stress" class="text-emerald-400">14.2 MPa (Safe)</span></div>
+                            <div>Safety Factor: <span id="sim-safety" class="text-emerald-400">2.8x</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- RIGHT PANEL: OBJECT PROPERTIES & EDITING TOOLS -->
+        <aside class="w-80 bg-gray-950 border-l border-gray-800 flex flex-col z-10 shrink-0">
+            <div class="p-3 border-b border-gray-800 flex items-center justify-between">
+                <h2 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders text-amber-500"></i> Object Inspector
+                </h2>
+                <button onclick="deleteSelectedComponent()" class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1" title="Delete Component (Del)">
+                    <i class="fa-solid fa-trash"></i> Delete
+                </button>
+            </div>
+
+            <div id="inspector-content" class="flex-1 overflow-y-auto p-3 space-y-4">
+                <!-- Empty selection state -->
+                <div id="no-selection-msg" class="text-center py-12 text-gray-500 text-xs">
+                    <i class="fa-solid fa-arrow-pointer text-2xl mb-2 block text-gray-600"></i>
+                    Select any wooden component or hardware item to view and edit properties.
+                </div>
+
+                <!-- Active Selection Form -->
+                <div id="selection-properties" class="hidden space-y-4 text-xs">
+                    <!-- Component Name & ID -->
+                    <div>
+                        <label class="text-[10px] text-gray-400 uppercase font-semibold">Part Identifier</label>
+                        <input type="text" id="prop-name" onchange="updateSelectedProp('name', this.value)" class="w-full bg-gray-900 border border-gray-800 rounded px-2.5 py-1.5 text-gray-200 font-medium focus:border-amber-500">
+                    </div>
+
+                    <!-- Transform Coordinates -->
+                    <div class="space-y-2 bg-gray-900 border border-gray-800 rounded-lg p-3">
+                        <span class="text-[10px] text-gray-400 uppercase font-bold block">3D Position (mm)</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="text-[9px] text-gray-500">X</label>
+                                <input type="number" id="prop-pos-x" step="5" onchange="updateSelectedTransform()" class="w-full bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-gray-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[9px] text-gray-500">Y</label>
+                                <input type="number" id="prop-pos-y" step="5" onchange="updateSelectedTransform()" class="w-full bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-gray-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[9px] text-gray-500">Z</label>
+                                <input type="number" id="prop-pos-z" step="5" onchange="updateSelectedTransform()" class="w-full bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-gray-200 font-mono">
+                            </div>
+                        </div>
+
+                        <span class="text-[10px] text-gray-400 uppercase font-bold block pt-2">Rotation (deg)</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="text-[9px] text-gray-500">RX</label>
+                                <input type="number" id="prop-rot-x" step="5" onchange="updateSelectedTransform()" class="w-full bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-gray-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[9px] text-gray-500">RY</label>
+                                <input type="number" id="prop-rot-y" step="5" onchange="updateSelectedTransform()" class="w-full bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-gray-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[9px] text-gray-500">RZ</label>
+                                <input type="number" id="prop-rot-z" step="5" onchange="updateSelectedTransform()" class="w-full bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-gray-200 font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BENDING / FLEX TOOL -->
+                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] text-amber-400 uppercase font-bold flex items-center gap-1">
+                                <i class="fa-solid fa-bezier-curve"></i> Parametric Wood Bending
+                            </span>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-gray-400 mb-1">
+                                <span>Bend Angle</span>
+                                <span id="bend-angle-val" class="font-mono text-amber-400">0°</span>
+                            </div>
+                            <input type="range" id="prop-bend-angle" min="0" max="180" step="1" value="0" oninput="updateWoodBending(this.value)" class="w-full">
+                        </div>
+                        <p class="text-[9px] text-gray-500 italic">Simulates steam-bent plywood or curved timber slats.</p>
+                    </div>
+
+                    <!-- CUTTING & DRILLING OPERATIONS -->
+                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 space-y-2">
+                        <span class="text-[10px] text-sky-400 uppercase font-bold block flex items-center gap-1">
+                            <i class="fa-solid fa-scissors"></i> Cut & Drill Operations
+                        </span>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="performWoodCut()" class="p-2 bg-gray-950 border border-gray-700 hover:border-amber-500 rounded text-left">
+                                <i class="fa-solid fa-scissors text-amber-400 mb-1"></i>
+                                <div class="font-medium text-[11px]">Straight Cut</div>
+                                <div class="text-[9px] text-gray-500">Split into 2 parts</div>
+                            </button>
+                            <button onclick="performWoodDrill()" class="p-2 bg-gray-950 border border-gray-700 hover:border-amber-500 rounded text-left">
+                                <i class="fa-solid fa-circle-dot text-sky-400 mb-1"></i>
+                                <div class="font-medium text-[11px]">Drill Hole</div>
+                                <div class="text-[9px] text-gray-500">Ø8 mm dowel hole</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Alignment Quick Actions -->
+                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 space-y-2">
+                        <span class="text-[10px] text-gray-400 uppercase font-bold block">Quick Alignment</span>
+                        <div class="grid grid-cols-3 gap-1">
+                            <button onclick="alignSelected('center_x')" class="py-1 bg-gray-950 hover:bg-gray-800 rounded text-[10px] border border-gray-800">Center X</button>
+                            <button onclick="alignSelected('center_y')" class="py-1 bg-gray-950 hover:bg-gray-800 rounded text-[10px] border border-gray-800">Center Y</button>
+                            <button onclick="alignSelected('ground')" class="py-1 bg-gray-950 hover:bg-gray-800 rounded text-[10px] border border-gray-800 text-amber-400">Ground Z</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 2D TECHNICAL BLUEPRINT BLUEPRINT MODAL -->
+    <div id="modal-blueprint" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 bg-gray-950 border-b border-gray-800 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-drafting-compass text-amber-500 text-xl"></i>
+                    <div>
+                        <h3 class="font-bold text-sm text-gray-100">2D Technical Blueprint Drawing</h3>
+                        <p class="text-[10px] text-gray-400">Multi-view Orthographic CAD projection & Auto-dimensions</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="window.print()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded font-medium flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> Print Blueprint
+                    </button>
+                    <button onclick="closeTechDrawing()" class="p-1.5 text-gray-400 hover:text-white text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex-1 p-4 bg-slate-900 overflow-hidden flex items-center justify-center">
+                <!-- SVG Blueprint Canvas Output -->
+                <svg id="blueprint-svg" class="w-full h-full border border-sky-900/40 rounded bg-[#0b1329]" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Dynamic Orthographic Lines Render Here -->
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXPORT MODAL -->
+    <div id="modal-export" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+                <h3 class="font-bold text-sm text-gray-100 flex items-center gap-2">
+                    <i class="fa-solid fa-download text-amber-500"></i> Export Furniture Design
+                </h3>
+                <button onclick="closeExportModal()" class="text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-2">
+                <button onclick="exportJSON()" class="w-full p-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-left flex items-center justify-between group">
+                    <div>
+                        <div class="font-bold text-xs text-gray-200">CAD Project JSON</div>
+                        <div class="text-[10px] text-gray-400">Complete editable project file format</div>
+                    </div>
+                    <i class="fa-solid fa-file-code text-amber-400 group-hover:scale-110 transition-transform"></i>
+                </button>
+
+                <button onclick="exportSTL()" class="w-full p-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-left flex items-center justify-between group">
+                    <div>
+                        <div class="font-bold text-xs text-gray-200">3D Mesh (.STL File)</div>
+                        <div class="text-[10px] text-gray-400">For 3D printing or external CAD rendering</div>
+                    </div>
+                    <i class="fa-solid fa-cube text-sky-400 group-hover:scale-110 transition-transform"></i>
+                </button>
+
+                <button onclick="exportPNG()" class="w-full p-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-left flex items-center justify-between group">
+                    <div>
+                        <div class="font-bold text-xs text-gray-200">Viewport Render Snapshot (.PNG)</div>
+                        <div class="text-[10px] text-gray-400">High-res 3D picture rendering</div>
+                    </div>
+                    <i class="fa-solid fa-image text-emerald-400 group-hover:scale-110 transition-transform"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State & Three.js References
+        let scene, camera, orthoCamera, renderer, orbitControls, transformControls;
+        let isOrtho = false;
+        let woodComponents = [];
+        let selectedComponent = null;
+        let transformProgress = 0; // 0 (Bed) to 100 (Stair)
+        let isAnimating = false;
+        let animationFrameId = null;
+        let activeLeftTab = 'library';
+        let activeBottomTab = 'timeline';
+        let snapEnabled = true;
+
+        // Undo / Redo Stacks
+        const undoStack = [];
+        const redoStack = [];
+
+        // Materials cache
+        const woodMaterials = {};
+
+        // INITIALIZATION ON WINDOW LOAD
+        window.onload = function() {
+            initThreeJS();
+            generateProceduralWoodTextures();
+            setupKeyboardShortcuts();
+            
+            // Load Default Baby Bed -> Stair Transformation Demo
+            loadPreset('cot-stair');
+
+            // Handle window resizing
+            window.addEventListener('resize', onWindowResize);
+        };
+
+        function initThreeJS() {
+            const container = document.getElementById('three-canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0f1d);
+            scene.fog = new THREE.FogExp2(0x0a0f1d, 0.0003);
+
+            // Perspective Camera
+            camera = new THREE.PerspectiveCamera(45, width / height, 1, 10000);
+            camera.position.set(1800, 1400, 1800);
+
+            // Orthographic Camera
+            const aspect = width / height;
+            const d = 1200;
+            orthoCamera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 10000);
+            orthoCamera.position.set(1800, 1400, 1800);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Orbit Controls
+            orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+            orbitControls.target.set(0, 300, 0);
+            orbitControls.enableDamping = true;
+            orbitControls.dampingFactor = 0.05;
+
+            // Transform Controls for interactive CAD move/rotate/scale
+            transformControls = new THREE.TransformControls(camera, renderer.domElement);
+            transformControls.setSize(0.75);
+            transformControls.addEventListener('change', () => {
+                if (selectedComponent) {
+                    syncInspectorFromMesh(selectedComponent);
+                    updateBOM();
+                }
+            });
+            transformControls.addEventListener('dragging-changed', (event) => {
+                orbitControls.enabled = !event.value;
+            });
+            scene.add(transformControls);
+
+            // Environment Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfffaed, 0.8);
+            dirLight.position.set(1500, 2500, 1000);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 500;
+            dirLight.shadow.camera.far = 5000;
+            const dDim = 1500;
+            dirLight.shadow.camera.left = -dDim;
+            dirLight.shadow.camera.right = dDim;
+            dirLight.shadow.camera.top = dDim;
+            dirLight.shadow.camera.bottom = -dDim;
+            scene.add(dirLight);
+
+            // Workshop Floor Grid & Ground Plane
+            const gridHelper = new THREE.GridHelper(3000, 60, 0x374151, 0x1f2937);
+            gridHelper.position.y = 0;
+            scene.add(gridHelper);
+
+            const groundGeo = new THREE.PlaneGeometry(6000, 6000);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x080c17, roughness: 0.9 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Raycaster for object click selection
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            renderer.domElement.addEventListener('pointerdown', (e) => {
+                if (e.target !== renderer.domElement) return;
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, isOrtho ? orthoCamera : camera);
+                const intersects = raycaster.intersectObjects(woodComponents.map(c => c.mesh), true);
+
+                if (intersects.length > 0) {
+                    let topMesh = intersects[0].object;
+                    while (topMesh.parent && topMesh.parent !== scene) {
+                        if (topMesh.userData && topMesh.userData.componentId) break;
+                        topMesh = topMesh.parent;
+                    }
+                    selectComponentById(topMesh.userData.componentId);
+                }
+            });
+
+            // Start Animation Loop
+            animate();
+        }
+
+        function generateProceduralWoodTextures() {
+            const species = [
+                { name: 'pine', bg: '#e8c39e', grain: '#c49a6c' },
+                { name: 'oak', bg: '#b8860b', grain: '#785404' },
+                { name: 'teak', bg: '#8b5a2b', grain: '#543415' },
+                { name: 'walnut', bg: '#4a2e18', grain: '#241408' },
+                { name: 'plywood', bg: '#d2b48c', grain: '#b5976e' },
+                { name: 'mdf', bg: '#a08260', grain: '#826748' }
+            ];
+
+            species.forEach(sp => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+
+                // Base color fill
+                ctx.fillStyle = sp.bg;
+                ctx.fillRect(0, 0, 512, 512);
+
+                // Draw wood ring grain lines
+                ctx.strokeStyle = sp.grain;
+                ctx.lineWidth = 1.5;
+                ctx.globalAlpha = 0.25;
+
+                for (let i = 0; i < 40; i++) {
+                    ctx.beginPath();
+                    let y = i * 14;
+                    ctx.moveTo(0, y);
+                    ctx.bezierCurveTo(170, y + (Math.sin(i) * 20), 340, y - (Math.cos(i) * 20), 512, y);
+                    ctx.stroke();
+                }
+
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(1, 2);
+
+                woodMaterials[sp.name] = new THREE.MeshStandardMaterial({
+                    map: texture,
+                    roughness: 0.5,
+                    metalness: 0.05
+                });
+            });
+        }
+
+        class WoodComponent {
+            constructor(params) {
+                this.id = params.id || 'part_' + Math.random().toString(36).substr(2, 6);
+                this.name = params.name || 'Wooden Board';
+                this.length = params.length || 600; // X
+                this.width = params.width || 300;   // Y
+                this.thickness = params.thickness || 18; // Z
+                this.materialName = params.materialName || 'pine';
+                this.bendAngle = params.bendAngle || 0;
+                this.isHardware = params.isHardware || false;
+
+                // Position & Kinematic Transformations (Mode A vs Mode B positions)
+                this.posA = params.posA ? { ...params.posA } : { x: 0, y: this.thickness / 2, z: 0 };
+                this.rotA = params.rotA ? { ...params.rotA } : { x: 0, y: 0, z: 0 };
+                this.posB = params.posB ? { ...params.posB } : { ...this.posA };
+                this.rotB = params.rotB ? { ...params.rotB } : { ...this.rotA };
+
+                this.mesh = this.buildMesh();
+                this.mesh.userData.componentId = this.id;
+            }
+
+            buildMesh() {
+                let geo;
+                if (this.bendAngle > 0) {
+                    // Curved segmented wood geometry
+                    geo = new THREE.BoxGeometry(this.length, this.width, this.thickness, 20, 1, 1);
+                    const pos = geo.attributes.position;
+                    const radius = this.length / ((this.bendAngle * Math.PI) / 180);
+                    for (let i = 0; i < pos.count; i++) {
+                        let x = pos.getX(i);
+                        let angle = (x / this.length) * ((this.bendAngle * Math.PI) / 180);
+                        pos.setX(i, Math.sin(angle) * radius);
+                        pos.setZ(i, pos.getZ(i) + (1 - Math.cos(angle)) * radius);
+                    }
+                    geo.computeVertexNormals();
+                } else {
+                    geo = new THREE.BoxGeometry(this.length, this.width, this.thickness);
+                }
+
+                const mat = woodMaterials[this.materialName] ? woodMaterials[this.materialName].clone() : woodMaterials['pine'].clone();
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+
+                mesh.position.set(this.posA.x, this.posA.y, this.posA.z);
+                mesh.rotation.set(
+                    THREE.MathUtils.degToRad(this.rotA.x),
+                    THREE.MathUtils.degToRad(this.rotA.y),
+                    THREE.MathUtils.degToRad(this.rotA.z)
+                );
+
+                return mesh;
+            }
+
+            updateKinematicInterpolation(t) {
+                // Interpolate position and rotation between Mode A (t=0) and Mode B (t=1)
+                const lerp = (a, b, factor) => a + (b - a) * factor;
+                this.mesh.position.x = lerp(this.posA.x, this.posB.x, t);
+                this.mesh.position.y = lerp(this.posA.y, this.posB.y, t);
+                this.mesh.position.z = lerp(this.posA.z, this.posB.z, t);
+
+                this.mesh.rotation.x = THREE.MathUtils.degToRad(lerp(this.rotA.x, this.rotB.x, t));
+                this.mesh.rotation.y = THREE.MathUtils.degToRad(lerp(this.rotA.y, this.rotB.y, t));
+                this.mesh.rotation.z = THREE.MathUtils.degToRad(lerp(this.rotA.z, this.rotB.z, t));
+            }
+        }
+
+        function loadPreset(presetKey) {
+            // Clear existing components
+            woodComponents.forEach(c => scene.remove(c.mesh));
+            woodComponents = [];
+            if (transformControls) transformControls.detach();
+            selectedComponent = null;
+
+            if (presetKey === 'cot-stair') {
+                // DEMO 1: BABY COT TO STEP-LADDER STAIR TRANSFORMATION
+                // Base Frame Posts
+                const posts = [
+                    { name: 'Post Front-L', posA: { x: -600, y: 350, z: -350 }, posB: { x: -600, y: 350, z: -350 } },
+                    { name: 'Post Front-R', posA: { x: 600, y: 350, z: -350 }, posB: { x: 600, y: 350, z: -350 } },
+                    { name: 'Post Back-L', posA: { x: -600, y: 350, z: 350 }, posB: { x: -600, y: 350, z: 350 } },
+                    { name: 'Post Back-R', posA: { x: 600, y: 350, z: 350 }, posB: { x: 600, y: 350, z: 350 } }
+                ];
+
+                posts.forEach(p => {
+                    const comp = new WoodComponent({
+                        name: p.name,
+                        length: 45, width: 700, thickness: 45,
+                        materialName: 'oak',
+                        posA: p.posA, posB: p.posB
+                    });
+                    woodComponents.push(comp);
+                    scene.add(comp.mesh);
+                });
+
+                // Cot Mattress Platform (Splits and hinges into stair steps)
+                const step1 = new WoodComponent({
+                    name: 'Cot Base / Stair Step 1',
+                    length: 1150, width: 220, thickness: 22,
+                    materialName: 'pine',
+                    posA: { x: 0, y: 200, z: -200 }, rotA: { x: 0, y: 0, z: 0 },
+                    posB: { x: 0, y: 150, z: -300 }, rotB: { x: 0, y: 0, z: 0 }
+                });
+                woodComponents.push(step1);
+                scene.add(step1.mesh);
+
+                const step2 = new WoodComponent({
+                    name: 'Folding Deck / Stair Step 2',
+                    length: 1150, width: 220, thickness: 22,
+                    materialName: 'pine',
+                    posA: { x: 0, y: 200, z: 0 }, rotA: { x: 0, y: 0, z: 0 },
+                    posB: { x: 0, y: 350, z: -100 }, rotB: { x: 0, y: 0, z: 0 }
+                });
+                woodComponents.push(step2);
+                scene.add(step2.mesh);
+
+                const step3 = new WoodComponent({
+                    name: 'Side Rail / Stair Step 3',
+                    length: 1150, width: 220, thickness: 22,
+                    materialName: 'pine',
+                    posA: { x: 0, y: 200, z: 200 }, rotA: { x: 0, y: 0, z: 0 },
+                    posB: { x: 0, y: 550, z: 100 }, rotB: { x: 0, y: 0, z: 0 }
+                });
+                woodComponents.push(step3);
+                scene.add(step3.mesh);
+
+                // Vertical Safety Bars
+                for (let i = -4; i <= 4; i++) {
+                    const bar = new WoodComponent({
+                        name: `Safety Bar ${i + 5}`,
+                        length: 18, width: 500, thickness: 18,
+                        materialName: 'beech',
+                        posA: { x: i * 120, y: 450, z: 350 }, rotA: { x: 0, y: 0, z: 0 },
+                        posB: { x: i * 120, y: 700, z: 350 + (i * 20) }, rotB: { x: 30, y: 0, z: 0 }
+                    });
+                    woodComponents.push(bar);
+                    scene.add(bar.mesh);
+                }
+
+            } else if (presetKey === 'fold-table') {
+                // DEMO 2: FOLDABLE WALL DESK
+                const mainTop = new WoodComponent({
+                    name: 'Main Tabletop Plank',
+                    length: 1000, width: 500, thickness: 25,
+                    materialName: 'teak',
+                    posA: { x: 0, y: 400, z: 0 }, rotA: { x: 0, y: 0, z: 0 },
+                    posB: { x: 0, y: 400, z: 0 }, rotB: { x: 85, y: 0, z: 0 }
+                });
+                woodComponents.push(mainTop);
+                scene.add(mainTop.mesh);
+
+                const legL = new WoodComponent({
+                    name: 'Left Support Leg',
+                    length: 40, width: 380, thickness: 40,
+                    materialName: 'teak',
+                    posA: { x: -400, y: 190, z: 0 }, rotA: { x: 0, y: 0, z: 0 },
+                    posB: { x: -400, y: 190, z: -200 }, rotB: { x: 0, y: 90, z: 0 }
+                });
+                woodComponents.push(legL);
+                scene.add(legL.mesh);
+            }
+
+            updateModelTree();
+            updateBOM();
+            setTransformationProgress(0);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            orbitControls.update();
+
+            const activeCam = isOrtho ? orthoCamera : camera;
+            renderer.render(scene, activeCam);
+        }
+
+        function onTransformSliderInput(val) {
+            transformProgress = parseFloat(val);
+            setTransformationProgress(transformProgress);
+        }
+
+        function setTransformationProgress(percent) {
+            transformProgress = percent;
+            document.getElementById('transform-slider').value = percent;
+            const factor = percent / 100;
+
+            woodComponents.forEach(c => {
+                c.updateKinematicInterpolation(factor);
+            });
+
+            document.getElementById('transform-percent-text').innerText = `${percent.toFixed(0)}% (${percent < 50 ? 'Mode A / Bed' : 'Mode B / Stair'})`;
+        }
+
+        function toggleTransformAnimation() {
+            if (isAnimating) {
+                isAnimating = false;
+                document.getElementById('play-icon').className = 'fa-solid fa-play';
+            } else {
+                isAnimating = true;
+                document.getElementById('play-icon').className = 'fa-solid fa-pause';
+                runAnimationStep();
+            }
+        }
+
+        function runAnimationStep() {
+            if (!isAnimating) return;
+            transformProgress += 1.0;
+            if (transformProgress > 100) transformProgress = 0;
+            setTransformationProgress(transformProgress);
+            setTimeout(runAnimationStep, 30);
+        }
+
+        function setTransformationPreset(mode) {
+            setTransformationProgress(mode === 0 ? 0 : 100);
+        }
+
+        function selectComponentById(id) {
+            const comp = woodComponents.find(c => c.id === id);
+            if (!comp) return;
+
+            selectedComponent = comp;
+            transformControls.attach(comp.mesh);
+
+            // Update UI Inspector
+            document.getElementById('no-selection-msg').classList.add('hidden');
+            document.getElementById('selection-properties').classList.remove('hidden');
+
+            document.getElementById('prop-name').value = comp.name;
+            document.getElementById('prop-pos-x').value = Math.round(comp.mesh.position.x);
+            document.getElementById('prop-pos-y').value = Math.round(comp.mesh.position.y);
+            document.getElementById('prop-pos-z').value = Math.round(comp.mesh.position.z);
+            document.getElementById('prop-rot-x').value = Math.round(THREE.MathUtils.radToDeg(comp.mesh.rotation.x));
+            document.getElementById('prop-rot-y').value = Math.round(THREE.MathUtils.radToDeg(comp.mesh.rotation.y));
+            document.getElementById('prop-rot-z').value = Math.round(THREE.MathUtils.radToDeg(comp.mesh.rotation.z));
+            document.getElementById('prop-bend-angle').value = comp.bendAngle;
+            document.getElementById('bend-angle-val').innerText = `${comp.bendAngle}°`;
+
+            highlightTreeNode(id);
+        }
+
+        function syncInspectorFromMesh(comp) {
+            document.getElementById('prop-pos-x').value = Math.round(comp.mesh.position.x);
+            document.getElementById('prop-pos-y').value = Math.round(comp.mesh.position.y);
+            document.getElementById('prop-pos-z').value = Math.round(comp.mesh.position.z);
+            document.getElementById('prop-rot-x').value = Math.round(THREE.MathUtils.radToDeg(comp.mesh.rotation.x));
+            document.getElementById('prop-rot-y').value = Math.round(THREE.MathUtils.radToDeg(comp.mesh.rotation.y));
+            document.getElementById('prop-rot-z').value = Math.round(THREE.MathUtils.radToDeg(comp.mesh.rotation.z));
+        }
+
+        function updateSelectedTransform() {
+            if (!selectedComponent) return;
+            const px = parseFloat(document.getElementById('prop-pos-x').value);
+            const py = parseFloat(document.getElementById('prop-pos-y').value);
+            const pz = parseFloat(document.getElementById('prop-pos-z').value);
+            const rx = parseFloat(document.getElementById('prop-rot-x').value);
+            const ry = parseFloat(document.getElementById('prop-rot-y').value);
+            const rz = parseFloat(document.getElementById('prop-rot-z').value);
+
+            selectedComponent.mesh.position.set(px, py, pz);
+            selectedComponent.mesh.rotation.set(
+                THREE.MathUtils.degToRad(rx),
+                THREE.MathUtils.degToRad(ry),
+                THREE.MathUtils.degToRad(rz)
+            );
+        }
+
+        function updateWoodBending(angleVal) {
+            if (!selectedComponent) return;
+            selectedComponent.bendAngle = parseFloat(angleVal);
+            document.getElementById('bend-angle-val').innerText = `${angleVal}°`;
+
+            // Rebuild geometry with bending curve
+            const oldPos = selectedComponent.mesh.position.clone();
+            const oldRot = selectedComponent.mesh.rotation.clone();
+            scene.remove(selectedComponent.mesh);
+
+            selectedComponent.mesh = selectedComponent.buildMesh();
+            selectedComponent.mesh.position.copy(oldPos);
+            selectedComponent.mesh.rotation.copy(oldRot);
+            scene.add(selectedComponent.mesh);
+
+            transformControls.attach(selectedComponent.mesh);
+        }
+
+        function deleteSelectedComponent() {
+            if (!selectedComponent) return;
+            scene.remove(selectedComponent.mesh);
+            woodComponents = woodComponents.filter(c => c.id !== selectedComponent.id);
+            transformControls.detach();
+            selectedComponent = null;
+
+            document.getElementById('no-selection-msg').classList.remove('hidden');
+            document.getElementById('selection-properties').classList.add('hidden');
+            updateModelTree();
+            updateBOM();
+        }
+
+        function createCustomWoodComponent() {
+            const l = parseFloat(document.getElementById('new-part-l').value) || 500;
+            const w = parseFloat(document.getElementById('new-part-w').value) || 300;
+            const t = parseFloat(document.getElementById('new-part-t').value) || 18;
+
+            const comp = new WoodComponent({
+                name: 'Custom Plank',
+                length: l, width: w, thickness: t,
+                materialName: 'pine',
+                posA: { x: 0, y: t / 2 + 100, z: 0 }
+            });
+
+            woodComponents.push(comp);
+            scene.add(comp.mesh);
+            selectComponentById(comp.id);
+            updateModelTree();
+            updateBOM();
+        }
+
+        function addPresetComponent(type) {
+            let config = { length: 600, width: 300, thickness: 18, name: 'Preset Part' };
+            if (type === 'plywood_panel') config = { length: 1200, width: 600, thickness: 12, name: 'Plywood Sheet' };
+            if (type === 'wooden_beam') config = { length: 750, width: 45, thickness: 45, name: 'Square Post' };
+            if (type === 'round_dowel') config = { length: 500, width: 16, thickness: 16, name: 'Rung Dowel' };
+            if (type === 'stair_tread') config = { length: 500, width: 200, thickness: 25, name: 'Stair Step' };
+
+            const comp = new WoodComponent({
+                ...config,
+                materialName: 'oak',
+                posA: { x: (Math.random() - 0.5) * 200, y: config.thickness / 2 + 50, z: (Math.random() - 0.5) * 200 }
+            });
+
+            woodComponents.push(comp);
+            scene.add(comp.mesh);
+            selectComponentById(comp.id);
+            updateModelTree();
+            updateBOM();
+        }
+
+        function addHardware(type) {
+            const hardware = new WoodComponent({
+                name: type === 'hinge' ? 'Brass Hinge' : 'L-Bracket Hardware',
+                length: 40, width: 40, thickness: 5,
+                materialName: 'mdf',
+                isHardware: true,
+                posA: { x: 0, y: 50, z: 0 }
+            });
+
+            woodComponents.push(hardware);
+            scene.add(hardware.mesh);
+            selectComponentById(hardware.id);
+            updateModelTree();
+        }
+
+        function performWoodCut() {
+            if (!selectedComponent) return;
+            const halfL = selectedComponent.length / 2;
+            const name = selectedComponent.name;
+            const w = selectedComponent.width;
+            const t = selectedComponent.thickness;
+            const mat = selectedComponent.materialName;
+            const pos = selectedComponent.mesh.position.clone();
+
+            deleteSelectedComponent();
+
+            const piece1 = new WoodComponent({
+                name: `${name} (Cut A)`,
+                length: halfL - 2, width: w, thickness: t, materialName: mat,
+                posA: { x: pos.x - halfL / 2, y: pos.y, z: pos.z }
+            });
+            const piece2 = new WoodComponent({
+                name: `${name} (Cut B)`,
+                length: halfL - 2, width: w, thickness: t, materialName: mat,
+                posA: { x: pos.x + halfL / 2, y: pos.y, z: pos.z }
+            });
+
+            woodComponents.push(piece1, piece2);
+            scene.add(piece1.mesh);
+            scene.add(piece2.mesh);
+            updateModelTree();
+            updateBOM();
+        }
+
+        function performWoodDrill() {
+            if (!selectedComponent) return;
+            // Visual hole indicator using dark cylinder overlay
+            const holeGeo = new THREE.CylinderGeometry(8, 8, selectedComponent.thickness + 4, 16);
+            const holeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+            selectedComponent.mesh.add(holeMesh);
+            alert(`Drilled Ø8 mm countersunk joint hole through ${selectedComponent.name}`);
+        }
+
+        function updateBOM() {
+            const tbody = document.getElementById('bom-table-body');
+            tbody.innerHTML = '';
+            let totalCost = 0;
+
+            woodComponents.forEach(c => {
+                const volM3 = (c.length * c.width * c.thickness) / 1e9;
+                const cost = Math.max(1.5, volM3 * 1200);
+                totalCost += cost;
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-900 border-b border-gray-800';
+                tr.innerHTML = `
+                    <td class="p-1.5 text-gray-200">${c.name}</td>
+                    <td class="p-1.5">1</td>
+                    <td class="p-1.5">${c.length}</td>
+                    <td class="p-1.5">${c.width}</td>
+                    <td class="p-1.5">${c.thickness}</td>
+                    <td class="p-1.5 capitalize text-amber-400">${c.materialName}</td>
+                    <td class="p-1.5 text-emerald-400">$${cost.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('total-cost-val').innerText = totalCost.toFixed(2);
+            renderCuttingOptimizerCanvas();
+        }
+
+        function renderCuttingOptimizerCanvas() {
+            const canvas = document.getElementById('optimizer-canvas');
+            if (!canvas) return;
+            canvas.width = 400;
+            canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw sheet outline
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(10, 10, 380, 180);
+
+            // Pack rectangular parts visually inside 2D sheet
+            let currX = 15;
+            let currY = 15;
+            let rowH = 0;
+
+            woodComponents.forEach((c, idx) => {
+                const pw = Math.min(100, c.length / 15);
+                const ph = Math.min(50, c.width / 15);
+
+                if (currX + pw > 380) {
+                    currX = 15;
+                    currY += rowH + 5;
+                    rowH = 0;
+                }
+
+                if (currY + ph < 185) {
+                    ctx.fillStyle = idx % 2 === 0 ? '#3b82f6' : '#10b981';
+                    ctx.fillRect(currX, currY, pw, ph);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(currX, currY, pw, ph);
+
+                    currX += pw + 5;
+                    rowH = Math.max(rowH, ph);
+                }
+            });
+        }
+
+        function openTechDrawing() {
+            document.getElementById('modal-blueprint').classList.remove('hidden');
+            const svg = document.getElementById('blueprint-svg');
+            svg.innerHTML = '';
+
+            // Draw Orthographic Blueprint Grid & Projections
+            const border = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            border.setAttribute('x', '10');
+            border.setAttribute('y', '10');
+            border.setAttribute('width', '98%');
+            border.setAttribute('height', '96%');
+            border.setAttribute('fill', 'none');
+            border.setAttribute('stroke', '#38bdf8');
+            border.setAttribute('stroke-width', '2');
+            svg.appendChild(border);
+
+            // Title Block
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', '30');
+            text.setAttribute('y', '50');
+            text.setAttribute('fill', '#38bdf8');
+            text.setAttribute('font-family', 'monospace');
+            text.setAttribute('font-size', '16');
+            text.setAttribute('font-weight', 'bold');
+            text.textContent = 'CAD BLUEPRINT — CONVERTIBLE FURNITURE ASSEMBLY';
+            svg.appendChild(text);
+
+            // Render projected rectangles of components
+            woodComponents.forEach((c, i) => {
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                const scale = 0.25;
+                rect.setAttribute('x', 60 + (i % 4) * 160);
+                rect.setAttribute('y', 100 + Math.floor(i / 4) * 120);
+                rect.setAttribute('width', c.length * scale);
+                rect.setAttribute('height', c.width * scale);
+                rect.setAttribute('fill', 'none');
+                rect.setAttribute('stroke', '#00f0ff');
+                rect.setAttribute('stroke-width', '1.5');
+                svg.appendChild(rect);
+            });
+        }
+
+        function closeTechDrawing() {
+            document.getElementById('modal-blueprint').classList.add('hidden');
+        }
+
+        function switchLeftTab(tab) {
+            ['library', 'materials', 'tree'].forEach(t => {
+                document.getElementById(`tab-content-${t}`).classList.add('hidden');
+                document.getElementById(`tab-btn-${t}`).className = 'flex-1 py-2.5 text-gray-400 hover:text-gray-200 flex items-center justify-center gap-1.5';
+            });
+            document.getElementById(`tab-content-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-btn-${tab}`).className = 'flex-1 py-2.5 text-amber-500 border-b-2 border-amber-500 bg-gray-900/50 flex items-center justify-center gap-1.5 font-bold';
+        }
+
+        function switchBottomTab(tab) {
+            ['timeline', 'bom', 'optimizer', 'physics'].forEach(t => {
+                document.getElementById(`bcontent-${t}`).classList.add('hidden');
+                document.getElementById(`btab-${t}`).className = 'px-3 py-1 text-gray-400 hover:text-white font-medium';
+            });
+            document.getElementById(`bcontent-${tab}`).classList.remove('hidden');
+            document.getElementById(`btab-${tab}`).className = 'px-3 py-1 bg-gray-800 text-amber-400 rounded-t border-t border-x border-gray-700 font-medium';
+        }
+
+        function updateModelTree() {
+            const container = document.getElementById('tree-container');
+            container.innerHTML = '';
+            woodComponents.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'p-1.5 rounded hover:bg-gray-800 cursor-pointer flex items-center justify-between';
+                item.onclick = () => selectComponentById(c.id);
+                item.innerHTML = `
+                    <span class="text-gray-300 flex items-center gap-1.5">
+                        <i class="fa-solid fa-cube text-amber-500 text-[10px]"></i> ${c.name}
+                    </span>
+                    <span class="text-[9px] font-mono text-gray-500">${c.length}x${c.width}</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function setMode(mode) {
+            transformControls.setMode(mode);
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('bg-amber-600', 'text-white'));
+            document.getElementById(`tool-${mode}`).classList.add('bg-amber-600', 'text-white');
+        }
+
+        function toggleSnap() {
+            snapEnabled = !snapEnabled;
+            transformControls.setTranslationSnap(snapEnabled ? 10 : null);
+            transformControls.setRotationSnap(snapEnabled ? THREE.MathUtils.degToRad(5) : null);
+            document.getElementById('btn-snap').innerText = `Snap: ${snapEnabled ? 'ON' : 'OFF'}`;
+        }
+
+        function resetCamera() {
+            camera.position.set(1800, 1400, 1800);
+            orbitControls.target.set(0, 300, 0);
+        }
+
+        function setViewCamera(view) {
+            if (view === 'top') camera.position.set(0, 2500, 0);
+            if (view === 'front') camera.position.set(0, 300, 2500);
+            if (view === 'side') camera.position.set(2500, 300, 0);
+            if (view === 'iso') resetCamera();
+            orbitControls.target.set(0, 300, 0);
+        }
+
+        function setWoodMaterial(matName) {
+            if (selectedComponent && woodMaterials[matName]) {
+                selectedComponent.materialName = matName;
+                selectedComponent.mesh.material = woodMaterials[matName].clone();
+            }
+        }
+
+        function setSimulatedLoad(kg) {
+            const deflection = (kg * 0.024).toFixed(2);
+            document.getElementById('sim-deflection').innerText = `${deflection} mm`;
+        }
+
+        function openExportModal() { document.getElementById('modal-export').classList.remove('hidden'); }
+        function closeExportModal() { document.getElementById('modal-export').classList.add('hidden'); }
+
+        function exportJSON() {
+            const data = JSON.stringify(woodComponents.map(c => ({
+                name: c.name, length: c.length, width: c.width, thickness: c.thickness,
+                posA: c.mesh.position, rotA: c.mesh.rotation
+            })), null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'furniture_design.json';
+            a.click();
+        }
+
+        function exportSTL() {
+            const exporter = new THREE.STLExporter();
+            const result = exporter.parse(scene, { binary: true });
+            const blob = new Blob([result], { type: 'application/octet-stream' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'furniture_model.stl';
+            a.click();
+        }
+
+        function exportPNG() {
+            renderer.render(scene, camera);
+            const imgData = renderer.domElement.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = imgData;
+            a.download = 'furniture_render.png';
+            a.click();
+        }
+
+        function setupKeyboardShortcuts() {
+            window.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+                if (e.key === 'w' || e.key === 'W') setMode('translate');
+                if (e.key === 'e' || e.key === 'E') setMode('rotate');
+                if (e.key === 'r' || e.key === 'R') setMode('scale');
+                if (e.key === 'Delete') deleteSelectedComponent();
+            });
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('three-canvas-container');
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+    </script>
+</body>
+</html>
