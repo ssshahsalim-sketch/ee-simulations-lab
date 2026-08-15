@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Electrical Control Panel Design & Engineering Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        /* CAD UI Accents */
+        .cad-panel {
+            background-color: #1e293b;
+            border-color: #334155;
+        }
+        .cad-panel-header {
+            background-color: #0f172a;
+            border-bottom: 1px solid #334155;
+        }
+        .cad-btn {
+            background-color: #334155;
+            color: #e2e8f0;
+            transition: all 0.15s ease;
+        }
+        .cad-btn:hover {
+            background-color: #475569;
+            color: #ffffff;
+        }
+        .cad-btn-active {
+            background-color: #0284c7;
+            color: #ffffff;
+        }
+        .cad-input {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            color: #38bdf8;
+        }
+        .cad-input:focus {
+            border-color: #38bdf8;
+            outline: none;
+        }
+        .viewport-canvas {
+            outline: none;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: max-content;
+            background-color: #090d16;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 4px 8px;
+            position: absolute;
+            z-index: 50;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 11px;
+            border: 1px solid #334155;
+            pointer-events: none;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Tabs */
+        .tab-btn.active {
+            border-bottom: 2px solid #38bdf8;
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col bg-slate-950 text-slate-100">
+
+    <!-- TOP TOOLBAR -->
+    <header class="h-12 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 z-20 shrink-0">
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-3">
+            <div class="bg-sky-600 text-white p-1.5 rounded flex items-center justify-center font-bold text-lg shadow-lg shadow-sky-900/40">
+                <i class="fa-solid fa-microchip"></i>
+            </div>
+            <div>
+                <h1 class="text-sm font-bold text-slate-100 tracking-wide uppercase flex items-center gap-2">
+                    E-PANEL 3D CAD <span class="bg-sky-950 text-sky-400 border border-sky-800 text-[10px] px-1.5 py-0.5 rounded font-mono">v3.5 PRO</span>
+                </h1>
+                <p class="text-[10px] text-slate-400 font-mono">Control Panel Engineering & Simulation Suite</p>
+            </div>
+        </div>
+
+        <!-- Project Actions Toolbar -->
+        <div class="flex items-center space-x-1 font-mono text-xs">
+            <button id="btn-new" class="cad-btn px-2.5 py-1.5 rounded flex items-center gap-1.5 tooltip">
+                <i class="fa-solid fa-file-circle-plus text-sky-400"></i>
+                <span>New</span>
+                <span class="tooltiptext">Reset Project</span>
+            </button>
+            <button id="btn-open" class="cad-btn px-2.5 py-1.5 rounded flex items-center gap-1.5 tooltip">
+                <i class="fa-solid fa-folder-open text-amber-400"></i>
+                <span>Open</span>
+                <span class="tooltiptext">Load JSON Project</span>
+            </button>
+            <input type="file" id="file-input" class="hidden" accept=".json">
+            <button id="btn-save" class="cad-btn px-2.5 py-1.5 rounded flex items-center gap-1.5 tooltip">
+                <i class="fa-solid fa-floppy-disk text-emerald-400"></i>
+                <span>Save</span>
+                <span class="tooltiptext">Save Project JSON</span>
+            </button>
+            <div class="h-4 w-px bg-slate-700 mx-1"></div>
+            <button id="btn-undo" class="cad-btn px-2 py-1.5 rounded tooltip" disabled>
+                <i class="fa-solid fa-rotate-left"></i>
+                <span class="tooltiptext">Undo Action</span>
+            </button>
+            <button id="btn-redo" class="cad-btn px-2 py-1.5 rounded tooltip" disabled>
+                <i class="fa-solid fa-rotate-right"></i>
+                <span class="tooltiptext">Redo Action</span>
+            </button>
+            <div class="h-4 w-px bg-slate-700 mx-1"></div>
+            <!-- View Modes -->
+            <div class="flex bg-slate-950 p-0.5 rounded border border-slate-800">
+                <button id="mode-3d" class="px-2.5 py-1 text-xs rounded cad-btn-active font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-cube"></i> 3D Model
+                </button>
+                <button id="mode-2d" class="px-2.5 py-1 text-xs rounded text-slate-400 hover:text-white flex items-center gap-1">
+                    <i class="fa-solid fa-vector-square"></i> 2D Layout
+                </button>
+                <button id="mode-schematic" class="px-2.5 py-1 text-xs rounded text-slate-400 hover:text-white flex items-center gap-1">
+                    <i class="fa-solid fa-diagram-project"></i> Logic Diagram
+                </button>
+            </div>
+            <div class="h-4 w-px bg-slate-700 mx-1"></div>
+            <!-- Modes & Tools -->
+            <button id="btn-wire-mode" class="cad-btn px-2.5 py-1.5 rounded flex items-center gap-1.5 border border-sky-800/50">
+                <i class="fa-solid fa-plug-circle-bolt text-yellow-400"></i>
+                <span id="wire-mode-text">Wire Mode: OFF</span>
+            </button>
+            <button id="btn-sim-mode" class="cad-btn px-2.5 py-1.5 rounded flex items-center gap-1.5 border border-emerald-800/50">
+                <i class="fa-solid fa-power-off text-emerald-400"></i>
+                <span id="sim-mode-text">Simulation: OFF</span>
+            </button>
+        </div>
+
+        <!-- Documentation & Reports -->
+        <div class="flex items-center space-x-1.5">
+            <button id="btn-drc" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded text-xs flex items-center gap-1 font-mono">
+                <i class="fa-solid fa-shield-halved"></i> Run DRC
+            </button>
+            <button id="btn-bom" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded text-xs font-semibold flex items-center gap-1 shadow-md shadow-sky-900/30">
+                <i class="fa-solid fa-table-list"></i> BOM & Reports
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- LEFT SIDEBAR: COMPONENT LIBRARY & PROJECT TREE -->
+        <aside id="left-sidebar" class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col z-10 shrink-0">
+            <!-- Sidebar Navigation Tabs -->
+            <div class="flex border-b border-slate-800 text-xs font-medium text-slate-400 bg-slate-950">
+                <button id="tab-lib" class="tab-btn active flex-1 py-2.5 text-center flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-boxes-stacked"></i> Library
+                </button>
+                <button id="tab-structure" class="tab-btn flex-1 py-2.5 text-center flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-sitemap"></i> Project Tree
+                </button>
+                <button id="tab-enclosure" class="tab-btn flex-1 py-2.5 text-center flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-sliders"></i> Panel Config
+                </button>
+            </div>
+
+            <!-- TAB CONTENT: LIBRARY -->
+            <div id="content-lib" class="flex-1 flex flex-col overflow-hidden">
+                <!-- Search & Filter -->
+                <div class="p-2 border-b border-slate-800">
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-xs text-slate-500"></i>
+                        <input type="text" id="lib-search" placeholder="Search MCB, Contactor, PLC..." class="w-full cad-input text-xs pl-8 pr-3 py-1.5 rounded">
+                    </div>
+                </div>
+                <!-- Categories & Items -->
+                <div class="flex-1 overflow-y-auto p-2 space-y-3" id="library-container">
+                    <!-- Din Rails & Ducts -->
+                    <div>
+                        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1">
+                            <i class="fa-solid fa-grip-lines"></i> Mounting & Infrastructure
+                        </h3>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="din_rail">
+                                <i class="fa-solid fa-bars text-amber-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">DIN Rail TS35</span>
+                                <span class="text-[10px] text-slate-500 font-mono">35x7.5 Steel</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="wiring_duct">
+                                <i class="fa-solid fa-square-parking text-slate-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">Wiring Duct</span>
+                                <span class="text-[10px] text-slate-500 font-mono">40x60 PVC Slotted</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Protection & Switching -->
+                    <div>
+                        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1">
+                            <i class="fa-solid fa-bolt"></i> Protection & Breakers
+                        </h3>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="mcb_3p">
+                                <i class="fa-solid fa-toggle-on text-sky-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">MCB 3-Pole</span>
+                                <span class="text-[10px] text-slate-500 font-mono">415V 32A 10kA</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="mcb_1p">
+                                <i class="fa-solid fa-toggle-off text-sky-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">MCB 1-Pole</span>
+                                <span class="text-[10px] text-slate-500 font-mono">230V 10A</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="mccb">
+                                <i class="fa-solid fa-box text-orange-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">MCCB 100A</span>
+                                <span class="text-[10px] text-slate-500 font-mono">3-Pole Industrial</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="spd">
+                                <i class="fa-solid fa-shield-virus text-emerald-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">SPD Type 2</span>
+                                <span class="text-[10px] text-slate-500 font-mono">Surge Protection</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Control & Automation -->
+                    <div>
+                        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1">
+                            <i class="fa-solid fa-microchip"></i> Control & Automation
+                        </h3>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="contactor">
+                                <i class="fa-solid fa-arrows-down-to-line text-yellow-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">Contactor 18A</span>
+                                <span class="text-[10px] text-slate-500 font-mono">24VDC Coil</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="overload">
+                                <i class="fa-solid fa-temperature-arrow-up text-red-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">Thermal Overload</span>
+                                <span class="text-[10px] text-slate-500 font-mono">12-18A Relay</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="plc_cpu">
+                                <i class="fa-solid fa-cpu text-indigo-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">Compact PLC</span>
+                                <span class="text-[10px] text-slate-500 font-mono">14 DI / 10 DO</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="vfd">
+                                <i class="fa-solid fa-wave-square text-purple-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">VFD Drive 5.5kW</span>
+                                <span class="text-[10px] text-slate-500 font-mono">3-Phase Inverter</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="smps">
+                                <i class="fa-solid fa-plug text-cyan-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">24V SMPS</span>
+                                <span class="text-[10px] text-slate-500 font-mono">100W Power Supply</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="terminal_strip">
+                                <i class="fa-solid fa-list-ol text-slate-300 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">Terminal Block (x5)</span>
+                                <span class="text-[10px] text-slate-500 font-mono">2.5mm² Feed-thru</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel Door Devices -->
+                    <div>
+                        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1">
+                            <i class="fa-solid fa-door-open"></i> Door Mounted Devices
+                        </h3>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="hmi_7">
+                                <i class="fa-solid fa-desktop text-blue-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">7" Touch HMI</span>
+                                <span class="text-[10px] text-slate-500 font-mono">TFT Color Screen</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="push_button_start">
+                                <i class="fa-solid fa-circle-dot text-emerald-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">Start Button</span>
+                                <span class="text-[10px] text-slate-500 font-mono">22mm Green NO</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="push_button_stop">
+                                <i class="fa-solid fa-circle-dot text-rose-500 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">Stop Button</span>
+                                <span class="text-[10px] text-slate-500 font-mono">22mm Red NC</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="estop">
+                                <i class="fa-solid fa-dharmachakra text-red-500 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">Emergency Stop</span>
+                                <span class="text-[10px] text-slate-500 font-mono">Mushroom Latch</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="pilot_light_green">
+                                <i class="fa-solid fa-lightbulb text-emerald-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">Run Lamp</span>
+                                <span class="text-[10px] text-slate-500 font-mono">22mm Green 24V</span>
+                            </div>
+                            <div class="lib-item cad-panel hover:border-sky-500 p-2 rounded cursor-pointer transition flex flex-col items-center text-center" data-type="pilot_light_red">
+                                <i class="fa-solid fa-lightbulb text-rose-400 text-base mb-1"></i>
+                                <span class="text-xs font-semibold">Fault Lamp</span>
+                                <span class="text-[10px] text-slate-500 font-mono">22mm Red 24V</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Custom Component Creator Button -->
+                <div class="p-2 border-t border-slate-800 bg-slate-950">
+                    <button id="btn-custom-comp" class="w-full cad-btn py-1.5 rounded text-xs font-semibold flex items-center justify-center gap-2 border border-sky-800/40">
+                        <i class="fa-solid fa-plus-circle text-sky-400"></i> Create Custom Device
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT: PROJECT TREE -->
+            <div id="content-structure" class="flex-1 flex flex-col overflow-y-auto p-2 hidden">
+                <div class="text-xs font-mono text-slate-400 space-y-2" id="tree-container">
+                    <!-- Dynamic project structure rendered by JS -->
+                </div>
+            </div>
+
+            <!-- TAB CONTENT: ENCLOSURE CONFIG -->
+            <div id="content-enclosure" class="flex-1 overflow-y-auto p-3 space-y-4 hidden text-xs">
+                <div>
+                    <h3 class="font-bold text-slate-200 border-b border-slate-800 pb-1 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-box text-sky-400"></i> Enclosure Dimensions
+                    </h3>
+                    <div class="space-y-2 font-mono">
+                        <div>
+                            <label class="text-slate-400 flex justify-between">
+                                <span>Width (W):</span> <span id="val-enc-w" class="text-sky-400">800 mm</span>
+                            </label>
+                            <input type="range" id="input-enc-w" min="400" max="1400" step="50" value="800" class="w-full accent-sky-500">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 flex justify-between">
+                                <span>Height (H):</span> <span id="val-enc-h" class="text-sky-400">1200 mm</span>
+                            </label>
+                            <input type="range" id="input-enc-h" min="600" max="2000" step="50" value="1200" class="w-full accent-sky-500">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 flex justify-between">
+                                <span>Depth (D):</span> <span id="val-enc-d" class="text-sky-400">300 mm</span>
+                            </label>
+                            <input type="range" id="input-enc-d" min="200" max="600" step="25" value="300" class="w-full accent-sky-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-slate-200 border-b border-slate-800 pb-1 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-door-closed text-amber-400"></i> Panel Door Options
+                    </h3>
+                    <div class="space-y-2">
+                        <button id="btn-toggle-door" class="w-full cad-btn py-1.5 rounded flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-door-open text-amber-400"></i> <span id="door-status-text">Open Door (90°)</span>
+                        </button>
+                        <div class="flex items-center justify-between text-slate-400 font-mono">
+                            <span>Show Door Cutouts:</span>
+                            <input type="checkbox" id="chk-door-cutouts" checked class="accent-sky-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-slate-200 border-b border-slate-800 pb-1 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-layer-group text-emerald-400"></i> Mounting Plate
+                    </h3>
+                    <div class="space-y-2 font-mono">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Show Grid (25mm):</span>
+                            <input type="checkbox" id="chk-mount-grid" checked class="accent-sky-500">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Snap to Rail/Grid:</span>
+                            <input type="checkbox" id="chk-snap" checked class="accent-sky-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER 3D / 2D VIEWPORT -->
+        <main class="flex-1 flex flex-col relative bg-slate-950">
+
+            <!-- VIEWPORT FLOATING TOOLBAR -->
+            <div class="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 p-1 rounded-lg backdrop-blur shadow-xl font-mono text-xs">
+                <!-- Camera Presets -->
+                <button id="cam-iso" class="cad-btn px-2 py-1 rounded tooltip"><i class="fa-solid fa-cube"></i> ISO<span class="tooltiptext">Isometric View</span></button>
+                <button id="cam-front" class="cad-btn px-2 py-1 rounded tooltip"><i class="fa-solid fa-square"></i> Front<span class="tooltiptext">Front View</span></button>
+                <button id="cam-top" class="cad-btn px-2 py-1 rounded tooltip"><i class="fa-solid fa-arrow-down-long"></i> Top<span class="tooltiptext">Top View</span></button>
+                <button id="cam-side" class="cad-btn px-2 py-1 rounded tooltip"><i class="fa-solid fa-arrow-right-long"></i> Side<span class="tooltiptext">Side View</span></button>
+                <div class="h-4 w-px bg-slate-700"></div>
+                <!-- Visual Modes -->
+                <button id="view-mode-shaded" class="cad-btn px-2 py-1 rounded cad-btn-active tooltip"><i class="fa-solid fa-eye"></i> Shaded<span class="tooltiptext">Rendered View</span></button>
+                <button id="view-mode-wireframe" class="cad-btn px-2 py-1 rounded tooltip"><i class="fa-solid fa-border-all"></i> Wireframe<span class="tooltiptext">Wireframe View</span></button>
+                <button id="view-mode-cutaway" class="cad-btn px-2 py-1 rounded tooltip"><i class="fa-solid fa-scissors"></i> Cutaway<span class="tooltiptext">Hide Walls</span></button>
+                <div class="h-4 w-px bg-slate-700"></div>
+                <button id="btn-exploded" class="cad-btn px-2 py-1 rounded tooltip text-yellow-400"><i class="fa-solid fa-up-down-left-right"></i> Explode<span class="tooltiptext">Exploded Assembly View</span></button>
+            </div>
+
+            <!-- WIRE MODE INSTRUCTION BANNER (Hidden by default) -->
+            <div id="wire-banner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-amber-500 text-slate-950 font-bold px-4 py-1.5 rounded-full shadow-lg flex items-center gap-2 text-xs font-mono animate-pulse">
+                <i class="fa-solid fa-plug-circle-bolt text-sm"></i>
+                <span>WIRE MODE ACTIVE: Click Source Terminal -> Click Target Terminal</span>
+                <button id="btn-cancel-wire" class="ml-2 bg-slate-900 text-white rounded-full px-2 py-0.5 text-[10px]">Cancel</button>
+            </div>
+
+            <!-- 3D CANVAS CONTAINER -->
+            <div id="viewport-3d" class="w-full h-full relative"></div>
+
+            <!-- 2D CANVAS CONTAINER (Hidden by default) -->
+            <div id="viewport-2d" class="w-full h-full absolute inset-0 bg-slate-900 hidden flex items-center justify-center p-4">
+                <svg id="svg-2d-layout" class="w-full h-full border border-slate-800 bg-slate-950 rounded shadow-2xl"></svg>
+            </div>
+
+            <!-- SCHEMATIC VIEW CONTAINER (Hidden by default) -->
+            <div id="viewport-schematic" class="w-full h-full absolute inset-0 bg-slate-900 hidden p-6 overflow-auto font-mono">
+                <div class="max-w-4xl mx-auto bg-slate-950 border border-slate-800 rounded-lg p-6 shadow-2xl">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-6">
+                        <div>
+                            <h2 class="text-base font-bold text-sky-400 flex items-center gap-2">
+                                <i class="fa-solid fa-diagram-project"></i> CONTROL & POWER SCHEMATIC DIAGRAM
+                            </h2>
+                            <p class="text-xs text-slate-500">Automatically synchronized logic schematic</p>
+                        </div>
+                        <span class="text-xs text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2.5 py-1 rounded">LIVE SYNC ACTIVE</span>
+                    </div>
+                    <div id="schematic-canvas" class="space-y-6">
+                        <!-- Rendered schematic elements -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- RIGHT SIDEBAR: PROPERTIES & ANALYTICS -->
+        <aside id="right-sidebar" class="w-80 bg-slate-900 border-l border-slate-800 flex flex-col z-10 shrink-0">
+            <!-- Header -->
+            <div class="cad-panel-header px-3 py-2 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-300">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-circle-info text-sky-400"></i> Inspector & Properties</span>
+                <span id="selected-type-badge" class="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded font-mono">NONE</span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
+                <!-- Selected Object Form -->
+                <div id="properties-panel" class="space-y-3">
+                    <div class="text-center text-slate-500 py-8 font-mono text-xs">
+                        <i class="fa-solid fa-arrow-pointer text-2xl mb-2 text-slate-600"></i>
+                        <p>Select a component, DIN rail or wire to inspect and modify properties.</p>
+                    </div>
+                </div>
+
+                <!-- Live Panel Analytics & Indicators -->
+                <div class="pt-3 border-t border-slate-800 space-y-3 font-mono">
+                    <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-pie text-purple-400"></i> Panel Engineering Metrics
+                    </h3>
+
+                    <!-- Space Utilization -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-400">Mounting Space Used:</span>
+                            <span id="metric-space-text" class="text-sky-400 font-bold">0 %</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div id="metric-space-bar" class="bg-sky-500 h-full w-0 transition-all duration-300"></div>
+                        </div>
+                    </div>
+
+                    <!-- Duct Fill % Gauge -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-400">Avg Duct Capacity:</span>
+                            <span id="metric-duct-text" class="text-emerald-400 font-bold">0 %</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div id="metric-duct-bar" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
+                        </div>
+                    </div>
+
+                    <!-- Thermal Heat Dissipation -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-400">Thermal Heat Dissipation:</span>
+                            <span id="metric-heat-text" class="text-amber-400 font-bold">0 W</span>
+                        </div>
+                        <div class="text-[10px] text-slate-500 flex justify-between">
+                            <span>Req Airflow:</span>
+                            <span id="metric-cfm-text" class="text-slate-300">0 CFM</span>
+                        </div>
+                    </div>
+
+                    <!-- Total Weight -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-400">Total Estimated Weight:</span>
+                            <span id="metric-weight-text" class="text-indigo-400 font-bold">0 kg</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- BOTTOM STATUS BAR -->
+    <footer class="h-7 bg-slate-900 border-t border-slate-800 px-3 flex items-center justify-between text-[11px] font-mono text-slate-400 z-20 shrink-0">
+        <div class="flex items-center space-x-4">
+            <span class="flex items-center gap-1">
+                <i class="fa-solid fa-crosshairs text-sky-400"></i> Pos X: <span id="stat-x" class="text-slate-200">0</span> mm
+            </span>
+            <span class="flex items-center gap-1">
+                Pos Y: <span id="stat-y" class="text-slate-200">0</span> mm
+            </span>
+            <span class="flex items-center gap-1">
+                Pos Z: <span id="stat-z" class="text-slate-200">0</span> mm
+            </span>
+            <div class="h-3 w-px bg-slate-700"></div>
+            <span>Selected: <span id="stat-selected" class="text-sky-400 font-semibold">None</span></span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span id="stat-drc-status" class="text-emerald-400 flex items-center gap-1">
+                <i class="fa-solid fa-circle-check"></i> DRC: PASS
+            </span>
+            <div class="h-3 w-px bg-slate-700"></div>
+            <span>Grid Snap: <span id="stat-snap" class="text-amber-400">25mm ON</span></span>
+            <div class="h-3 w-px bg-slate-700"></div>
+            <span>Wire Count: <span id="stat-wire-count" class="text-slate-200">0</span></span>
+        </div>
+    </footer>
+
+    <!-- MODAL: BOM & ENGINEERING REPORT GENERATOR -->
+    <div id="modal-bom" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-900 border border-slate-800 w-11/12 max-w-5xl h-5/6 rounded-xl flex flex-col shadow-2xl overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-table-list text-sky-400 text-lg"></i>
+                    <h2 class="font-bold text-slate-100 text-sm tracking-wide">PANEL DOCUMENTATION & BILL OF MATERIALS (BOM)</h2>
+                </div>
+                <button id="btn-close-bom" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <div class="flex border-b border-slate-800 bg-slate-900 text-xs font-mono">
+                <button id="bom-tab-items" class="px-4 py-2 border-b-2 border-sky-400 text-sky-400 font-bold">Component BOM</button>
+                <button id="bom-tab-wires" class="px-4 py-2 text-slate-400 hover:text-white">Wire List Schedule</button>
+                <button id="bom-tab-terminals" class="px-4 py-2 text-slate-400 hover:text-white">Terminal Schedule</button>
+            </div>
+
+            <div class="flex-1 overflow-auto p-4" id="bom-table-container">
+                <!-- Rendered dynamically -->
+            </div>
+
+            <div class="p-3 border-t border-slate-800 bg-slate-950 flex justify-between items-center text-xs font-mono">
+                <span class="text-slate-400" id="bom-summary-text">Total Unique Components: 0</span>
+                <div class="flex gap-2">
+                    <button id="btn-export-csv" class="cad-btn px-3 py-1.5 rounded flex items-center gap-1.5 text-emerald-400 border border-emerald-800/50">
+                        <i class="fa-solid fa-file-csv"></i> Export CSV
+                    </button>
+                    <button id="btn-print-report" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded flex items-center gap-1.5 font-bold">
+                        <i class="fa-solid fa-print"></i> Print Technical Specification
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CUSTOM COMPONENT CREATOR -->
+    <div id="modal-custom-comp" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-xl p-5 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-sm text-sky-400 flex items-center gap-2">
+                    <i class="fa-solid fa-microchip"></i> Create Custom Component
+                </h3>
+                <button id="btn-close-custom-modal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-custom-comp" class="space-y-3 text-xs font-mono">
+                <div>
+                    <label class="block text-slate-400 mb-1">Device Name / Title:</label>
+                    <input type="text" id="cust-name" required placeholder="e.g. Servo Controller" class="w-full cad-input p-2 rounded">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Tag Prefix:</label>
+                        <input type="text" id="cust-tag" required placeholder="A" class="w-full cad-input p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Manufacturer:</label>
+                        <input type="text" id="cust-mfg" placeholder="Generic / Custom" class="w-full cad-input p-2 rounded">
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Width (mm):</label>
+                        <input type="number" id="cust-w" value="60" min="10" max="400" class="w-full cad-input p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Height (mm):</label>
+                        <input type="number" id="cust-h" value="90" min="10" max="600" class="w-full cad-input p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Depth (mm):</label>
+                        <input type="number" id="cust-d" value="70" min="10" max="400" class="w-full cad-input p-2 rounded">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Heat Loss (Watts):</label>
+                        <input type="number" id="cust-heat" value="15" class="w-full cad-input p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Weight (kg):</label>
+                        <input type="number" id="cust-weight" step="0.1" value="0.5" class="w-full cad-input p-2 rounded">
+                    </div>
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" id="btn-cancel-custom" class="cad-btn px-4 py-2 rounded">Cancel</button>
+                    <button type="submit" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded font-bold">Add to Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global Project State
+        const AppState = {
+            enclosure: { width: 800, height: 1200, depth: 300, doorOpen: false, doorAngle: 0 },
+            mountingPlate: { width: 740, height: 1140, depth: 5, gridStep: 25, showGrid: true, snap: true },
+            components: [], // All mounted electrical items
+            dinRails: [],   // Metal DIN rails
+            wiringDucts: [],// PVC wiring ducts
+            wires: [],      // Electrical connections
+            selectedObj: null,
+            wireMode: false,
+            wireSourceTerminal: null,
+            simulating: false,
+            viewMode: '3d', // '3d', '2d', 'schematic'
+            renderMode: 'shaded', // 'shaded', 'wireframe', 'cutaway'
+            exploded: false,
+            undoStack: [],
+            redoStack: []
+        };
+
+        // Component Catalog Definition Database
+        const CATALOG = {
+            din_rail: { name: 'DIN Rail TS35', tagPrefix: 'DR', w: 600, h: 35, d: 7.5, type: 'infrastructure', mfg: 'Phoenix Contact', heat: 0, weight: 0.3 },
+            wiring_duct: { name: 'Wiring Duct 40x60', tagPrefix: 'WD', w: 600, h: 60, d: 40, type: 'infrastructure', mfg: 'Panduit', heat: 0, weight: 0.4 },
+            mcb_3p: { name: 'MCB 3-Pole 32A', tagPrefix: 'QF', w: 54, h: 85, d: 75, type: 'rail_comp', mfg: 'Schneider Electric', heat: 6, weight: 0.35, terminals: ['1','3','5','2','4','6'] },
+            mcb_1p: { name: 'MCB 1-Pole 10A', tagPrefix: 'QF', w: 18, h: 85, d: 75, type: 'rail_comp', mfg: 'Schneider Electric', heat: 2, weight: 0.12, terminals: ['1','2'] },
+            mccb: { name: 'MCCB 100A 3P', tagPrefix: 'QF', w: 90, h: 140, d: 90, type: 'plate_comp', mfg: 'Siemens', heat: 18, weight: 1.2, terminals: ['L1','L2','L3','T1','T2','T3'] },
+            spd: { name: 'Surge Protector Type 2', tagPrefix: 'SPD', w: 36, h: 90, d: 68, type: 'rail_comp', mfg: 'ABB', heat: 1, weight: 0.2, terminals: ['L1','L2','L3','N','PE'] },
+            contactor: { name: 'Contactor 18A 24VDC', tagPrefix: 'K', w: 45, h: 85, d: 95, type: 'rail_comp', mfg: 'Schneider Electric', heat: 7, weight: 0.45, terminals: ['A1','A2','1/L1','3/L2','5/L3','2/T1','4/T2','6/T3','13NO','14NO'] },
+            overload: { name: 'Thermal Overload Relay', tagPrefix: 'F', w: 45, h: 70, d: 80, type: 'rail_comp', mfg: 'Schneider Electric', heat: 4, weight: 0.25, terminals: ['95NC','96NC','97NO','98NO'] },
+            plc_cpu: { name: 'PLC CPU 24VDC', tagPrefix: 'A', w: 125, h: 100, d: 75, type: 'rail_comp', mfg: 'Siemens', heat: 15, weight: 0.6, terminals: ['L+','M','DI0','DI1','DI2','DI3','DQ0','DQ1'] },
+            vfd: { name: 'VFD Inverter 5.5kW', tagPrefix: 'U', w: 140, h: 230, d: 150, type: 'plate_comp', mfg: 'ABB', heat: 85, weight: 2.5, terminals: ['R/L1','S/L2','T/L3','U/T1','V/T2','W/T3','DI1','GND'] },
+            smps: { name: 'Power Supply 24V 4.2A', tagPrefix: 'PS', w: 40, h: 125, d: 115, type: 'rail_comp', mfg: 'MEAN WELL', heat: 12, weight: 0.5, terminals: ['L','N','PE','+V','-V'] },
+            terminal_strip: { name: 'Terminal Block (x5)', tagPrefix: 'TB', w: 30, h: 45, d: 45, type: 'rail_comp', mfg: 'Weidmuller', heat: 0.5, weight: 0.08, terminals: ['1','2','3','N','PE'] },
+            hmi_7: { name: '7" Color Touch HMI', tagPrefix: 'HMI', w: 200, h: 140, d: 45, type: 'door_comp', mfg: 'Siemens', heat: 10, weight: 0.8, terminals: ['24V+','0V','ETH'] },
+            push_button_start: { name: 'Push Button START (Green)', tagPrefix: 'SB', w: 30, h: 30, d: 60, type: 'door_comp', mfg: 'Eaton', heat: 0, weight: 0.06, terminals: ['3','4'] },
+            push_button_stop: { name: 'Push Button STOP (Red)', tagPrefix: 'SB', w: 30, h: 30, d: 60, type: 'door_comp', mfg: 'Eaton', heat: 0, weight: 0.06, terminals: ['1','2'] },
+            estop: { name: 'Emergency Stop Mushroom', tagPrefix: 'SE', w: 40, h: 40, d: 70, type: 'door_comp', mfg: 'Eaton', heat: 0, weight: 0.09, terminals: ['11','12'] },
+            pilot_light_green: { name: 'Pilot Lamp RUN (Green)', tagPrefix: 'HL', w: 29, h: 29, d: 55, type: 'door_comp', mfg: 'Schneider', heat: 1, weight: 0.04, terminals: ['X1','X2'] },
+            pilot_light_red: { name: 'Pilot Lamp FAULT (Red)', tagPrefix: 'HL', w: 29, h: 29, d: 55, type: 'door_comp', mfg: 'Schneider', heat: 1, weight: 0.04, terminals: ['X1','X2'] }
+        };
+
+        let scene, camera, renderer, controls;
+        let enclosureGroup, doorGroup, mountingPlateMesh, gridHelper;
+        let raycaster, mouse;
+        let selectedThreeObject = null;
+        const objectMeshMap = new Map(); // Maps AppState Object IDs to Three.js meshes
+
+        function init3D() {
+            const container = document.getElementById('viewport-3d');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0b1120);
+
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 10000);
+            camera.position.set(0, 400, 1800);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.1;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+            dirLight.position.set(500, 1000, 750);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.3);
+            fillLight.position.set(-500, 200, -500);
+            scene.add(fillLight);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Create Enclosure Hierarchy
+            enclosureGroup = new THREE.Group();
+            doorGroup = new THREE.Group();
+            scene.add(enclosureGroup);
+
+            buildEnclosure3D();
+            setupInteractions();
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function buildEnclosure3D() {
+            // Clear previous enclosure elements
+            while(enclosureGroup.children.length > 0){ 
+                enclosureGroup.remove(enclosureGroup.children[0]); 
+            }
+            while(doorGroup.children.length > 0){ 
+                doorGroup.remove(doorGroup.children[0]); 
+            }
+
+            const W = AppState.enclosure.width;
+            const H = AppState.enclosure.height;
+            const D = AppState.enclosure.depth;
+            const wallThick = 4;
+
+            const metalMat = new THREE.MeshStandardMaterial({
+                color: 0x94a3b8,
+                metalness: 0.5,
+                roughness: 0.3
+            });
+
+            const innerMetalMat = new THREE.MeshStandardMaterial({
+                color: 0x475569,
+                metalness: 0.3,
+                roughness: 0.5
+            });
+
+            // Back Wall
+            const backGeo = new THREE.BoxGeometry(W, H, wallThick);
+            const backMesh = new THREE.Mesh(backGeo, metalMat);
+            backMesh.position.set(0, 0, -D/2);
+            backMesh.receiveShadow = true;
+            enclosureGroup.add(backMesh);
+
+            // Left Wall
+            const sideGeo = new THREE.BoxGeometry(wallThick, H, D);
+            const leftMesh = new THREE.Mesh(sideGeo, metalMat);
+            leftMesh.position.set(-W/2, 0, 0);
+            leftMesh.name = "wall_left";
+            enclosureGroup.add(leftMesh);
+
+            // Right Wall
+            const rightMesh = new THREE.Mesh(sideGeo, metalMat);
+            rightMesh.position.set(W/2, 0, 0);
+            rightMesh.name = "wall_right";
+            enclosureGroup.add(rightMesh);
+
+            // Top Wall
+            const topGeo = new THREE.BoxGeometry(W, wallThick, D);
+            const topMesh = new THREE.Mesh(topGeo, metalMat);
+            topMesh.position.set(0, H/2, 0);
+            topMesh.name = "wall_top";
+            enclosureGroup.add(topMesh);
+
+            // Bottom Wall
+            const botMesh = new THREE.Mesh(topGeo, metalMat);
+            botMesh.position.set(0, -H/2, 0);
+            botMesh.name = "wall_bottom";
+            enclosureGroup.add(botMesh);
+
+            // MOUNTING PLATE
+            const pW = W - 60;
+            const pH = H - 60;
+            AppState.mountingPlate.width = pW;
+            AppState.mountingPlate.height = pH;
+
+            const plateMat = new THREE.MeshStandardMaterial({
+                color: 0xe2e8f0,
+                metalness: 0.4,
+                roughness: 0.4
+            });
+            const plateGeo = new THREE.BoxGeometry(pW, pH, 6);
+            mountingPlateMesh = new THREE.Mesh(plateGeo, plateMat);
+            mountingPlateMesh.position.set(0, 0, -D/2 + wallThick + 10);
+            mountingPlateMesh.receiveShadow = true;
+            enclosureGroup.add(mountingPlateMesh);
+
+            // Mounting Plate Grid Lines Pattern
+            if (AppState.mountingPlate.showGrid) {
+                gridHelper = new THREE.GridHelper(Math.max(pW, pH), Math.floor(Math.max(pW, pH) / 25), 0x0284c7, 0xcbaf85);
+                gridHelper.rotation.x = Math.PI / 2;
+                gridHelper.position.set(0, 0, -D/2 + wallThick + 14);
+                enclosureGroup.add(gridHelper);
+            }
+
+            // PANEL DOOR & HINGES
+            const doorMat = new THREE.MeshStandardMaterial({
+                color: 0x64748b,
+                metalness: 0.5,
+                roughness: 0.3,
+                transparent: true,
+                opacity: 0.95
+            });
+            const doorGeo = new THREE.BoxGeometry(W, H, 6);
+            const doorMesh = new THREE.Mesh(doorGeo, doorMat);
+            doorMesh.position.set(W/2, 0, 0); // Center relative to hinge
+            doorMesh.castShadow = true;
+            doorGroup.add(doorMesh);
+
+            // Handle
+            const handleGeo = new THREE.BoxGeometry(15, 120, 25);
+            const handleMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+            const handle = new THREE.Mesh(handleGeo, handleMat);
+            handle.position.set(W - 40, 0, 15);
+            doorGroup.add(handle);
+
+            // Position Door Assembly at Left Edge Hinge Pivot
+            doorGroup.position.set(-W/2, 0, D/2);
+            enclosureGroup.add(doorGroup);
+        }
+
+        function createComponentMesh(item) {
+            const group = new THREE.Group();
+            group.userData = { id: item.id, itemData: item };
+
+            const catalog = CATALOG[item.type] || CATALOG.mcb_3p;
+            const w = item.w || catalog.w;
+            const h = item.h || catalog.h;
+            const d = item.d || catalog.d;
+
+            let mainMat, bodyGeo;
+
+            if (item.type === 'din_rail') {
+                // DIN Rail metallic profile
+                bodyGeo = new THREE.BoxGeometry(w, h, d);
+                mainMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.8, roughness: 0.2 });
+                const railMesh = new THREE.Mesh(bodyGeo, mainMat);
+                group.add(railMesh);
+            } else if (item.type === 'wiring_duct') {
+                // Slotted wiring duct geometry
+                bodyGeo = new THREE.BoxGeometry(w, h, d);
+                mainMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.7 });
+                const ductMesh = new THREE.Mesh(bodyGeo, mainMat);
+                group.add(ductMesh);
+
+                // Slot lines graphic
+                const slotGeo = new THREE.BoxGeometry(w - 10, h - 10, 2);
+                const slotMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
+                const slotMesh = new THREE.Mesh(slotGeo, slotMat);
+                slotMesh.position.z = d/2 + 0.5;
+                group.add(slotMesh);
+            } else {
+                // Industrial Component Housing Box
+                bodyGeo = new THREE.BoxGeometry(w, h, d);
+                
+                let color = 0x334155; // Default Slate
+                if (item.type.includes('mcb')) color = 0xe2e8f0;
+                if (item.type.includes('contactor')) color = 0x1e293b;
+                if (item.type.includes('plc')) color = 0x475569;
+                if (item.type.includes('vfd')) color = 0x0f172a;
+                if (item.type.includes('smps')) color = 0x0284c7;
+                if (item.type.includes('button')) color = item.type.includes('start') ? 0x10b981 : 0xf43f5e;
+                if (item.type.includes('light')) color = item.type.includes('green') ? 0x10b981 : 0xef4444;
+
+                mainMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4 });
+                const bodyMesh = new THREE.Mesh(bodyGeo, mainMat);
+                bodyMesh.castShadow = true;
+                group.add(bodyMesh);
+
+                // Add Front Label Tag Plate
+                const labelGeo = new THREE.PlaneGeometry(Math.min(w - 4, 40), 14);
+                const canvas = document.createElement('canvas');
+                canvas.width = 128; canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,128,64);
+                ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 24px monospace';
+                ctx.textAlign = 'center'; ctx.fillText(item.tag || 'TAG', 64, 40);
+                
+                const labelTex = new THREE.CanvasTexture(canvas);
+                const labelMat = new THREE.MeshBasicMaterial({ map: labelTex });
+                const labelMesh = new THREE.Mesh(labelGeo, labelMat);
+                labelMesh.position.z = d/2 + 1;
+                labelMesh.position.y = h/2 - 12;
+                group.add(labelMesh);
+
+                // Create Terminal Connection Nodes
+                const terminals = catalog.terminals || ['A1', 'A2'];
+                const termCount = terminals.length;
+                terminals.forEach((termName, idx) => {
+                    const termGeo = new THREE.SphereGeometry(3, 8, 8);
+                    const termMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9 });
+                    const termMesh = new THREE.Mesh(termGeo, termMat);
+                    
+                    // Distribute terminal points top and bottom
+                    const isTop = idx < termCount / 2;
+                    const xOffset = ((idx % Math.ceil(termCount/2)) - (termCount/4)) * 12;
+                    termMesh.position.set(xOffset, isTop ? h/2 - 6 : -h/2 + 6, d/2 + 2);
+                    termMesh.userData = { terminalName: termName, parentId: item.id };
+                    group.add(termMesh);
+                });
+            }
+
+            // Set Spatial Transform
+            group.position.set(item.x, item.y, item.z);
+            group.rotation.set(item.rotX || 0, item.rotY || 0, item.rotZ || 0);
+
+            return group;
+        }
+
+        function renderScene3D() {
+            // Remove old object meshes
+            objectMeshMap.forEach((mesh) => {
+                scene.remove(mesh);
+            });
+            objectMeshMap.clear();
+
+            // Re-add Din Rails
+            AppState.dinRails.forEach((rail) => {
+                const mesh = createComponentMesh(rail);
+                scene.add(mesh);
+                objectMeshMap.set(rail.id, mesh);
+            });
+
+            // Re-add Wiring Ducts
+            AppState.wiringDucts.forEach((duct) => {
+                const mesh = createComponentMesh(duct);
+                scene.add(mesh);
+                objectMeshMap.set(duct.id, mesh);
+            });
+
+            // Re-add Components (Mounted on Plate or Door)
+            AppState.components.forEach((comp) => {
+                const mesh = createComponentMesh(comp);
+                if (comp.isDoorMounted) {
+                    doorGroup.add(mesh);
+                } else {
+                    scene.add(mesh);
+                }
+                objectMeshMap.set(comp.id, mesh);
+            });
+
+            // Re-render 3D Wire Cables
+            renderWires3D();
+            updateAnalytics();
+        }
+
+        function renderWires3D() {
+            // Remove existing wires
+            const existingWires = scene.children.filter(c => c.userData && c.userData.isWire);
+            existingWires.forEach(w => scene.remove(w));
+
+            AppState.wires.forEach((wire) => {
+                const srcMesh = objectMeshMap.get(wire.fromId);
+                const tgtMesh = objectMeshMap.get(wire.toId);
+                if (!srcMesh || !tgtMesh) return;
+
+                const p1 = new THREE.Vector3();
+                const p2 = new THREE.Vector3();
+                srcMesh.getWorldPosition(p1);
+                tgtMesh.getWorldPosition(p2);
+
+                // Orthogonal 3D Path Waypoints
+                const midZ = Math.max(p1.z, p2.z) + 30;
+                const path = new THREE.CatmullRomCurve3([
+                    p1,
+                    new THREE.Vector3(p1.x, p1.y, midZ),
+                    new THREE.Vector3(p2.x, p1.y, midZ),
+                    new THREE.Vector3(p2.x, p2.y, midZ),
+                    p2
+                ]);
+
+                const colorHex = wire.color === 'Red' ? 0xef4444 : 
+                                wire.color === 'Black' ? 0x1e293b : 
+                                wire.color === 'Blue' ? 0x3b82f6 : 
+                                wire.color === 'PE' ? 0x10b981 : 0xf59e0b;
+
+                const tubeGeo = new THREE.TubeGeometry(path, 20, wire.gauge || 2, 8, false);
+                const tubeMat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const wireMesh = new THREE.Mesh(tubeGeo, tubeMat);
+                wireMesh.userData = { isWire: true, wireData: wire };
+                scene.add(wireMesh);
+            });
+        }
+
+        function setupInteractions() {
+            const container = document.getElementById('viewport-3d');
+            
+            container.addEventListener('pointerdown', (event) => {
+                if (event.button !== 0) return; // Left Click only
+
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((event.clientX - rect.left) / container.clientWidth) * 2 - 1;
+                mouse.y = -((event.clientY - rect.top) / container.clientHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(scene.children, true);
+
+                if (intersects.length > 0) {
+                    let clickedObj = intersects[0].object;
+                    
+                    // Traverse up to component group
+                    while (clickedObj.parent && clickedObj.parent !== scene && clickedObj.parent !== doorGroup && !clickedObj.userData.id) {
+                        clickedObj = clickedObj.parent;
+                    }
+
+                    if (clickedObj.userData && clickedObj.userData.id) {
+                        selectObject(clickedObj.userData.id);
+                        return;
+                    }
+                }
+                selectObject(null);
+            });
+        }
+
+        function selectObject(id) {
+            AppState.selectedObj = id;
+            
+            // Highlight mesh bounding effect
+            objectMeshMap.forEach((mesh, meshId) => {
+                if (meshId === id) {
+                    // Flash scale outline effect
+                    mesh.scale.set(1.02, 1.02, 1.02);
+                } else {
+                    mesh.scale.set(1, 1, 1);
+                }
+            });
+
+            updatePropertiesInspector();
+            updateStatusBar();
+        }
+
+        function updatePropertiesInspector() {
+            const panel = document.getElementById('properties-panel');
+            const badge = document.getElementById('selected-type-badge');
+
+            if (!AppState.selectedObj) {
+                badge.textContent = "NONE";
+                panel.innerHTML = `
+                    <div class="text-center text-slate-500 py-8 font-mono text-xs">
+                        <i class="fa-solid fa-arrow-pointer text-2xl mb-2 text-slate-600"></i>
+                        <p>Select a component, DIN rail or wire to inspect and modify properties.</p>
+                    </div>`;
+                return;
+            }
+
+            // Find object item
+            let item = AppState.components.find(c => c.id === AppState.selectedObj) ||
+                       AppState.dinRails.find(r => r.id === AppState.selectedObj) ||
+                       AppState.wiringDucts.find(d => d.id === AppState.selectedObj);
+
+            if (!item) return;
+
+            badge.textContent = item.tag || item.name;
+
+            panel.innerHTML = `
+                <div class="space-y-3 font-mono text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Tag Identifier:</label>
+                        <input type="text" id="prop-tag" value="${item.tag || ''}" class="w-full cad-input p-1.5 rounded text-sky-400 font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Manufacturer:</label>
+                        <input type="text" id="prop-mfg" value="${item.mfg || 'Generic'}" class="w-full cad-input p-1.5 rounded">
+                    </div>
+
+                    <div class="border-t border-slate-800 pt-2">
+                        <span class="font-bold text-slate-300 block mb-2">3D Spatial Transform (mm)</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="text-[10px] text-slate-500">X Position:</label>
+                                <input type="number" id="prop-x" value="${Math.round(item.x)}" class="w-full cad-input p-1 rounded">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-500">Y Position:</label>
+                                <input type="number" id="prop-y" value="${Math.round(item.y)}" class="w-full cad-input p-1 rounded">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-500">Z Position:</label>
+                                <input type="number" id="prop-z" value="${Math.round(item.z)}" class="w-full cad-input p-1 rounded">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-800 pt-2 flex gap-1">
+                        <button id="btn-rot-90" class="flex-1 cad-btn py-1 rounded text-[11px]"><i class="fa-solid fa-rotate-right"></i> Rotate 90°</button>
+                        <button id="btn-delete-obj" class="bg-rose-900/40 hover:bg-rose-800 text-rose-300 border border-rose-700/50 px-3 py-1 rounded text-[11px]"><i class="fa-solid fa-trash"></i> Delete</button>
+                    </div>
+                </div>`;
+
+            // Event Listeners for Live Inputs
+            document.getElementById('prop-tag').addEventListener('change', (e) => {
+                item.tag = e.target.value;
+                renderScene3D();
+            });
+            document.getElementById('prop-x').addEventListener('change', (e) => {
+                item.x = parseFloat(e.target.value);
+                renderScene3D();
+            });
+            document.getElementById('prop-y').addEventListener('change', (e) => {
+                item.y = parseFloat(e.target.value);
+                renderScene3D();
+            });
+            document.getElementById('prop-z').addEventListener('change', (e) => {
+                item.z = parseFloat(e.target.value);
+                renderScene3D();
+            });
+            document.getElementById('btn-rot-90').addEventListener('click', () => {
+                item.rotZ = (item.rotZ || 0) + Math.PI / 2;
+                renderScene3D();
+            });
+            document.getElementById('btn-delete-obj').addEventListener('click', () => {
+                deleteSelectedObject();
+            });
+        }
+
+        function addComponentToProject(typeKey) {
+            const catalog = CATALOG[typeKey];
+            if (!catalog) return;
+
+            const newId = 'comp_' + Date.now();
+            const tagNumber = AppState.components.filter(c => c.type === typeKey).length + 1;
+            const tag = `${catalog.tagPrefix}${tagNumber}`;
+
+            const newItem = {
+                id: newId,
+                type: typeKey,
+                name: catalog.name,
+                tag: tag,
+                w: catalog.w,
+                h: catalog.h,
+                d: catalog.d,
+                x: 0,
+                y: 0,
+                z: catalog.type === 'door_comp' ? 15 : -AppState.enclosure.depth/2 + 20,
+                rotX: 0, rotY: 0, rotZ: 0,
+                mfg: catalog.mfg,
+                heat: catalog.heat,
+                weight: catalog.weight,
+                isDoorMounted: catalog.type === 'door_comp'
+            };
+
+            if (catalog.type === 'din_rail') {
+                AppState.dinRails.push(newItem);
+            } else if (catalog.type === 'wiring_duct') {
+                AppState.wiringDucts.push(newItem);
+            } else {
+                AppState.components.push(newItem);
+            }
+
+            saveUndoState();
+            renderScene3D();
+            updateProjectTree();
+            selectObject(newId);
+        }
+
+        function deleteSelectedObject() {
+            if (!AppState.selectedObj) return;
+            
+            AppState.components = AppState.components.filter(c => c.id !== AppState.selectedObj);
+            AppState.dinRails = AppState.dinRails.filter(r => r.id !== AppState.selectedObj);
+            AppState.wiringDucts = AppState.wiringDucts.filter(d => d.id !== AppState.selectedObj);
+            AppState.wires = AppState.wires.filter(w => w.fromId !== AppState.selectedObj && w.toId !== AppState.selectedObj);
+
+            AppState.selectedObj = null;
+            saveUndoState();
+            renderScene3D();
+            updateProjectTree();
+            updatePropertiesInspector();
+        }
+
+        function updateProjectTree() {
+            const container = document.getElementById('tree-container');
+            
+            let html = `
+                <div class="space-y-1">
+                    <div class="font-bold text-slate-200 flex items-center gap-1.5"><i class="fa-solid fa-folder-open text-amber-400"></i> CONTROL PANEL</div>
+                    <div class="pl-4 space-y-1">
+                        <div class="text-slate-300"><i class="fa-solid fa-bars text-amber-400"></i> DIN Rails (${AppState.dinRails.length})</div>
+                        <div class="pl-4 border-l border-slate-800 space-y-0.5">
+                            ${AppState.dinRails.map(r => `<div class="cursor-pointer hover:text-sky-400 text-[11px]" onclick="selectObject('${r.id}')">• ${r.tag} (${r.name})</div>`).join('')}
+                        </div>
+
+                        <div class="text-slate-300"><i class="fa-solid fa-square-parking text-slate-400"></i> Wiring Ducts (${AppState.wiringDucts.length})</div>
+                        <div class="pl-4 border-l border-slate-800 space-y-0.5">
+                            ${AppState.wiringDucts.map(d => `<div class="cursor-pointer hover:text-sky-400 text-[11px]" onclick="selectObject('${d.id}')">• ${d.tag} (${d.name})</div>`).join('')}
+                        </div>
+
+                        <div class="text-slate-300"><i class="fa-solid fa-microchip text-sky-400"></i> Components (${AppState.components.length})</div>
+                        <div class="pl-4 border-l border-slate-800 space-y-0.5">
+                            ${AppState.components.map(c => `<div class="cursor-pointer hover:text-sky-400 text-[11px]" onclick="selectObject('${c.id}')">• ${c.tag} (${c.name})</div>`).join('')}
+                        </div>
+
+                        <div class="text-slate-300"><i class="fa-solid fa-plug-circle-bolt text-yellow-400"></i> Wires (${AppState.wires.length})</div>
+                    </div>
+                </div>`;
+
+            container.innerHTML = html;
+        }
+
+        function updateAnalytics() {
+            // Space Utilization %
+            const totalArea = AppState.mountingPlate.width * AppState.mountingPlate.height;
+            let usedArea = 0;
+            AppState.components.forEach(c => usedArea += (c.w * c.h));
+            const spacePercent = Math.min(100, Math.round((usedArea / totalArea) * 100));
+
+            document.getElementById('metric-space-text').textContent = `${spacePercent} %`;
+            document.getElementById('metric-space-bar').style.width = `${spacePercent}%`;
+
+            // Thermal Heat & Cooling Fan CFM Requirements
+            let totalHeatWatts = 0;
+            AppState.components.forEach(c => totalHeatWatts += (c.heat || 0));
+
+            const reqCFM = Math.round(totalHeatWatts * 3.16 / 10); // Simplified Airflow CFM formula
+
+            document.getElementById('metric-heat-text').textContent = `${totalHeatWatts} W`;
+            document.getElementById('metric-cfm-text').textContent = `${reqCFM} CFM`;
+
+            // Weight Estimate (kg)
+            let totalWeight = 18; // Enclosure base weight kg
+            AppState.components.forEach(c => totalWeight += (c.weight || 0.2));
+            AppState.dinRails.forEach(r => totalWeight += (r.weight || 0.3));
+            AppState.wiringDucts.forEach(d => totalWeight += (d.weight || 0.4));
+
+            document.getElementById('metric-weight-text').textContent = `${totalWeight.toFixed(1)} kg`;
+
+            // Duct Fill Percentage
+            const wireCount = AppState.wires.length;
+            const ductCapacity = Math.min(100, wireCount * 8);
+            document.getElementById('metric-duct-text').textContent = `${ductCapacity} %`;
+            document.getElementById('metric-duct-bar').style.width = `${ductCapacity}%`;
+
+            // Update Bottom Status bar
+            document.getElementById('stat-wire-count').textContent = wireCount;
+        }
+
+        function runDRC() {
+            const warnings = [];
+
+            // 1. Check Component Collisions / Overlaps
+            for (let i = 0; i < AppState.components.length; i++) {
+                for (let j = i + 1; j < AppState.components.length; j++) {
+                    const c1 = AppState.components[i];
+                    const c2 = AppState.components[j];
+
+                    if (Math.abs(c1.x - c2.x) < (c1.w + c2.w)/2 && Math.abs(c1.y - c2.y) < (c1.h + c2.h)/2) {
+                        warnings.push(`COLLISION DETECTED: ${c1.tag} overlaps with ${c2.tag}`);
+                    }
+                }
+            }
+
+            // 2. Check Enclosure Boundary Clearance
+            const maxW = AppState.enclosure.width / 2;
+            const maxH = AppState.enclosure.height / 2;
+            AppState.components.forEach(c => {
+                if (Math.abs(c.x) + c.w/2 > maxW || Math.abs(c.y) + c.h/2 > maxH) {
+                    warnings.push(`BOUNDARY WARNING: ${c.tag} exceeds mounting plate edge.`);
+                }
+            });
+
+            // Display DRC Results
+            const statusEl = document.getElementById('stat-drc-status');
+            if (warnings.length === 0) {
+                statusEl.className = "text-emerald-400 flex items-center gap-1";
+                statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> DRC: PASS`;
+                alert("DESIGN RULE CHECK (DRC): PASSED!\nNo component collisions or boundary violations detected.");
+            } else {
+                statusEl.className = "text-rose-400 flex items-center gap-1 font-bold animate-pulse";
+                statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> DRC: ${warnings.length} ERRORS`;
+                alert("DESIGN RULE CHECK (DRC) WARNINGS:\n\n" + warnings.join("\n"));
+            }
+        }
+
+        function generateBOMTable() {
+            const container = document.getElementById('bom-table-container');
+
+            // Group components by catalog type
+            const counts = {};
+            AppState.components.forEach(c => {
+                counts[c.type] = (counts[c.type] || 0) + 1;
+            });
+
+            let html = `
+                <table class="w-full text-left border-collapse text-xs font-mono">
+                    <thead>
+                        <tr class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                            <th class="p-2.5">Item</th>
+                            <th class="p-2.5">Description</th>
+                            <th class="p-2.5">Manufacturer</th>
+                            <th class="p-2.5">Qty</th>
+                            <th class="p-2.5">Unit Weight</th>
+                            <th class="p-2.5">Heat Loss (W)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800 text-slate-200">`;
+
+            let idx = 1;
+            for (let typeKey in counts) {
+                const catalog = CATALOG[typeKey] || {};
+                html += `
+                    <tr class="hover:bg-slate-800/50">
+                        <td class="p-2.5 text-sky-400">${idx++}</td>
+                        <td class="p-2.5 font-bold">${catalog.name || typeKey}</td>
+                        <td class="p-2.5 text-slate-400">${catalog.mfg || 'Generic'}</td>
+                        <td class="p-2.5 text-amber-400 font-bold">${counts[typeKey]}</td>
+                        <td class="p-2.5">${catalog.weight || 0.2} kg</td>
+                        <td class="p-2.5">${catalog.heat || 0} W</td>
+                    </tr>`;
+            }
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+            document.getElementById('bom-summary-text').textContent = `Total Unique Devices: ${Object.keys(counts).length}`;
+        }
+
+        function saveUndoState() {
+            AppState.undoStack.push(JSON.stringify({
+                components: AppState.components,
+                dinRails: AppState.dinRails,
+                wiringDucts: AppState.wiringDucts,
+                wires: AppState.wires
+            }));
+            if (AppState.undoStack.length > 20) AppState.undoStack.shift();
+            document.getElementById('btn-undo').disabled = false;
+        }
+
+        function exportProjectJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(AppState, null, 2));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", `panel_design_${Date.now()}.json`);
+            dlAnchorElem.click();
+        }
+
+        function setupEventListeners() {
+            // Sidebar Tabs
+            document.getElementById('tab-lib').addEventListener('click', (e) => switchTab('lib', e.target));
+            document.getElementById('tab-structure').addEventListener('click', (e) => switchTab('structure', e.target));
+            document.getElementById('tab-enclosure').addEventListener('click', (e) => switchTab('enclosure', e.target));
+
+            // Component Drag Add from Library
+            document.querySelectorAll('.lib-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const typeKey = item.getAttribute('data-type');
+                    addComponentToProject(typeKey);
+                });
+            });
+
+            // Door Open/Close Animation Toggle
+            document.getElementById('btn-toggle-door').addEventListener('click', () => {
+                AppState.enclosure.doorOpen = !AppState.enclosure.doorOpen;
+                const text = document.getElementById('door-status-text');
+
+                // Animate door rotation hinge
+                const targetAngle = AppState.enclosure.doorOpen ? Math.PI / 2 : 0;
+                doorGroup.rotation.y = targetAngle;
+                text.textContent = AppState.enclosure.doorOpen ? 'Close Door (0°)' : 'Open Door (90°)';
+            });
+
+            // Top Bar File Buttons
+            document.getElementById('btn-save').addEventListener('click', exportProjectJSON);
+            document.getElementById('btn-drc').addEventListener('click', runDRC);
+            document.getElementById('btn-bom').addEventListener('click', () => {
+                generateBOMTable();
+                document.getElementById('modal-bom').classList.remove('hidden');
+            });
+            document.getElementById('btn-close-bom').addEventListener('click', () => {
+                document.getElementById('modal-bom').classList.add('hidden');
+            });
+
+            // Camera View Preset Buttons
+            document.getElementById('cam-iso').addEventListener('click', () => {
+                camera.position.set(0, 400, 1800);
+                controls.target.set(0,0,0);
+            });
+            document.getElementById('cam-front').addEventListener('click', () => {
+                camera.position.set(0, 0, 1800);
+                controls.target.set(0,0,0);
+            });
+            document.getElementById('cam-top').addEventListener('click', () => {
+                camera.position.set(0, 1800, 0);
+                controls.target.set(0,0,0);
+            });
+            document.getElementById('cam-side').addEventListener('click', () => {
+                camera.position.set(1800, 0, 0);
+                controls.target.set(0,0,0);
+            });
+
+            // Custom Component Creator Modal
+            document.getElementById('btn-custom-comp').addEventListener('click', () => {
+                document.getElementById('modal-custom-comp').classList.remove('hidden');
+            });
+            document.getElementById('btn-close-custom-modal').addEventListener('click', () => {
+                document.getElementById('modal-custom-comp').classList.add('hidden');
+            });
+            document.getElementById('form-custom-comp').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('cust-name').value;
+                const tagPrefix = document.getElementById('cust-tag').value || 'A';
+                const key = 'custom_' + Date.now();
+
+                CATALOG[key] = {
+                    name: name,
+                    tagPrefix: tagPrefix,
+                    w: parseFloat(document.getElementById('cust-w').value),
+                    h: parseFloat(document.getElementById('cust-h').value),
+                    d: parseFloat(document.getElementById('cust-d').value),
+                    type: 'plate_comp',
+                    mfg: document.getElementById('cust-mfg').value || 'Custom',
+                    heat: parseFloat(document.getElementById('cust-heat').value),
+                    weight: parseFloat(document.getElementById('cust-weight').value)
+                };
+
+                document.getElementById('modal-custom-comp').classList.add('hidden');
+                addComponentToProject(key);
+            });
+        }
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+
+            document.getElementById('content-lib').classList.add('hidden');
+            document.getElementById('content-structure').classList.add('hidden');
+            document.getElementById('content-enclosure').classList.add('hidden');
+
+            document.getElementById(`content-${tabId}`).classList.remove('hidden');
+        }
+
+        function updateStatusBar() {
+            if (!AppState.selectedObj) {
+                document.getElementById('stat-selected').textContent = 'None';
+                return;
+            }
+            let item = AppState.components.find(c => c.id === AppState.selectedObj) ||
+                       AppState.dinRails.find(r => r.id === AppState.selectedObj) ||
+                       AppState.wiringDucts.find(d => d.id === AppState.selectedObj);
+
+            if (item) {
+                document.getElementById('stat-selected').textContent = item.tag || item.name;
+                document.getElementById('stat-x').textContent = Math.round(item.x);
+                document.getElementById('stat-y').textContent = Math.round(item.y);
+                document.getElementById('stat-z').textContent = Math.round(item.z);
+            }
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('viewport-3d');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Application Entry Point
+        window.addEventListener('load', () => {
+            init3D();
+            setupEventListeners();
+            
+            // Add default initial project items
+            addComponentToProject('din_rail');
+            addComponentToProject('wiring_duct');
+            addComponentToProject('mcb_3p');
+            addComponentToProject('contactor');
+        });
+    </script>
+</body>
+</html>
