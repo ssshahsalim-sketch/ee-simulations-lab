@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin & Blockchain Educational Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        btc: {
+                            orange: '#F7931A',
+                            dark: '#0B0E14',
+                            card: '#161B22',
+                            border: '#21262D',
+                            glow: '#38BDF8',
+                            green: '#10B981',
+                            red: '#EF4444'
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s infinite',
+                        'flow': 'flowLine 3s linear infinite'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #090D14;
+            color: #F1F5F9;
+        }
+        code, pre, .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .glass-panel {
+            background: rgba(22, 27, 34, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel-hover:hover {
+            border-color: rgba(247, 147, 26, 0.4);
+            box-shadow: 0 0 20px rgba(247, 147, 26, 0.15);
+        }
+        .diff-added { background-color: rgba(16, 185, 129, 0.25); color: #34D399; }
+        .diff-changed { background-color: rgba(239, 68, 68, 0.25); color: #F87171; font-weight: bold; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0B0E14; }
+        ::-webkit-scrollbar-thumb { background: #262C36; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #F7931A; }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 8px rgba(247, 147, 26, 0.6)); }
+            50% { opacity: 0.4; filter: drop-shadow(0 0 2px rgba(247, 147, 26, 0.2)); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#090D14] text-slate-100 overflow-x-hidden">
+
+    <!-- Mandatory Educational Disclaimer Header -->
+    <div class="bg-amber-500/10 border-b border-amber-500/30 py-2 px-4 text-center text-xs sm:text-sm font-medium text-amber-400 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+        <span>⚠ EDUCATIONAL SIMULATION ONLY — NO REAL BITCOIN OR REAL TRANSACTIONS ARE USED.</span>
+    </div>
+
+    <!-- Main Header / Navbar -->
+    <header class="sticky top-0 z-40 bg-[#0B0E14]/90 backdrop-blur-md border-b border-slate-800">
+        <div class="max-w-7xl mx-mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-slate-950 font-black text-2xl shadow-lg shadow-amber-500/20">
+                    <i class="fa-bold fa-bitcoin"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-extrabold tracking-tight text-white flex items-center gap-2">
+                        BITCOIN & BLOCKCHAIN SIMULATOR
+                        <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30">v2.5 Lab Edition</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Understand Bitcoin by Seeing the Algorithms in Action</p>
+                </div>
+            </div>
+
+            <!-- Global Action Controls -->
+            <div class="flex items-center space-x-2">
+                <button onclick="startGuidedTour()" class="px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 rounded-lg shadow-md transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-graduation-cap"></i> Guided Tour
+                </button>
+                <button onclick="resetEntireSimulation()" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-red-950/40 hover:text-red-400 border border-slate-700 hover:border-red-500/50 rounded-lg transition flex items-center gap-1.5 text-slate-300">
+                    <i class="fa-solid fa-rotate-left"></i> Reset All
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex overflow-x-auto max-w-7xl mx-auto px-4 gap-1 text-xs border-t border-slate-800/80 scrollbar-none">
+            <button onclick="switchTab('pipeline')" id="tab-pipeline" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-amber-500 text-amber-400 flex items-center gap-2">
+                <i class="fa-solid fa-route"></i> Tx Pipeline Workflow
+            </button>
+            <button onclick="switchTab('wallet')" id="tab-wallet" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-wallet"></i> Wallet & Keys
+            </button>
+            <button onclick="switchTab('signature')" id="tab-signature" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-signature"></i> Digital Signature
+            </button>
+            <button onclick="switchTab('hashlab')" id="tab-hashlab" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-hashtag"></i> SHA-256 Lab
+            </button>
+            <button onclick="switchTab('mempool')" id="tab-mempool" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-layer-group"></i> Mempool
+            </button>
+            <button onclick="switchTab('merkle')" id="tab-merkle" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-sitemap"></i> Merkle Tree
+            </button>
+            <button onclick="switchTab('mining')" id="tab-mining" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-pickaxe"></i> Proof-of-Work
+            </button>
+            <button onclick="switchTab('blockchain')" id="tab-blockchain" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-cubes"></i> Blockchain & Tampering
+            </button>
+            <button onclick="switchTab('network')" id="tab-network" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-network-wired"></i> Nodes & 51% Attack
+            </button>
+            <button onclick="switchTab('utxo')" id="tab-utxo" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-coins"></i> UTXO & Advanced
+            </button>
+            <button onclick="switchTab('quiz')" id="tab-quiz" class="nav-tab px-4 py-2.5 font-medium whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-circle-question"></i> Quiz & Learn
+            </button>
+        </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+        <!-- Network Quick Metrics Dashboard Banner -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            <div class="glass-panel p-3 rounded-xl border border-slate-800">
+                <p class="text-[10px] text-slate-400 uppercase font-semibold">Block Height</p>
+                <p id="stat-block-height" class="text-base font-bold text-amber-400 font-mono">#102</p>
+                <p class="text-[9px] text-slate-500">Simulated Target: 10 min</p>
+            </div>
+            <div class="glass-panel p-3 rounded-xl border border-slate-800">
+                <p class="text-[10px] text-slate-400 uppercase font-semibold">Difficulty Target</p>
+                <p id="stat-difficulty" class="text-base font-bold text-cyan-400 font-mono">0000 (Level 4)</p>
+                <p class="text-[9px] text-slate-500">Leading zero hex target</p>
+            </div>
+            <div class="glass-panel p-3 rounded-xl border border-slate-800">
+                <p class="text-[10px] text-slate-400 uppercase font-semibold">Mempool Count</p>
+                <p id="stat-mempool-count" class="text-base font-bold text-emerald-400 font-mono">3 Txs</p>
+                <p class="text-[9px] text-slate-500">Unconfirmed Pool</p>
+            </div>
+            <div class="glass-panel p-3 rounded-xl border border-slate-800">
+                <p class="text-[10px] text-slate-400 uppercase font-semibold">Mining Reward</p>
+                <p id="stat-reward" class="text-base font-bold text-purple-400 font-mono">3.125 BTC</p>
+                <p class="text-[9px] text-slate-500">Current Era Reward</p>
+            </div>
+            <div class="glass-panel p-3 rounded-xl border border-slate-800">
+                <p class="text-[10px] text-slate-400 uppercase font-semibold">Active Nodes</p>
+                <p id="stat-nodes" class="text-base font-bold text-blue-400 font-mono">6 Peer Nodes</p>
+                <p class="text-[9px] text-slate-500">Consensus Active</p>
+            </div>
+            <div class="glass-panel p-3 rounded-xl border border-slate-800">
+                <p class="text-[10px] text-slate-400 uppercase font-semibold">Alice Balance</p>
+                <p id="stat-alice-bal" class="text-base font-bold text-emerald-400 font-mono">2.5000 BTC</p>
+                <p class="text-[9px] text-slate-500">UTXO Portfolio</p>
+            </div>
+        </div>
+
+        <!-- TAB 1: PIPELINE WORKFLOW -->
+        <section id="sec-pipeline" class="tab-content space-y-6">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-diagram-project text-amber-500"></i>
+                            End-to-End Bitcoin Transaction Workflow
+                        </h2>
+                        <p class="text-sm text-slate-400">Click any stage in the flow to inspect the exact cryptographic calculations happening behind the scenes.</p>
+                    </div>
+                    <button onclick="runAutoPipelineDemo()" class="px-4 py-2 text-xs font-semibold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/40 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Run Auto End-to-End Simulation
+                    </button>
+                </div>
+
+                <!-- Animated Interactive Flow Diagram -->
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-center text-xs">
+                    <div onclick="showFlowStep(1)" class="pipeline-card p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-amber-500 cursor-pointer transition transform hover:-translate-y-1">
+                        <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">1</div>
+                        <div class="font-bold text-white">Wallet & Keys</div>
+                        <div class="text-[10px] text-slate-400 mt-1">PrivKey → PubKey → Address</div>
+                    </div>
+                    <div onclick="showFlowStep(2)" class="pipeline-card p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-amber-500 cursor-pointer transition transform hover:-translate-y-1">
+                        <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">2</div>
+                        <div class="font-bold text-white">Create Tx</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Inputs, Outputs & Amount</div>
+                    </div>
+                    <div onclick="showFlowStep(3)" class="pipeline-card p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-amber-500 cursor-pointer transition transform hover:-translate-y-1">
+                        <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">3</div>
+                        <div class="font-bold text-white">Digital Sign</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Sign Tx with Private Key</div>
+                    </div>
+                    <div onclick="showFlowStep(4)" class="pipeline-card p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-amber-500 cursor-pointer transition transform hover:-translate-y-1">
+                        <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">4</div>
+                        <div class="font-bold text-white">P2P Broadcast</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Propagation to Mempool</div>
+                    </div>
+                    <div onclick="showFlowStep(5)" class="pipeline-card p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-amber-500 cursor-pointer transition transform hover:-translate-y-1">
+                        <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">5</div>
+                        <div class="font-bold text-white">Merkle Tree</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Batch Hashing Transactions</div>
+                    </div>
+                    <div onclick="showFlowStep(6)" class="pipeline-card p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-amber-500 cursor-pointer transition transform hover:-translate-y-1">
+                        <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center font-bold">6</div>
+                        <div class="font-bold text-white">Proof-of-Work</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Mining Nonce Search</div>
+                    </div>
+                    <div onclick="showFlowStep(7)" class="pipeline-card p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-amber-500 cursor-pointer transition transform hover:-translate-y-1">
+                        <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-bold">7</div>
+                        <div class="font-bold text-white">Blockchain Ledger</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Confirmations & UTXO update</div>
+                    </div>
+                </div>
+
+                <!-- Dynamic Step Explanation Panel -->
+                <div id="flow-explanation-panel" class="mt-6 p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-sm">
+                    <h3 id="flow-step-title" class="font-bold text-amber-400 flex items-center gap-2">
+                        <i class="fa-solid fa-lightbulb"></i> Step 1: Wallet & Keypair Generation
+                    </h3>
+                    <p id="flow-step-body" class="text-slate-300 mt-2 leading-relaxed">
+                        Bitcoin wallets don't store actual Bitcoins—they store cryptographic key pairs! A random 256-bit <strong>Private Key</strong> is generated first. From this key, elliptic curve cryptography (secp256k1) derives the <strong>Public Key</strong>, which is then hashed into a <strong>Bitcoin Address</strong>.
+                    </p>
+                    <div id="flow-step-demo" class="mt-3 p-3 rounded bg-slate-900 font-mono text-xs text-slate-400 overflow-x-auto">
+                        Alice Private Key (256-bit): 0x8f2d9e... → Public Key: 0x04a1b2... → Address: 1AliceBtcAddress99XyZ
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: WALLET & KEYS -->
+        <section id="sec-wallet" class="tab-content space-y-6 hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Alice Wallet Card -->
+                <div class="glass-panel p-6 rounded-2xl border border-slate-800">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center font-bold text-lg">A</div>
+                            <div>
+                                <h3 class="font-bold text-white">Alice's Wallet</h3>
+                                <p class="text-xs text-slate-400">Simulated Keypair & Portfolio</p>
+                            </div>
+                        </div>
+                        <span id="alice-balance-badge" class="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-sm font-bold">
+                            2.5000 BTC
+                        </span>
+                    </div>
+
+                    <div class="space-y-3 text-xs font-mono">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Private Key (Secret - NEVER Share)</label>
+                            <div class="relative">
+                                <input type="password" id="alice-privkey" readonly value="e9873d79c6d87d3097a56b2d43a25cb692019b84011f0101918374" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-red-400 font-mono text-[11px] pr-10">
+                                <button onclick="toggleVisibility('alice-privkey')" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Public Key (Derived via ECC)</label>
+                            <input type="text" id="alice-pubkey" readonly value="0450863AD64A87AE8A2FE83C1AF1A8403CB53F53E486D8511CBD8A0D3D86AE8B" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-cyan-400 font-mono text-[11px]">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Bitcoin Address (Public Receiving Endpoint)</label>
+                            <input type="text" id="alice-address" readonly value="1AliceX99zYpQvKbW2xT4nE3aQ1mZ88kL" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-amber-400 font-mono text-[11px]">
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-slate-800 flex gap-2">
+                        <button onclick="generateNewWallet('alice')" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-xl border border-slate-700 transition">
+                            <i class="fa-solid fa-key"></i> Regenerate Wallet
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bob Wallet Card -->
+                <div class="glass-panel p-6 rounded-2xl border border-slate-800">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-400 flex items-center justify-center font-bold text-lg">B</div>
+                            <div>
+                                <h3 class="font-bold text-white">Bob's Wallet</h3>
+                                <p class="text-xs text-slate-400">Simulated Keypair & Portfolio</p>
+                            </div>
+                        </div>
+                        <span id="bob-balance-badge" class="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 font-mono text-sm font-bold">
+                            0.7500 BTC
+                        </span>
+                    </div>
+
+                    <div class="space-y-3 text-xs font-mono">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Private Key (Secret - NEVER Share)</label>
+                            <div class="relative">
+                                <input type="password" id="bob-privkey" readonly value="a174f88329b3c45d2e1189c45012398b7123984102983719284712" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-red-400 font-mono text-[11px] pr-10">
+                                <button onclick="toggleVisibility('bob-privkey')" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Public Key (Derived via ECC)</label>
+                            <input type="text" id="bob-pubkey" readonly value="04E1F30C863B72C61973A481B6C4F329481C7461937501B638A0D6B" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-cyan-400 font-mono text-[11px]">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Bitcoin Address (Public Receiving Endpoint)</label>
+                            <input type="text" id="bob-address" readonly value="1BobZ77xKwP2mR9yN4vS1tE8aM9kP33q" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-amber-400 font-mono text-[11px]">
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-slate-800 flex gap-2">
+                        <button onclick="generateNewWallet('bob')" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-xl border border-slate-700 transition">
+                            <i class="fa-solid fa-key"></i> Regenerate Wallet
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Derivation Concept Educational Box -->
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800">
+                <h3 class="text-base font-bold text-white mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-diagram-next text-amber-500"></i> Cryptographic Key Derivation Flow (One-Way Mathematics)
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+                    <div class="p-3 bg-slate-950 rounded-xl border border-red-500/30">
+                        <div class="text-xs text-red-400 font-bold mb-1">1. Private Key</div>
+                        <p class="text-[10px] text-slate-400">Random 256-bit number. Used to digitally sign transactions.</p>
+                    </div>
+                    <div class="flex items-center justify-center text-slate-600 hidden md:flex"><i class="fa-solid fa-arrow-right text-lg"></i></div>
+                    <div class="p-3 bg-slate-950 rounded-xl border border-cyan-500/30">
+                        <div class="text-xs text-cyan-400 font-bold mb-1">2. Public Key</div>
+                        <p class="text-[10px] text-slate-400">Derived via ECDSA (secp256k1). Impossible to reverse calculate Private Key.</p>
+                    </div>
+                    <div class="p-3 bg-slate-950 rounded-xl border border-amber-500/30">
+                        <div class="text-xs text-amber-400 font-bold mb-1">3. Bitcoin Address</div>
+                        <p class="text-[10px] text-slate-400">Derived via HASH160 (SHA-256 + RIPEMD-160) + Base58Check encoding.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: DIGITAL SIGNATURE -->
+        <section id="sec-signature" class="tab-content space-y-6 hidden">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800">
+                <div class="max-w-3xl mx-auto space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-pen-nib text-emerald-400"></i>
+                            Digital Signature & Tamper Detection Lab
+                        </h2>
+                        <p class="text-sm text-slate-400">Digital signatures prove ownership and prevent transaction forgery without revealing private keys.</p>
+                    </div>
+
+                    <!-- Interactive Transaction Payload Inputs -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-slate-950 rounded-xl border border-slate-800">
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1">Sender</label>
+                            <input type="text" id="sig-sender" value="Alice" readonly class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white font-mono">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1">Recipient</label>
+                            <input type="text" id="sig-recipient" value="Bob" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white font-mono" oninput="updateSigComputation()">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1">Amount (BTC)</label>
+                            <input type="number" step="0.05" id="sig-amount" value="0.25" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white font-mono" oninput="updateSigComputation()">
+                        </div>
+                    </div>
+
+                    <!-- Hash & Signature Execution Panel -->
+                    <div class="space-y-3 font-mono text-xs">
+                        <div>
+                            <span class="text-slate-400">Raw Transaction Data Hash:</span>
+                            <div id="sig-tx-hash" class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-cyan-400 break-all">
+                                --
+                            </div>
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400">Digital Signature (Generated using Sender's Private Key):</span>
+                            <div id="sig-signature" class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-purple-400 break-all">
+                                --
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Verification Status Result -->
+                    <div id="sig-verification-box" class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <i id="sig-icon" class="fa-solid fa-circle-check text-2xl text-emerald-400"></i>
+                            <div>
+                                <h4 id="sig-status-title" class="font-bold text-emerald-400">✓ SIGNATURE VALID</h4>
+                                <p id="sig-status-desc" class="text-xs text-slate-300">The public key verifies that Alice signed this exact payload without tampering.</p>
+                            </div>
+                        </div>
+                        <button onclick="tamperSigData()" class="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/40 text-xs rounded-lg transition font-sans">
+                            <i class="fa-solid fa-bug"></i> Tamper Payload
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: SHA-256 HASH LAB -->
+        <section id="sec-hashlab" class="tab-content space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- Real SHA-256 Live Lab -->
+                <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-calculator text-cyan-400"></i> Live SHA-256 Hashing Engine
+                    </h3>
+                    <p class="text-xs text-slate-400">Enter any arbitrary text to compute its deterministic 256-bit (64 hex character) cryptographic digest in real time.</p>
+
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Input Text / Message</label>
+                        <textarea id="hash-input-1" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-amber-500 focus:outline-none" oninput="runHashLab()">HELLO BITCOIN</textarea>
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">SHA-256 Hash Output (Hexadecimal)</label>
+                        <div id="hash-output-1" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-cyan-400 break-all select-all">
+                            --
+                        </div>
+                    </div>
+
+                    <!-- Double SHA-256 Bitcoin Special Demo -->
+                    <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-2">
+                        <span class="text-xs font-bold text-amber-400">Bitcoin Double SHA-256 (HASH256 = SHA256(SHA256(x))):</span>
+                        <div id="hash-double-output" class="text-[11px] font-mono text-amber-300 break-all">
+                            --
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Avalanche Effect Comparison Tool -->
+                <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-volcano text-amber-500"></i> Avalanche Effect Visualizer
+                    </h3>
+                    <p class="text-xs text-slate-400">Observe how changing even a single character flips roughly 50% of all output hash bits unpredictably.</p>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">Input String A</label>
+                            <input type="text" id="avalanche-input-a" value="BITCOIN" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono" oninput="runAvalancheLab()">
+                        </div>
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">Input String B (Slightly Modified)</label>
+                            <input type="text" id="avalanche-input-b" value="BITCOIN!" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono" oninput="runAvalancheLab()">
+                        </div>
+                    </div>
+
+                    <!-- Visual Comparison Highlight Box -->
+                    <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">Output Hash Character Difference (Hex):</div>
+                        <div id="avalanche-diff-render" class="font-mono text-[11px] leading-relaxed break-all">
+                            --
+                        </div>
+                        <div id="avalanche-stats" class="text-xs font-semibold text-amber-400 pt-2 border-t border-slate-800">
+                            Changed Characters: 0 / 64
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: MEMPOOL -->
+        <section id="sec-mempool" class="tab-content space-y-6 hidden">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-emerald-400"></i>
+                            Bitcoin Mempool & Transaction Selection
+                        </h2>
+                        <p class="text-sm text-slate-400">The mempool is the holding area for unconfirmed transactions before miners package them into blocks.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="addRandomMempoolTx()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-white font-semibold rounded-xl border border-slate-700 transition">
+                            <i class="fa-solid fa-plus"></i> Add Random Tx
+                        </button>
+                        <button onclick="clearMempool()" class="px-3 py-2 bg-red-950/30 text-red-400 hover:bg-red-950/60 text-xs font-semibold rounded-xl border border-red-500/30 transition">
+                            <i class="fa-solid fa-trash"></i> Clear Pool
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Mempool Table Visualizer -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-950 text-slate-400 font-mono border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Tx ID</th>
+                                <th class="p-3">From → To</th>
+                                <th class="p-3">Amount</th>
+                                <th class="p-3">Fee (BTC)</th>
+                                <th class="p-3">Fee Rate (sat/vB)</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mempool-table-body" class="divide-y divide-slate-800/60 font-mono">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 6: MERKLE TREE -->
+        <section id="sec-merkle" class="tab-content space-y-6 hidden">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-sitemap text-blue-400"></i>
+                        Interactive Merkle Tree Visualizer
+                    </h2>
+                    <p class="text-sm text-slate-400">A Merkle Tree summarizes all transactions in a block into a single 32-byte <strong>Merkle Root</strong> hash.</p>
+                </div>
+
+                <!-- Transaction Inputs for Tree -->
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Tx 1</label>
+                        <input type="text" id="merkle-tx-1" value="Alice -> Bob: 0.5 BTC" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono" oninput="renderMerkleTree()">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Tx 2</label>
+                        <input type="text" id="merkle-tx-2" value="Bob -> Charlie: 0.2 BTC" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono" oninput="renderMerkleTree()">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Tx 3</label>
+                        <input type="text" id="merkle-tx-3" value="Dave -> Eve: 1.1 BTC" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono" oninput="renderMerkleTree()">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Tx 4</label>
+                        <input type="text" id="merkle-tx-4" value="Frank -> Grace: 0.05 BTC" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono" oninput="renderMerkleTree()">
+                    </div>
+                </div>
+
+                <!-- Tree Diagram Display -->
+                <div class="p-6 bg-slate-950 rounded-xl border border-slate-800 space-y-6 text-center">
+                    <!-- Root -->
+                    <div class="max-w-md mx-auto p-3 bg-amber-500/10 border border-amber-500/40 rounded-xl">
+                        <span class="text-[10px] uppercase font-bold text-amber-400 block mb-1">MERKLE ROOT HASH</span>
+                        <div id="merkle-root-display" class="font-mono text-xs text-amber-300 break-all">--</div>
+                    </div>
+
+                    <div class="w-0.5 h-6 bg-slate-700 mx-auto"></div>
+
+                    <!-- Intermediate Hashes -->
+                    <div class="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
+                        <div class="p-3 bg-slate-900 border border-slate-700 rounded-xl">
+                            <span class="text-[10px] text-slate-400 block mb-1">Hash( Tx1 + Tx2 )</span>
+                            <div id="merkle-h12-display" class="font-mono text-[11px] text-cyan-400 break-all">--</div>
+                        </div>
+                        <div class="p-3 bg-slate-900 border border-slate-700 rounded-xl">
+                            <span class="text-[10px] text-slate-400 block mb-1">Hash( Tx3 + Tx4 )</span>
+                            <div id="merkle-h34-display" class="font-mono text-[11px] text-cyan-400 break-all">--</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
+                        <div class="w-0.5 h-6 bg-slate-700 mx-auto"></div>
+                        <div class="w-0.5 h-6 bg-slate-700 mx-auto"></div>
+                    </div>
+
+                    <!-- Leaf Hashes -->
+                    <div class="grid grid-cols-4 gap-2 font-mono text-[10px]">
+                        <div class="p-2 bg-slate-900 rounded border border-slate-800 text-slate-300">
+                            Hash(Tx1)<div id="merkle-h1" class="text-amber-400/80 truncate">--</div>
+                        </div>
+                        <div class="p-2 bg-slate-900 rounded border border-slate-800 text-slate-300">
+                            Hash(Tx2)<div id="merkle-h2" class="text-amber-400/80 truncate">--</div>
+                        </div>
+                        <div class="p-2 bg-slate-900 rounded border border-slate-800 text-slate-300">
+                            Hash(Tx3)<div id="merkle-h3" class="text-amber-400/80 truncate">--</div>
+                        </div>
+                        <div class="p-2 bg-slate-900 rounded border border-slate-800 text-slate-300">
+                            Hash(Tx4)<div id="merkle-h4" class="text-amber-400/80 truncate">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 7: PROOF-OF-WORK MINING -->
+        <section id="sec-mining" class="tab-content space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Mining Control Panel -->
+                <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-5">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-pickaxe text-amber-500"></i> Mining Simulator Controls
+                    </h3>
+
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-2 flex justify-between">
+                            <span>Difficulty Target (Leading Zeros)</span>
+                            <span id="diff-value-display" class="text-amber-400 font-bold">4 Zeros ("0000")</span>
+                        </label>
+                        <input type="range" id="mining-difficulty" min="1" max="5" value="4" class="w-full accent-amber-500" onchange="updateDifficultyLabel()">
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-2">Simulated Hash Speed</label>
+                        <select id="mining-speed" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white">
+                            <option value="50">Normal Speed (~50 Nonce/sec)</option>
+                            <option value="500">Fast Speed (~500 Nonce/sec)</option>
+                            <option value="5000" selected>Turbo Hardware (~5,000 Nonce/sec)</option>
+                            <option value="50000">ASIC Rig (~50,000 Nonce/sec)</option>
+                        </select>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-800 flex flex-col gap-2">
+                        <button id="btn-start-mine" onclick="toggleMiningProcess()" class="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-play"></i> Start Mining Block #103
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Mining Dashboard & Live Statistics -->
+                <div class="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 uppercase block">Nonce Attempts</span>
+                            <span id="mine-stat-nonce" class="text-lg font-bold font-mono text-cyan-400">0</span>
+                        </div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 uppercase block">Hash Rate</span>
+                            <span id="mine-stat-hashrate" class="text-lg font-bold font-mono text-emerald-400">0 H/s</span>
+                        </div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 uppercase block">Elapsed Time</span>
+                            <span id="mine-stat-time" class="text-lg font-bold font-mono text-purple-400">0.0 s</span>
+                        </div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 uppercase block">Status</span>
+                            <span id="mine-stat-status" class="text-xs font-bold font-mono text-amber-400">IDLE</span>
+                        </div>
+                    </div>
+
+                    <!-- Header & Live Nonce Hashing Monitor -->
+                    <div class="space-y-3 font-mono text-xs">
+                        <div>
+                            <span class="text-slate-400">Block Header Target Pattern:</span>
+                            <div id="mine-target-display" class="p-2 bg-slate-950 rounded border border-slate-800 text-amber-400">
+                                Hash must begin with: "0000..."
+                            </div>
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400">Current Double SHA-256 Block Hash:</span>
+                            <div id="mine-current-hash" class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-300 break-all">
+                                0000000000000000000000000000000000000000000000000000000000000000
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 8: BLOCKCHAIN & TAMPERING -->
+        <section id="sec-blockchain" class="tab-content space-y-6 hidden">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-cubes text-amber-500"></i>
+                            Live Blockchain Ledger & Tampering Simulation
+                        </h2>
+                        <p class="text-sm text-slate-400">Try modifying a past transaction inside Block #2 to observe how cryptographic hash linking instantly invalidates the subsequent chain.</p>
+                    </div>
+                    <button onclick="remineEntireChain()" class="px-4 py-2 text-xs font-semibold bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-wrench"></i> Re-mine & Fix Blockchain
+                    </button>
+                </div>
+
+                <!-- Horizontal Chain View Container -->
+                <div id="blockchain-nodes-container" class="flex gap-4 overflow-x-auto pb-4">
+                    <!-- Dynamic Blocks Injected via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 9: NETWORK NODES & 51% ATTACK -->
+        <section id="sec-network" class="tab-content space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- Peer Node Interactive Graph -->
+                <div class="glass-panel p-6 rounded-2xl border border-slate-800">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-blue-400"></i> Peer-to-Peer Consensus Network
+                    </h3>
+                    
+                    <div class="relative h-64 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center overflow-hidden">
+                        <!-- Node Canvas Graphic -->
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <div class="w-48 h-48 rounded-full border border-slate-800/80 animate-spin-slow"></div>
+                        </div>
+
+                        <!-- Nodes -->
+                        <div id="node-a" class="absolute top-6 left-12 p-3 bg-slate-900 border border-emerald-500 rounded-xl text-center shadow-lg">
+                            <i class="fa-solid fa-server text-emerald-400"></i>
+                            <div class="text-[10px] font-bold text-white mt-1">Node A (Validator)</div>
+                        </div>
+                        <div id="node-b" class="absolute top-6 right-12 p-3 bg-slate-900 border border-emerald-500 rounded-xl text-center shadow-lg">
+                            <i class="fa-solid fa-server text-emerald-400"></i>
+                            <div class="text-[10px] font-bold text-white mt-1">Node B (Miner)</div>
+                        </div>
+                        <div id="node-c" class="absolute bottom-6 left-12 p-3 bg-slate-900 border border-emerald-500 rounded-xl text-center shadow-lg">
+                            <i class="fa-solid fa-server text-emerald-400"></i>
+                            <div class="text-[10px] font-bold text-white mt-1">Node C (Validator)</div>
+                        </div>
+                        <div id="node-d" class="absolute bottom-6 right-12 p-3 bg-slate-900 border border-emerald-500 rounded-xl text-center shadow-lg">
+                            <i class="fa-solid fa-server text-emerald-400"></i>
+                            <div class="text-[10px] font-bold text-white mt-1">Node D (Full Node)</div>
+                        </div>
+                    </div>
+
+                    <button onclick="simulateNetworkBroadcast()" class="mt-4 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-xl border border-slate-700 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-signal"></i> Broadcast Block Propagation Test
+                    </button>
+                </div>
+
+                <!-- 51% Attack Educational Simulation Lab -->
+                <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-user-ninja text-red-400"></i> 51% Attack Simulator
+                    </h3>
+                    <p class="text-xs text-slate-400">If a malicious coalition gains over 50% of total network hash power, they can outpace the honest network to rewrite recent history.</p>
+
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-2 flex justify-between">
+                            <span>Attacker Hash Power Share</span>
+                            <span id="attack-power-label" class="text-red-400 font-bold">55% (Majority Control)</span>
+                        </label>
+                        <input type="range" id="attack-power-slider" min="10" max="90" value="55" class="w-full accent-red-500" onchange="updateAttackLabel()">
+                    </div>
+
+                    <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2 font-mono text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Honest Chain Height:</span>
+                            <span id="honest-chain-height" class="text-emerald-400 font-bold">Block #105</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Attacker Secret Chain Height:</span>
+                            <span id="attacker-chain-height" class="text-red-400 font-bold">Block #107</span>
+                        </div>
+                    </div>
+
+                    <button onclick="runAttackSimulation()" class="w-full py-2.5 bg-red-950/40 hover:bg-red-950/80 text-red-400 border border-red-500/40 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-skull-crossbones"></i> Execute 51% Fork Reorganization Attack
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 10: UTXO & ADVANCED -->
+        <section id="sec-utxo" class="tab-content space-y-6 hidden">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-coins text-amber-500"></i>
+                        Unspent Transaction Output (UTXO) Model
+                    </h2>
+                    <p class="text-sm text-slate-400">Bitcoin does not use traditional bank account balance sheets. Bitcoins exist solely as discrete, unspent output chunks (UTXOs).</p>
+                </div>
+
+                <!-- Interactive UTXO Set Representation -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-4 bg-slate-950 rounded-xl border border-emerald-500/30">
+                        <div class="text-xs font-bold text-emerald-400 mb-2">Alice's UTXO #1</div>
+                        <div class="text-xs font-mono space-y-1 text-slate-300">
+                            <div>TxID: 0x9f1a...</div>
+                            <div>Amount: <span class="text-emerald-400 font-bold">1.50 BTC</span></div>
+                            <div>Status: UNSPENT</div>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-slate-950 rounded-xl border border-emerald-500/30">
+                        <div class="text-xs font-bold text-emerald-400 mb-2">Alice's UTXO #2</div>
+                        <div class="text-xs font-mono space-y-1 text-slate-300">
+                            <div>TxID: 0x3c8e...</div>
+                            <div>Amount: <span class="text-emerald-400 font-bold">1.00 BTC</span></div>
+                            <div>Status: UNSPENT</div>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-slate-950 rounded-xl border border-slate-800">
+                        <div class="text-xs font-bold text-blue-400 mb-2">Bob's UTXO #1</div>
+                        <div class="text-xs font-mono space-y-1 text-slate-300">
+                            <div>TxID: 0x7b22...</div>
+                            <div>Amount: <span class="text-blue-400 font-bold">0.75 BTC</span></div>
+                            <div>Status: UNSPENT</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bitcoin Script Execution Visualizer -->
+                <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                    <h4 class="text-xs font-bold text-amber-400 uppercase">Simplified Bitcoin Script Stack Evaluation (P2PKH)</h4>
+                    <div class="font-mono text-xs text-slate-300 bg-slate-900 p-3 rounded-lg border border-slate-800 space-y-1">
+                        <div class="text-slate-500">&lt;sig&gt; &lt;pubKey&gt; OP_DUP OP_HASH160 &lt;pubKeyHash&gt; OP_EQUALVERIFY OP_CHECKSIG</div>
+                        <div class="text-emerald-400 font-semibold">Stack Result: True (Transaction Spend Authorized)</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 11: QUIZ & LEARN -->
+        <section id="sec-quiz" class="tab-content space-y-6 hidden">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800 max-w-3xl mx-auto space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-graduation-cap text-amber-500"></i>
+                        Bitcoin & Blockchain Knowledge Quiz
+                    </h2>
+                    <p class="text-sm text-slate-400">Test your understanding of public keys, hashing, Merkle trees, and proof-of-work consensus.</p>
+                </div>
+
+                <div id="quiz-container" class="space-y-4">
+                    <!-- Quiz Question Injected Dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- System Console Event Log Panel -->
+        <div class="glass-panel p-4 rounded-2xl border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-400">
+                <span class="font-semibold flex items-center gap-2">
+                    <i class="fa-solid fa-terminal text-emerald-400"></i> System Live Event Log
+                </span>
+                <button onclick="clearConsoleLog()" class="hover:text-slate-200">Clear Log</button>
+            </div>
+            <div id="console-log-box" class="h-28 overflow-y-auto bg-slate-950 rounded-xl p-3 font-mono text-[11px] space-y-1 text-slate-400 border border-slate-900">
+                <div class="text-slate-500">[SYSTEM INIT] Bitcoin & Blockchain Laboratory Engine ready.</div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        
+        // --- Cryptographic Helper Routines (Pure Synchronous SHA-256 JS implementation for guaranteed offline compatibility) ---
+        function sha256Sync(ascii) {
+            function rightRotate(value, amount) {
+                return (value >>> amount) | (value << (32 - amount));
+            }
+            var mathPow = Math.pow;
+            var maxWord = mathPow(2, 32);
+            var lengthProperty = 'length';
+            var i, j;
+            var result = '';
+            var words = [];
+            var asciiBitLength = ascii[lengthProperty] * 8;
+            var hash = sha256Sync.h = sha256Sync.h || [];
+            var k = sha256Sync.k = sha256Sync.k || [];
+            var primeCounter = k[lengthProperty];
+            var isComposite = {};
+            for (var candidate = 2; primeCounter < 64; candidate++) {
+                if (!isComposite[candidate]) {
+                    for (i = 0; i < 300; i += candidate) isComposite[i] = true;
+                    hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
+                    k[primeCounter++] = (mathPow(candidate, 1/3) * maxWord) | 0;
+                }
+            }
+            ascii += '\x80';
+            while (ascii[lengthProperty] % 64 !== 56) ascii += '\x00';
+            for (i = 0; i < ascii[lengthProperty]; i++) {
+                j = ascii.charCodeAt(i);
+                if (j >> 8) return;
+                words[i >> 2] |= j << ((3 - i % 4) * 8);
+            }
+            words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);
+            words[words[lengthProperty]] = (asciiBitLength | 0);
+            for (j = 0; j < words[lengthProperty];) {
+                var w = words.slice(j, j += 16);
+                var oldHash = hash;
+                hash = hash.slice(0, 8);
+                for (i = 0; i < 64; i++) {
+                    var w15 = w[i - 15], w2 = w[i - 2];
+                    var a = hash[0], e = hash[4];
+                    var temp1 = hash[7]
+                        + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+                        + ((e & hash[5]) ^ ((~e) & hash[6]))
+                        + k[i]
+                        + (w[i] = (i < 16) ? w[i] : (
+                                w[i - 16]
+                                + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
+                                + w[i - 7]
+                                + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
+                            ) | 0
+                        );
+                    var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
+                        + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+
+                    hash = [(temp1 + temp2) | 0].concat(hash);
+                    hash[4] = (hash[4] + temp1) | 0;
+                }
+                for (i = 0; i < 8; i++) {
+                    hash[i] = (hash[i] + oldHash[i]) | 0;
+                }
+            }
+            for (i = 0; i < 8; i++) {
+                for (j = 3; j >= 0; j--) {
+                    var b = (hash[i] >> (j * 8)) & 255;
+                    result += (b < 16 ? '0' : '') + b.toString(16);
+                }
+            }
+            return result;
+        }
+
+        // Bitcoin Double SHA-256 (HASH256)
+        function dSha256(str) {
+            return sha256Sync(sha256Sync(str));
+        }
+
+        // Global Simulation State
+        const state = {
+            aliceBalance: 2.5000,
+            bobBalance: 0.7500,
+            blockHeight: 102,
+            difficultyZeros: 4,
+            isMining: false,
+            miningTimer: null,
+            mempool: [
+                { id: 'tx_01', sender: 'Alice', recipient: 'Bob', amount: 0.25, fee: 0.0001, rate: 12 },
+                { id: 'tx_02', sender: 'Bob', recipient: 'Charlie', amount: 0.10, fee: 0.0002, rate: 24 },
+                { id: 'tx_03', sender: 'Dave', recipient: 'Alice', amount: 0.50, fee: 0.00015, rate: 18 }
+            ],
+            blockchain: [
+                { index: 0, prevHash: "0000000000000000000000000000000000000000000000000000000000000000", txs: "Genesis Block Reward", nonce: 28471, hash: "00004a8b19283740192834710293847102938471029384710293847102938471", valid: true },
+                { index: 1, prevHash: "00004a8b19283740192834710293847102938471029384710293847102938471", txs: "Alice → Bob: 0.5 BTC", nonce: 91823, hash: "00009c2e10928374102938471029384710293847102938471029384710293847", valid: true },
+                { index: 2, prevHash: "00009c2e10928374102938471029384710293847102938471029384710293847", txs: "Bob → Charlie: 0.2 BTC", nonce: 44102, hash: "00007e1102938471029384710293847102938471029384710293847102938471", valid: true }
+            ]
+        };
+
+        // UI Tab Switcher
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(el => {
+                el.classList.remove('border-amber-500', 'text-amber-400');
+                el.classList.add('border-transparent', 'text-slate-400');
+            });
+
+            document.getElementById(`sec-${tabId}`).classList.remove('hidden');
+            const activeNav = document.getElementById(`tab-${tabId}`);
+            if (activeNav) {
+                activeNav.classList.remove('border-transparent', 'text-slate-400');
+                activeNav.classList.add('border-amber-500', 'text-amber-400');
+            }
+            logEvent(`Switched view to ${tabId.toUpperCase()} laboratory.`);
+        }
+
+        function updateSigComputation() {
+            const sender = document.getElementById('sig-sender').value;
+            const recipient = document.getElementById('sig-recipient').value;
+            const amount = document.getElementById('sig-amount').value;
+
+            const rawData = `${sender}:${recipient}:${amount}`;
+            const hash = sha256Sync(rawData);
+            
+            document.getElementById('sig-tx-hash').innerText = hash;
+            
+            // Derive simulated signature using mock private key + hash
+            const alicePriv = document.getElementById('alice-privkey').value;
+            const signature = sha256Sync(hash + alicePriv);
+            document.getElementById('sig-signature').innerText = signature;
+
+            // Verification
+            const box = document.getElementById('sig-verification-box');
+            const title = document.getElementById('sig-status-title');
+            const desc = document.getElementById('sig-status-desc');
+            const icon = document.getElementById('sig-icon');
+
+            title.innerText = "✓ SIGNATURE VALID";
+            title.className = "font-bold text-emerald-400";
+            desc.innerText = "The public key verifies that Alice signed this exact payload without tampering.";
+            box.className = "p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between";
+            icon.className = "fa-solid fa-circle-check text-2xl text-emerald-400";
+        }
+
+        function tamperSigData() {
+            document.getElementById('sig-amount').value = "0.75";
+            const sender = document.getElementById('sig-sender').value;
+            const recipient = document.getElementById('sig-recipient').value;
+            const amount = "0.75";
+
+            const rawData = `${sender}:${recipient}:${amount}`;
+            const newHash = sha256Sync(rawData);
+            document.getElementById('sig-tx-hash').innerText = newHash;
+
+            const box = document.getElementById('sig-verification-box');
+            const title = document.getElementById('sig-status-title');
+            const desc = document.getElementById('sig-status-desc');
+            const icon = document.getElementById('sig-icon');
+
+            title.innerText = "✕ SIGNATURE INVALID (FORGERY DETECTED)";
+            title.className = "font-bold text-red-400";
+            desc.innerText = "Transaction payload hash does not match the signature created with the original private key!";
+            box.className = "p-4 rounded-xl bg-red-950/40 border border-red-500/40 flex items-center justify-between";
+            icon.className = "fa-solid fa-triangle-exclamation text-2xl text-red-400";
+
+            logEvent("ATTENTION: Digital signature verification failed! Tampered payload detected.");
+        }
+
+        function runHashLab() {
+            const input = document.getElementById('hash-input-1').value;
+            const hash1 = sha256Sync(input);
+            const dHash = dSha256(input);
+
+            document.getElementById('hash-output-1').innerText = hash1;
+            document.getElementById('hash-double-output').innerText = dHash;
+        }
+
+        function runAvalancheLab() {
+            const strA = document.getElementById('avalanche-input-a').value;
+            const strB = document.getElementById('avalanche-input-b').value;
+
+            const hashA = sha256Sync(strA);
+            const hashB = sha256Sync(strB);
+
+            let diffHTML = '';
+            let diffCount = 0;
+
+            for (let i = 0; i < hashA.length; i++) {
+                if (hashA[i] !== hashB[i]) {
+                    diffHTML += `<span class="diff-changed">${hashB[i]}</span>`;
+                    diffCount++;
+                } else {
+                    diffHTML += `<span class="text-slate-400">${hashB[i]}</span>`;
+                }
+            }
+
+            document.getElementById('avalanche-diff-render').innerHTML = diffHTML;
+            document.getElementById('avalanche-stats').innerText = `Changed Characters: ${diffCount} / 64 (${Math.round((diffCount/64)*100)}% Avalanche Flip)`;
+        }
+
+        function renderMerkleTree() {
+            const tx1 = document.getElementById('merkle-tx-1').value;
+            const tx2 = document.getElementById('merkle-tx-2').value;
+            const tx3 = document.getElementById('merkle-tx-3').value;
+            const tx4 = document.getElementById('merkle-tx-4').value;
+
+            const h1 = sha256Sync(tx1);
+            const h2 = sha256Sync(tx2);
+            const h3 = sha256Sync(tx3);
+            const h4 = sha256Sync(tx4);
+
+            const h12 = sha256Sync(h1 + h2);
+            const h34 = sha256Sync(h3 + h4);
+
+            const root = sha256Sync(h12 + h34);
+
+            document.getElementById('merkle-h1').innerText = h1;
+            document.getElementById('merkle-h2').innerText = h2;
+            document.getElementById('merkle-h3').innerText = h3;
+            document.getElementById('merkle-h4').innerText = h4;
+
+            document.getElementById('merkle-h12-display').innerText = h12;
+            document.getElementById('merkle-h34-display').innerText = h34;
+
+            document.getElementById('merkle-root-display').innerText = root;
+        }
+
+        function updateDifficultyLabel() {
+            const val = document.getElementById('mining-difficulty').value;
+            state.difficultyZeros = parseInt(val);
+            const zeros = "0".repeat(val);
+            document.getElementById('diff-value-display').innerText = `${val} Zeros ("${zeros}")`;
+            document.getElementById('mine-target-display').innerText = `Hash must begin with: "${zeros}..."`;
+        }
+
+        function toggleMiningProcess() {
+            if (state.isMining) {
+                stopMining();
+            } else {
+                startMining();
+            }
+        }
+
+        function startMining() {
+            state.isMining = true;
+            const btn = document.getElementById('btn-start-mine');
+            btn.innerHTML = `<i class="fa-solid fa-stop"></i> Stop Mining Engine`;
+            btn.className = "w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm";
+            
+            document.getElementById('mine-stat-status').innerText = "MINING...";
+            document.getElementById('mine-stat-status').className = "text-xs font-bold font-mono text-amber-400 animate-pulse";
+
+            let nonce = 0;
+            const startTime = Date.now();
+            const targetPrefix = "0".repeat(state.difficultyZeros);
+            const batchSize = parseInt(document.getElementById('mining-speed').value);
+            const prevHash = state.blockchain[state.blockchain.length - 1].hash;
+
+            logEvent(`Started Proof-of-Work mining for Block #${state.blockHeight + 1} with Target Prefix: ${targetPrefix}`);
+
+            function mineLoop() {
+                if (!state.isMining) return;
+
+                for (let i = 0; i < batchSize; i++) {
+                    nonce++;
+                    const blockHeader = `Block#${state.blockHeight+1}:${prevHash}:${nonce}`;
+                    const hash = dSha256(blockHeader);
+
+                    if (hash.startsWith(targetPrefix)) {
+                        // Winner Nonce Found!
+                        stopMining();
+                        const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+                        document.getElementById('mine-stat-nonce').innerText = nonce.toLocaleString();
+                        document.getElementById('mine-stat-time').innerText = `${elapsed} s`;
+                        document.getElementById('mine-current-hash').innerText = hash;
+                        document.getElementById('mine-stat-status').innerText = "BLOCK MINED! ✓";
+                        document.getElementById('mine-stat-status').className = "text-xs font-bold font-mono text-emerald-400";
+
+                        // Append Mined Block to Blockchain
+                        state.blockchain.push({
+                            index: state.blockchain.length,
+                            prevHash: prevHash,
+                            txs: `Mined Block #${state.blockHeight+1}`,
+                            nonce: nonce,
+                            hash: hash,
+                            valid: true
+                        });
+
+                        state.blockHeight++;
+                        document.getElementById('stat-block-height').innerText = `#${state.blockHeight}`;
+                        renderBlockchain();
+                        logEvent(`SUCCESS: Valid Nonce ${nonce} found! Mined Block #${state.blockHeight} (Hash: ${hash.substring(0, 16)}...)`);
+                        return;
+                    }
+
+                    if (i === batchSize - 1) {
+                        const elapsed = ((Date.now() - startTime) / 1000);
+                        const hashrate = Math.round(nonce / (elapsed || 0.001));
+                        document.getElementById('mine-stat-nonce').innerText = nonce.toLocaleString();
+                        document.getElementById('mine-stat-hashrate').innerText = `${hashrate.toLocaleString()} H/s`;
+                        document.getElementById('mine-stat-time').innerText = `${elapsed.toFixed(1)} s`;
+                        document.getElementById('mine-current-hash').innerText = hash;
+                    }
+                }
+
+                state.miningTimer = setTimeout(mineLoop, 10);
+            }
+
+            mineLoop();
+        }
+
+        function stopMining() {
+            state.isMining = false;
+            clearTimeout(state.miningTimer);
+            const btn = document.getElementById('btn-start-mine');
+            btn.innerHTML = `<i class="fa-solid fa-play"></i> Start Mining Block #${state.blockHeight + 1}`;
+            btn.className = "w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2 text-sm";
+        }
+
+        function renderBlockchain() {
+            const container = document.getElementById('blockchain-nodes-container');
+            container.innerHTML = '';
+
+            state.blockchain.forEach((blk, idx) => {
+                const card = document.createElement('div');
+                card.className = `min-w-[280px] p-4 rounded-xl border font-mono text-xs space-y-3 transition-all ${blk.valid ? 'bg-slate-900 border-slate-700' : 'bg-red-950/40 border-red-500/80 shadow-lg shadow-red-500/20'}`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span class="font-bold text-amber-400">BLOCK #${blk.index}</span>
+                        <span class="${blk.valid ? 'text-emerald-400' : 'text-red-400 font-bold'}">${blk.valid ? '✓ VALID' : '✕ INVALID'}</span>
+                    </div>
+
+                    <div>
+                        <span class="text-slate-500 text-[10px] block">PREVIOUS BLOCK HASH:</span>
+                        <div class="text-[10px] text-slate-400 truncate">${blk.prevHash}</div>
+                    </div>
+
+                    <div>
+                        <span class="text-slate-500 text-[10px] block">TRANSACTIONS:</span>
+                        <input type="text" value="${blk.txs}" onchange="tamperBlockData(${idx}, this.value)" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-xs text-white">
+                    </div>
+
+                    <div class="flex justify-between items-center text-[11px]">
+                        <span class="text-slate-500">NONCE:</span>
+                        <span class="text-cyan-400 font-bold">${blk.nonce}</span>
+                    </div>
+
+                    <div>
+                        <span class="text-slate-500 text-[10px] block">CURRENT BLOCK HASH:</span>
+                        <div class="text-[10px] ${blk.valid ? 'text-emerald-400' : 'text-red-400'} break-all font-bold">${blk.hash}</div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function tamperBlockData(index, newTxData) {
+            state.blockchain[index].txs = newTxData;
+            
+            // Recompute hash for tampered block
+            const blk = state.blockchain[index];
+            blk.hash = sha256Sync(`Block#${blk.index}:${blk.prevHash}:${blk.txs}:${blk.nonce}`);
+
+            // Invalidate chain from modified block onwards
+            for (let i = index; i < state.blockchain.length; i++) {
+                if (i > index) {
+                    state.blockchain[i].prevHash = state.blockchain[i-1].hash;
+                    state.blockchain[i].hash = sha256Sync(`Block#${i}:${state.blockchain[i].prevHash}:${state.blockchain[i].txs}:${state.blockchain[i].nonce}`);
+                }
+                state.blockchain[i].valid = false;
+            }
+
+            renderBlockchain();
+            logEvent(`ALERT: Block #${index} tampered! Cryptographic hash chain broken!`);
+        }
+
+        function remineEntireChain() {
+            logEvent("Re-mining invalidated blocks to restore cryptographic chain consistency...");
+            state.blockchain.forEach((blk, idx) => {
+                if (idx > 0) {
+                    blk.prevHash = state.blockchain[idx - 1].hash;
+                }
+                blk.nonce = Math.floor(Math.random() * 90000) + 10000;
+                blk.hash = dSha256(`Block#${blk.index}:${blk.prevHash}:${blk.txs}:${blk.nonce}`);
+                blk.valid = true;
+            });
+            renderBlockchain();
+            logEvent("SUCCESS: All blocks re-mined! Blockchain restored to valid state.");
+        }
+
+        function renderMempool() {
+            const body = document.getElementById('mempool-table-body');
+            body.innerHTML = '';
+
+            state.mempool.forEach(tx => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900/60 transition";
+                tr.innerHTML = `
+                    <td class="p-3 text-cyan-400">${tx.id}</td>
+                    <td class="p-3">${tx.sender} → ${tx.recipient}</td>
+                    <td class="p-3 font-bold text-white">${tx.amount} BTC</td>
+                    <td class="p-3 text-slate-400">${tx.fee} BTC</td>
+                    <td class="p-3 text-amber-400">${tx.rate} sat/vB</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px]">Unconfirmed</span></td>
+                `;
+                body.appendChild(tr);
+            });
+
+            document.getElementById('stat-mempool-count').innerText = `${state.mempool.length} Txs`;
+        }
+
+        function addRandomMempoolTx() {
+            const newId = `tx_${Math.floor(Math.random()*90 + 10)}`;
+            const senders = ['Alice', 'Bob', 'Charlie', 'Dave'];
+            const r1 = senders[Math.floor(Math.random()*senders.length)];
+            const r2 = senders[Math.floor(Math.random()*senders.length)];
+            const amt = (Math.random() * 1.5).toFixed(2);
+            const fee = 0.0002;
+
+            state.mempool.unshift({
+                id: newId, sender: r1, recipient: r2, amount: amt, fee: fee, rate: 20
+            });
+
+            renderMempool();
+            logEvent(`Added new transaction ${newId} to network mempool.`);
+        }
+
+        function clearMempool() {
+            state.mempool = [];
+            renderMempool();
+            logEvent("Mempool cleared.");
+        }
+
+        function startGuidedTour() {
+            switchTab('pipeline');
+            showFlowStep(1);
+            logEvent("Guided tour initiated: Learn Bitcoin from zero.");
+        }
+
+        function showFlowStep(stepNum) {
+            const title = document.getElementById('flow-step-title');
+            const body = document.getElementById('flow-step-body');
+            const demo = document.getElementById('flow-step-demo');
+
+            const steps = [
+                {
+                    title: "Step 1: Wallet & Keypair Generation",
+                    body: "Bitcoin wallets store cryptographic key pairs. A random 256-bit Private Key is created, from which the Public Key and Bitcoin Address are mathematical derivatives.",
+                    demo: "Private Key (Secret) → Public Key (Elliptic Curve) → Bitcoin Address (HASH160)"
+                },
+                {
+                    title: "Step 2: Transaction Construction",
+                    body: "Transactions consume existing Unspent Transaction Outputs (UTXOs) as inputs and create new output balances for recipients plus transaction fees for miners.",
+                    demo: "Input: 1.0 BTC (UTXO) → Output 1: 0.8 BTC (Bob) + Output 2: 0.1999 BTC (Change to Alice) + Fee: 0.0001 BTC"
+                },
+                {
+                    title: "Step 3: Digital Signing & Integrity",
+                    body: "The sender signs the transaction hash using their Private Key. Any user on the network can use the sender's Public Key to verify authenticity without exposing the private key.",
+                    demo: "Signature = Sign(SHA256(TxData), SenderPrivateKey) → Verified by Public Key"
+                },
+                {
+                    title: "Step 4: Peer-to-Peer Gossip Broadcast",
+                    body: "Transactions are broadcast across the P2P network, where full nodes validate rules (e.g., no double-spending) before putting them into their local Mempool.",
+                    demo: "Wallet → Node A → Node B → Node C → Mempool Queue"
+                },
+                {
+                    title: "Step 5: Merkle Tree Hashing",
+                    body: "Miners select candidate transactions from the Mempool and construct a binary Merkle Tree to condense all transactions into a single 32-byte Merkle Root.",
+                    demo: "Hash(Tx1+Tx2) + Hash(Tx3+Tx4) → MERKLE ROOT"
+                },
+                {
+                    title: "Step 6: Proof-of-Work Mining",
+                    body: "Miners repeatedly alter a numeric 'Nonce' in the block header until the Double SHA-256 hash falls below the network target threshold.",
+                    demo: "SHA256(SHA256(BlockHeader + Nonce)) < Target Threshold"
+                },
+                {
+                    title: "Step 7: Consensus & Ledger Confirmation",
+                    body: "Once a valid block is found, it is propagated to all nodes. Nodes append it to their blockchain, confirming transactions and updating UTXOs.",
+                    demo: "Block Mined → Broadcast → 1 Confirmation → Added to Blockchain"
+                }
+            ];
+
+            const s = steps[stepNum - 1];
+            title.innerHTML = `<i class="fa-solid fa-lightbulb text-amber-500"></i> ${s.title}`;
+            body.innerText = s.body;
+            demo.innerText = s.demo;
+        }
+
+        // Quiz System Data
+        const quizData = [
+            {
+                q: "1. What is the fundamental relationship between a Bitcoin Private Key and Public Key?",
+                options: [
+                    "A Public Key can be used to reverse-calculate the Private Key.",
+                    "The Public Key is mathematically derived from the Private Key via one-way elliptic curve cryptography.",
+                    "They are identical values.",
+                    "Private Keys are generated by miners."
+                ],
+                correct: 1,
+                explain: "Public keys are derived from private keys via ECC (secp256k1). The math is one-way: you cannot reverse calculate the private key from a public key."
+            },
+            {
+                q: "2. What happens if transaction data is modified after a digital signature is created?",
+                options: [
+                    "The transaction processes faster.",
+                    "The signature verification fails because the transaction hash changed.",
+                    "The private key automatically updates.",
+                    "The Bitcoin network ignores the change."
+                ],
+                correct: 1,
+                explain: "A digital signature is bound to the exact hash of the original transaction payload. Any change alters the hash, causing verification to fail."
+            }
+        ];
+
+        function renderQuiz() {
+            const container = document.getElementById('quiz-container');
+            container.innerHTML = '';
+
+            quizData.forEach((item, idx) => {
+                const card = document.createElement('div');
+                card.className = "p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3";
+                card.innerHTML = `
+                    <p class="font-bold text-sm text-white">${item.q}</p>
+                    <div class="space-y-2 text-xs">
+                        ${item.options.map((opt, oIdx) => `
+                            <button onclick="checkQuizAnswer(${idx}, ${oIdx})" class="w-full text-left p-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 transition text-slate-300">
+                                ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="quiz-result-${idx}" class="hidden text-xs p-3 rounded-lg"></div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function checkQuizAnswer(qIdx, oIdx) {
+            const res = document.getElementById(`quiz-result-${qIdx}`);
+            res.classList.remove('hidden');
+            const q = quizData[qIdx];
+
+            if (oIdx === q.correct) {
+                res.className = "text-xs p-3 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-400";
+                res.innerHTML = `<strong>✓ Correct!</strong> ${q.explain}`;
+            } else {
+                res.className = "text-xs p-3 rounded-lg bg-red-950/60 border border-red-500/40 text-red-400";
+                res.innerHTML = `<strong>✕ Incorrect.</strong> ${q.explain}`;
+            }
+        }
+
+        function logEvent(msg) {
+            const box = document.getElementById('console-log-box');
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="text-slate-500">[${time}]</span> ${msg}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function clearConsoleLog() {
+            document.getElementById('console-log-box').innerHTML = '';
+        }
+
+        function generateNewWallet(user) {
+            const randPriv = Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
+            const pubKey = "04" + sha256Sync(randPriv).toUpperCase();
+            const addr = "1" + user.toUpperCase() + sha256Sync(pubKey).substring(0, 26);
+
+            document.getElementById(`${user}-privkey`).value = randPriv;
+            document.getElementById(`${user}-pubkey`).value = pubKey;
+            document.getElementById(`${user}-address`).value = addr;
+
+            logEvent(`Regenerated new keypair & address for ${user.toUpperCase()}.`);
+        }
+
+        function toggleVisibility(id) {
+            const input = document.getElementById(id);
+            input.type = input.type === "password" ? "text" : "password";
+        }
+
+        function simulateNetworkBroadcast() {
+            logEvent("Broadcasting synthetic transaction to P2P nodes...");
+            ['node-a', 'node-b', 'node-c', 'node-d'].forEach((nId, idx) => {
+                setTimeout(() => {
+                    const el = document.getElementById(nId);
+                    el.classList.add('border-amber-400', 'shadow-amber-500/50');
+                    setTimeout(() => el.classList.remove('border-amber-400', 'shadow-amber-500/50'), 1000);
+                }, idx * 300);
+            });
+        }
+
+        function updateAttackLabel() {
+            const val = document.getElementById('attack-power-slider').value;
+            document.getElementById('attack-power-label').innerText = `${val}% ${val > 50 ? '(Majority Control)' : '(Minority Power)'}`;
+        }
+
+        function runAttackSimulation() {
+            const power = parseInt(document.getElementById('attack-power-slider').value);
+            if (power > 50) {
+                document.getElementById('honest-chain-height').innerText = "Block #105";
+                document.getElementById('attacker-chain-height').innerText = "Block #109 (Longer Chain)";
+                logEvent("ALERT: 51% Attack successful! Attacker secret chain outpaced honest network and triggered chain reorganization!");
+            } else {
+                document.getElementById('honest-chain-height').innerText = "Block #108 (Longer Chain)";
+                document.getElementById('attacker-chain-height').innerText = "Block #105";
+                logEvent("NOTICE: 51% Attack failed. Honest network maintained higher hash rate.");
+            }
+        }
+
+        function resetEntireSimulation() {
+            stopMining();
+            state.blockHeight = 102;
+            state.blockchain = [
+                { index: 0, prevHash: "0000000000000000000000000000000000000000000000000000000000000000", txs: "Genesis Block Reward", nonce: 28471, hash: "00004a8b19283740192834710293847102938471029384710293847102938471", valid: true },
+                { index: 1, prevHash: "00004a8b19283740192834710293847102938471029384710293847102938471", txs: "Alice → Bob: 0.5 BTC", nonce: 91823, hash: "00009c2e10928374102938471029384710293847102938471029384710293847", valid: true },
+                { index: 2, prevHash: "00009c2e10928374102938471029384710293847102938471029384710293847", txs: "Bob → Charlie: 0.2 BTC", nonce: 44102, hash: "00007e1102938471029384710293847102938471029384710293847102938471", valid: true }
+            ];
+            renderBlockchain();
+            renderMempool();
+            renderMerkleTree();
+            updateSigComputation();
+            runHashLab();
+            runAvalancheLab();
+            logEvent("Simulation state completely reset.");
+        }
+
+        // On Window Load Initialization
+        window.onload = function () {
+            renderBlockchain();
+            renderMempool();
+            renderMerkleTree();
+            updateSigComputation();
+            runHashLab();
+            runAvalancheLab();
+            renderQuiz();
+            logEvent("Bitcoin & Blockchain Laboratory initialized successfully.");
+        };
+    </script>
+</body>
+</html>
