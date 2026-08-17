@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>High-Rise Building Electrical Distribution Design Simulator | Apna Electromechanic Service</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  :root{
+    --navy-bg:#0a1628;
+    --navy-panel:#0f1f38;
+    --navy-panel2:#122544;
+    --grid-line: rgba(56,189,248,0.06);
+    --cyan:#22d3ee;
+    --cyan-dim:#0e7490;
+    --amber:#fbbf24;
+    --amber-dim:#92600a;
+    --text:#dbeafe;
+    --text-dim:#7a93b8;
+    --red:#f87171;
+    --green:#4ade80;
+    --border:#1e3a5f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--navy-bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;}
+  body{
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    min-height:100vh;
+  }
+  code, .mono, input, select, .mono-label, .val, table{font-family:'IBM Plex Mono',monospace;}
+
+  header{
+    padding:18px 22px 14px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, rgba(15,31,56,0.9), rgba(10,22,40,0.4));
+    position:sticky; top:0; z-index:50;
+    backdrop-filter:blur(6px);
+  }
+  header .brandline{font-size:11px; letter-spacing:2px; color:var(--amber); text-transform:uppercase; margin-bottom:4px;}
+  header h1{margin:0; font-size:20px; color:var(--cyan); font-weight:600; letter-spacing:0.3px;}
+  header p{margin:4px 0 0; color:var(--text-dim); font-size:12.5px;}
+
+  nav.tabs{
+    display:flex; flex-wrap:wrap; gap:6px; padding:10px 22px; border-bottom:1px solid var(--border);
+    background:rgba(10,22,40,0.6); position:sticky; top:73px; z-index:49;
+  }
+  nav.tabs button{
+    background:var(--navy-panel); color:var(--text-dim); border:1px solid var(--border);
+    padding:8px 14px; border-radius:5px; font-size:12px; cursor:pointer; font-family:'IBM Plex Mono',monospace;
+    letter-spacing:0.3px; transition:all .15s;
+  }
+  nav.tabs button:hover{color:var(--cyan); border-color:var(--cyan-dim);}
+  nav.tabs button.active{background:rgba(34,211,238,0.12); color:var(--cyan); border-color:var(--cyan);}
+
+  main{padding:22px; max-width:1400px; margin:0 auto;}
+  .panel{display:none;}
+  .panel.active{display:block; animation:fadein .2s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  .card{
+    background:var(--navy-panel); border:1px solid var(--border); border-radius:8px;
+    padding:16px 18px; margin-bottom:16px;
+  }
+  .card h2{margin:0 0 4px; font-size:15px; color:var(--cyan); font-weight:600;}
+  .card h3{margin:14px 0 8px; font-size:13px; color:var(--amber); font-weight:600; text-transform:uppercase; letter-spacing:0.5px;}
+  .card .sub{color:var(--text-dim); font-size:12px; margin-bottom:10px;}
+
+  .grid{display:grid; gap:14px;}
+  .grid-2{grid-template-columns:1fr 1fr;}
+  .grid-3{grid-template-columns:1fr 1fr 1fr;}
+  .grid-4{grid-template-columns:1fr 1fr 1fr 1fr;}
+  @media(max-width:900px){ .grid-2,.grid-3,.grid-4{grid-template-columns:1fr;} }
+
+  label.field{display:block; margin-bottom:10px;}
+  label.field span{display:block; font-size:11px; color:var(--text-dim); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.4px;}
+  input[type=number], input[type=text], select{
+    width:100%; background:#081221; color:var(--text); border:1px solid var(--border);
+    padding:8px 9px; border-radius:5px; font-size:13px;
+  }
+  input[type=range]{width:100%; accent-color:var(--cyan);}
+  input:focus, select:focus{outline:none; border-color:var(--cyan);}
+
+  .readout{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed var(--border); font-size:12.5px;}
+  .readout .val{color:var(--cyan); font-weight:600;}
+  .readout .val.amber{color:var(--amber);}
+  .readout .val.red{color:var(--red);}
+  .readout .val.green{color:var(--green);}
+
+  table{width:100%; border-collapse:collapse; font-size:12px;}
+  table th{background:var(--navy-panel2); color:var(--amber); text-align:left; padding:7px 8px; border:1px solid var(--border); font-weight:600;}
+  table td{padding:6px 8px; border:1px solid var(--border); color:var(--text);}
+  table tr:hover td{background:rgba(34,211,238,0.04);}
+  .num{text-align:right;}
+
+  .btn{
+    background:var(--cyan-dim); color:#eafcff; border:1px solid var(--cyan); padding:9px 16px;
+    border-radius:5px; cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:12.5px; font-weight:600;
+    letter-spacing:0.3px;
+  }
+  .btn:hover{background:var(--cyan);}
+  .btn.amberbtn{background:var(--amber-dim); border-color:var(--amber); color:#fff8e1;}
+  .btn.amberbtn:hover{background:var(--amber); color:#1a1200;}
+  .btn.small{padding:5px 10px; font-size:11px;}
+
+  .pill{display:inline-block; padding:2px 9px; border-radius:20px; font-size:10.5px; border:1px solid var(--border); color:var(--text-dim);}
+  .pill.ok{border-color:var(--green); color:var(--green);}
+  .pill.warn{border-color:var(--amber); color:var(--amber);}
+  .pill.bad{border-color:var(--red); color:var(--red);}
+
+  .note{background:rgba(251,191,36,0.06); border:1px solid var(--amber-dim); border-radius:6px; padding:10px 12px; font-size:12px; color:#fde9b8; margin-top:10px;}
+  .note.info{background:rgba(34,211,238,0.06); border-color:var(--cyan-dim); color:#c9f4ff;}
+  .note.danger{background:rgba(248,113,113,0.08); border-color:#7f1d1d; color:#ffd4d4;}
+
+  svg{width:100%; height:auto; display:block;}
+  svg text{font-family:'IBM Plex Mono',monospace;}
+  .sld-box{fill:var(--navy-panel2); stroke:var(--cyan-dim); stroke-width:1.5;}
+  .sld-boxA{fill:var(--navy-panel2); stroke:var(--amber-dim); stroke-width:1.5;}
+  .sld-line{stroke:var(--cyan); stroke-width:2; fill:none;}
+  .sld-lineA{stroke:var(--amber); stroke-width:2; fill:none;}
+  .sld-lineR{stroke:var(--red); stroke-width:2; fill:none; stroke-dasharray:4 3;}
+  .sld-label{fill:var(--text); font-size:11px;}
+  .sld-label-c{fill:var(--cyan); font-size:11px; font-weight:600;}
+  .sld-label-a{fill:var(--amber); font-size:11px; font-weight:600;}
+  .sld-label-dim{fill:var(--text-dim); font-size:9.5px;}
+
+  .tabbar-sub{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;}
+  .tabbar-sub button{background:transparent; border:1px solid var(--border); color:var(--text-dim); padding:6px 12px; border-radius:5px; font-size:11.5px; cursor:pointer; font-family:'IBM Plex Mono',monospace;}
+  .tabbar-sub button.active{border-color:var(--cyan); color:var(--cyan); background:rgba(34,211,238,0.08);}
+
+  ::-webkit-scrollbar{height:8px; width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+  .flexwrap{display:flex; flex-wrap:wrap; gap:14px;}
+  .badge-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;}
+
+  @media print{
+    header, nav.tabs, .no-print{display:none !important;}
+    body{background:#fff; color:#000;}
+    .panel{display:none !important;}
+    #reportPrintArea{display:block !important; color:#000;}
+    .card{border:1px solid #999; background:#fff;}
+    table th{background:#eee; color:#000;}
+    table td{color:#000;}
+  }
+  #reportPrintArea{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brandline">Apna Electromechanic Service &mdash; Engineering Tools Suite</div>
+  <h1>High-Rise Building Electrical Distribution Design Simulator</h1>
+  <p>Load assessment &middot; HT/LT distribution architecture &middot; riser &amp; cable sizing &middot; floor layouts &middot; BOM &amp; report generator &middot; grounded in IS 732, IS 3043, IS 1554, IS 7098, NBC 2016 Part 8 and CEA Regulations 2010 (indicative design-practice tool, not a substitute for a licensed electrical contractor's stamped design)</p>
+</header>
+
+<nav class="tabs" id="mainTabs">
+  <button data-tab="setup" class="active">1. Building &amp; Load Setup</button>
+  <button data-tab="sld">2. Distribution Architecture (SLD)</button>
+  <button data-tab="cable">3. Riser &amp; Cable Sizing Lab</button>
+  <button data-tab="floor">4. Floor Layout &amp; Riser Shaft</button>
+  <button data-tab="standards">5. Standards &amp; Compliance</button>
+  <button data-tab="bom">6. BOM &amp; Report</button>
+</nav>
+
+<main>
+
+<!-- ============ TAB 1: SETUP & LOADS ============ -->
+<section class="panel active" id="panel-setup">
+  <div class="card">
+    <h2>Building Configuration</h2>
+    <div class="sub">Set the building profile. All downstream calculations (demand load, transformer size, riser current, cable sizing, BOM) update live.</div>
+    <div class="grid grid-4">
+      <label class="field"><span>Number of floors (incl. ground)</span>
+        <input type="number" id="nFloors" value="30" min="20" max="60"></label>
+      <label class="field"><span>Flats / units per floor</span>
+        <input type="number" id="flatsPerFloor" value="4" min="1" max="12"></label>
+      <label class="field"><span>Carpet area per flat (m&sup2;)</span>
+        <input type="number" id="flatArea" value="95" min="20" max="500"></label>
+      <label class="field"><span>Floor-to-floor height (m)</span>
+        <input type="number" id="floorHeight" value="3.0" min="2.6" max="4.5" step="0.1"></label>
+      <label class="field"><span>Occupancy type</span>
+        <select id="occType">
+          <option value="res">Residential (apartments)</option>
+          <option value="mixed">Mixed use (residential + commercial podium)</option>
+          <option value="comm">Commercial / office tower</option>
+        </select></label>
+      <label class="field"><span>Number of passenger lifts</span>
+        <input type="number" id="nLifts" value="4" min="1" max="12"></label>
+      <label class="field"><span>Lift capacity (kW each, avg)</span>
+        <input type="number" id="liftKW" value="11" min="4" max="30"></label>
+      <label class="field"><span>Fire lift included?</span>
+        <select id="fireLift"><option value="1">Yes (mandatory &gt;15m per NBC)</option><option value="0">No</option></select></label>
+    </div>
+    <h3>Per-Flat Connected Load</h3>
+    <div class="grid grid-4">
+      <label class="field"><span>Lighting + plug points (W/m&sup2;)</span>
+        <input type="number" id="lightWpm2" value="20" min="5" max="60"></label>
+      <label class="field"><span>AC load per flat (Tons, total)</span>
+        <input type="number" id="acTons" value="2.5" min="0" max="10" step="0.5"></label>
+      <label class="field"><span>Kitchen appliances (kW)</span>
+        <input type="number" id="kitchenKW" value="3" min="0" max="10" step="0.5"></label>
+      <label class="field"><span>Water heater / geyser (kW)</span>
+        <input type="number" id="geyserKW" value="3" min="0" max="6" step="0.5"></label>
+    </div>
+    <h3>Common Services Load</h3>
+    <div class="grid grid-4">
+      <label class="field"><span>Corridor / common lighting (kW total)</span>
+        <input type="number" id="corridorKW" value="8" min="0" max="60"></label>
+      <label class="field"><span>Fire pump set (kW)</span>
+        <input type="number" id="firePumpKW" value="30" min="0" max="90"></label>
+      <label class="field"><span>Pressurization / staircase fans (kW)</span>
+        <input type="number" id="pressFanKW" value="15" min="0" max="60"></label>
+      <label class="field"><span>STP + domestic water pumps (kW)</span>
+        <input type="number" id="stpKW" value="20" min="0" max="80"></label>
+      <label class="field"><span>Car park ventilation (kW)</span>
+        <input type="number" id="parkVentKW" value="12" min="0" max="60"></label>
+      <label class="field"><span>Clubhouse / amenity load (kW)</span>
+        <input type="number" id="clubKW" value="25" min="0" max="150"></label>
+    </div>
+    <div class="note info">Defaults are typical mid-size Indian residential high-rise figures for a first pass. Adjust freely &mdash; every number below is recomputed live. AC assumed at ~1.2 kW/ton connected (window/split, incl. starting factor headroom).</div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>Connected Load Summary</h2>
+      <div id="loadTable"></div>
+    </div>
+    <div class="card">
+      <h2>Demand Load &amp; Diversity</h2>
+      <div class="sub">Diversity/demand factors below reflect common Indian design-practice guidance (IS 732 Annex &amp; typical discom sanction-load norms) &mdash; treat as indicative, not statutory values.</div>
+      <div id="demandTable"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Transformer &amp; DG Sizing</h2>
+    <div class="grid grid-3">
+      <div>
+        <div class="readout"><span>Total demand load</span><span class="val" id="tdKW">-</span></div>
+        <div class="readout"><span>Assumed power factor</span><span class="val" id="pfShow">0.90</span></div>
+        <div class="readout"><span>Calculated kVA (+15% growth margin)</span><span class="val amber" id="calcKVA">-</span></div>
+        <div class="readout"><span>Selected standard transformer</span><span class="val green" id="xfmrSel">-</span></div>
+      </div>
+      <div>
+        <label class="field"><span>Assumed power factor</span>
+          <input type="range" id="pf" min="0.8" max="0.98" step="0.01" value="0.9"></label>
+        <label class="field"><span>Future growth margin (%)</span>
+          <input type="range" id="growth" min="0" max="30" step="5" value="15"></label>
+        <label class="field"><span>Transformer redundancy</span>
+          <select id="xfmrRedundancy">
+            <option value="1">Single transformer (no redundancy)</option>
+            <option value="2" selected>2 &times; 50% parallel transformers (N+1)</option>
+          </select></label>
+      </div>
+      <div>
+        <div class="readout"><span>Essential/life-safety load (fire+lift+corridor+press. fan)</span><span class="val" id="essKW">-</span></div>
+        <div class="readout"><span>DG backup coverage</span>
+          <select id="dgCoverage" style="width:auto; padding:4px 6px; font-size:11.5px;">
+            <option value="ess">Essential services only</option>
+            <option value="ess+partial">Essential + 30% flat power backup</option>
+            <option value="full">Full building backup</option>
+          </select></span></div>
+        <div class="readout"><span>Calculated DG kVA</span><span class="val amber" id="dgKVA">-</span></div>
+        <div class="readout"><span>Selected standard DG set</span><span class="val green" id="dgSel">-</span></div>
+      </div>
+    </div>
+    <div class="note">HT supply: 11 kV incoming from discom to an indoor/outdoor substation with VCB panel, stepped down via oil/dry-type transformer(s) to 433 V (LT side), per CEA Measures for Safety Regulations 2010 &amp; local discom (e.g. MSEDCL/BEST/Tata Power) service connection rules.</div>
+  </div>
+</section>
+
+<!-- ============ TAB 2: SLD ============ -->
+<section class="panel" id="panel-sld">
+  <div class="card">
+    <h2>Single Line Distribution Architecture</h2>
+    <div class="sub">HT intake &rarr; substation &rarr; LT panel &rarr; segregated risers (normal power / lift / fire &amp; life-safety / DG-backed essential) &rarr; floor distribution boards. Diagram scales its labels to your Tab 1 inputs.</div>
+    <div id="sldWrap"></div>
+    <div class="badge-row">
+      <span class="pill ok">Cyan = Normal LT power path</span>
+      <span class="pill warn">Amber = DG-backed essential path</span>
+      <span class="pill bad">Dashed red = Fire &amp; life-safety (non-diversified, always-on)</span>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3 style="margin-top:0">Riser Segregation Practice (per CEA / NBC Part 8)</h3>
+      <table>
+        <tr><th>Riser</th><th>Feeds</th><th>Backup source</th><th>Route</th></tr>
+        <tr><td>Normal power riser</td><td>Flat DBs (light+plug+AC), non-essential common areas</td><td>Grid only (or partial DG per config)</td><td>Dedicated electrical shaft</td></tr>
+        <tr><td>Essential/DG riser</td><td>Corridor lighting, lift (non-fire), pressurization fans, STP</td><td>Grid + DG via ATS</td><td>Separate shaft or fire-rated segregation</td></tr>
+        <tr><td>Fire riser</td><td>Fire pump, wet riser pump, sprinkler pump, fire lift, fire alarm panel, PA system</td><td>Grid + DG, fire-survival cable (FRLS/PVC or fire-rated MICC per NBC)</td><td>Independent fire-rated shaft/route, 2-hr fire-rated cabling</td></tr>
+        <tr><td>Lift power riser</td><td>Passenger lift motor + car lighting</td><td>Grid + DG (ARD optional)</td><td>Dedicated lift machine room feeder</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Key Panel Hierarchy</h3>
+      <ol style="font-size:12.5px; line-height:1.9; color:var(--text);">
+        <li><b>HT Metering &amp; VCB panel</b> (11kV incoming, discom boundary)</li>
+        <li><b>Distribution Transformer(s)</b> 11kV/433V, Dyn11 vector group typical</li>
+        <li><b>Main LT Panel (MLTP)</b> &mdash; ACB incomer, bus coupler if 2 transformers, outgoing ACBs/MCCBs to each riser</li>
+        <li><b>DG Synchronizing/ATS panel</b> &mdash; auto changeover for essential bus</li>
+        <li><b>Riser Bus Duct / Armoured cable</b> &mdash; vertical rising main per shaft</li>
+        <li><b>Floor Distribution Board (FDB)</b> &mdash; one per floor per riser type, MCCB/MCB incomer with metering</li>
+        <li><b>Flat/Tenant DB</b> &mdash; individual meter + RCCB + MCBs (light/plug/AC/geyser sub-circuits)</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TAB 3: CABLE SIZING LAB ============ -->
+<section class="panel" id="panel-cable">
+  <div class="card">
+    <h2>Riser &amp; Cable Sizing Lab</h2>
+    <div class="sub">Pick a riser segment, enter its load current, length and installation conditions. The tool selects the smallest standard XLPE armoured cable (or busbar trunking) satisfying both current-carrying capacity (derated) and the &lt;3% voltage-drop limit per IS 732 Table.</div>
+    <div class="grid grid-4">
+      <label class="field"><span>Riser segment</span>
+        <select id="riserSeg">
+          <option value="normal">Normal power riser (auto from Tab 1)</option>
+          <option value="ess">Essential/DG riser (auto)</option>
+          <option value="fire">Fire services riser (auto)</option>
+          <option value="lift">Lift power riser (auto)</option>
+          <option value="custom">Custom / manual entry</option>
+        </select></label>
+      <label class="field"><span>Design current (A) &mdash; auto-filled, editable</span>
+        <input type="number" id="designCurrent" value="0"></label>
+      <label class="field"><span>Riser vertical length (m)</span>
+        <input type="number" id="riserLength" value="95" min="5" max="250"></label>
+      <label class="field"><span>Cable type</span>
+        <select id="cableType">
+          <option value="xlpe_air">XLPE armoured, clipped/tray in air</option>
+          <option value="xlpe_duct">XLPE armoured, in duct/conduit</option>
+          <option value="busduct">Sandwich busbar trunking (rising main)</option>
+        </select></label>
+      <label class="field"><span>Grouping (no. of circuits together)</span>
+        <input type="number" id="grouping" value="1" min="1" max="12"></label>
+      <label class="field"><span>Ambient temperature (&deg;C)</span>
+        <input type="number" id="ambTemp" value="40" min="25" max="55"></label>
+      <label class="field"><span>System voltage</span>
+        <select id="sysVoltage"><option value="415">415 V, 3-phase</option><option value="240">240 V, 1-phase</option></select></label>
+      <label class="field"><span>Max allowed voltage drop (%)</span>
+        <input type="number" id="maxVD" value="3" min="1" max="5" step="0.5"></label>
+      <label class="field"><span>Cable material</span>
+        <select id="cableMaterial"><option value="cu">Copper (Cu)</option><option value="al">Aluminium (Al)</option></select></label>
+    </div>
+    <button class="btn" id="calcCableBtn">Calculate &amp; Select Cable</button>
+    <div id="cableResult" style="margin-top:14px;"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Derating Factors Applied (typical, IS 7098 / IS 3961 practice)</h3>
+    <table>
+      <tr><th>Factor</th><th>Basis</th><th>Applied value</th></tr>
+      <tr><td>Ambient temperature</td><td>Base rating at 30&deg;C ambient; correction per &deg;C above</td><td id="dfTemp">-</td></tr>
+      <tr><td>Grouping</td><td>Multiple circuits bunched/tray-mounted together</td><td id="dfGroup">-</td></tr>
+      <tr><td>Installation method</td><td>Air-clipped vs enclosed duct/conduit</td><td id="dfInstall">-</td></tr>
+      <tr><td><b>Combined derating factor</b></td><td>Product of above</td><td id="dfTotal">-</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Indicative Ampacity Reference &mdash; XLPE Armoured Cable (Cu, 3.5/4-core, air-clipped, 30&deg;C)</h3>
+    <div id="ampTableWrap"></div>
+    <div class="note">These are rounded, commonly-used design-office reference figures for a first-pass sizing exercise. Final size must be verified against the manufacturer's certified rating table and IS 7098 (Part 1/2) before procurement, and cross-checked for short-circuit withstand (IS 3043 / fault level at that panel) and cable route derating specific to the actual installation.</div>
+  </div>
+</section>
+
+<!-- ============ TAB 4: FLOOR LAYOUT ============ -->
+<section class="panel" id="panel-floor">
+  <div class="card">
+    <h2>Typical Floor Layout &amp; Riser Shaft</h2>
+    <div class="sub">Illustrative typical-floor wiring layout: electrical shaft with segregated risers, floor distribution boards, corridor lighting circuit, and flat entry points. Scales to your flats-per-floor setting.</div>
+    <div id="floorSvgWrap"></div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3 style="margin-top:0">Electrical Shaft Contents (per floor)</h3>
+      <table>
+        <tr><th>Item</th><th>Qty</th><th>Notes</th></tr>
+        <tr><td>Normal power FDB</td><td>1</td><td>Feeds flat DBs on this floor</td></tr>
+        <tr><td>Essential/DG FDB</td><td>1</td><td>Feeds corridor light + this-floor essential points</td></tr>
+        <tr><td>Fire riser tap-off (wet riser landing valve level)</td><td>1</td><td>Per fire-fighting scheme, not electrical but co-routed</td></tr>
+        <tr><td>TV/telecom/data riser</td><td>1</td><td>Separate compartment, no electrical mixing per IS 732</td></tr>
+        <tr><td>Fire-rated shaft door</td><td>1</td><td>2-hour rated, self-closing</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Typical Flat Internal Wiring Points (per IS 732 practice)</h3>
+      <table>
+        <tr><th>Circuit</th><th>Wiring</th><th>Protection</th></tr>
+        <tr><td>Lighting sub-circuit</td><td>1.5 sq mm Cu, max 800W/10 points per circuit</td><td>6A MCB</td></tr>
+        <tr><td>General plug points (5/6A)</td><td>1.5 sq mm Cu</td><td>10A MCB</td></tr>
+        <tr><td>Power plugs (15/16A) &mdash; fridge, misc</td><td>2.5 sq mm Cu, dedicated</td><td>16A MCB</td></tr>
+        <tr><td>AC point (per unit)</td><td>2.5&ndash;4 sq mm Cu, dedicated radial</td><td>20/25/32A MCB (per tonnage)</td></tr>
+        <tr><td>Kitchen appliances</td><td>4 sq mm Cu, dedicated</td><td>32A MCB</td></tr>
+        <tr><td>Geyser/water heater</td><td>2.5&ndash;4 sq mm Cu, dedicated</td><td>20/25A MCB</td></tr>
+        <tr><td>Whole-flat incomer</td><td>&mdash;</td><td>RCCB 30mA (all circuits) + main MCB/isolator sized to flat load</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TAB 5: STANDARDS ============ -->
+<section class="panel" id="panel-standards">
+  <div class="card">
+    <h2>Applicable Indian Standards &amp; Regulatory Framework</h2>
+    <div class="sub">Reference index for a high-rise electrical contractor scope of work in India. Always verify the current edition and local amendments before design submission.</div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3 style="margin-top:0">Core Design Standards</h3>
+      <table>
+        <tr><th>Standard</th><th>Covers</th></tr>
+        <tr><td>IS 732:2019</td><td>Code of practice for electrical wiring installations (LV)</td></tr>
+        <tr><td>IS 3043:2018</td><td>Code of practice for earthing</td></tr>
+        <tr><td>IS 1554 (Pt.1/2)</td><td>PVC insulated cables</td></tr>
+        <tr><td>IS 7098 (Pt.1/2)</td><td>XLPE insulated cables (up to 1.1kV / 33kV)</td></tr>
+        <tr><td>IS 8623 / IEC 61439</td><td>Low-voltage switchgear/panel (LT panel) assemblies</td></tr>
+        <tr><td>IS 2026</td><td>Power transformers</td></tr>
+        <tr><td>IS 13947 / IEC 60947</td><td>MCCBs, ACBs, switchgear devices</td></tr>
+        <tr><td>IS 12360</td><td>Voltage bands for electrical installations</td></tr>
+        <tr><td>IS 15652</td><td>Automatic transfer switches (ATS)</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Building &amp; Fire Codes</h3>
+      <table>
+        <tr><th>Code</th><th>Covers</th></tr>
+        <tr><td>NBC 2016 Part 8 (Section 2)</td><td>Electrical installations in buildings</td></tr>
+        <tr><td>NBC 2016 Part 4</td><td>Fire &amp; life safety &mdash; fire pump, wet riser, refuge floor requirements</td></tr>
+        <tr><td>CEA (Measures for Safety) Regulations 2010</td><td>Statutory safety rules for HT/LT installations</td></tr>
+        <tr><td>Indian Electricity Rules / Electricity Act 2003</td><td>Statutory licensing, HT connection approval</td></tr>
+        <tr><td>State fire NOC (e.g. Maharashtra Fire Prevention &amp; Life Safety Measures Act)</td><td>Fire pump/riser electrical interlocks, DG backup mandate</td></tr>
+        <tr><td>Local discom service connection rules</td><td>HT metering, substation room civil/electrical specs</td></tr>
+        <tr><td>CPWD/local municipal electrical bye-laws</td><td>Common area electrification, lift shaft clearance</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">Contractor Workflow Checklist (High-Rise, 20&ndash;50 Floors)</h3>
+    <ol style="font-size:12.5px; line-height:2; color:var(--text);">
+      <li>Load list &amp; connected/demand load calculation &rarr; sanction load application to discom</li>
+      <li>HT/LT single line diagram, substation layout, transformer &amp; DG sizing &rarr; approval from Electrical Inspectorate</li>
+      <li>Cable/busduct riser sizing with fault-level and voltage-drop calculations</li>
+      <li>Earthing &amp; lightning protection design (IS 3043, IS/IEC 62305)</li>
+      <li>Fire NOC electrical compliance &mdash; fire pump feeder, FRLS/fire-survival cabling, emergency lighting, PA system power</li>
+      <li>Floor-wise DB schedule, cable schedule, point wiring drawings</li>
+      <li>Panel manufacturing (type-tested per IEC 61439), factory testing (routine tests)</li>
+      <li>Site installation, cable laying, termination, megger/insulation resistance testing</li>
+      <li>Earthing resistance testing, protective relay setting &amp; commissioning</li>
+      <li>Third-party inspection (Electrical Inspector), energisation, and handover with as-built drawings &amp; O&amp;M manual</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ TAB 6: BOM & REPORT ============ -->
+<section class="panel" id="panel-bom">
+  <div class="card">
+    <h2>Bill of Materials (Indicative)</h2>
+    <div class="sub">Auto-derived from your Tab 1&ndash;3 inputs. Quantities are order-of-magnitude for budgeting/tendering reference &mdash; a full BOQ needs a detailed cable schedule and site measurement.</div>
+    <div id="bomTable"></div>
+  </div>
+  <div class="card">
+    <h2>Generate Report</h2>
+    <div class="sub">Builds a printable summary (building profile, load calc, transformer/DG sizing, riser cable selections, BOM) that you can save as PDF via your browser's print dialog.</div>
+    <button class="btn amberbtn" id="genReportBtn">Generate &amp; Open Report</button>
+    <button class="btn small" id="printReportBtn" style="margin-left:8px;">Print / Save as PDF</button>
+  </div>
+  <div class="card" id="reportPreviewCard" style="display:none;">
+    <h2>Report Preview</h2>
+    <div id="reportPreview" style="font-size:12.5px;"></div>
+  </div>
+</section>
+
+</main>
+
+<!-- Hidden print-only full report -->
+<div id="reportPrintArea"></div>
+
+<script>
+(function(){
+
+// ---------- Tab switching ----------
+const tabs = document.querySelectorAll('#mainTabs button');
+tabs.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    tabs.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='sld') renderSLD();
+    if(btn.dataset.tab==='floor') renderFloorSVG();
+    if(btn.dataset.tab==='cable') { syncRiserCurrent(); }
+    if(btn.dataset.tab==='bom') renderBOM();
+  });
+});
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const num = id => parseFloat($(id).value) || 0;
+const fmt = (n, d=1) => Number(n).toLocaleString('en-IN', {maximumFractionDigits:d, minimumFractionDigits:0});
+
+// standard transformer sizes (kVA)
+const XFMR_SIZES = [200,315,400,500,630,750,1000,1250,1600,2000,2500,3150];
+// standard DG sizes (kVA)
+const DG_SIZES = [125,160,200,250,320,380,500,625,750,1010,1250,1500,2000];
+// standard cable cross-sections (sq mm)
+const CABLE_SIZES = [4,6,10,16,25,35,50,70,95,120,150,185,240,300,400,500,630];
+// indicative ampacity (A) for Cu XLPE armoured 3.5/4-core, air-clipped at 30C ambient
+const AMPACITY_CU_AIR = {4:32,6:41,10:57,16:76,25:101,35:126,50:153,70:196,95:238,120:276,150:319,185:364,240:430,300:497,400:590,500:678,630:790};
+// aluminium roughly 0.78x of copper for same size (typical rule of thumb)
+function ampacity(size, material, installMethod){
+  let base = AMPACITY_CU_AIR[size];
+  if(material==='al') base = base*0.78;
+  if(installMethod==='xlpe_duct') base = base*0.87; // enclosed vs open-air derating
+  return base;
+}
+// resistance approx (ohm/km) for Cu / Al at size, used for volt-drop (simplified, mV/A/m style constants)
+const MVAM_CU = {4:11.0,6:7.3,10:4.4,16:2.8,25:1.75,35:1.25,50:0.93,70:0.63,95:0.47,120:0.37,150:0.30,185:0.24,240:0.185,300:0.15,400:0.115,500:0.093,630:0.074};
+function mVAperAm(size, material){
+  let v = MVAM_CU[size];
+  if(material==='al') v = v/0.61; // Al resistivity ~1.64x Cu -> higher mV/A/m
+  return v;
+}
+
+// ---------- LOAD CALCS ----------
+function computeLoads(){
+  const nFloors = num('nFloors');
+  const flats = num('flatsPerFloor');
+  const totalFlats = nFloors*flats;
+  const flatArea = num('flatArea');
+  const lightW = num('lightWpm2');
+  const acTons = num('acTons');
+  const kitchenKW = num('kitchenKW');
+  const geyserKW = num('geyserKW');
+
+  const lightingPerFlatKW = (lightW*flatArea)/1000;
+  const acPerFlatKW = acTons*1.2;
+  const perFlatConnectedKW = lightingPerFlatKW + acPerFlatKW + kitchenKW + geyserKW;
+  const totalFlatConnectedKW = perFlatConnectedKW*totalFlats;
+
+  const corridorKW = num('corridorKW');
+  const firePumpKW = num('firePumpKW');
+  const pressFanKW = num('pressFanKW');
+  const stpKW = num('stpKW');
+  const parkVentKW = num('parkVentKW');
+  const clubKW = num('clubKW');
+  const nLifts = num('nLifts');
+  const liftKW = num('liftKW');
+  const totalLiftKW = nLifts*liftKW;
+
+  const totalConnectedKW = totalFlatConnectedKW + corridorKW + firePumpKW + pressFanKW + stpKW + parkVentKW + clubKW + totalLiftKW;
+
+  return {nFloors, flats, totalFlats, perFlatConnectedKW, totalFlatConnectedKW, corridorKW, firePumpKW, pressFanKW, stpKW, parkVentKW, clubKW, totalLiftKW, nLifts, liftKW, totalConnectedKW};
+}
+
+function diversityForFlats(n){
+  // graded diversity typical of Indian design practice / discom norms (indicative)
+  if(n<=10) return 0.8;
+  if(n<=20) return 0.7;
+  if(n<=50) return 0.6;
+  return 0.5;
+}
+function liftDemandKW(nLifts, liftKW){
+  if(nLifts<=1) return liftKW;
+  return liftKW + (nLifts-1)*liftKW*0.5; // largest lift full load + 50% of remaining running concurrently
+}
+
+function computeDemand(loads){
+  const flatDiv = diversityForFlats(loads.totalFlats);
+  const flatDemandKW = loads.totalFlatConnectedKW*flatDiv;
+  const acDiv = 0.85;
+  const corridorDiv = 0.9;
+  const liftDemand = liftDemandKW(loads.nLifts, loads.liftKW);
+  const fireDiv = 1.0; // no diversity - safety critical
+  const pressDiv = 0.7;
+  const stpDiv = 0.7;
+  const parkVentDiv = 0.7;
+  const clubDiv = 0.7;
+
+  const corridorDemand = loads.corridorKW*corridorDiv;
+  const fireDemand = loads.firePumpKW*fireDiv;
+  const pressDemand = loads.pressFanKW*pressDiv;
+  const stpDemand = loads.stpKW*stpDiv;
+  const parkVentDemand = loads.parkVentKW*parkVentDiv;
+  const clubDemand = loads.clubKW*clubDiv;
+
+  const totalDemandKW = flatDemandKW + corridorDemand + fireDemand + pressDemand + stpDemand + parkVentDemand + clubDemand + liftDemand;
+  const essentialKW = corridorDemand + fireDemand + pressDemand + liftDemand;
+
+  return {flatDiv, flatDemandKW, corridorDemand, fireDemand, pressDemand, stpDemand, parkVentDemand, clubDemand, liftDemand, totalDemandKW, essentialKW};
+}
+
+function nearestStd(list, val){
+  for(const s of list){ if(s>=val) return s; }
+  return list[list.length-1];
+}
+
+function renderLoadTables(){
+  const L = computeLoads();
+  const D = computeDemand(L);
+
+  $('loadTable').innerHTML = `
+    <div class="readout"><span>Total flats</span><span class="val">${L.totalFlats}</span></div>
+    <div class="readout"><span>Connected load / flat</span><span class="val">${fmt(L.perFlatConnectedKW,2)} kW</span></div>
+    <div class="readout"><span>All flats connected load</span><span class="val">${fmt(L.totalFlatConnectedKW,1)} kW</span></div>
+    <div class="readout"><span>Lifts (${L.nLifts} &times; ${fmt(L.liftKW,1)}kW)</span><span class="val">${fmt(L.totalLiftKW,1)} kW</span></div>
+    <div class="readout"><span>Corridor/common lighting</span><span class="val">${fmt(L.corridorKW,1)} kW</span></div>
+    <div class="readout"><span>Fire pump set</span><span class="val">${fmt(L.firePumpKW,1)} kW</span></div>
+    <div class="readout"><span>Pressurization fans</span><span class="val">${fmt(L.pressFanKW,1)} kW</span></div>
+    <div class="readout"><span>STP + water pumps</span><span class="val">${fmt(L.stpKW,1)} kW</span></div>
+    <div class="readout"><span>Car park ventilation</span><span class="val">${fmt(L.parkVentKW,1)} kW</span></div>
+    <div class="readout"><span>Clubhouse/amenity</span><span class="val">${fmt(L.clubKW,1)} kW</span></div>
+    <div class="readout"><span><b>Total connected load</b></span><span class="val amber"><b>${fmt(L.totalConnectedKW,1)} kW</b></span></div>
+  `;
+
+  $('demandTable').innerHTML = `
+    <div class="readout"><span>Flats demand (diversity ${D.flatDiv})</span><span class="val">${fmt(D.flatDemandKW,1)} kW</span></div>
+    <div class="readout"><span>Lift demand (largest + 50% rest)</span><span class="val">${fmt(D.liftDemand,1)} kW</span></div>
+    <div class="readout"><span>Corridor lighting (0.9)</span><span class="val">${fmt(D.corridorDemand,1)} kW</span></div>
+    <div class="readout"><span>Fire pump (1.0 &mdash; no diversity)</span><span class="val red">${fmt(D.fireDemand,1)} kW</span></div>
+    <div class="readout"><span>Pressurization fans (0.7)</span><span class="val">${fmt(D.pressDemand,1)} kW</span></div>
+    <div class="readout"><span>STP/pumps (0.7)</span><span class="val">${fmt(D.stpDemand,1)} kW</span></div>
+    <div class="readout"><span>Car park vent (0.7)</span><span class="val">${fmt(D.parkVentDemand,1)} kW</span></div>
+    <div class="readout"><span>Clubhouse (0.7)</span><span class="val">${fmt(D.clubDemand,1)} kW</span></div>
+    <div class="readout"><span><b>Total demand load</b></span><span class="val green"><b>${fmt(D.totalDemandKW,1)} kW</b></span></div>
+  `;
+
+  const pf = num('pf') || 0.9;
+  $('pfShow').textContent = pf.toFixed(2);
+  const growth = num('growth');
+  const calcKVA = (D.totalDemandKW/pf)*(1+growth/100);
+  $('tdKW').textContent = fmt(D.totalDemandKW,1)+' kW';
+  $('calcKVA').textContent = fmt(calcKVA,0)+' kVA';
+
+  const redundancy = $('xfmrRedundancy').value;
+  let xfmrText;
+  if(redundancy==='1'){
+    const sel = nearestStd(XFMR_SIZES, calcKVA);
+    xfmrText = `1 &times; ${sel} kVA`;
+  } else {
+    const perUnit = nearestStd(XFMR_SIZES, calcKVA); // each unit sized to carry full load alone (N+1)
+    xfmrText = `2 &times; ${perUnit} kVA (either can carry full load)`;
+  }
+  $('xfmrSel').textContent = xfmrText;
+
+  $('essKW').textContent = fmt(D.essentialKW,1)+' kW';
+  const dgMode = $('dgCoverage').value;
+  let dgKW = D.essentialKW;
+  if(dgMode==='ess+partial') dgKW += D.flatDemandKW*0.3;
+  if(dgMode==='full') dgKW = D.totalDemandKW;
+  const dgKVA = (dgKW/0.8)*1.1; // DG typically rated at 0.8 pf, +10% margin
+  $('dgKVA').textContent = fmt(dgKVA,0)+' kVA';
+  $('dgSel').textContent = nearestStd(DG_SIZES, dgKVA)+' kVA';
+
+  return {L, D, calcKVA, dgKVA, dgKW};
+}
+
+['nFloors','flatsPerFloor','flatArea','floorHeight','occType','nLifts','liftKW','fireLift',
+ 'lightWpm2','acTons','kitchenKW','geyserKW','corridorKW','firePumpKW','pressFanKW','stpKW','parkVentKW','clubKW',
+ 'pf','growth','xfmrRedundancy','dgCoverage'].forEach(id=>{
+  $(id).addEventListener('input', ()=>{ renderLoadTables(); if(document.getElementById('panel-sld').classList.contains('active')) renderSLD(); if(document.getElementById('panel-floor').classList.contains('active')) renderFloorSVG(); });
+});
+
+// ---------- SLD ----------
+function renderSLD(){
+  const {L,D,calcKVA,dgKVA} = renderLoadTables();
+  const xfmrSel = $('xfmrSel').textContent;
+  const dgSel = $('dgSel').textContent;
+  const totalCurrentA = (calcKVA*1000)/(Math.sqrt(3)*415*0.9);
+
+  $('sldWrap').innerHTML = `
+  <svg viewBox="0 0 1200 480" xmlns="http://www.w3.org/2000/svg">
+    <!-- HT -->
+    <rect class="sld-box" x="30" y="30" width="140" height="50" rx="4"/>
+    <text class="sld-label-c" x="45" y="52">11kV HT</text>
+    <text class="sld-label-dim" x="45" y="68">Incoming + VCB</text>
+    <line class="sld-line" x1="170" y1="55" x2="230" y2="55"/>
+
+    <rect class="sld-box" x="230" y="30" width="150" height="50" rx="4"/>
+    <text class="sld-label-c" x="245" y="52">Transformer(s)</text>
+    <text class="sld-label-dim" x="245" y="68">${xfmrSel}</text>
+    <line class="sld-line" x1="380" y1="55" x2="440" y2="55"/>
+
+    <rect class="sld-box" x="440" y="30" width="150" height="50" rx="4"/>
+    <text class="sld-label-c" x="455" y="52">Main LT Panel</text>
+    <text class="sld-label-dim" x="455" y="68">${fmt(totalCurrentA,0)} A design</text>
+
+    <!-- DG -->
+    <rect class="sld-boxA" x="440" y="110" width="150" height="46" rx="4"/>
+    <text class="sld-label-a" x="452" y="130">DG Set</text>
+    <text class="sld-label-dim" x="452" y="145">${dgSel}</text>
+    <line class="sld-lineA" x1="515" y1="110" x2="515" y2="80"/>
+    <text class="sld-label-dim" x="522" y="98">via ATS</text>
+
+    <!-- vertical drop to bus -->
+    <line class="sld-line" x1="515" y1="80" x2="515" y2="200"/>
+    <rect class="sld-box" x="415" y="200" width="200" height="34" rx="4"/>
+    <text class="sld-label-c" x="425" y="222">LT Bus (415/240V, 3ph+N+E)</text>
+
+    <!-- four risers -->
+    <line class="sld-line" x1="470" y1="234" x2="200" y2="280"/>
+    <line class="sld-lineA" x1="500" y1="234" x2="420" y2="280"/>
+    <line class="sld-lineR" x1="540" y1="234" x2="640" y2="280"/>
+    <line class="sld-lineA" x1="570" y1="234" x2="880" y2="280"/>
+
+    <rect class="sld-box" x="100" y="280" width="200" height="46" rx="4"/>
+    <text class="sld-label-c" x="112" y="300">Normal Power Riser</text>
+    <text class="sld-label-dim" x="112" y="315">Flat DBs, non-ess. common</text>
+
+    <rect class="sld-boxA" x="320" y="280" width="200" height="46" rx="4"/>
+    <text class="sld-label-a" x="332" y="300">Essential/DG Riser</text>
+    <text class="sld-label-dim" x="332" y="315">Corridor light, press. fans, STP</text>
+
+    <rect class="sld-boxA" x="540" y="280" width="200" height="46" rx="4"/>
+    <text class="sld-label-a" x="552" y="300">Lift Power Riser</text>
+    <text class="sld-label-dim" x="552" y="315">${L.nLifts} lifts, ${fmt(D.liftDemand,0)} kW demand</text>
+
+    <rect class="sld-box" x="760" y="280" width="220" height="46" rx="4" style="stroke:#f87171;"/>
+    <text class="sld-label" x="772" y="300" style="fill:#f87171; font-weight:600;">Fire Services Riser</text>
+    <text class="sld-label-dim" x="772" y="315">Fire pump, wet riser, sprinkler, fire lift</text>
+
+    <!-- floor stack -->
+    <line class="sld-line" x1="200" y1="326" x2="200" y2="380"/>
+    <line class="sld-lineA" x1="420" y1="326" x2="420" y2="380"/>
+    <line class="sld-lineA" x1="640" y1="326" x2="640" y2="380"/>
+    <line class="sld-lineR" x1="870" y1="326" x2="870" y2="380"/>
+
+    <rect class="sld-box" x="60" y="380" width="1080" height="60" rx="4" style="fill:rgba(34,211,238,0.04);"/>
+    <text class="sld-label" x="80" y="402">Floor Distribution Boards &times; ${L.nFloors} floors (repeated riser tap-off per floor)</text>
+    <text class="sld-label-dim" x="80" y="420">Each floor: Normal FDB &rarr; ${L.flats} flat DBs &nbsp;|&nbsp; Essential FDB &rarr; corridor light circuit &nbsp;|&nbsp; Fire landing valve + hydrant + FA panel loop</text>
+  </svg>`;
+}
+
+// ---------- CABLE SIZING LAB ----------
+function riserAutoCurrent(seg){
+  const {L,D} = renderLoadTables();
+  const v = 415, pf=0.9;
+  const kw2A = kw => (kw*1000)/(Math.sqrt(3)*v*pf);
+  if(seg==='normal') return kw2A(D.flatDemandKW + D.clubDemand + D.parkVentDemand);
+  if(seg==='ess') return kw2A(D.corridorDemand + D.pressDemand + D.stpDemand);
+  if(seg==='fire') return kw2A(D.fireDemand);
+  if(seg==='lift') return kw2A(D.liftDemand);
+  return 0;
+}
+function syncRiserCurrent(){
+  const seg = $('riserSeg').value;
+  if(seg!=='custom'){
+    $('designCurrent').value = riserAutoCurrent(seg).toFixed(1);
+  }
+}
+$('riserSeg').addEventListener('change', syncRiserCurrent);
+
+function deratedAmpacity(size){
+  const material = $('cableMaterial').value;
+  const installMethod = $('cableType').value;
+  let base = ampacity(size, material, installMethod==='xlpe_duct' ? 'xlpe_duct' : 'xlpe_air');
+  // temp derating: base table at 30C; typical correction ~ -2%/C above 30 up to ~55C (rounded practice figure)
+  const amb = num('ambTemp');
+  const tempFactor = Math.max(0.5, 1 - Math.max(0, amb-30)*0.017);
+  // grouping derating (typical IS 3961 style banding, simplified)
+  const grp = num('grouping');
+  let groupFactor = 1;
+  if(grp<=1) groupFactor=1; else if(grp<=2) groupFactor=0.87; else if(grp<=4) groupFactor=0.77; else if(grp<=6) groupFactor=0.72; else if(grp<=9) groupFactor=0.68; else groupFactor=0.63;
+
+  return {rating: base*tempFactor*groupFactor, tempFactor, groupFactor, base};
+}
+
+function calcVoltDropPct(size, current, length, material, voltage){
+  const mvam = mVAperAm(size, material);
+  const vdrop = mvam*current*length/1000; // volts
+  return (vdrop/voltage)*100;
+}
+
+function selectCable(){
+  const I = num('designCurrent');
+  const length = num('riserLength');
+  const material = $('cableMaterial').value;
+  const voltage = num('sysVoltage');
+  const maxVD = num('maxVD');
+  const cableType = $('cableType').value;
+
+  if(cableType==='busduct'){
+    const BUSDUCT_SIZES = [400,630,800,1000,1250,1600,2000,2500,3200,4000];
+    const sel = nearestStd(BUSDUCT_SIZES, I*1.15);
+    $('cableResult').innerHTML = `
+      <div class="note info">
+        <b>Selected: Sandwich busbar trunking, ${sel} A rated</b><br>
+        Design current: ${fmt(I,1)} A &middot; Applied 15% headroom &middot; Voltage drop on busduct is typically &lt;0.5% per run at this length and is not the governing constraint &mdash; verify against the vendor's certified V-drop/m table.<br>
+        Route: dedicated fire-rated riser shaft, fire-barrier at every floor slab penetration, tap-off boxes per floor.
+      </div>`;
+    $('dfTemp').textContent='n/a (busduct)'; $('dfGroup').textContent='n/a'; $('dfInstall').textContent='n/a'; $('dfTotal').textContent='n/a';
+    renderAmpTable();
+    return;
+  }
+
+  let chosen = null;
+  for(const size of CABLE_SIZES){
+    const d = deratedAmpacity(size);
+    if(d.rating >= I){
+      const vd = calcVoltDropPct(size, I, length, material, voltage);
+      if(vd <= maxVD){ chosen = {size, d, vd}; break; }
+      // else current-carrying OK but VD fails -> keep searching bigger size (VD governs)
+    }
+  }
+  if(!chosen){
+    // fall back: find largest size, report VD-governed
+    const size = CABLE_SIZES[CABLE_SIZES.length-1];
+    const d = deratedAmpacity(size);
+    const vd = calcVoltDropPct(size, I, length, material, voltage);
+    chosen = {size, d, vd, overLimit:true};
+  }
+
+  const {size, d, vd, overLimit} = chosen;
+  $('dfTemp').textContent = d.tempFactor.toFixed(2);
+  $('dfGroup').textContent = d.groupFactor.toFixed(2);
+  $('dfInstall').textContent = $('cableType').value==='xlpe_duct' ? '0.87 (enclosed)' : '1.00 (open air)';
+  $('dfTotal').textContent = (d.tempFactor*d.groupFactor*($('cableType').value==='xlpe_duct'?0.87:1)).toFixed(3);
+
+  const vdPill = vd<=maxVD ? `<span class="pill ok">VD ${vd.toFixed(2)}% &le; ${maxVD}% OK</span>` : `<span class="pill bad">VD ${vd.toFixed(2)}% exceeds ${maxVD}% &mdash; upsize or re-route</span>`;
+  const ratingGoverns = d.rating>=I ? 'Current-carrying capacity' : 'Voltage drop';
+
+  $('cableResult').innerHTML = `
+    <div class="note ${overLimit?'danger':'info'}">
+      <b>Selected: ${size} sq mm ${material==='cu'?'Copper':'Aluminium'} XLPE armoured cable</b>
+      &nbsp; <span class="pill">Derated rating ${fmt(d.rating,0)} A</span>
+      &nbsp; <span class="pill">Design current ${fmt(I,1)} A</span>
+      &nbsp; ${vdPill}<br>
+      Governing criterion at this length/size: <b>${ratingGoverns}</b>. ${overLimit?'Even the largest standard size in this table exceeds the voltage-drop limit at this length &mdash; consider parallel runs, a shorter route, higher system voltage, or busbar trunking instead.':''}
+    </div>`;
+  renderAmpTable(size);
+}
+$('calcCableBtn').addEventListener('click', selectCable);
+['grouping','ambTemp','cableType','cableMaterial','riserLength','sysVoltage','maxVD'].forEach(id=>{
+  $(id).addEventListener('input', ()=>{ if($('designCurrent').value) selectCable(); });
+});
+
+function renderAmpTable(highlight){
+  let rows = CABLE_SIZES.map(s=>{
+    const hl = s===highlight ? ' style="background:rgba(34,211,238,0.12);"' : '';
+    return `<tr${hl}><td>${s}</td><td class="num">${AMPACITY_CU_AIR[s]}</td><td class="num">${fmt(AMPACITY_CU_AIR[s]*0.78,0)}</td><td class="num">${fmt(mVAperAm(s,'cu'),2)}</td></tr>`;
+  }).join('');
+  $('ampTableWrap').innerHTML = `<table><tr><th>Size (sq mm)</th><th>Cu ampacity (A)</th><th>Al ampacity (A)</th><th>Cu mV/A/m (V-drop calc)</th></tr>${rows}</table>`;
+}
+
+// ---------- FLOOR SVG ----------
+function renderFloorSVG(){
+  const flats = num('flatsPerFloor');
+  let flatBoxes = '';
+  const perRow = Math.min(flats,4);
+  const rows = Math.ceil(flats/perRow);
+  const bw = 190, bh=110, gx=20, gy=20, startX=330, startY=60;
+  for(let i=0;i<flats;i++){
+    const r = Math.floor(i/perRow), c = i%perRow;
+    const x = startX + c*(bw+gx), y = startY + r*(bh+gy);
+    flatBoxes += `<rect class="sld-box" x="${x}" y="${y}" width="${bw}" height="${bh}" rx="3"/>
+      <text class="sld-label-c" x="${x+10}" y="${y+22}">Flat ${i+1}</text>
+      <text class="sld-label-dim" x="${x+10}" y="${y+40}">Flat DB + RCCB</text>
+      <line class="sld-line" x1="${x}" y1="${y+55}" x2="${x-10}" y2="${y+55}"/>`;
+  }
+  const totalW = startX + perRow*(bw+gx) + 40;
+  const totalH = startY + rows*(bh+gy) + 60;
+
+  $('floorSvgWrap').innerHTML = `
+  <svg viewBox="0 0 ${totalW} ${totalH}" xmlns="http://www.w3.org/2000/svg">
+    <!-- shaft -->
+    <rect class="sld-box" x="30" y="40" width="240" height="${totalH-80}" rx="4" style="fill:rgba(251,191,36,0.05);"/>
+    <text class="sld-label-a" x="45" y="65">Electrical Shaft</text>
+
+    <rect class="sld-box" x="50" y="90" width="200" height="40" rx="3"/>
+    <text class="sld-label-c" x="60" y="114">Normal Power FDB</text>
+
+    <rect class="sld-boxA" x="50" y="145" width="200" height="40" rx="3"/>
+    <text class="sld-label-a" x="60" y="169">Essential/DG FDB</text>
+
+    <rect class="sld-box" x="50" y="200" width="200" height="36" rx="3" style="stroke:#f87171;"/>
+    <text class="sld-label" x="60" y="222" style="fill:#f87171;">Fire Riser Tap-off</text>
+
+    <rect class="sld-box" x="50" y="250" width="200" height="34" rx="3" style="stroke:#7a93b8;"/>
+    <text class="sld-label-dim" x="60" y="271">Telecom/Data Riser (segregated)</text>
+
+    <text class="sld-label-dim" x="50" y="${totalH-45}">Corridor lighting loop &rarr;</text>
+    <line class="sld-line" x1="250" y1="${totalH-50}" x2="${startX-10}" y2="${totalH-50}"/>
+
+    ${flatBoxes}
+  </svg>`;
+}
+
+// ---------- BOM ----------
+function renderBOM(){
+  const {L,D,calcKVA,dgKVA} = renderLoadTables();
+  const xfmrSel = $('xfmrSel').textContent;
+  const dgSel = $('dgSel').textContent;
+  const totalFDBs_normal = L.nFloors;
+  const totalFDBs_ess = L.nFloors;
+  const totalFlatDBs = L.totalFlats;
+  const riserLen = num('riserLength') || (L.nFloors*num('floorHeight'));
+
+  const rows = [
+    ['HT VCB panel + metering cubicle', '1 set', 'HT switchgear, per discom spec'],
+    ['Distribution transformer', xfmrSel, 'Dyn11, oil/dry-type as per fire code'],
+    ['Main LT Panel (form 4b), incl. ACB incomer(s) + bus coupler', '1 set', 'IEC 61439 type-tested'],
+    ['DG set', dgSel, 'Acoustic enclosure, AMF panel, ATS'],
+    ['ATS / DG synchronizing panel', '1 set', ''],
+    ['Rising main bus duct or armoured cable riser &mdash; Normal power', `~${fmt(riserLen,0)} m/riser run`, 'Per Tab 3 selection'],
+    ['Rising main/cable &mdash; Essential/DG riser', `~${fmt(riserLen,0)} m`, ''],
+    ['Fire-rated cable riser (FRLS/fire-survival)', `~${fmt(riserLen,0)} m`, 'Fire pump, sprinkler, fire lift'],
+    ['Lift power feeder cable', `${L.nLifts} runs &times; ~${fmt(riserLen,0)} m`, ''],
+    ['Floor Distribution Board &mdash; Normal power', `${totalFDBs_normal} nos`, 'MCCB incomer + MCB outgoings + meter'],
+    ['Floor Distribution Board &mdash; Essential', `${totalFDBs_ess} nos`, ''],
+    ['Flat/tenant DB (incl. RCCB + MCBs + meter)', `${totalFlatDBs} nos`, ''],
+    ['Corridor lighting fixtures (LED, per floor)', `${L.nFloors*4} nos (approx 4/floor)`, ''],
+    ['Earthing pits (body + neutral + lightning)', `${Math.max(6, Math.ceil(L.nFloors/8)+4)} nos`, 'IS 3043 chemical/pipe earthing'],
+    ['Lightning arrester + down conductor', '1 system', 'IS/IEC 62305, terrace-mounted'],
+    ['Fire alarm loop cable', `~${fmt(riserLen*1.2,0)} m`, 'Co-routed, fire-rated'],
+    ['Cable tray / raceway (riser shaft)', `~${fmt(riserLen,0)} m run`, 'Perforated GI tray'],
+  ];
+  let html = `<table><tr><th>Item</th><th>Indicative Qty</th><th>Notes</th></tr>`;
+  rows.forEach(r=> html += `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`);
+  html += `</table>`;
+  $('bomTable').innerHTML = html;
+  return rows;
+}
+
+// ---------- REPORT ----------
+function buildReportHTML(){
+  const {L,D,calcKVA,dgKVA} = renderLoadTables();
+  const bomRows = renderBOM();
+  const xfmrSel = $('xfmrSel').textContent;
+  const dgSel = $('dgSel').textContent;
+  const cableResultHTML = $('cableResult').innerHTML || '<i>Not yet calculated &mdash; visit Tab 3.</i>';
+
+  return `
+  <div style="font-family:'IBM Plex Mono',monospace; max-width:900px; margin:0 auto;">
+    <h1 style="color:#0e7490;">High-Rise Building Electrical Distribution &mdash; Design Report</h1>
+    <p style="color:#555;">Generated by Apna Electromechanic Service &mdash; Engineering Tools Suite. Indicative design-practice document; verify against certified equipment ratings and local statutory approval requirements before execution.</p>
+
+    <h2>1. Building Profile</h2>
+    <table border="1" cellpadding="6" style="border-collapse:collapse; width:100%;">
+      <tr><td>Floors</td><td>${L.nFloors}</td></tr>
+      <tr><td>Flats per floor / Total flats</td><td>${L.flats} / ${L.totalFlats}</td></tr>
+      <tr><td>Occupancy type</td><td>${$('occType').value}</td></tr>
+      <tr><td>Lifts</td><td>${L.nLifts} &times; ${L.liftKW} kW</td></tr>
+    </table>
+
+    <h2>2. Load Summary</h2>
+    <table border="1" cellpadding="6" style="border-collapse:collapse; width:100%;">
+      <tr><th>Item</th><th>Connected (kW)</th><th>Demand (kW)</th></tr>
+      <tr><td>Flats (all)</td><td>${fmt(L.totalFlatConnectedKW,1)}</td><td>${fmt(D.flatDemandKW,1)}</td></tr>
+      <tr><td>Lifts</td><td>${fmt(L.totalLiftKW,1)}</td><td>${fmt(D.liftDemand,1)}</td></tr>
+      <tr><td>Corridor lighting</td><td>${fmt(L.corridorKW,1)}</td><td>${fmt(D.corridorDemand,1)}</td></tr>
+      <tr><td>Fire pump</td><td>${fmt(L.firePumpKW,1)}</td><td>${fmt(D.fireDemand,1)}</td></tr>
+      <tr><td>Pressurization fans</td><td>${fmt(L.pressFanKW,1)}</td><td>${fmt(D.pressDemand,1)}</td></tr>
+      <tr><td>STP/pumps</td><td>${fmt(L.stpKW,1)}</td><td>${fmt(D.stpDemand,1)}</td></tr>
+      <tr><td>Car park vent</td><td>${fmt(L.parkVentKW,1)}</td><td>${fmt(D.parkVentDemand,1)}</td></tr>
+      <tr><td>Clubhouse</td><td>${fmt(L.clubKW,1)}</td><td>${fmt(D.clubDemand,1)}</td></tr>
+      <tr><td><b>Total</b></td><td><b>${fmt(L.totalConnectedKW,1)}</b></td><td><b>${fmt(D.totalDemandKW,1)}</b></td></tr>
+    </table>
+
+    <h2>3. Transformer &amp; DG Sizing</h2>
+    <p>Calculated kVA (incl. growth margin): <b>${fmt(calcKVA,0)} kVA</b> &rarr; Selected: <b>${xfmrSel}</b></p>
+    <p>DG set: <b>${dgSel}</b></p>
+
+    <h2>4. Riser/Cable Sizing (last calculated)</h2>
+    <div>${cableResultHTML}</div>
+
+    <h2>5. Bill of Materials (Indicative)</h2>
+    <table border="1" cellpadding="6" style="border-collapse:collapse; width:100%;">
+      <tr><th>Item</th><th>Qty</th><th>Notes</th></tr>
+      ${bomRows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}
+    </table>
+
+    <h2>6. Standards Referenced</h2>
+    <p>IS 732:2019, IS 3043:2018, IS 1554, IS 7098, IS 8623/IEC 61439, IS 2026, IS 13947/IEC 60947, NBC 2016 Part 8 &amp; Part 4, CEA (Measures for Safety) Regulations 2010.</p>
+  </div>`;
+}
+
+$('genReportBtn').addEventListener('click', ()=>{
+  const html = buildReportHTML();
+  $('reportPreview').innerHTML = html;
+  $('reportPreviewCard').style.display='block';
+  $('reportPrintArea').innerHTML = html;
+  if($('reportPreviewCard').scrollIntoView) $('reportPreviewCard').scrollIntoView({behavior:'smooth'});
+});
+$('printReportBtn').addEventListener('click', ()=>{
+  if(!$('reportPrintArea').innerHTML){ $('reportPrintArea').innerHTML = buildReportHTML(); }
+  window.print();
+});
+
+// initial render
+renderLoadTables();
+renderBOM();
+})();
+</script>
+</body>
+</html>
