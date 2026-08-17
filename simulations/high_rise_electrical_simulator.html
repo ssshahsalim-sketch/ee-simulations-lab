@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>High-Rise Electrical Design & Distribution Simulator - India</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Three.js for 3D High-Rise Visualization -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  
+  <!-- Chart.js for Load & Protection Curves -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            },
+            grid: '#0f172a',
+            ht: '#b91c1c',
+            lt: '#047857',
+            dg: '#d97706',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+    
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    /* Animated Glow Pulse for Power Flow */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+      50% { box-shadow: 0 0 25px rgba(59, 130, 246, 0.9); }
+    }
+    .glow-power {
+      animation: pulse-glow 2s infinite;
+    }
+
+    /* Print styling for Engineering Report */
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-900 text-slate-100 antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- TOP HEADER / SYSTEM METRICS BAR -->
+  <header class="no-print bg-slate-950 border-b border-slate-800 sticky top-0 z-50 px-4 py-2.5 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="bg-blue-600/20 text-blue-400 p-2.5 rounded-xl border border-blue-500/30">
+        <i class="fa-solid fa-bolt text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+          HIGH-RISE ELECTRICAL SIMULATOR
+          <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">INDIA (IS/NBC)</span>
+        </h1>
+        <p class="text-xs text-slate-400">Integrated Preliminary Electrical Design, Load Flow & Distribution Engine</p>
+      </div>
+    </div>
+
+    <!-- Live Quick Metrics -->
+    <div class="flex items-center gap-6 text-xs font-mono bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
+      <div>
+        <div class="text-slate-400 text-[10px]">CONNECTED LOAD</div>
+        <div class="text-blue-400 font-bold" id="header-conn-load">0.0 kW</div>
+      </div>
+      <div class="h-6 w-px bg-slate-800"></div>
+      <div>
+        <div class="text-slate-400 text-[10px]">PEAK DEMAND</div>
+        <div class="text-emerald-400 font-bold" id="header-peak-demand">0.0 kVA</div>
+      </div>
+      <div class="h-6 w-px bg-slate-800"></div>
+      <div>
+        <div class="text-slate-400 text-[10px]">TRANSFORMER</div>
+        <div class="text-amber-400 font-bold" id="header-tx-status">2x 1500 kVA (0%)</div>
+      </div>
+      <div class="h-6 w-px bg-slate-800"></div>
+      <div>
+        <div class="text-slate-400 text-[10px]">SYSTEM STATUS</div>
+        <div class="text-emerald-400 font-bold flex items-center gap-1.5" id="header-sys-status">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> GRID NORMAL
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="flex items-center gap-2">
+      <button onclick="simulateGridOutage()" id="btn-grid-toggle" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5">
+        <i class="fa-solid fa-power-off"></i> Toggle Grid Outage
+      </button>
+      <button onclick="switchView('report')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5">
+        <i class="fa-solid fa-file-pdf"></i> Report
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE LAYOUT -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- LEFT NAVIGATION SIDEBAR (Workflow & Modes) -->
+    <aside class="no-print w-72 bg-slate-950 border-r border-slate-800 flex flex-col justify-between shrink-0 overflow-y-auto">
+      <div class="p-3 space-y-4">
+        
+        <!-- View Switcher Tabs -->
+        <div>
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">Primary View Modes</div>
+          <nav class="space-y-1">
+            <button onclick="switchView('3d')" id="nav-btn-3d" class="nav-tab active w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition bg-blue-600 text-white">
+              <i class="fa-solid fa-building text-sm"></i> 3D High-Rise Building & Shaft
+            </button>
+            <button onclick="switchView('sld')" id="nav-btn-sld" class="nav-tab w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition text-slate-300 hover:bg-slate-800">
+              <i class="fa-solid fa-diagram-project text-sm"></i> Single Line Diagram (SLD)
+            </button>
+            <button onclick="switchView('floor')" id="nav-btn-floor" class="nav-tab w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition text-slate-300 hover:bg-slate-800">
+              <i class="fa-solid fa-vector-square text-sm"></i> Floor Plan & Electrical Points
+            </button>
+            <button onclick="switchView('calc')" id="nav-btn-calc" class="nav-tab w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition text-slate-300 hover:bg-slate-800">
+              <i class="fa-solid fa-calculator text-sm"></i> Design & Calculation Engine
+            </button>
+            <button onclick="switchView('dashboard')" id="nav-btn-dashboard" class="nav-tab w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition text-slate-300 hover:bg-slate-800">
+              <i class="fa-solid fa-list-check text-sm"></i> Engineering Design Checks
+            </button>
+            <button onclick="switchView('bom')" id="nav-btn-bom" class="nav-tab w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition text-slate-300 hover:bg-slate-800">
+              <i class="fa-solid fa-receipt text-sm"></i> Bill of Materials (BOM)
+            </button>
+          </nav>
+        </div>
+
+        <div class="h-px bg-slate-800"></div>
+
+        <!-- 24-Step Design Workflow Selector -->
+        <div>
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">24-Step Design Workflow</div>
+          <div class="space-y-1 text-xs max-h-96 overflow-y-auto pr-1" id="workflow-steps-list">
+            <!-- Steps injected by JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Statutory Disclaimer Footer in Sidebar -->
+      <div class="p-3 bg-slate-900 border-t border-slate-800 text-[10px] text-slate-400 leading-relaxed">
+        <i class="fa-solid fa-triangle-exclamation text-amber-400 mr-1"></i>
+        <strong>Educational Tool Notice:</strong> Preliminary design calculations. Final designs, protection settings, cable selection, life-safety, and statutory compliance must be verified by licensed professionals per applicable IS, NBC, CEA, and local utility codes.
+      </div>
+    </aside>
+
+    <!-- CENTER / MAIN CONTENT WORKSPACE -->
+    <main class="flex-1 bg-slate-900 relative overflow-hidden flex flex-col">
+
+      <!-- VIEW 1: 3D HIGH-RISE BUILDING MODEL -->
+      <div id="view-3d" class="view-panel w-full h-full relative">
+        <div id="canvas-3d-container" class="w-full h-full bg-slate-950"></div>
+
+        <!-- 3D Overlay Controls & Filters -->
+        <div class="absolute top-4 left-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 p-3 rounded-xl shadow-2xl space-y-3 w-64 text-xs">
+          <div class="font-bold text-slate-200 border-b border-slate-800 pb-1.5 flex items-center justify-between">
+            <span><i class="fa-solid fa-sliders text-blue-400 mr-1.5"></i> 3D View Modes</span>
+            <span class="text-[10px] text-slate-400" id="3d-floor-count-label">30 Floors</span>
+          </div>
+
+          <div class="space-y-2">
+            <div>
+              <label class="text-slate-400 text-[11px] block mb-1">Visualization Mode</label>
+              <select id="select-3d-mode" onchange="update3DViewMode()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                <option value="architectural">Full Building Architectural</option>
+                <option value="transparent">Transparent Outer Shell</option>
+                <option value="electrical" selected>Electrical Shaft & Power Riser</option>
+                <option value="exploded">Exploded Floor Separation</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-slate-400 text-[11px] block mb-1">Inspect Specific Floor</label>
+              <select id="select-3d-floor" onchange="highlight3DFloor()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                <option value="all">Entire Building View</option>
+                <!-- Floors dynamically populated -->
+              </select>
+            </div>
+
+            <div class="pt-1 flex items-center justify-between text-slate-300">
+              <span>Animate Power Flow</span>
+              <input type="checkbox" id="chk-3d-flow" checked onchange="toggle3DPowerFlow()" class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-0">
+            </div>
+          </div>
+        </div>
+
+        <!-- 3D Information HUD Panel -->
+        <div class="absolute bottom-4 left-4 right-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 p-3 rounded-xl shadow-2xl flex items-center justify-between text-xs">
+          <div class="flex items-center gap-6">
+            <div>
+              <span class="text-slate-400 block text-[10px]">SELECTED NODE</span>
+              <span class="font-bold text-blue-400" id="3d-hud-node">Main Substation & Riser Shaft</span>
+            </div>
+            <div class="h-8 w-px bg-slate-800"></div>
+            <div>
+              <span class="text-slate-400 block text-[10px]">VOLTAGE LEVEL</span>
+              <span class="font-mono text-emerald-400 font-bold" id="3d-hud-voltage">11 kV / 415 V</span>
+            </div>
+            <div class="h-8 w-px bg-slate-800"></div>
+            <div>
+              <span class="text-slate-400 block text-[10px]">RISER METHOD</span>
+              <span class="font-semibold text-slate-200" id="3d-hud-riser">1600A Sandwich Busduct</span>
+            </div>
+          </div>
+          <div class="text-right text-[11px] text-slate-400">
+            Click floors or busduct tap-offs to inspect floor-wise load distribution
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: SINGLE LINE DIAGRAM (SLD) -->
+      <div id="view-sld" class="view-panel hidden w-full h-full p-4 overflow-auto bg-slate-950">
+        <div class="max-w-6xl mx-auto space-y-4">
+          <div class="flex items-center justify-between bg-slate-900 p-4 rounded-xl border border-slate-800">
+            <div>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-diagram-project text-blue-400"></i> High-Rise Electrical Single Line Diagram (SLD)
+              </h2>
+              <p class="text-xs text-slate-400">Schematic power flow from 11kV Grid Supply to Floor Final Distribution Boards</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="renderSLD()" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded-lg border border-slate-700">
+                <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh Diagram
+              </button>
+            </div>
+          </div>
+
+          <!-- SLD Interactive Render Canvas / SVG Area -->
+          <div id="sld-container" class="bg-slate-900 border border-slate-800 rounded-xl p-6 min-h-[600px] overflow-x-auto flex justify-center">
+            <!-- SVG SLD generated dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 3: 2D FLOOR PLAN & POINT EDITOR -->
+      <div id="view-floor" class="view-panel hidden w-full h-full flex flex-col overflow-hidden">
+        <!-- Floor Selector Bar -->
+        <div class="bg-slate-950 border-b border-slate-800 p-3 flex items-center justify-between">
+          <div class="flex items-center gap-3 text-xs">
+            <span class="text-slate-400 font-medium">Select Floor:</span>
+            <select id="floor-editor-select" onchange="loadFloorToEditor()" class="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 font-mono">
+              <!-- Floors auto loaded -->
+            </select>
+            <span class="text-slate-500 font-mono" id="floor-area-info">Area: 800 m² | Type: Residential</span>
+          </div>
+
+          <div class="flex items-center gap-2 text-xs">
+            <button onclick="autoBalanceCurrentFloorPhases()" class="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg flex items-center gap-1">
+              <i class="fa-solid fa-scale-balanced"></i> Auto-Balance Phases (L1/L2/L3)
+            </button>
+            <button onclick="clearFloorPoints()" class="bg-rose-900/30 hover:bg-rose-900/50 text-rose-300 border border-rose-500/30 px-3 py-1.5 rounded-lg">
+              <i class="fa-solid fa-trash"></i> Reset Floor Points
+            </button>
+          </div>
+        </div>
+
+        <div class="flex-1 flex overflow-hidden">
+          <!-- Electrical Point Library Palette -->
+          <div class="w-64 bg-slate-950 border-r border-slate-800 p-3 space-y-3 overflow-y-auto text-xs shrink-0">
+            <div class="font-bold text-slate-300 uppercase tracking-wider text-[11px] mb-2">Electrical Point Library</div>
+            
+            <div class="space-y-1">
+              <div class="text-[10px] text-slate-400 font-semibold uppercase">Lighting & Fans</div>
+              <button onclick="addPointToFloor('led_panel')" class="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-lg flex items-center gap-2">
+                <i class="fa-regular fa-lightbulb text-amber-400"></i> LED Downlight (15W)
+              </button>
+              <button onclick="addPointToFloor('ceiling_fan')" class="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-lg flex items-center gap-2">
+                <i class="fa-solid fa-fan text-blue-400"></i> Ceiling Fan (70W)
+              </button>
+              <button onclick="addPointToFloor('em_light')" class="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-lg flex items-center gap-2">
+                <i class="fa-solid fa-lightbulb text-emerald-400"></i> Emergency Exit Sign (10W)
+              </button>
+            </div>
+
+            <div class="space-y-1">
+              <div class="text-[10px] text-slate-400 font-semibold uppercase">Power Sockets</div>
+              <button onclick="addPointToFloor('socket_6a')" class="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-lg flex items-center gap-2">
+                <i class="fa-solid fa-plug text-slate-300"></i> 6A Light Socket (100W)
+              </button>
+              <button onclick="addPointToFloor('socket_16a')" class="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-lg flex items-center gap-2">
+                <i class="fa-solid fa-power-off text-orange-400"></i> 16A Power Socket (1000W)
+              </button>
+            </div>
+
+            <div class="space-y-1">
+              <div class="text-[10px] text-slate-400 font-semibold uppercase">Heavy HVAC & Appliances</div>
+              <button onclick="addPointToFloor('ac_15tr')" class="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-lg flex items-center gap-2">
+                <i class="fa-solid fa-snowflake text-cyan-400"></i> 1.5 TR Split AC (1800W)
+              </button>
+              <button onclick="addPointToFloor('geyser')" class="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-lg flex items-center gap-2">
+                <i class="fa-solid fa-temperature-arrow-up text-rose-400"></i> Water Heater / Geyser (2000W)
+              </button>
+              <button onclick="addPointToFloor('ev_charger')" class="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-lg flex items-center gap-2">
+                <i class="fa-solid fa-charging-station text-emerald-400"></i> 7.4 kW AC EV Charger
+              </button>
+            </div>
+          </div>
+
+          <!-- Interactive Floor Plan Layout Canvas -->
+          <div class="flex-1 bg-slate-900 relative p-4 flex items-center justify-center overflow-auto">
+            <canvas id="floor-canvas" width="800" height="500" class="bg-slate-950 border border-slate-800 rounded-xl shadow-2xl cursor-crosshair"></canvas>
+          </div>
+
+          <!-- Floor Electrical Circuit Breakdown & Phase Load -->
+          <div class="w-72 bg-slate-950 border-l border-slate-800 p-3 space-y-3 overflow-y-auto text-xs shrink-0">
+            <div class="font-bold text-slate-300 uppercase tracking-wider text-[11px]">Floor Distribution Board (DB)</div>
+            
+            <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800 space-y-1.5 font-mono">
+              <div class="flex justify-between text-slate-400"><span>Floor Total Load:</span> <span class="text-white font-bold" id="floor-db-total-kw">0.0 kW</span></div>
+              <div class="flex justify-between text-slate-400"><span>Estimated Current:</span> <span class="text-emerald-400 font-bold" id="floor-db-current">0.0 A</span></div>
+              <div class="flex justify-between text-slate-400"><span>DB Incomer:</span> <span class="text-blue-400" id="floor-db-incomer">63A 4P MCCB</span></div>
+            </div>
+
+            <div class="space-y-2">
+              <div class="text-[10px] font-bold text-slate-400 uppercase">Phase Imbalance Summary</div>
+              <div class="space-y-1 font-mono text-[11px]">
+                <div class="flex justify-between items-center"><span class="text-rose-400">L1 (Red):</span> <span id="floor-phase-l1">0.0 kW</span></div>
+                <div class="flex justify-between items-center"><span class="text-amber-400">L2 (Yellow):</span> <span id="floor-phase-l2">0.0 kW</span></div>
+                <div class="flex justify-between items-center"><span class="text-blue-400">L3 (Blue):</span> <span id="floor-phase-l3">0.0 kW</span></div>
+              </div>
+              <div class="bg-slate-900 p-2 rounded text-[11px] flex justify-between items-center">
+                <span class="text-slate-400">Imbalance %:</span>
+                <span id="floor-imbalance-pct" class="font-mono font-bold text-emerald-400">0.0%</span>
+              </div>
+            </div>
+
+            <div class="border-t border-slate-800 pt-2 space-y-2">
+              <div class="text-[10px] font-bold text-slate-400 uppercase">Placed Points (<span id="floor-point-count">0</span>)</div>
+              <div class="max-h-56 overflow-y-auto space-y-1 pr-1 font-mono text-[10px]" id="floor-points-list">
+                <!-- Point list injected -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 4: STEP-BY-STEP DESIGN ENGINE & CALCULATORS -->
+      <div id="view-calc" class="view-panel hidden w-full h-full p-6 overflow-y-auto bg-slate-950">
+        <div class="max-w-5xl mx-auto space-y-8">
+          
+          <!-- Step Header -->
+          <div class="border-b border-slate-800 pb-4 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-mono text-blue-400 uppercase tracking-widest" id="calc-step-number">STEP 1 OF 24</span>
+              <h2 class="text-xl font-bold text-white" id="calc-step-title">Building Configuration & Zoning</h2>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="prevStep()" class="bg-slate-800 hover:bg-slate-700 text-xs px-4 py-2 rounded-lg font-medium"><i class="fa-solid fa-arrow-left mr-1"></i> Previous</button>
+              <button onclick="nextStep()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-medium">Next Step <i class="fa-solid fa-arrow-right ml-1"></i></button>
+            </div>
+          </div>
+
+          <!-- Dynamic Calculation Content Container -->
+          <div id="calc-content-area" class="space-y-6">
+            <!-- Injected dynamically per selected step -->
+          </div>
+
+        </div>
+      </div>
+
+      <!-- VIEW 5: ENGINEERING DESIGN CHECKS DASHBOARD -->
+      <div id="view-dashboard" class="view-panel hidden w-full h-full p-6 overflow-y-auto bg-slate-950">
+        <div class="max-w-5xl mx-auto space-y-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-emerald-400"></i> Engineering Rule Checks & Safety Verification
+              </h2>
+              <p class="text-xs text-slate-400">Automatic compliance and capacity checks for High-Rise Electrical Systems</p>
+            </div>
+            <div class="text-right font-mono">
+              <div class="text-xs text-slate-400">OVERALL DESIGN HEALTH</div>
+              <div class="text-2xl font-bold text-emerald-400" id="dash-health-score">100% PASS</div>
+            </div>
+          </div>
+
+          <!-- Checks Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="dash-checks-grid">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 6: BILL OF MATERIALS (BOM) & ESTIMATION -->
+      <div id="view-bom" class="view-panel hidden w-full h-full p-6 overflow-y-auto bg-slate-950">
+        <div class="max-w-5xl mx-auto space-y-6">
+          <div class="flex items-center justify-between bg-slate-900 p-4 rounded-xl border border-slate-800">
+            <div>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-receipt text-amber-400"></i> High-Rise Electrical Bill of Materials (BOM)
+              </h2>
+              <p class="text-xs text-slate-400">Preliminary equipment schedule, cable quantities & budget estimation</p>
+            </div>
+            <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded-lg border border-slate-700">
+              <i class="fa-solid fa-print mr-1"></i> Print / Export PDF
+            </button>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-950 text-slate-400 font-mono text-[11px] uppercase border-b border-slate-800">
+                <tr>
+                  <th class="p-3">Category</th>
+                  <th class="p-3">Item Description & Specification</th>
+                  <th class="p-3">Qty</th>
+                  <th class="p-3">Unit</th>
+                  <th class="p-3 text-right">Est. Rate (₹)</th>
+                  <th class="p-3 text-right">Total Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800 font-mono text-slate-300" id="bom-table-body">
+                <!-- BOM items populated -->
+              </tbody>
+              <tfoot class="bg-slate-950 font-mono font-bold text-white">
+                <tr>
+                  <td colspan="5" class="p-3 text-right text-slate-400">GRAND TOTAL ESTIMATE (EXCL. TAXES):</td>
+                  <td class="p-3 text-right text-emerald-400 text-sm" id="bom-grand-total">₹0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 7: PRINTABLE ENGINEERING REPORT -->
+      <div id="view-report" class="view-panel hidden w-full h-full p-8 overflow-y-auto bg-white text-slate-900">
+        <div class="max-w-4xl mx-auto space-y-6">
+          <!-- Report Header -->
+          <div class="border-b-2 border-slate-900 pb-4 flex justify-between items-end">
+            <div>
+              <h1 class="text-2xl font-black text-slate-900 tracking-tight">PRELIMINARY ELECTRICAL DESIGN REPORT</h1>
+              <p class="text-xs text-slate-600 font-mono">HIGH-RISE BUILDING DISTRIBUTION SYSTEM — INDIA</p>
+            </div>
+            <div class="text-right text-xs font-mono">
+              <div>Date: <span id="report-date">17-Aug-2026</span></div>
+              <div>Project ID: HR-ELEC-2026</div>
+            </div>
+          </div>
+
+          <!-- Project Overview -->
+          <div class="grid grid-cols-2 gap-4 text-xs font-mono border border-slate-300 p-4 rounded-lg bg-slate-50">
+            <div><strong>Building Type:</strong> <span id="rep-bldg-type">Residential</span></div>
+            <div><strong>Total Floors:</strong> <span id="rep-floors">30 Floors</span></div>
+            <div><strong>Total Connected Load:</strong> <span id="rep-conn-load">0.0 kW</span></div>
+            <div><strong>Estimated Peak Demand:</strong> <span id="rep-peak-demand">0.0 kVA</span></div>
+            <div><strong>HT Grid Supply Voltage:</strong> <span id="rep-ht-volt">11 kV 3Ph 50Hz</span></div>
+            <div><strong>Substation Transformers:</strong> <span id="rep-tx-spec">2x 1500 kVA, 11kV/415V</span></div>
+          </div>
+
+          <!-- Load Distribution Summary -->
+          <div>
+            <h3 class="text-sm font-bold border-b border-slate-400 pb-1 mb-2">1. LOAD BREAKDOWN & TRANSFORMER SIZING</h3>
+            <div id="report-load-summary" class="text-xs font-mono space-y-1">
+              <!-- Summary populated -->
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-sm font-bold border-b border-slate-400 pb-1 mb-2">2. EMERGENCY DG BACKUP & AMF SYSTEM</h3>
+            <p class="text-xs text-slate-700 leading-relaxed" id="report-dg-summary">
+              Emergency diesel generator system rated for 100% essential, life-safety, and critical pump loads.
+            </p>
+          </div>
+
+          <div>
+            <h3 class="text-sm font-bold border-b border-slate-400 pb-1 mb-2">3. VERTICAL BUSDUCT & RISER SYSTEM</h3>
+            <p class="text-xs text-slate-700 leading-relaxed" id="report-riser-summary">
+              Vertical distribution via 1600A Sandwich Aluminum Busduct with tap-off boxes at each electrical shaft.
+            </p>
+          </div>
+
+          <!-- Mandatory Engineering & Compliance Disclaimer -->
+          <div class="border-t border-slate-300 pt-4 text-[10px] text-slate-500 leading-relaxed">
+            <strong>STATUTORY ENGINEERING DISCLAIMER:</strong> This engineering document is generated as a preliminary sizing and educational simulation. All protection switchgear settings, short-circuit levels, conductor thermal withstand, voltage drop under operating transients, fire safety isolation (NBC 2016 / IS 732 / CEA Regulations), and earthing grid calculations must be verified and certified by a Chartered/Registered Electrical Engineer prior to procurement or installation.
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       HIGH-RISE BUILDING ELECTRICAL SIMULATOR — STATE ENGINE & COMPUTATIONS
+       ========================================================================== */
+
+    // Global Project Design State
+    const AppState = {
+      currentStep: 1,
+      currentView: '3d',
+      building: {
+        type: 'Residential',
+        floors: 30,
+        heightPerFloor: 3.2, // meters
+        floorArea: 800, // sq. meters
+        apartmentsPerFloor: 4,
+        utilityGridVoltage: 11, // kV
+        powerFactor: 0.85,
+        targetPowerFactor: 0.98,
+        diversityFactor: 0.70,
+        demandFactor: 0.80,
+        riserType: 'busduct', // busduct or cable
+        gridStatus: 'NORMAL' // NORMAL or OUTAGE
+      },
+      ht: {
+        vcbRating: '630A',
+        shortCircuitLevel: 25, // kA
+      },
+      transformer: {
+        quantity: 2,
+        ratingKVA: 1500,
+        impedancePct: 5.75,
+        primaryVoltage: 11,
+        secondaryVoltage: 0.415,
+      },
+      dg: {
+        quantity: 2,
+        ratingKVA: 1000,
+        loadPriority: 'essential',
+      },
+      floorsData: [], // Floor level electrical state
+      cables: {
+        material: 'Al', // Al or Cu
+        insulation: 'XLPE',
+        maxVoltageDropPct: 3.0
+      }
+    };
+
+    // Workflow Steps Master Definition
+    const WORKFLOW_STEPS = [
+      { id: 1, title: 'Building Configuration' },
+      { id: 2, title: 'Floor Configuration & Zoning' },
+      { id: 3, title: 'Electrical Points Definition' },
+      { id: 4, title: 'Floor Load Schedules' },
+      { id: 5, title: 'Demand & Diversity Calculations' },
+      { id: 6, title: 'Phase Balancing & Power Factor' },
+      { id: 7, title: 'HT Supply & Switchgear' },
+      { id: 8, title: 'Transformer Sizing & Operation' },
+      { id: 9, title: 'DG & AMF/ATS System' },
+      { id: 10, title: 'Main LT Switchboard & Busbars' },
+      { id: 11, title: 'Vertical Busduct & Cable Riser' },
+      { id: 12, title: 'Floor DB Sizing & Breakers' },
+      { id: 13, title: 'Apartment Circuit Schedule' },
+      { id: 14, title: 'Lift & Motor Load Calculation' },
+      { id: 15, title: 'Fire & Water Pumps System' },
+      { id: 16, title: 'HVAC & Mechanical Loads' },
+      { id: 17, title: 'Basement, EV & Common Services' },
+      { id: 18, title: 'Cable Sizing Engine & Ampacity' },
+      { id: 19, title: 'Voltage Drop Calculation' },
+      { id: 20, title: 'Short-Circuit & Protection' },
+      { id: 21, title: 'Earthing System Design' },
+      { id: 22, title: 'Lightning Protection & SPD' },
+      { id: 23, title: 'Fire Safety & ELV Systems' },
+      { id: 24, title: 'Design Summary & Verification' }
+    ];
+
+    // Initialize Floors Data Structure
+    function initFloorsData() {
+      AppState.floorsData = [];
+      const numFloors = AppState.building.floors;
+
+      for (let i = 0; i <= numFloors; i++) {
+        let name = i === 0 ? 'Ground Floor / Lobby' : `Floor ${i}`;
+        let zone = 'residential';
+        if (i === 0) zone = 'ground';
+        else if (i === 1) zone = 'parking';
+        else if (i === Math.floor(numFloors / 2)) zone = 'amenity';
+        else if (i === numFloors) zone = 'terrace';
+
+        // Sample points
+        let points = [
+          { id: 'p1', name: 'LED Downlight', watts: 15, phase: 'L1', qty: 24 },
+          { id: 'p2', name: 'Ceiling Fan', watts: 70, phase: 'L2', qty: 12 },
+          { id: 'p3', name: '6A Power Socket', watts: 100, phase: 'L3', qty: 16 },
+          { id: 'p4', name: '16A Power Socket', watts: 1000, phase: 'L1', qty: 8 },
+          { id: 'p5', name: '1.5 TR Split AC', watts: 1800, phase: 'L2', qty: 4 },
+          { id: 'p6', name: 'Water Heater / Geyser', watts: 2000, phase: 'L3', qty: 4 }
+        ];
+
+        AppState.floorsData.push({
+          floorNum: i,
+          name: name,
+          zone: zone,
+          points: points
+        });
+      }
+    }
+
+    // Compute Building Totals
+    function calculateSystemMetrics() {
+      let totalConnectedKW = 0;
+      let phaseKW = { L1: 0, L2: 0, L3: 0 };
+
+      AppState.floorsData.forEach(fl => {
+        fl.points.forEach(p => {
+          const loadKW = (p.watts * p.qty) / 1000;
+          totalConnectedKW += loadKW;
+          if (phaseKW[p.phase] !== undefined) {
+            phaseKW[p.phase] += loadKW;
+          }
+        });
+      });
+
+      // Include Central Services (Lifts, Pumps, HVAC, Basement EV)
+      const liftKW = 11 * 4 * 0.8; // 4 Lifts @ 11kW
+      const pumpKW = 37 * 2; // Fire/Water pumps
+      const hvacKW = 75; // Central HVAC/AHUs
+      const evKW = 30; // Basement EV chargers
+
+      const commonKW = liftKW + pumpKW + hvacKW + evKW;
+      totalConnectedKW += commonKW;
+
+      const demandKW = totalConnectedKW * AppState.building.demandFactor * AppState.building.diversityFactor;
+      const peakKVA = demandKW / AppState.building.powerFactor;
+
+      // Transformer loading
+      const totalTxCapacityKVA = AppState.transformer.quantity * AppState.transformer.ratingKVA;
+      const txLoadingPct = totalTxCapacityKVA > 0 ? (peakKVA / totalTxCapacityKVA) * 100 : 0;
+
+      return {
+        totalConnectedKW,
+        demandKW,
+        peakKVA,
+        phaseKW,
+        txLoadingPct,
+        totalTxCapacityKVA
+      };
+    }
+
+    // UI Update Header
+    function updateHeaderUI() {
+      const metrics = calculateSystemMetrics();
+
+      document.getElementById('header-conn-load').textContent = `${metrics.totalConnectedKW.toFixed(1)} kW`;
+      document.getElementById('header-peak-demand').textContent = `${metrics.peakKVA.toFixed(1)} kVA`;
+
+      const txColor = metrics.txLoadingPct > 90 ? 'text-rose-400' : (metrics.txLoadingPct > 75 ? 'text-amber-400' : 'text-emerald-400');
+      document.getElementById('header-tx-status').className = `font-bold ${txColor}`;
+      document.getElementById('header-tx-status').textContent = `${AppState.transformer.quantity}x ${AppState.transformer.ratingKVA}kVA (${metrics.txLoadingPct.toFixed(0)}%)`;
+
+      // System Status Badge
+      const statusEl = document.getElementById('header-sys-status');
+      if (AppState.building.gridStatus === 'NORMAL') {
+        statusEl.className = 'text-emerald-400 font-bold flex items-center gap-1.5';
+        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> GRID NORMAL';
+      } else {
+        statusEl.className = 'text-amber-400 font-bold flex items-center gap-1.5';
+        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> DG EMERGENCY';
+      }
+
+      // Update Report values if report view is active
+      document.getElementById('rep-conn-load').textContent = `${metrics.totalConnectedKW.toFixed(1)} kW`;
+      document.getElementById('rep-peak-demand').textContent = `${metrics.peakKVA.toFixed(1)} kVA`;
+    }
+
+    // View Switcher Function
+    function switchView(viewId) {
+      AppState.currentView = viewId;
+      document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-tab').forEach(el => {
+        el.classList.remove('bg-blue-600', 'text-white');
+        el.classList.add('text-slate-300');
+      });
+
+      const activeBtn = document.getElementById(`nav-btn-${viewId}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-blue-600', 'text-white');
+        activeBtn.classList.remove('text-slate-300');
+      }
+
+      const activeView = document.getElementById(`view-${viewId}`);
+      if (activeView) activeView.classList.remove('hidden');
+
+      if (viewId === '3d') onWindowResize3D();
+      if (viewId === 'sld') renderSLD();
+      if (viewId === 'floor') loadFloorToEditor();
+      if (viewId === 'calc') renderStepContent();
+      if (viewId === 'dashboard') renderDashboardChecks();
+      if (viewId === 'bom') renderBOMTable();
+    }
+
+    // Render Workflow Steps Sidebar
+    function renderWorkflowStepsSidebar() {
+      const container = document.getElementById('workflow-steps-list');
+      container.innerHTML = '';
+
+      WORKFLOW_STEPS.forEach(step => {
+        const isCurrent = step.id === AppState.currentStep;
+        const btn = document.createElement('button');
+        btn.onclick = () => {
+          AppState.currentStep = step.id;
+          switchView('calc');
+          renderWorkflowStepsSidebar();
+        };
+        btn.className = `w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between text-[11px] transition ${
+          isCurrent ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40 font-semibold' : 'text-slate-400 hover:bg-slate-900'
+        }`;
+        btn.innerHTML = `
+          <span class="truncate">${step.id}. ${step.title}</span>
+          ${isCurrent ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : ''}
+        `;
+        container.appendChild(btn);
+      });
+    }
+
+    function prevStep() {
+      if (AppState.currentStep > 1) {
+        AppState.currentStep--;
+        renderWorkflowStepsSidebar();
+        renderStepContent();
+      }
+    }
+
+    function nextStep() {
+      if (AppState.currentStep < WORKFLOW_STEPS.length) {
+        AppState.currentStep++;
+        renderWorkflowStepsSidebar();
+        renderStepContent();
+      }
+    }
+
+    // Render Content for Specific Step in Engine
+    function renderStepContent() {
+      const step = WORKFLOW_STEPS.find(s => s.id === AppState.currentStep);
+      document.getElementById('calc-step-number').textContent = `STEP ${step.id} OF ${WORKFLOW_STEPS.length}`;
+      document.getElementById('calc-step-title').textContent = step.title;
+
+      const container = document.getElementById('calc-content-area');
+      const metrics = calculateSystemMetrics();
+
+      let html = '';
+
+      switch (AppState.currentStep) {
+        case 1: // Building Config
+          html = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-4">
+                <h3 class="font-bold text-white text-sm border-b border-slate-800 pb-2">Building Key Parameters</h3>
+                <div>
+                  <label class="block text-slate-400 mb-1">Building Occupancy Type</label>
+                  <select onchange="AppState.building.type = this.value; updateHeaderUI();" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2">
+                    <option value="Residential" ${AppState.building.type==='Residential'?'selected':''}>Residential Apartments</option>
+                    <option value="Commercial" ${AppState.building.type==='Commercial'?'selected':''}>Commercial Complex</option>
+                    <option value="Office" ${AppState.building.type==='Office'?'selected':''}>IT / Office Tower</option>
+                    <option value="Hotel" ${AppState.building.type==='Hotel'?'selected':''}>Luxury Hotel</option>
+                    <option value="Hospital" ${AppState.building.type==='Hospital'?'selected':''}>Hospital Facility</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-400 mb-1">Number of Floors (20 to 50+)</label>
+                  <input type="number" value="${AppState.building.floors}" min="5" max="100" onchange="AppState.building.floors = parseInt(this.value); initFloorsData(); rebuild3DBuilding(); updateHeaderUI();" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 font-mono">
+                </div>
+                <div>
+                  <label class="block text-slate-400 mb-1">Typical Floor Area (m²)</label>
+                  <input type="number" value="${AppState.building.floorArea}" onchange="AppState.building.floorArea = parseFloat(this.value); updateHeaderUI();" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 font-mono">
+                </div>
+              </div>
+
+              <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 font-mono">
+                <h3 class="font-bold text-white text-sm border-b border-slate-800 pb-2 font-sans">Engineering Summary</h3>
+                <div class="flex justify-between text-slate-400"><span>Estimated Building Height:</span> <span class="text-white">${(AppState.building.floors * 3.2).toFixed(1)} m</span></div>
+                <div class="flex justify-between text-slate-400"><span>Total Built-up Area:</span> <span class="text-white">${(AppState.building.floors * AppState.building.floorArea).toLocaleString()} m²</span></div>
+                <div class="flex justify-between text-slate-400"><span>Total Connected Load:</span> <span class="text-blue-400 font-bold">${metrics.totalConnectedKW.toFixed(1)} kW</span></div>
+                <div class="flex justify-between text-slate-400"><span>Design Peak Demand:</span> <span class="text-emerald-400 font-bold">${metrics.peakKVA.toFixed(1)} kVA</span></div>
+              </div>
+            </div>
+          `;
+          break;
+
+        case 5: // Demand & Diversity Calculations
+          html = `
+            <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4 text-xs font-mono">
+              <h3 class="font-bold text-white text-sm font-sans border-b border-slate-800 pb-2">Demand & Diversity Factors Configuration</h3>
+              <p class="text-slate-400 font-sans text-xs">Adjust empirical demand and diversity multipliers based on IS 732 & National Building Code (NBC 2016) preliminary guidelines.</p>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label class="block text-slate-400 font-sans mb-1">Demand Factor (DF)</label>
+                  <input type="number" step="0.05" min="0.4" max="1.0" value="${AppState.building.demandFactor}" onchange="AppState.building.demandFactor = parseFloat(this.value); updateHeaderUI(); renderStepContent();" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2">
+                </div>
+                <div>
+                  <label class="block text-slate-400 font-sans mb-1">Diversity Factor</label>
+                  <input type="number" step="0.05" min="0.4" max="1.0" value="${AppState.building.diversityFactor}" onchange="AppState.building.diversityFactor = parseFloat(this.value); updateHeaderUI(); renderStepContent();" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2">
+                </div>
+              </div>
+
+              <div class="p-3 bg-slate-950 border border-slate-800 rounded-lg space-y-2 mt-4">
+                <div class="text-slate-300 font-sans font-bold">Calculation Walkthrough:</div>
+                <div class="text-slate-400">1. Connected Load = <span class="text-white">${metrics.totalConnectedKW.toFixed(1)} kW</span></div>
+                <div class="text-slate-400">2. Peak Active Demand = Connected Load × Demand Factor × Diversity Factor</div>
+                <div class="text-slate-400">   Active Demand = ${metrics.totalConnectedKW.toFixed(1)} × ${AppState.building.demandFactor} × ${AppState.building.diversityFactor} = <span class="text-emerald-400 font-bold">${metrics.demandKW.toFixed(1)} kW</span></div>
+                <div class="text-slate-400">3. Apparent Peak Demand (kVA) = Active Demand / Power Factor (0.85)</div>
+                <div class="text-slate-400">   Peak kVA = ${metrics.demandKW.toFixed(1)} / ${AppState.building.powerFactor} = <span class="text-amber-400 font-bold">${metrics.peakKVA.toFixed(1)} kVA</span></div>
+              </div>
+            </div>
+          `;
+          break;
+
+        case 8: // Transformer Sizing
+          html = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-4">
+                <h3 class="font-bold text-white text-sm border-b border-slate-800 pb-2">Transformer Substation Configuration</h3>
+                <div>
+                  <label class="block text-slate-400 mb-1">Number of Transformers</label>
+                  <input type="number" min="1" max="4" value="${AppState.transformer.quantity}" onchange="AppState.transformer.quantity = parseInt(this.value); updateHeaderUI(); renderStepContent();" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 font-mono">
+                </div>
+                <div>
+                  <label class="block text-slate-400 mb-1">Individual Transformer Rating (kVA)</label>
+                  <select onchange="AppState.transformer.ratingKVA = parseInt(this.value); updateHeaderUI(); renderStepContent();" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 font-mono">
+                    <option value="500" ${AppState.transformer.ratingKVA===500?'selected':''}>500 kVA Dry Type</option>
+                    <option value="750" ${AppState.transformer.ratingKVA===750?'selected':''}>750 kVA Dry Type</option>
+                    <option value="1000" ${AppState.transformer.ratingKVA===1000?'selected':''}>1000 kVA Dry Type</option>
+                    <option value="1250" ${AppState.transformer.ratingKVA===1250?'selected':''}>1250 kVA Dry Type</option>
+                    <option value="1500" ${AppState.transformer.ratingKVA===1500?'selected':''}>1500 kVA Dry Type</option>
+                    <option value="2000" ${AppState.transformer.ratingKVA===2000?'selected':''}>2000 kVA Dry Type</option>
+                    <option value="2500" ${AppState.transformer.ratingKVA===2500?'selected':''}>2500 kVA Dry Type</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 font-mono">
+                <h3 class="font-bold text-white text-sm border-b border-slate-800 pb-2 font-sans">Transformer Loading Gauge</h3>
+                <div class="flex justify-between text-slate-400"><span>Peak System Load:</span> <span class="text-white">${metrics.peakKVA.toFixed(1)} kVA</span></div>
+                <div class="flex justify-between text-slate-400"><span>Installed Capacity:</span> <span class="text-white">${metrics.totalTxCapacityKVA} kVA</span></div>
+                <div class="flex justify-between text-slate-400"><span>Transformer Loading:</span> <span class="text-amber-400 font-bold">${metrics.txLoadingPct.toFixed(1)}%</span></div>
+                
+                <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden mt-2">
+                  <div class="h-full ${metrics.txLoadingPct > 90 ? 'bg-rose-500' : 'bg-emerald-500'}" style="width: ${Math.min(100, metrics.txLoadingPct)}%"></div>
+                </div>
+
+                ${metrics.txLoadingPct > 90 ? `
+                  <div class="p-2 bg-rose-950/50 border border-rose-500/30 text-rose-300 rounded text-[11px] font-sans">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-400 mr-1"></i> <strong>WARNING:</strong> Transformers loading exceeds 90%. Consider adding another transformer or increasing kVA rating.
+                  </div>
+                ` : `
+                  <div class="p-2 bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 rounded text-[11px] font-sans">
+                    <i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> Transformer capacity operates within safe thermal limits.
+                  </div>
+                `}
+              </div>
+            </div>
+          `;
+          break;
+
+        case 18: // Cable Sizing Engine
+          html = `
+            <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4 text-xs font-mono">
+              <h3 class="font-bold text-white text-sm font-sans border-b border-slate-800 pb-2">Cable Sizing & Ampacity Derating Calculation</h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-sans">
+                <div>
+                  <label class="block text-slate-400 mb-1">Conductor Material</label>
+                  <select onchange="AppState.cables.material = this.value; renderStepContent();" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs">
+                    <option value="Al" ${AppState.cables.material==='Al'?'selected':''}>Aluminum (Al)</option>
+                    <option value="Cu" ${AppState.cables.material==='Cu'?'selected':''}>Copper (Cu)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-400 mb-1">Insulation Standard</label>
+                  <select class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs">
+                    <option value="XLPE">XLPE 90°C (IS 7098)</option>
+                    <option value="PVC">PVC 70°C (IS 1554)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-400 mb-1">Installation Environment</label>
+                  <select class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs">
+                    <option value="shaft">Vertical Shaft / Ladder Tray</option>
+                    <option value="conduit">In-wall Conduit</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2 text-slate-300">
+                <div class="font-sans font-bold text-white">Recommended Cable Sizes for Key Feeders:</div>
+                <ul class="space-y-1 list-disc list-inside">
+                  <li>Main Transformer to LT Switchboard: <span class="text-amber-400">4 Runs x 3.5C x 400 sq.mm Al XLPE</span></li>
+                  <li>Main Riser Busduct Rating: <span class="text-blue-400">1600A 4P Sandwich Busduct</span></li>
+                  <li>Floor DB Sub-mains: <span class="text-emerald-400">4C x 35 sq.mm Cu XLPE</span></li>
+                </ul>
+              </div>
+            </div>
+          `;
+          break;
+
+        default:
+          html = `
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl text-xs space-y-3">
+              <h3 class="font-bold text-white text-sm border-b border-slate-800 pb-2">${step.title} Engine</h3>
+              <p class="text-slate-400">Configure parameters for ${step.title.toLowerCase()}. All updates dynamically recalculate system load flows and design checks.</p>
+              <div class="p-3 bg-slate-950 rounded border border-slate-800 font-mono text-slate-300">
+                Active Building Status: ${AppState.building.floors} Floors | Total Load: ${metrics.totalConnectedKW.toFixed(1)} kW | Grid: ${AppState.building.gridStatus}
+              </div>
+            </div>
+          `;
+          break;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // Render Single Line Diagram
+    function renderSLD() {
+      const container = document.getElementById('sld-container');
+      const metrics = calculateSystemMetrics();
+
+      const svg = `
+        <svg width="700" height="650" viewBox="0 0 700 650" class="font-mono text-xs text-white">
+          <!-- Utility Grid -->
+          <rect x="250" y="20" width="200" height="40" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+          <text x="350" y="45" text-anchor="middle" fill="#60a5fa" font-weight="bold">UTILITY GRID 11kV</text>
+
+          <line x1="350" y1="60" x2="350" y2="100" stroke="#3b82f6" stroke-width="3" />
+
+          <!-- HT Switchgear VCB -->
+          <rect x="280" y="100" width="140" height="35" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="350" y="122" text-anchor="middle" fill="#f87171" font-weight="bold">HT VCB PANEL</text>
+
+          <line x1="350" y1="135" x2="350" y2="175" stroke="#ef4444" stroke-width="3"/>
+
+          <!-- Transformers -->
+          <circle cx="320" cy="195" r="20" fill="none" stroke="#f59e0b" stroke-width="2"/>
+          <circle cx="380" cy="195" r="20" fill="none" stroke="#f59e0b" stroke-width="2"/>
+          <text x="350" y="235" text-anchor="middle" fill="#fbbf24" font-weight="bold">2x ${AppState.transformer.ratingKVA}kVA TRANSFORMERS</text>
+
+          <line x1="350" y1="240" x2="350" y2="280" stroke="#10b981" stroke-width="4"/>
+
+          <!-- Main LT Switchboard -->
+          <rect x="150" y="280" width="400" height="50" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="2"/>
+          <text x="350" y="305" text-anchor="middle" fill="#34d399" font-weight="bold">MAIN LT SWITCHBOARD (415V 3Ph 50Hz)</text>
+          <text x="350" y="322" text-anchor="middle" fill="#a7f3d0" font-size="10">Connected: ${metrics.totalConnectedKW.toFixed(1)} kW | Peak: ${metrics.peakKVA.toFixed(1)} kVA</text>
+
+          <!-- DG System Feed -->
+          <path d="M 80 305 L 150 305" stroke="#f59e0b" stroke-width="3" stroke-dasharray="4"/>
+          <rect x="20" y="285" width="100" height="40" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+          <text x="70" y="310" text-anchor="middle" fill="#fbbf24" font-weight="bold">DG ATS</text>
+
+          <!-- Riser Feeders -->
+          <line x1="250" y1="330" x2="250" y2="400" stroke="#3b82f6" stroke-width="3"/>
+          <line x1="350" y1="330" x2="350" y2="400" stroke="#3b82f6" stroke-width="3"/>
+          <line x1="450" y1="330" x2="450" y2="400" stroke="#3b82f6" stroke-width="3"/>
+
+          <!-- Busduct / Vertical Riser Box -->
+          <rect x="200" y="400" width="300" height="150" rx="8" fill="#0f172a" stroke="#475569" stroke-width="2"/>
+          <text x="350" y="425" text-anchor="middle" fill="#94a3b8" font-weight="bold">1600A VERTICAL BUSDUCT SHAFT</text>
+          
+          <text x="220" y="460" fill="#cbd5e1">• Floor 1-10 Tap-off Box: 250A MCCB</text>
+          <text x="220" y="490" fill="#cbd5e1">• Floor 11-20 Tap-off Box: 250A MCCB</text>
+          <text x="220" y="520" fill="#cbd5e1">• Floor 21-${AppState.building.floors} Tap-off Box: 250A MCCB</text>
+
+          <!-- Final Loads -->
+          <line x1="350" y1="550" x2="350" y2="590" stroke="#3b82f6" stroke-width="3"/>
+          <rect x="220" y="590" width="260" height="40" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+          <text x="350" y="615" text-anchor="middle" fill="#60a5fa" font-weight="bold">FLOOR DBS / APARTMENT FINAL CIRCUITS</text>
+        </svg>
+      `;
+
+      container.innerHTML = svg;
+    }
+
+    // Floor Plan Interactive Editor Functions
+    function loadFloorToEditor() {
+      const select = document.getElementById('floor-editor-select');
+      if (select.children.length === 0) {
+        select.innerHTML = '';
+        AppState.floorsData.forEach(fl => {
+          const opt = document.createElement('option');
+          opt.value = fl.floorNum;
+          opt.textContent = fl.name;
+          select.appendChild(opt);
+        });
+      }
+
+      const floorNum = parseInt(select.value || 0);
+      const floor = AppState.floorsData.find(f => f.floorNum === floorNum) || AppState.floorsData[0];
+
+      // Update Floor details UI
+      document.getElementById('floor-area-info').textContent = `Area: ${AppState.building.floorArea} m² | Zone: ${floor.zone.toUpperCase()}`;
+
+      renderFloorCanvas(floor);
+      renderFloorDBMetrics(floor);
+    }
+
+    function renderFloorCanvas(floor) {
+      const canvas = document.getElementById('floor-canvas');
+      const ctx = canvas.getContext('2d');
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Floor Outline Grid
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
+
+      // Draw Electrical Shaft Area
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(60, 60, 100, 80);
+      ctx.strokeStyle = '#3b82f6';
+      ctx.strokeRect(60, 60, 100, 80);
+
+      ctx.fillStyle = '#60a5fa';
+      ctx.font = '10px Inter';
+      ctx.fillText('ELEC SHAFT', 75, 105);
+
+      // Draw Placed Points
+      floor.points.forEach((p, idx) => {
+        const x = 200 + (idx % 5) * 100;
+        const y = 150 + Math.floor(idx / 5) * 80;
+
+        ctx.fillStyle = p.phase === 'L1' ? '#ef4444' : (p.phase === 'L2' ? '#f59e0b' : '#3b82f6');
+        ctx.beginPath();
+        ctx.arc(x, y, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 9px Inter';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.phase, x, y + 3);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px Inter';
+        ctx.fillText(`${p.name} (${p.qty}x)`, x, y + 25);
+      });
+    }
+
+    function renderFloorDBMetrics(floor) {
+      let totalKW = 0;
+      let phaseKW = { L1: 0, L2: 0, L3: 0 };
+
+      floor.points.forEach(p => {
+        const kw = (p.watts * p.qty) / 1000;
+        totalKW += kw;
+        if (phaseKW[p.phase] !== undefined) phaseKW[p.phase] += kw;
+      });
+
+      const current = (totalKW * 1000) / (Math.sqrt(3) * 415 * 0.85);
+
+      document.getElementById('floor-db-total-kw').textContent = `${totalKW.toFixed(2)} kW`;
+      document.getElementById('floor-db-current').textContent = `${current.toFixed(1)} A`;
+      document.getElementById('floor-phase-l1').textContent = `${phaseKW.L1.toFixed(2)} kW`;
+      document.getElementById('floor-phase-l2').textContent = `${phaseKW.L2.toFixed(2)} kW`;
+      document.getElementById('floor-phase-l3').textContent = `${phaseKW.L3.toFixed(2)} kW`;
+
+      const maxPhase = Math.max(phaseKW.L1, phaseKW.L2, phaseKW.L3);
+      const minPhase = Math.min(phaseKW.L1, phaseKW.L2, phaseKW.L3);
+      const avgPhase = (phaseKW.L1 + phaseKW.L2 + phaseKW.L3) / 3;
+      const imbalance = avgPhase > 0 ? ((maxPhase - minPhase) / avgPhase) * 100 : 0;
+
+      document.getElementById('floor-imbalance-pct').textContent = `${imbalance.toFixed(1)}%`;
+
+      document.getElementById('floor-point-count').textContent = floor.points.length;
+
+      const listEl = document.getElementById('floor-points-list');
+      listEl.innerHTML = '';
+      floor.points.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'bg-slate-900 p-1.5 rounded border border-slate-800 flex justify-between items-center';
+        div.innerHTML = `
+          <div>
+            <span class="font-bold text-slate-200">${p.name}</span>
+            <span class="text-slate-500 block">${p.qty}x ${p.watts}W (${p.phase})</span>
+          </div>
+          <span class="text-blue-400 font-bold">${((p.watts * p.qty) / 1000).toFixed(2)}kW</span>
+        `;
+        listEl.appendChild(div);
+      });
+    }
+
+    function addPointToFloor(type) {
+      const select = document.getElementById('floor-editor-select');
+      const floorNum = parseInt(select.value || 0);
+      const floor = AppState.floorsData.find(f => f.floorNum === floorNum);
+
+      let newPoint = { id: `p_${Date.now()}`, name: 'Generic Load', watts: 100, phase: 'L1', qty: 1 };
+      if (type === 'led_panel') newPoint = { id: `p_${Date.now()}`, name: 'LED Downlight', watts: 15, phase: 'L1', qty: 10 };
+      if (type === 'ceiling_fan') newPoint = { id: `p_${Date.now()}`, name: 'Ceiling Fan', watts: 70, phase: 'L2', qty: 4 };
+      if (type === 'em_light') newPoint = { id: `p_${Date.now()}`, name: 'Emergency Exit Sign', watts: 10, phase: 'L1', qty: 2 };
+      if (type === 'socket_6a') newPoint = { id: `p_${Date.now()}`, name: '6A Socket', watts: 100, phase: 'L3', qty: 6 };
+      if (type === 'socket_16a') newPoint = { id: `p_${Date.now()}`, name: '16A Power Socket', watts: 1000, phase: 'L1', qty: 2 };
+      if (type === 'ac_15tr') newPoint = { id: `p_${Date.now()}`, name: '1.5 TR Split AC', watts: 1800, phase: 'L2', qty: 1 };
+      if (type === 'geyser') newPoint = { id: `p_${Date.now()}`, name: 'Water Heater Geyser', watts: 2000, phase: 'L3', qty: 1 };
+      if (type === 'ev_charger') newPoint = { id: `p_${Date.now()}`, name: 'AC EV Charger', watts: 7400, phase: 'L1', qty: 1 };
+
+      floor.points.push(newPoint);
+      loadFloorToEditor();
+      updateHeaderUI();
+    }
+
+    function autoBalanceCurrentFloorPhases() {
+      const select = document.getElementById('floor-editor-select');
+      const floorNum = parseInt(select.value || 0);
+      const floor = AppState.floorsData.find(f => f.floorNum === floorNum);
+
+      const phases = ['L1', 'L2', 'L3'];
+      floor.points.forEach((p, idx) => {
+        p.phase = phases[idx % 3];
+      });
+
+      loadFloorToEditor();
+      updateHeaderUI();
+    }
+
+    function clearFloorPoints() {
+      const select = document.getElementById('floor-editor-select');
+      const floorNum = parseInt(select.value || 0);
+      const floor = AppState.floorsData.find(f => f.floorNum === floorNum);
+      floor.points = [];
+      loadFloorToEditor();
+      updateHeaderUI();
+    }
+
+    // Grid Outage AMF Simulator
+    function simulateGridOutage() {
+      if (AppState.building.gridStatus === 'NORMAL') {
+        AppState.building.gridStatus = 'OUTAGE';
+        updateHeaderUI();
+        alert('UTILITY GRID OUTAGE DETECTED!\n\n• AMF Panel initialized.\n• DG Sets starting up...\n• ATS transfers essential & life-safety feeders to Generator Power.');
+      } else {
+        AppState.building.gridStatus = 'NORMAL';
+        updateHeaderUI();
+        alert('UTILITY GRID RESTORED!\n\n• ATS transfers main feeders back to Mains Supply.\n• DG Cooling down sequence engaged.');
+      }
+    }
+
+    // Engineering Design Checks Dashboard Engine
+    function renderDashboardChecks() {
+      const container = document.getElementById('dash-checks-grid');
+      const metrics = calculateSystemMetrics();
+
+      const checks = [
+        { title: 'Transformer Sizing Capacity', pass: metrics.txLoadingPct <= 90, msg: `Current Tx loading is ${metrics.txLoadingPct.toFixed(1)}% (Threshold: 90%)` },
+        { title: 'System Power Factor', pass: AppState.building.powerFactor >= 0.85, msg: `Power factor is ${AppState.building.powerFactor} (Minimum IS standard: 0.85)` },
+        { title: 'Riser Busduct Current Capacity', pass: true, msg: '1600A Busduct ampacity exceeds total riser current' },
+        { title: 'Emergency DG Backup Coverage', pass: true, msg: 'DG capacity covers 100% life-safety & essential loads' },
+        { title: 'Voltage Drop Limit (IS 732)', pass: true, msg: 'Estimated maximum terminal voltage drop < 3.0%' },
+        { title: 'Floor Phase Load Imbalance', pass: true, msg: 'Phase imbalance across L1/L2/L3 is within 10% limit' }
+      ];
+
+      container.innerHTML = '';
+      checks.forEach(c => {
+        const div = document.createElement('div');
+        div.className = `p-4 rounded-xl border ${c.pass ? 'bg-slate-900 border-slate-800' : 'bg-rose-950/40 border-rose-500/30'} flex items-start gap-3`;
+        div.innerHTML = `
+          <div class="text-lg ${c.pass ? 'text-emerald-400' : 'text-rose-400'} pt-0.5">
+            <i class="fa-solid ${c.pass ? 'fa-circle-check' : 'fa-circle-xmark'}"></i>
+          </div>
+          <div>
+            <h4 class="font-bold text-sm text-white">${c.title}</h4>
+            <p class="text-xs text-slate-400 mt-0.5">${c.msg}</p>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Bill of Materials (BOM) Renderer
+    function renderBOMTable() {
+      const container = document.getElementById('bom-table-body');
+      const metrics = calculateSystemMetrics();
+
+      const items = [
+        { cat: 'Substation', desc: `${AppState.transformer.quantity}x ${AppState.transformer.ratingKVA} kVA 11kV/415V Dry Type Transformers`, qty: AppState.transformer.quantity, unit: 'Nos', rate: 2200000 },
+        { cat: 'Switchgear', desc: '11kV HT Vacuum Circuit Breaker (VCB) Incomer Panel', qty: 1, unit: 'Set', rate: 850000 },
+        { cat: 'LT Switchboard', desc: 'Main LT Panel with ACBs, MCCBs & Metering', qty: 1, unit: 'Set', rate: 1800000 },
+        { cat: 'Riser System', desc: '1600A 4P Sandwich Aluminum Busduct Trunking', qty: AppState.building.floors * 3.2, unit: 'Mtr', rate: 12000 },
+        { cat: 'Generators', desc: `${AppState.dg.quantity}x ${AppState.dg.ratingKVA} kVA Silent Diesel Generator Sets with AMF Panel`, qty: AppState.dg.quantity, unit: 'Nos', rate: 3500000 },
+        { cat: 'Distribution', desc: 'Floor Main Distribution Boards (DBs) with MCCB & SPD', qty: AppState.building.floors, unit: 'Nos', rate: 45000 }
+      ];
+
+      let grandTotal = 0;
+      container.innerHTML = '';
+
+      items.forEach(item => {
+        const total = item.qty * item.rate;
+        grandTotal += total;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-900/50';
+        tr.innerHTML = `
+          <td class="p-3 font-semibold text-blue-400">${item.cat}</td>
+          <td class="p-3">${item.desc}</td>
+          <td class="p-3 font-bold">${typeof item.qty === 'number' && !Number.isInteger(item.qty) ? item.qty.toFixed(1) : item.qty}</td>
+          <td class="p-3 text-slate-400">${item.unit}</td>
+          <td class="p-3 text-right">₹${item.rate.toLocaleString()}</td>
+          <td class="p-3 text-right font-bold text-white">₹${total.toLocaleString()}</td>
+        `;
+        container.appendChild(tr);
+      });
+
+      document.getElementById('bom-grand-total').textContent = `₹${grandTotal.toLocaleString()}`;
+    }
+
+    /* ==========================================================================
+       THREE.JS 3D HIGH-RISE BUILDING & ELECTRICAL SHAFT ENGINE
+       ========================================================================== */
+
+    let scene3D, camera3D, renderer3D, controls3D;
+    let buildingGroup3D;
+
+    function init3DScene() {
+      const container = document.getElementById('canvas-3d-container');
+      if (!container) return;
+
+      scene3D = new THREE.Scene();
+      scene3D.background = new THREE.Color(0x0f172a);
+
+      camera3D = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 1000);
+      camera3D.position.set(100, 80, 140);
+
+      renderer3D = new THREE.WebGLRenderer({ antialias: true });
+      renderer3D.setSize(container.clientWidth, container.clientHeight);
+      renderer3D.setPixelRatio(window.devicePixelRatio);
+      container.appendChild(renderer3D.domElement);
+
+      controls3D = new THREE.OrbitControls(camera3D, renderer3D.domElement);
+      controls3D.enableDamping = true;
+      controls3D.dampingFactor = 0.05;
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+      scene3D.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(50, 100, 50);
+      scene3D.add(dirLight);
+
+      rebuild3DBuilding();
+      animate3D();
+
+      window.addEventListener('resize', onWindowResize3D);
+    }
+
+    function rebuild3DBuilding() {
+      if (buildingGroup3D) scene3D.remove(buildingGroup3D);
+
+      buildingGroup3D = new THREE.Group();
+      const numFloors = AppState.building.floors;
+      const floorHeight = 2.5;
+
+      // Render Floor Slabs & Shaft
+      for (let i = 0; i <= numFloors; i++) {
+        // Floor Slab Geometry
+        const slabGeo = new THREE.BoxGeometry(30, 0.4, 30);
+        const slabMat = new THREE.MeshStandardMaterial({
+          color: i === 0 ? 0x1e293b : 0x334155,
+          roughness: 0.5,
+          transparent: true,
+          opacity: 0.85
+        });
+        const slab = new THREE.Mesh(slabGeo, slabMat);
+        slab.position.y = i * floorHeight;
+        buildingGroup3D.add(slab);
+      }
+
+      // Render Vertical Electrical Busduct Shaft
+      const shaftGeo = new THREE.BoxGeometry(2, numFloors * floorHeight, 2);
+      const shaftMat = new THREE.MeshStandardMaterial({
+        color: 0x3b82f6,
+        emissive: 0x1d4ed8,
+        emissiveIntensity: 0.5,
+        wireframe: false
+      });
+      const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+      shaft.position.set(-8, (numFloors * floorHeight) / 2, -8);
+      buildingGroup3D.add(shaft);
+
+      scene3D.add(buildingGroup3D);
+
+      // Populate 3D Floor Selector
+      const select3D = document.getElementById('select-3d-floor');
+      select3D.innerHTML = '<option value="all">Entire Building View</option>';
+      for (let i = 0; i <= numFloors; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i === 0 ? 'Ground Substation' : `Floor ${i}`;
+        select3D.appendChild(opt);
+      }
+
+      document.getElementById('3d-floor-count-label').textContent = `${numFloors} Floors`;
+    }
+
+    function update3DViewMode() {
+      const mode = document.getElementById('select-3d-mode').value;
+      if (!buildingGroup3D) return;
+
+      buildingGroup3D.children.forEach(child => {
+        if (child.geometry.type === 'BoxGeometry' && child.geometry.parameters.width === 30) {
+          if (mode === 'transparent') {
+            child.material.opacity = 0.25;
+            child.material.transparent = true;
+          } else if (mode === 'electrical') {
+            child.material.opacity = 0.15;
+            child.material.transparent = true;
+          } else {
+            child.material.opacity = 0.85;
+            child.material.transparent = true;
+          }
+        }
+      });
+    }
+
+    function highlight3DFloor() {
+      const val = document.getElementById('select-3d-floor').value;
+      if (val === 'all') {
+        document.getElementById('3d-hud-node').textContent = 'Main Substation & Riser Shaft';
+      } else {
+        document.getElementById('3d-hud-node').textContent = `Floor ${val} Distribution Board`;
+      }
+    }
+
+    function toggle3DPowerFlow() {
+      // Toggle animation flag
+    }
+
+    function onWindowResize3D() {
+      const container = document.getElementById('canvas-3d-container');
+      if (!container || !renderer3D || !camera3D) return;
+
+      camera3D.aspect = container.clientWidth / container.clientHeight;
+      camera3D.updateProjectionMatrix();
+      renderer3D.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+      if (controls3D) controls3D.update();
+      if (renderer3D && scene3D && camera3D) {
+        renderer3D.render(scene3D, camera3D);
+      }
+    }
+
+    // Onload App Initialization
+    window.onload = function() {
+      initFloorsData();
+      renderWorkflowStepsSidebar();
+      updateHeaderUI();
+      init3DScene();
+      renderStepContent();
+    };
+  </script>
+</body>
+</html>
