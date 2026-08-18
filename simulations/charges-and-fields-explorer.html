@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Charges &amp; Fields Explorer — Apna Electromechanic Service</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  :root{
+    --navy-950:#060b16;
+    --navy-900:#0a1220;
+    --navy-800:#0f1c30;
+    --navy-700:#16273f;
+    --navy-600:#1e3450;
+    --grid-line: rgba(120,170,220,0.07);
+    --cyan: #3fd7e0;
+    --cyan-bright:#7cf0f5;
+    --amber:#f5a428;
+    --amber-bright:#ffc164;
+    --red-neg:#5fb8ff;
+    --text-hi:#e8f1fb;
+    --text-mid:#9fb3c8;
+    --text-dim:#5c7089;
+    --danger:#ff6b6b;
+    --good:#5ee6a0;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0;
+    background:var(--navy-950);
+    color:var(--text-hi);
+    font-family:'IBM Plex Sans', Arial, sans-serif;
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+  }
+  body{
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size:34px 34px;
+    min-height:100vh;
+  }
+  .mono{ font-family:'IBM Plex Mono', 'Courier New', monospace; }
+
+  header{
+    padding:18px 20px 10px;
+    border-bottom:1px solid var(--navy-600);
+    background:linear-gradient(180deg, rgba(15,28,48,0.9), rgba(10,18,32,0.4));
+  }
+  .brand-eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--cyan); opacity:0.85; margin-bottom:4px;
+  }
+  h1{
+    margin:0; font-size:22px; font-weight:700; letter-spacing:0.01em;
+    color:var(--text-hi);
+  }
+  h1 span{ color:var(--amber); }
+  .subtitle{ color:var(--text-mid); font-size:13px; margin-top:4px; }
+
+  .tabs{
+    display:flex; gap:2px; margin:14px 20px 0;
+    border-bottom:1px solid var(--navy-600);
+  }
+  .tab-btn{
+    font-family:'IBM Plex Mono', monospace;
+    background:transparent; border:none; color:var(--text-mid);
+    padding:9px 16px; font-size:12.5px; letter-spacing:0.05em; text-transform:uppercase;
+    cursor:pointer; border-bottom:2px solid transparent; transition:all .15s;
+  }
+  .tab-btn:hover{ color:var(--text-hi); }
+  .tab-btn.active{ color:var(--cyan-bright); border-bottom-color:var(--cyan); }
+
+  .panel{ display:none; padding:16px 20px 40px; max-width:1400px; margin:0 auto; }
+  .panel.active{ display:block; }
+
+  /* ---- toolbar ---- */
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    margin-bottom:12px; padding:10px 12px;
+    background:var(--navy-800); border:1px solid var(--navy-600); border-radius:8px;
+  }
+  .toolbar .grp{ display:flex; gap:6px; align-items:center; padding-right:12px; border-right:1px solid var(--navy-600); }
+  .toolbar .grp:last-child{ border-right:none; }
+  label.chk{
+    display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-mid);
+    cursor:pointer; user-select:none; font-family:'IBM Plex Mono',monospace;
+  }
+  label.chk input{ accent-color:var(--cyan); width:14px; height:14px; }
+  label.chk.on{ color:var(--text-hi); }
+
+  button.btn{
+    font-family:'IBM Plex Mono', monospace;
+    background:var(--navy-700); color:var(--text-hi); border:1px solid var(--navy-600);
+    padding:7px 12px; font-size:12px; border-radius:6px; cursor:pointer;
+    letter-spacing:0.02em; transition:all .12s; white-space:nowrap;
+  }
+  button.btn:hover{ background:var(--navy-600); border-color:var(--cyan); }
+  button.btn.pos{ border-color:var(--amber); color:var(--amber-bright); }
+  button.btn.pos:hover{ background:rgba(245,164,40,0.15); }
+  button.btn.negc{ border-color:var(--red-neg); color:var(--red-neg); }
+  button.btn.negc:hover{ background:rgba(95,184,255,0.15); }
+  button.btn.active-mode{ background:var(--cyan); color:var(--navy-950); border-color:var(--cyan); font-weight:600; }
+  button.btn.danger{ border-color:var(--danger); color:var(--danger); }
+  button.btn.danger:hover{ background:rgba(255,107,107,0.12); }
+  button.btn:disabled{ opacity:0.35; cursor:not-allowed; }
+
+  /* ---- layout ---- */
+  .stage-wrap{
+    display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;
+  }
+  .canvas-col{ flex:1 1 640px; min-width:320px; }
+  .side-col{ flex:0 0 280px; min-width:240px; }
+
+  .canvas-frame{
+    position:relative; border:1px solid var(--navy-600); border-radius:10px;
+    overflow:hidden; background:
+      radial-gradient(ellipse at 50% 0%, rgba(63,215,224,0.06), transparent 60%),
+      var(--navy-900);
+  }
+  canvas{ display:block; width:100%; touch-action:none; cursor:crosshair; }
+
+  .hint-bar{
+    display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-dim);
+    padding:8px 4px 0;
+  }
+  .hint-bar b{ color:var(--text-mid); }
+
+  .readout-card{
+    background:var(--navy-800); border:1px solid var(--navy-600); border-radius:8px;
+    padding:12px 14px; margin-bottom:12px;
+  }
+  .readout-card h3{
+    margin:0 0 8px; font-size:11px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--cyan); font-family:'IBM Plex Mono',monospace;
+  }
+  .kv{ display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:12.5px; padding:3px 0; color:var(--text-mid); }
+  .kv b{ color:var(--text-hi); font-weight:600; }
+  .empty-note{ color:var(--text-dim); font-size:12px; font-style:italic; }
+
+  .legend-row{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-mid); margin:5px 0; font-family:'IBM Plex Mono',monospace;}
+  .swatch{ width:14px; height:14px; border-radius:3px; flex:0 0 auto; }
+
+  /* selection popover */
+  #chargePopover{
+    position:absolute; z-index:20; display:none;
+    background:var(--navy-700); border:1px solid var(--cyan); border-radius:8px;
+    padding:8px 10px; font-family:'IBM Plex Mono',monospace; font-size:12px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.5); color:var(--text-hi);
+    transform:translate(-50%,-120%); white-space:nowrap;
+  }
+  #chargePopover .row{ display:flex; align-items:center; gap:8px; }
+  #chargePopover button{
+    width:24px; height:24px; border-radius:5px; border:1px solid var(--navy-600);
+    background:var(--navy-800); color:var(--text-hi); cursor:pointer; font-size:14px; line-height:1;
+  }
+  #chargePopover button:hover{ background:var(--navy-600); }
+  #chargePopover .del{ color:var(--danger); border-color:var(--danger); margin-left:6px; }
+
+  .trash-zone{
+    position:absolute; right:10px; bottom:10px; z-index:15;
+    width:64px; height:64px; border-radius:10px;
+    border:2px dashed var(--navy-600); color:var(--text-dim);
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    opacity:0.55; pointer-events:none; transition:all .15s;
+    background:rgba(6,11,22,0.5);
+  }
+  .trash-zone.show{ opacity:1; }
+  .trash-zone.hover{ border-color:var(--danger); color:var(--danger); background:rgba(255,107,107,0.12); }
+
+  .mode-banner{
+    display:none; align-items:center; gap:8px;
+    background:rgba(63,215,224,0.12); border:1px solid var(--cyan);
+    color:var(--cyan-bright); font-family:'IBM Plex Mono',monospace; font-size:12px;
+    padding:7px 12px; border-radius:6px; margin-bottom:10px;
+  }
+  .mode-banner.show{ display:flex; }
+
+  /* ---- notes tab ---- */
+  .notes-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:820px){ .notes-grid{ grid-template-columns:1fr; } }
+  .note-card{
+    background:var(--navy-800); border:1px solid var(--navy-600); border-radius:8px; padding:16px 18px;
+  }
+  .note-card h3{ margin:0 0 8px; color:var(--amber-bright); font-size:14px; }
+  .note-card p, .note-card li{ color:var(--text-mid); font-size:13px; line-height:1.6; }
+  .note-card .formula{
+    font-family:'IBM Plex Mono',monospace; background:var(--navy-950); border:1px solid var(--navy-600);
+    color:var(--cyan-bright); padding:8px 10px; border-radius:6px; margin:8px 0; font-size:13px; display:block;
+  }
+  footer{ text-align:center; color:var(--text-dim); font-size:11px; padding:22px 10px 30px; font-family:'IBM Plex Mono',monospace; }
+
+  @media (max-width:640px){
+    .stage-wrap{ flex-direction:column; }
+    .side-col{ flex-basis:auto; width:100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand-eyebrow">Apna Electromechanic Service — Engineering Tools Suite</div>
+  <h1>Charges <span>&amp;</span> Fields Explorer</h1>
+  <div class="subtitle">Interactive electrostatics — Coulomb superposition, field vectors, field lines, equipotentials, and live sensors.</div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="sim">Simulator</button>
+  <button class="tab-btn" data-tab="notes">Physics &amp; Formulas</button>
+</div>
+
+<div class="panel active" id="panel-sim">
+
+  <div class="toolbar">
+    <div class="grp">
+      <button class="btn pos" id="addPos">+ Add Positive (+1 nC)</button>
+      <button class="btn negc" id="addNeg">− Add Negative (−1 nC)</button>
+      <button class="btn danger" id="clearCharges">Clear Charges</button>
+    </div>
+    <div class="grp">
+      <label class="chk" id="lblGrid"><input type="checkbox" id="chkGrid" checked> Grid</label>
+      <label class="chk" id="lblField"><input type="checkbox" id="chkField" checked> E-Field Vectors</label>
+      <label class="chk" id="lblLines"><input type="checkbox" id="chkLines"> Field Lines</label>
+    </div>
+    <div class="grp">
+      <button class="btn" id="eqMode">Draw Equipotential</button>
+      <button class="btn danger" id="clearEq">Clear Equipotentials</button>
+    </div>
+    <div class="grp">
+      <button class="btn" id="addSensor">+ Voltage / E Sensor</button>
+      <button class="btn" id="addRuler">+ Measuring Tape</button>
+      <button class="btn danger" id="clearTools">Clear Sensors/Tape</button>
+    </div>
+    <div class="grp" style="border-right:none;">
+      <button class="btn" id="resetAll">Reset All</button>
+    </div>
+  </div>
+
+  <div class="mode-banner" id="eqBanner">▸ Equipotential mode: click anywhere on the canvas to trace the equipotential line through that point.</div>
+
+  <div class="stage-wrap">
+    <div class="canvas-col">
+      <div class="canvas-frame" id="canvasFrame">
+        <canvas id="stage"></canvas>
+        <div class="trash-zone" id="trashZone">🗑</div>
+        <div id="chargePopover">
+          <div class="row">
+            <b id="popLabel">+1 nC</b>
+            <button id="popMinus">−</button>
+            <button id="popPlus">+</button>
+            <button class="del" id="popDelete">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="hint-bar">
+        <span><b>Drag</b> charges, sensors &amp; tape ends to move · <b>double-click</b> a charge to delete · <b>click</b> a charge to change its value</span>
+        <span id="scaleReadout">1 grid square = 0.5 m</span>
+      </div>
+    </div>
+
+    <div class="side-col">
+      <div class="readout-card">
+        <h3>Legend</h3>
+        <div class="legend-row"><span class="swatch" style="background:var(--amber);"></span> Positive charge</div>
+        <div class="legend-row"><span class="swatch" style="background:var(--red-neg);"></span> Negative charge</div>
+        <div class="legend-row"><span class="swatch" style="background:var(--cyan);"></span> E-field vector / sensor arrow</div>
+        <div class="legend-row"><span class="swatch" style="background:var(--good); opacity:0.8;"></span> Equipotential line</div>
+      </div>
+
+      <div class="readout-card" id="sensorReadoutCard">
+        <h3>Sensor Readouts</h3>
+        <div id="sensorList"><div class="empty-note">No sensors placed. Click "+ Voltage / E Sensor".</div></div>
+      </div>
+
+      <div class="readout-card" id="rulerReadoutCard">
+        <h3>Measuring Tape</h3>
+        <div id="rulerList"><div class="empty-note">No tape placed. Click "+ Measuring Tape".</div></div>
+      </div>
+
+      <div class="readout-card">
+        <h3>System Summary</h3>
+        <div class="kv"><span>Charges placed</span><b id="sumCharges">0</b></div>
+        <div class="kv"><span>Net charge</span><b id="sumNet">0 nC</b></div>
+        <div class="kv"><span>Equipotential lines</span><b id="sumEq">0</b></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-notes">
+  <div class="notes-grid">
+    <div class="note-card">
+      <h3>Coulomb's Law &amp; Superposition</h3>
+      <p>Each placed charge produces a radial field. The net field at any point is the vector sum (superposition) of every charge's individual contribution:</p>
+      <span class="formula">E = K · q / r²&nbsp;&nbsp;(direction: along the line from charge to point)</span>
+      <span class="formula">E_net(P) = Σ E_i(P)&nbsp;&nbsp;for all charges i</span>
+      <p>This simulator uses K = 8.99 with charge values entered directly in nanocoulombs (nC) and distance in metres, so K already folds in the 10⁻⁹ scale factor of ε₀ — the numbers you see for E (N/C) and V (volts) are physically realistic for nC-scale charges a few metres apart.</p>
+    </div>
+    <div class="note-card">
+      <h3>Electric Potential</h3>
+      <p>Potential is a scalar, so it sums directly (no direction to combine):</p>
+      <span class="formula">V(P) = Σ K · q_i / r_i</span>
+      <p>The sensor tool reads both E (magnitude + direction) and V at its position live as you drag it through the field.</p>
+    </div>
+    <div class="note-card">
+      <h3>Field Lines</h3>
+      <p>Field lines are traced by stepping repeatedly in the direction of the local E vector, starting just outside each positive charge. By convention they originate on positive charges and terminate on negative charges (or run to infinity / the edge of the canvas if unbalanced). Density of lines around a charge indicates field strength — closer spacing means a stronger field.</p>
+    </div>
+    <div class="note-card">
+      <h3>Equipotential Lines</h3>
+      <p>An equipotential line is a path of constant V. Because E is always perpendicular to equipotential surfaces, the tracer walks tangentially (perpendicular to the local E vector) while applying a small Newton correction back onto the target V value at every step — this is why the resulting curve never crosses a field line at anything but a right angle.</p>
+      <span class="formula">step ⟂ E,  then correct:  Δposition += (V_target − V(P)) / |E|² · E</span>
+    </div>
+    <div class="note-card">
+      <h3>Reading The Vector Grid</h3>
+      <p>Each arrow's direction shows the net field direction at that grid point; its length and brightness (on a square-root scale) show relative magnitude. Very close to a charge, magnitude is clamped for readability — the true field is unbounded (1/r²) right at the charge.</p>
+    </div>
+    <div class="note-card">
+      <h3>Why This Matters In The Field</h3>
+      <ul>
+        <li>Same superposition principle used when analysing stray-field coupling between conductors or busbars</li>
+        <li>Equipotential thinking underlies step/touch-voltage analysis in earthing design (IS 3043 / IEEE 80)</li>
+        <li>Field-line crowding visualises where local field stress — and dielectric breakdown risk — is highest, same concept used in HV insulation/corona assessment</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<footer>Apna Electromechanic Service — Engineering Tools Suite · Offline single-file simulator · Original build, not derived from any third-party source code</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ TAB SWITCHING ============ */
+  document.querySelectorAll('.tab-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'sim') requestRedraw();
+    });
+  });
+
+  /* ============ CONSTANTS ============ */
+  const K = 8.99;                 // sim constant (nC, m, N/C, V — realistic scale)
+  const PPM = 90;                 // pixels per metre (world scale)
+  const MIN_R = 0.12;             // metres, softening to avoid singularities
+  const MAX_Q = 5, MIN_Q = -5;
+
+  /* ============ STATE ============ */
+  let charges = [];   // {id,x,y,q}
+  let sensors = [];   // {id,x,y}
+  let rulers  = [];   // {id,x1,y1,x2,y2}
+  let eqLines = [];   // [{v, pts:[{x,y}...]}]
+  let idSeq = 1;
+
+  let showGrid = true, showField = true, showLines = false;
+  let eqMode = false;
+
+  let drag = null; // {type,obj,part}
+  let dragMoved = false;
+  let selectedCharge = null;
+
+  const canvas = document.getElementById('stage');
+  const frame  = document.getElementById('canvasFrame');
+  const ctx = canvas.getContext('2d');
+  const trashZone = document.getElementById('trashZone');
+  const popover = document.getElementById('chargePopover');
+
+  /* ============ HiDPI-SAFE RESIZE (established pattern) ============ */
+  function getCssHeight(){
+    let h = canvas.dataset.cssHeight;
+    if (!h){
+      const w = frame.parentElement.clientWidth || 700;
+      h = Math.max(360, Math.min(560, Math.round(w * 0.62)));
+      canvas.dataset.cssHeight = h;
+    }
+    return parseFloat(h);
+  }
+  function sizeCanvas(){
+    const cssW = Math.max(280, frame.clientWidth || frame.parentElement.clientWidth || 700);
+    const cssH = getCssHeight();
+    const dpr = window.devicePixelRatio || 1;
+    const targetW = Math.round(cssW * dpr);
+    const targetH = Math.round(cssH * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH){
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  let resizePending = false;
+  window.addEventListener('resize', function(){
+    if (resizePending) return;
+    resizePending = true;
+    requestAnimationFrame(function(){ resizePending = false; sizeCanvas(); requestRedraw(); });
+  });
+
+  function cssW(){ return parseFloat(canvas.style.width) || canvas.clientWidth; }
+  function cssH(){ return parseFloat(canvas.style.height) || canvas.clientHeight; }
+
+  /* world (m) <-> screen (css px) */
+  function w2sx(x){ return cssW()/2 + x*PPM; }
+  function w2sy(y){ return cssH()/2 - y*PPM; }
+  function s2wx(px){ return (px - cssW()/2)/PPM; }
+  function s2wy(py){ return -(py - cssH()/2)/PPM; }
+
+  /* ============ PHYSICS ============ */
+  function fieldAt(x,y, excludeId){
+    let Ex=0, Ey=0;
+    for (let i=0;i<charges.length;i++){
+      const c = charges[i];
+      if (excludeId && c.id === excludeId) continue;
+      let dx = x - c.x, dy = y - c.y;
+      let r2 = dx*dx + dy*dy;
+      let r = Math.sqrt(r2);
+      if (r < MIN_R){ r = MIN_R; r2 = r*r; }
+      const E = K * c.q / r2;
+      Ex += E * (dx/r);
+      Ey += E * (dy/r);
+    }
+    return {ex:Ex, ey:Ey, mag:Math.sqrt(Ex*Ex+Ey*Ey)};
+  }
+  function potentialAt(x,y){
+    let V = 0;
+    for (let i=0;i<charges.length;i++){
+      const c = charges[i];
+      let dx = x - c.x, dy = y - c.y;
+      let r = Math.sqrt(dx*dx+dy*dy);
+      if (r < MIN_R) r = MIN_R;
+      V += K * c.q / r;
+    }
+    return V;
+  }
+
+  /* ============ CHARGE / SENSOR / RULER CREATION ============ */
+  function addCharge(q){
+    const n = charges.length;
+    const spread = 1.2;
+    const x = ((n % 5) - 2) * spread * 0.55 + (Math.random()-0.5)*0.15;
+    const y = (Math.floor(n/5) % 3 - 1) * spread * 0.5 + (Math.random()-0.5)*0.15;
+    charges.push({id:idSeq++, x:x, y:y, q:q});
+    requestRedraw();
+    updateSummary();
+  }
+  function addSensor(){
+    const n = sensors.length;
+    sensors.push({id:idSeq++, x:1.6, y:0.9 - n*0.4});
+    requestRedraw();
+  }
+  function addRuler(){
+    const n = rulers.length;
+    rulers.push({id:idSeq++, x1:-1.6, y1:-1.2 - n*0.3, x2:-0.3, y2:-1.2 - n*0.3});
+    requestRedraw();
+  }
+
+  function deleteCharge(c){
+    charges = charges.filter(function(x){ return x.id !== c.id; });
+    if (selectedCharge && selectedCharge.id === c.id){ selectedCharge = null; hidePopover(); }
+    requestRedraw();
+    updateSummary();
+  }
+
+  /* ============ HIT TESTING ============ */
+  function hitCharge(px,py){
+    for (let i=charges.length-1;i>=0;i--){
+      const c = charges[i];
+      const r = 14 + Math.abs(c.q)*2;
+      const sx=w2sx(c.x), sy=w2sy(c.y);
+      if (Math.hypot(px-sx, py-sy) <= r) return c;
+    }
+    return null;
+  }
+  function hitSensor(px,py){
+    for (let i=sensors.length-1;i>=0;i--){
+      const s = sensors[i];
+      const sx=w2sx(s.x), sy=w2sy(s.y);
+      if (Math.hypot(px-sx, py-sy) <= 16) return s;
+    }
+    return null;
+  }
+  function hitRulerEnd(px,py){
+    for (let i=rulers.length-1;i>=0;i--){
+      const r = rulers[i];
+      const s1x=w2sx(r.x1), s1y=w2sy(r.y1);
+      const s2x=w2sx(r.x2), s2y=w2sy(r.y2);
+      if (Math.hypot(px-s1x, py-s1y) <= 11) return {ruler:r, part:'1'};
+      if (Math.hypot(px-s2x, py-s2y) <= 11) return {ruler:r, part:'2'};
+    }
+    return null;
+  }
+
+  /* ============ EQUIPOTENTIAL TRACING ============ */
+  function traceEquipotential(startX, startY){
+    if (charges.length === 0) return null;
+    const Vtarget = potentialAt(startX, startY);
+    const e0 = fieldAt(startX, startY);
+    if (e0.mag < 1e-4) return null;
+
+    const stepLen = 0.045;
+    const maxSteps = 900;
+    const halfW = cssW()/2/PPM + 1, halfH = cssH()/2/PPM + 1;
+
+    function walk(dirSign){
+      const pts = [];
+      let x = startX, y = startY;
+      let px = x, py = y;
+      for (let i=0;i<maxSteps;i++){
+        const f = fieldAt(x,y);
+        if (f.mag < 1e-4) break;
+        // tangent = perpendicular to E, normalized
+        let tx = -f.ey/f.mag, ty = f.ex/f.mag;
+        tx *= dirSign; ty *= dirSign;
+        let nx = x + tx*stepLen, ny = y + ty*stepLen;
+        // Newton correction back onto V=Vtarget along local field direction
+        const fn = fieldAt(nx,ny);
+        if (fn.mag > 1e-4){
+          const Vn = potentialAt(nx,ny);
+          const corr = (Vtarget - Vn) / (fn.mag*fn.mag);
+          nx += corr * fn.ex;
+          ny += corr * fn.ey;
+        }
+        // stop conditions
+        if (Math.abs(nx) > halfW || Math.abs(ny) > halfH) break;
+        // if very close to a charge, stop (would loop/singular)
+        let tooClose = false;
+        for (let k=0;k<charges.length;k++){
+          if (Math.hypot(nx-charges[k].x, ny-charges[k].y) < MIN_R*1.3){ tooClose = true; break; }
+        }
+        if (tooClose) break;
+        pts.push({x:nx,y:ny});
+        // closed loop detection (after a reasonable number of steps)
+        if (i > 20 && Math.hypot(nx-startX, ny-startY) < stepLen*0.9){
+          pts.push({x:startX,y:startY});
+          x = nx; y = ny;
+          break;
+        }
+        x = nx; y = ny;
+      }
+      return pts;
+    }
+
+    const fwd = walk(1);
+    const bwd = walk(-1);
+    bwd.reverse();
+    const full = bwd.concat([{x:startX,y:startY}], fwd);
+    if (full.length < 3) return null;
+    return {v:Vtarget, pts:full};
+  }
+
+  /* ============ FIELD LINE TRACING ============ */
+  function traceFieldLines(){
+    const lines = [];
+    const halfW = cssW()/2/PPM + 0.4, halfH = cssH()/2/PPM + 0.4;
+    const positives = charges.filter(function(c){ return c.q > 0; });
+    positives.forEach(function(c){
+      const nLines = Math.max(6, Math.min(16, 6 + Math.abs(c.q)*2));
+      for (let i=0;i<nLines;i++){
+        const ang = (i/nLines) * Math.PI*2;
+        let x = c.x + Math.cos(ang)*MIN_R*1.5;
+        let y = c.y + Math.sin(ang)*MIN_R*1.5;
+        const pts = [{x:x,y:y}];
+        const stepLen = 0.05;
+        let terminated = false;
+        for (let s=0; s<1400; s++){
+          const f = fieldAt(x,y);
+          if (f.mag < 1e-5) break;
+          x += (f.ex/f.mag)*stepLen;
+          y += (f.ey/f.mag)*stepLen;
+          pts.push({x:x,y:y});
+          if (Math.abs(x) > halfW || Math.abs(y) > halfH) break;
+          for (let k=0;k<charges.length;k++){
+            const ch = charges[k];
+            if (ch.q < 0 && Math.hypot(x-ch.x,y-ch.y) < MIN_R*1.4){ terminated = true; break; }
+          }
+          if (terminated) break;
+        }
+        lines.push(pts);
+      }
+    });
+    return lines;
+  }
+
+  /* ============ DRAWING ============ */
+  function clampMag(m){ return Math.sqrt(Math.min(m, 400)); } // sqrt compression for arrow length
+
+  function draw(){
+    const W = cssW(), H = cssH();
+    ctx.clearRect(0,0,W,H);
+
+    // subtle radial vignette
+    ctx.fillStyle = 'rgba(10,18,32,1)';
+    ctx.fillRect(0,0,W,H);
+
+    if (showGrid) drawGrid(W,H);
+    if (showField) drawFieldVectors(W,H);
+    if (showLines) drawFieldLines();
+    drawEquipotentials();
+    drawRulers();
+    drawCharges();
+    drawSensors();
+
+    updatePopoverPosition();
+  }
+
+  function drawGrid(W,H){
+    ctx.save();
+    ctx.strokeStyle = 'rgba(150,190,230,0.10)';
+    ctx.lineWidth = 1;
+    const step = PPM*0.5; // 0.5 m grid
+    const originX = W/2 % step, originY = H/2 % step;
+    for (let gx = originX; gx < W; gx += step){
+      ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke();
+    }
+    for (let gy = originY; gy < H; gy += step){
+      ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke();
+    }
+    // axes
+    ctx.strokeStyle = 'rgba(150,190,230,0.28)';
+    ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawArrow(x1,y1,x2,y2,color,alpha,width){
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color; ctx.fillStyle = color;
+    ctx.lineWidth = width || 1.6;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    const ang = Math.atan2(y2-y1, x2-x1);
+    const headLen = 5 + width;
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2 - headLen*Math.cos(ang-0.4), y2 - headLen*Math.sin(ang-0.4));
+    ctx.lineTo(x2 - headLen*Math.cos(ang+0.4), y2 - headLen*Math.sin(ang+0.4));
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFieldVectors(W,H){
+    if (charges.length === 0) return;
+    const spacing = 58;
+    for (let sy = spacing/2; sy < H; sy += spacing){
+      for (let sx = spacing/2; sx < W; sx += spacing){
+        const wx = s2wx(sx), wy = s2wy(sy);
+        // skip if too close to a charge
+        let skip = false;
+        for (let k=0;k<charges.length;k++){
+          if (Math.hypot(wx-charges[k].x, wy-charges[k].y) < 0.22){ skip = true; break; }
+        }
+        if (skip) continue;
+        const f = fieldAt(wx,wy);
+        if (f.mag < 1e-4) continue;
+        const len = 8 + clampMag(f.mag) * 2.1;
+        const ux = f.ex/f.mag, uy = -f.ey/f.mag; // screen y flipped
+        const alpha = Math.min(1, 0.28 + clampMag(f.mag)/16);
+        const x1 = sx - ux*len*0.4, y1 = sy - uy*len*0.4;
+        const x2 = sx + ux*len*0.6, y2 = sy + uy*len*0.6;
+        drawArrow(x1,y1,x2,y2, 'rgba(63,215,224,1)', alpha, 1.3);
+      }
+    }
+  }
+
+  function drawFieldLines(){
+    const lines = traceFieldLines();
+    ctx.save();
+    ctx.strokeStyle = 'rgba(124,240,245,0.55)';
+    ctx.lineWidth = 1.4;
+    lines.forEach(function(pts){
+      if (pts.length < 2) return;
+      ctx.beginPath();
+      ctx.moveTo(w2sx(pts[0].x), w2sy(pts[0].y));
+      for (let i=1;i<pts.length;i++) ctx.lineTo(w2sx(pts[i].x), w2sy(pts[i].y));
+      ctx.stroke();
+      // arrowhead at ~60% of line
+      const idx = Math.floor(pts.length*0.55);
+      if (idx > 1 && idx < pts.length-1){
+        const a = pts[idx-1], b = pts[idx+1];
+        drawArrow(w2sx(pts[idx].x), w2sy(pts[idx].y),
+                  w2sx(pts[idx].x)+(w2sx(b.x)-w2sx(a.x))*0.001+ (w2sx(b.x)-w2sx(a.x))*0.3,
+                  w2sy(pts[idx].y)+(w2sy(b.y)-w2sy(a.y))*0.3,
+                  'rgba(124,240,245,0.85)', 0.9, 1.2);
+      }
+    });
+    ctx.restore();
+  }
+
+  function drawEquipotentials(){
+    ctx.save();
+    eqLines.forEach(function(line){
+      ctx.strokeStyle = 'rgba(94,230,160,0.85)';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      line.pts.forEach(function(p,i){
+        const sx=w2sx(p.x), sy=w2sy(p.y);
+        if (i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+      });
+      ctx.stroke();
+      // label near midpoint
+      const mid = line.pts[Math.floor(line.pts.length/2)];
+      ctx.fillStyle = 'rgba(94,230,160,0.95)';
+      ctx.font = '11px "IBM Plex Mono", monospace';
+      ctx.fillText(line.v.toFixed(1)+' V', w2sx(mid.x)+6, w2sy(mid.y)-6);
+    });
+    ctx.restore();
+  }
+
+  function drawCharges(){
+    charges.forEach(function(c){
+      const sx=w2sx(c.x), sy=w2sy(c.y);
+      const r = 13 + Math.abs(c.q)*2.2;
+      const isSel = selectedCharge && selectedCharge.id === c.id;
+      const posColor = ['#f5a428','#ffc164'];
+      const negColor = ['#2f8fd6','#5fb8ff'];
+      const grad = ctx.createRadialGradient(sx-r*0.3, sy-r*0.3, r*0.1, sx, sy, r);
+      if (c.q >= 0){ grad.addColorStop(0, posColor[1]); grad.addColorStop(1, posColor[0]); }
+      else { grad.addColorStop(0, negColor[1]); grad.addColorStop(1, negColor[0]); }
+      ctx.save();
+      if (isSel){
+        ctx.shadowColor = 'rgba(63,215,224,0.9)';
+        ctx.shadowBlur = 16;
+      }
+      ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2);
+      ctx.fillStyle = grad; ctx.fill();
+      ctx.lineWidth = isSel?2.4:1.4;
+      ctx.strokeStyle = isSel ? 'var(--cyan)' : 'rgba(6,11,22,0.55)';
+      ctx.strokeStyle = isSel ? '#3fd7e0' : 'rgba(6,11,22,0.55)';
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#0a1220';
+      ctx.font = '700 13px "IBM Plex Mono", monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const label = (c.q>0? '+':'') + c.q;
+      ctx.fillText(label, sx, sy+1);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    });
+  }
+
+  function drawSensors(){
+    sensors.forEach(function(s){
+      const sx=w2sx(s.x), sy=w2sy(s.y);
+      const f = fieldAt(s.x,s.y);
+      const V = potentialAt(s.x,s.y);
+
+      // field arrow from probe
+      if (f.mag > 1e-4){
+        const len = 18 + clampMag(f.mag)*2.4;
+        const ux=f.ex/f.mag, uy=-f.ey/f.mag;
+        drawArrow(sx,sy, sx+ux*len, sy+uy*len, '#7cf0f5', 0.95, 2.2);
+      }
+
+      ctx.save();
+      ctx.beginPath(); ctx.arc(sx,sy,9,0,Math.PI*2);
+      ctx.fillStyle = '#0f1c30'; ctx.fill();
+      ctx.lineWidth=2; ctx.strokeStyle='#3fd7e0'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(sx,sy,2.5,0,Math.PI*2);
+      ctx.fillStyle='#7cf0f5'; ctx.fill();
+      ctx.restore();
+
+      // readout tag
+      const angDeg = (Math.atan2(f.ey,f.ex) * 180/Math.PI).toFixed(0);
+      const tag1 = 'V = ' + V.toFixed(2) + ' V';
+      const tag2 = '|E| = ' + f.mag.toFixed(2) + ' N/C @ ' + angDeg + '\u00B0';
+      ctx.font = '11px "IBM Plex Mono", monospace';
+      const tw = Math.max(ctx.measureText(tag1).width, ctx.measureText(tag2).width) + 12;
+      const bx = sx + 14, by = sy - 30;
+      ctx.fillStyle = 'rgba(10,18,32,0.88)';
+      ctx.strokeStyle = 'rgba(63,215,224,0.6)'; ctx.lineWidth=1;
+      roundRect(ctx, bx, by, tw, 34, 5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#e8f1fb';
+      ctx.fillText(tag1, bx+6, by+14);
+      ctx.fillStyle = '#9fb3c8';
+      ctx.fillText(tag2, bx+6, by+27);
+    });
+  }
+
+  function roundRect(c,x,y,w,h,r){
+    c.beginPath();
+    c.moveTo(x+r,y);
+    c.arcTo(x+w,y,x+w,y+h,r);
+    c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r);
+    c.arcTo(x,y,x+w,y,r);
+    c.closePath();
+  }
+
+  function drawRulers(){
+    rulers.forEach(function(r){
+      const s1x=w2sx(r.x1), s1y=w2sy(r.y1);
+      const s2x=w2sx(r.x2), s2y=w2sy(r.y2);
+      ctx.save();
+      ctx.strokeStyle = '#f5a428'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(s1x,s1y); ctx.lineTo(s2x,s2y); ctx.stroke();
+      [ [s1x,s1y], [s2x,s2y] ].forEach(function(p){
+        ctx.beginPath(); ctx.arc(p[0],p[1],7,0,Math.PI*2);
+        ctx.fillStyle = '#f5a428'; ctx.fill();
+        ctx.lineWidth=1.5; ctx.strokeStyle='#0a1220'; ctx.stroke();
+      });
+      const dist = Math.hypot(r.x2-r.x1, r.y2-r.y1);
+      const mx=(s1x+s2x)/2, my=(s1y+s2y)/2;
+      const label = dist.toFixed(2)+' m';
+      ctx.font = '700 12px "IBM Plex Mono", monospace';
+      const tw = ctx.measureText(label).width + 12;
+      ctx.fillStyle = 'rgba(10,18,32,0.9)';
+      ctx.strokeStyle = 'rgba(245,164,40,0.7)'; ctx.lineWidth=1;
+      roundRect(ctx, mx-tw/2, my-22, tw, 20, 5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffc164';
+      ctx.textAlign='center';
+      ctx.fillText(label, mx, my-8);
+      ctx.textAlign='left';
+      ctx.restore();
+    });
+  }
+
+  /* ============ REDRAW SCHEDULING ============ */
+  let redrawPending = false;
+  function requestRedraw(){
+    if (redrawPending) return;
+    redrawPending = true;
+    requestAnimationFrame(function(){ redrawPending = false; draw(); });
+  }
+
+  /* ============ POINTER HANDLING ============ */
+  function safeCapture(evt){
+    try{ if (canvas.setPointerCapture) canvas.setPointerCapture(evt.pointerId); }catch(e){ /* not supported — ignore */ }
+  }
+
+  function getPos(evt){
+    const rect = canvas.getBoundingClientRect();
+    const cx = (evt.touches ? evt.touches[0].clientX : evt.clientX) - rect.left;
+    const cy = (evt.touches ? evt.touches[0].clientY : evt.clientY) - rect.top;
+    return {x:cx, y:cy};
+  }
+
+  canvas.addEventListener('pointerdown', function(evt){
+    const p = getPos(evt);
+    dragMoved = false;
+
+    if (eqMode){
+      const wx = s2wx(p.x), wy = s2wy(p.y);
+      // don't trace if grabbing an existing object
+      const hitC = hitCharge(p.x,p.y);
+      if (!hitC){
+        const res = traceEquipotential(wx,wy);
+        if (res) eqLines.push(res);
+        updateSummary();
+        requestRedraw();
+        return;
+      }
+    }
+
+    const rulEnd = hitRulerEnd(p.x,p.y);
+    if (rulEnd){ drag = {type:'rulerEnd', obj:rulEnd.ruler, part:rulEnd.part}; safeCapture(evt); return; }
+
+    const sHit = hitSensor(p.x,p.y);
+    if (sHit){ drag = {type:'sensor', obj:sHit}; safeCapture(evt); return; }
+
+    const cHit = hitCharge(p.x,p.y);
+    if (cHit){
+      drag = {type:'charge', obj:cHit};
+      safeCapture(evt);
+      return;
+    }
+
+    hidePopover();
+    selectedCharge = null;
+    requestRedraw();
+  });
+
+  canvas.addEventListener('pointermove', function(evt){
+    const p = getPos(evt);
+    if (!drag){
+      // hover cursor
+      const c = hitCharge(p.x,p.y) || hitSensor(p.x,p.y) || (hitRulerEnd(p.x,p.y) ? {} : null);
+      canvas.style.cursor = eqMode ? 'copy' : (c ? 'grab' : 'crosshair');
+      return;
+    }
+    dragMoved = true;
+    canvas.style.cursor = 'grabbing';
+    const wx = s2wx(p.x), wy = s2wy(p.y);
+
+    if (drag.type === 'charge'){
+      drag.obj.x = wx; drag.obj.y = wy;
+      showTrash(true);
+      const overTrash = isOverTrash(evt);
+      trashZone.classList.toggle('hover', overTrash);
+    } else if (drag.type === 'sensor'){
+      drag.obj.x = wx; drag.obj.y = wy;
+      showTrash(true);
+      trashZone.classList.toggle('hover', isOverTrash(evt));
+    } else if (drag.type === 'rulerEnd'){
+      if (drag.part === '1'){ drag.obj.x1 = wx; drag.obj.y1 = wy; }
+      else { drag.obj.x2 = wx; drag.obj.y2 = wy; }
+    }
+    requestRedraw();
+    updateSensorPanel();
+    updateRulerPanel();
+  });
+
+  function isOverTrash(evt){
+    const tr = trashZone.getBoundingClientRect();
+    const x = (evt.touches ? evt.touches[0].clientX : evt.clientX);
+    const y = (evt.touches ? evt.touches[0].clientY : evt.clientY);
+    return x >= tr.left && x <= tr.right && y >= tr.top && y <= tr.bottom;
+  }
+
+  function endDrag(evt){
+    if (!drag) return;
+    if (evt && isOverTrash(evt)){
+      if (drag.type === 'charge') deleteCharge(drag.obj);
+      if (drag.type === 'sensor'){ sensors = sensors.filter(function(s){ return s.id !== drag.obj.id; }); updateSensorPanel(); }
+    } else if (drag.type === 'charge' && !dragMoved){
+      selectCharge(drag.obj, evt);
+    }
+    showTrash(false);
+    trashZone.classList.remove('hover');
+    drag = null;
+    canvas.style.cursor = 'crosshair';
+    requestRedraw();
+    updateSummary();
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('pointerleave', function(evt){ if (drag) endDrag(evt); });
+
+  canvas.addEventListener('dblclick', function(evt){
+    const p = getPos(evt);
+    const c = hitCharge(p.x,p.y);
+    if (c) deleteCharge(c);
+  });
+
+  function showTrash(v){ trashZone.classList.toggle('show', v); }
+
+  /* ============ CHARGE SELECTION POPOVER ============ */
+  function selectCharge(c, evt){
+    selectedCharge = c;
+    updatePopoverContent();
+    popover.style.display = 'block';
+    updatePopoverPosition();
+    requestRedraw();
+  }
+  function hidePopover(){ popover.style.display = 'none'; }
+  function updatePopoverContent(){
+    if (!selectedCharge) return;
+    document.getElementById('popLabel').textContent = (selectedCharge.q>0?'+':'') + selectedCharge.q + ' nC';
+  }
+  function updatePopoverPosition(){
+    if (!selectedCharge || popover.style.display === 'none') return;
+    const sx = w2sx(selectedCharge.x), sy = w2sy(selectedCharge.y);
+    popover.style.left = sx + 'px';
+    popover.style.top = sy + 'px';
+  }
+  document.getElementById('popPlus').addEventListener('click', function(){
+    if (!selectedCharge) return;
+    if (selectedCharge.q < MAX_Q) selectedCharge.q++;
+    if (selectedCharge.q === 0) selectedCharge.q = 1;
+    updatePopoverContent(); requestRedraw(); updateSummary();
+  });
+  document.getElementById('popMinus').addEventListener('click', function(){
+    if (!selectedCharge) return;
+    if (selectedCharge.q > MIN_Q) selectedCharge.q--;
+    if (selectedCharge.q === 0) selectedCharge.q = -1;
+    updatePopoverContent(); requestRedraw(); updateSummary();
+  });
+  document.getElementById('popDelete').addEventListener('click', function(){
+    if (!selectedCharge) return;
+    deleteCharge(selectedCharge);
+  });
+
+  /* ============ TOOLBAR WIRING ============ */
+  document.getElementById('addPos').addEventListener('click', function(){ addCharge(1); });
+  document.getElementById('addNeg').addEventListener('click', function(){ addCharge(-1); });
+  document.getElementById('clearCharges').addEventListener('click', function(){
+    charges = []; selectedCharge = null; hidePopover(); eqLines = [];
+    requestRedraw(); updateSummary();
+  });
+
+  const chkGrid = document.getElementById('chkGrid');
+  const chkField = document.getElementById('chkField');
+  const chkLines = document.getElementById('chkLines');
+  function syncChkLabels(){
+    document.getElementById('lblGrid').classList.toggle('on', chkGrid.checked);
+    document.getElementById('lblField').classList.toggle('on', chkField.checked);
+    document.getElementById('lblLines').classList.toggle('on', chkLines.checked);
+  }
+  chkGrid.addEventListener('change', function(){ showGrid = chkGrid.checked; syncChkLabels(); requestRedraw(); });
+  chkField.addEventListener('change', function(){ showField = chkField.checked; syncChkLabels(); requestRedraw(); });
+  chkLines.addEventListener('change', function(){ showLines = chkLines.checked; syncChkLabels(); requestRedraw(); });
+  syncChkLabels();
+
+  const eqModeBtn = document.getElementById('eqMode');
+  const eqBanner = document.getElementById('eqBanner');
+  eqModeBtn.addEventListener('click', function(){
+    eqMode = !eqMode;
+    eqModeBtn.classList.toggle('active-mode', eqMode);
+    eqBanner.classList.toggle('show', eqMode);
+    canvas.style.cursor = eqMode ? 'copy' : 'crosshair';
+  });
+  document.getElementById('clearEq').addEventListener('click', function(){
+    eqLines = []; requestRedraw(); updateSummary();
+  });
+
+  document.getElementById('addSensor').addEventListener('click', function(){ addSensor(); updateSensorPanel(); });
+  document.getElementById('addRuler').addEventListener('click', function(){ addRuler(); updateRulerPanel(); });
+  document.getElementById('clearTools').addEventListener('click', function(){
+    sensors = []; rulers = []; requestRedraw(); updateSensorPanel(); updateRulerPanel();
+  });
+
+  document.getElementById('resetAll').addEventListener('click', function(){
+    charges = []; sensors = []; rulers = []; eqLines = [];
+    selectedCharge = null; hidePopover();
+    eqMode = false; eqModeBtn.classList.remove('active-mode'); eqBanner.classList.remove('show');
+    requestRedraw();
+    updateSummary(); updateSensorPanel(); updateRulerPanel();
+  });
+
+  /* ============ SIDE PANELS ============ */
+  function updateSummary(){
+    document.getElementById('sumCharges').textContent = charges.length;
+    const net = charges.reduce(function(a,c){ return a+c.q; }, 0);
+    document.getElementById('sumNet').textContent = (net>0?'+':'') + net + ' nC';
+    document.getElementById('sumEq').textContent = eqLines.length;
+  }
+  function updateSensorPanel(){
+    const el = document.getElementById('sensorList');
+    if (sensors.length === 0){ el.innerHTML = '<div class="empty-note">No sensors placed. Click "+ Voltage / E Sensor".</div>'; return; }
+    el.innerHTML = sensors.map(function(s,i){
+      const f = fieldAt(s.x,s.y);
+      const V = potentialAt(s.x,s.y);
+      const ang = (Math.atan2(f.ey,f.ex)*180/Math.PI).toFixed(0);
+      return '<div class="kv"><span>Sensor '+(i+1)+' — V</span><b>'+V.toFixed(2)+' V</b></div>'+
+             '<div class="kv"><span>Sensor '+(i+1)+' — |E| @ \u2220</span><b>'+f.mag.toFixed(2)+' N/C @ '+ang+'\u00B0</b></div>';
+    }).join('');
+  }
+  function updateRulerPanel(){
+    const el = document.getElementById('rulerList');
+    if (rulers.length === 0){ el.innerHTML = '<div class="empty-note">No tape placed. Click "+ Measuring Tape".</div>'; return; }
+    el.innerHTML = rulers.map(function(r,i){
+      const d = Math.hypot(r.x2-r.x1, r.y2-r.y1);
+      return '<div class="kv"><span>Tape '+(i+1)+'</span><b>'+d.toFixed(2)+' m</b></div>';
+    }).join('');
+  }
+
+  /* keep panels live while dragging sensors/rulers already wired above;
+     also refresh periodically in case charges move affecting sensors */
+  const origEndDrag = endDrag;
+
+  /* ============ INIT ============ */
+  function init(){
+    sizeCanvas();
+    addCharge(1);
+    // small delay offset for second default charge so they don't overlap exactly
+    charges.push({id:idSeq++, x:-1.0, y:0.0, q:-1});
+    updateSummary();
+    updateSensorPanel();
+    updateRulerPanel();
+    requestRedraw();
+  }
+  window.addEventListener('load', init);
+  if (document.readyState === 'complete') init();
+})();
+</script>
+</body>
+</html>
