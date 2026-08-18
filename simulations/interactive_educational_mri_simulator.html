@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Educational MRI Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0284c7', 600: '#0284c7', 700: '#0369a1', 900: '#0c4a6e' },
+                        mri: { dark: '#0b1120', panel: '#1e293b', accent: '#38bdf8', pulse: '#f43f5e', magnet: '#a855f7' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        /* Custom Styles & Visual Polish */
+        body { background-color: #070a12; color: #f1f5f9; font-family: 'Inter', system-ui, -apple-system, sans-serif; overflow-x: hidden; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .glow-box { box-shadow: 0 0 15px rgba(56, 189, 248, 0.15); }
+        .glow-pulse { animation: pulse-glow 2s infinite; }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px rgba(56, 189, 248, 0.2); } 50% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.6); } }
+        .tab-btn.active { border-bottom: 2px solid #38bdf8; color: #38bdf8; background-color: rgba(56, 189, 248, 0.1); }
+        canvas { touch-action: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-200">
+
+    <!-- Top Header -->
+    <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400 font-bold text-xl">
+                <i class="fa-solid fa-atom animate-spin-slow"></i>
+            </div>
+            <div>
+                <h1 class="text-base sm:text-lg font-bold text-white tracking-wide flex items-center gap-2">
+                    MRI Physics Virtual Lab
+                    <span class="text-xs font-normal px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800">EduSim v3.1</span>
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Interactive 3D Magnetic Resonance Imaging Simulator</p>
+            </div>
+        </div>
+
+        <!-- Mode & Global Actions -->
+        <div class="flex items-center flex-wrap gap-2 text-xs">
+            <!-- Mode Selector -->
+            <div class="bg-slate-800 p-1 rounded-lg border border-slate-700 flex items-center">
+                <button id="mode-beginner-btn" onclick="setMode('beginner')" class="px-2.5 py-1 rounded-md font-medium transition bg-sky-600 text-white">Beginner</button>
+                <button id="mode-engineer-btn" onclick="setMode('engineer')" class="px-2.5 py-1 rounded-md font-medium transition text-slate-400 hover:text-white">Engineering</button>
+            </div>
+
+            <button onclick="startStoryMode()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium flex items-center gap-1.5 transition shadow">
+                <i class="fa-solid fa-graduation-cap"></i> <span class="hidden md:inline">Teach Me MRI</span>
+            </button>
+            <button onclick="openSafetyModal()" class="px-3 py-1.5 rounded-lg bg-amber-600/80 hover:bg-amber-500 text-white font-medium flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-triangle-exclamation"></i> <span class="hidden md:inline">MRI Safety</span>
+            </button>
+            <button onclick="openQuizModal()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-circle-question"></i> <span class="hidden md:inline">Quiz</span>
+            </button>
+            <button id="audio-toggle-btn" onclick="toggleAudio()" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
+                <i class="fa-solid fa-volume-xmark text-rose-400" id="audio-icon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Medical Disclaimer -->
+    <div class="bg-amber-950/40 border-b border-amber-900/50 px-4 py-1 text-center text-xs text-amber-300/90 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-circle-info"></i>
+        <span><strong>EDUCATIONAL NOTICE:</strong> Interactive visual model of MRI physics principles. Not a clinical diagnostic tool or medical software.</span>
+    </div>
+
+    <!-- Main Workspace Grid -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 p-3 max-w-[1920px] mx-auto w-full">
+
+        <!-- LEFT COLUMN: Examination & Physics Controls (Col 3) -->
+        <aside class="lg:col-span-3 flex flex-col gap-3">
+            
+            <!-- Scan Exam Selection -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg">
+                <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-list text-sky-400"></i> Examination Target
+                </h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="selectExam('brain')" id="exam-brain" class="exam-btn p-2 rounded-lg border border-sky-500/50 bg-sky-950/30 text-left hover:border-sky-400 transition text-xs">
+                        <div class="font-bold text-white"><i class="fa-solid fa-brain text-sky-400 mr-1"></i> Brain MRI</div>
+                        <div class="text-[10px] text-slate-400">Head cross-section</div>
+                    </button>
+                    <button onclick="selectExam('spine')" id="exam-spine" class="exam-btn p-2 rounded-lg border border-slate-700 bg-slate-800/40 text-left hover:border-sky-400 transition text-xs">
+                        <div class="font-bold text-white"><i class="fa-solid fa-bone text-purple-400 mr-1"></i> Spine MRI</div>
+                        <div class="text-[10px] text-slate-400">Cervical/Lumbar</div>
+                    </button>
+                    <button onclick="selectExam('knee')" id="exam-knee" class="exam-btn p-2 rounded-lg border border-slate-700 bg-slate-800/40 text-left hover:border-sky-400 transition text-xs">
+                        <div class="font-bold text-white"><i class="fa-solid fa-person-running text-emerald-400 mr-1"></i> Knee MRI</div>
+                        <div class="text-[10px] text-slate-400">Joint & ligaments</div>
+                    </button>
+                    <button onclick="selectExam('abdomen')" id="exam-abdomen" class="exam-btn p-2 rounded-lg border border-slate-700 bg-slate-800/40 text-left hover:border-sky-400 transition text-xs">
+                        <div class="font-bold text-white"><i class="fa-solid fa-atom text-amber-400 mr-1"></i> Abdomen</div>
+                        <div class="text-[10px] text-slate-400">Liver, Kidneys</div>
+                    </button>
+                    <button onclick="selectExam('cardiac')" id="exam-cardiac" class="exam-btn p-2 rounded-lg border border-slate-700 bg-slate-800/40 text-left hover:border-sky-400 transition text-xs">
+                        <div class="font-bold text-white"><i class="fa-solid fa-heart-pulse text-rose-400 mr-1"></i> Cardiac</div>
+                        <div class="text-[10px] text-slate-400">Heart chambers</div>
+                    </button>
+                    <button onclick="selectExam('wholebody')" id="exam-wholebody" class="exam-btn p-2 rounded-lg border border-slate-700 bg-slate-800/40 text-left hover:border-sky-400 transition text-xs">
+                        <div class="font-bold text-white"><i class="fa-solid fa-child text-indigo-400 mr-1"></i> Whole Body</div>
+                        <div class="text-[10px] text-slate-400">Multi-region</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Interactive Parameters Control Panel -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg flex-1 flex flex-col justify-between gap-3">
+                <div class="space-y-3">
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span><i class="fa-solid fa-sliders text-sky-400 mr-1"></i> Scan Parameters</span>
+                        <button onclick="resetPhysics()" class="text-[10px] text-sky-400 hover:underline">Reset Defaults</button>
+                    </h2>
+
+                    <!-- Main Field Strength B0 -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Static Field B₀:</span>
+                            <span id="b0-val-display" class="font-mono text-sky-400 font-bold">3.0 Tesla</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="setB0(1.5)" id="b0-15-btn" class="py-1 rounded bg-slate-800 border border-slate-700 hover:border-sky-400 text-xs">1.5 T (Standard)</button>
+                            <button onclick="setB0(3.0)" id="b0-30-btn" class="py-1 rounded bg-sky-900 border border-sky-500 text-xs font-bold text-white">3.0 T (High Field)</button>
+                        </div>
+                    </div>
+
+                    <!-- RF Pulse Flip Angle -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">RF Flip Angle (α):</span>
+                            <span id="flip-val-display" class="font-mono text-rose-400 font-bold">90°</span>
+                        </div>
+                        <input type="range" id="flip-slider" min="0" max="180" step="5" value="90" oninput="updateFlipAngle(this.value)" class="w-full accent-rose-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                            <span>0° (None)</span>
+                            <span>90° (Saturation)</span>
+                            <span>180° (Inversion)</span>
+                        </div>
+                    </div>
+
+                    <!-- Tissue Relaxation Sliders -->
+                    <div class="p-2 bg-slate-950/50 rounded-lg border border-slate-800/80 space-y-2">
+                        <div class="text-[11px] font-semibold text-slate-400">Tissue Parameters (Simulated):</div>
+                        <div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300">T1 Relaxation:</span>
+                                <span id="t1-val-display" class="font-mono text-emerald-400">800 ms</span>
+                            </div>
+                            <input type="range" id="t1-slider" min="200" max="3000" step="50" value="800" oninput="updateT1(this.value)" class="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300">T2 Relaxation:</span>
+                                <span id="t2-val-display" class="font-mono text-amber-400">80 ms</span>
+                            </div>
+                            <input type="range" id="t2-slider" min="20" max="300" step="5" value="80" oninput="updateT2(this.value)" class="w-full accent-amber-500 bg-slate-800 h-1.5 rounded-lg">
+                        </div>
+                    </div>
+
+                    <!-- Spatial Gradient Enablers -->
+                    <div>
+                        <span class="text-xs text-slate-300 mb-1 block">Gradient Coils (Spatial Encoding):</span>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <button id="gx-btn" onclick="toggleGradient('x')" class="py-1 px-2 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-slate-400 hover:border-sky-400">Gₓ (Freq)</button>
+                            <button id="gy-btn" onclick="toggleGradient('y')" class="py-1 px-2 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-slate-400 hover:border-sky-400">Gᵧ (Phase)</button>
+                            <button id="gz-btn" onclick="toggleGradient('z')" class="py-1 px-2 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-slate-400 hover:border-sky-400">G_z (Slice)</button>
+                        </div>
+                    </div>
+
+                    <!-- Pulse Sequence Selection -->
+                    <div>
+                        <span class="text-xs text-slate-300 mb-1 block">Pulse Sequence:</span>
+                        <select id="sequence-select" onchange="changeSequence(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
+                            <option value="t1w">T1-Weighted Spin Echo (Short TR / Short TE)</option>
+                            <option value="t2w">T2-Weighted Spin Echo (Long TR / Long TE)</option>
+                            <option value="pd">Proton Density Weighted (Long TR / Short TE)</option>
+                            <option value="flair">FLAIR (Fluid Attenuated Inversion Recovery)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Action Triggers -->
+                <div class="space-y-2 pt-2 border-t border-slate-800">
+                    <button id="start-scan-btn" onclick="toggleScanSequence()" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-sm tracking-wide shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-play" id="scan-btn-icon"></i> <span id="scan-btn-text">START FULL SCAN</span>
+                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="triggerRFPulse()" class="py-1.5 rounded-lg bg-rose-900/40 hover:bg-rose-800/60 border border-rose-600/50 text-rose-300 text-xs font-semibold flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-bolt"></i> Send RF Pulse
+                        </button>
+                        <button onclick="toggleMicroscopeView()" class="py-1.5 rounded-lg bg-purple-900/40 hover:bg-purple-800/60 border border-purple-600/50 text-purple-300 text-xs font-semibold flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-magnifying-glass font-bold"></i> Micro Zoom
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- CENTER COLUMN: Interactive 3D Scanner & Physics Canvas (Col 6) -->
+        <section class="lg:col-span-6 flex flex-col gap-3">
+            
+            <!-- View Mode Switcher -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-1.5 flex items-center justify-between text-xs">
+                <div class="flex items-center gap-1">
+                    <button id="tab-3d-btn" onclick="switchMainTab('3d')" class="tab-btn active px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-cube"></i> 3D MRI Machine
+                    </button>
+                    <button id="tab-micro-btn" onclick="switchMainTab('micro')" class="tab-btn px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-400">
+                        <i class="fa-solid fa-microscope"></i> Proton Micro-Level
+                    </button>
+                    <button id="tab-block-btn" onclick="switchMainTab('block')" class="tab-btn px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-400">
+                        <i class="fa-solid fa-diagram-project"></i> System Architecture
+                    </button>
+                </div>
+                <!-- 3D Controls overlay toggles -->
+                <div class="flex items-center gap-1 pr-1">
+                    <button onclick="toggleTransparency()" title="Toggle Transparency" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 text-slate-300">
+                        <i class="fa-solid fa-eye text-sky-400"></i> Cutaway View
+                    </button>
+                    <button onclick="resetCamera()" title="Reset Camera" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 text-slate-300">
+                        <i class="fa-solid fa-arrows-to-dot"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Viewport Container -->
+            <div class="relative bg-slate-950 border border-slate-800 rounded-xl h-[440px] sm:h-[500px] overflow-hidden shadow-2xl flex flex-col">
+                
+                <!-- 1. 3D WebGL Canvas -->
+                <div id="three-container" class="w-full h-full relative cursor-grab">
+                    <!-- Overlay Info Component Callout -->
+                    <div id="component-tooltip" class="absolute top-3 left-3 bg-slate-900/90 backdrop-blur border border-sky-500/40 p-2.5 rounded-lg text-xs max-w-xs transition-opacity duration-300 opacity-0 pointer-events-none shadow-xl z-20">
+                        <div id="comp-title" class="font-bold text-sky-400 mb-0.5">Component</div>
+                        <div id="comp-desc" class="text-slate-300 leading-tight">Click components in 3D to explore hardware.</div>
+                    </div>
+
+                    <!-- Overlay Controls overlay inside 3D -->
+                    <div class="absolute bottom-3 left-3 flex gap-2 z-10">
+                        <div class="bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg p-1 flex gap-1 text-[11px]">
+                            <button onclick="setPatientPosition(-1.2)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200"><i class="fa-solid fa-arrow-left mr-1"></i>Bed Out</button>
+                            <button onclick="setPatientPosition(0)" class="px-2 py-1 rounded bg-sky-900 hover:bg-sky-800 text-white font-semibold">Center Bed</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Microscopic Proton Canvas (Hidden by default) -->
+                <div id="micro-container" class="w-full h-full relative hidden bg-slate-950 p-4">
+                    <canvas id="micro-canvas" class="w-full h-full block rounded-lg"></canvas>
+                    <div class="absolute bottom-4 left-4 bg-slate-900/90 border border-slate-800 p-3 rounded-lg text-xs max-w-sm">
+                        <div class="font-bold text-sky-400 mb-1"><i class="fa-solid fa-magnet mr-1"></i> Hydrogen Protons (Spin Mechanics)</div>
+                        <p class="text-slate-300 text-[11px] leading-relaxed">
+                            Hydrogen nuclei (single protons) act like tiny magnetic dipole moments. B₀ aligns them; RF pulses tip their magnetization vector away from z-axis into transverse plane (x-y).
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 3. Block Diagram View (Hidden by default) -->
+                <div id="block-container" class="w-full h-full relative hidden bg-slate-950 p-4 overflow-y-auto">
+                    <div class="max-w-xl mx-auto space-y-3 py-4">
+                        <h3 class="text-sm font-bold text-sky-400 text-center uppercase tracking-wider">MRI Hardware & Signal Processing Flow</h3>
+                        <div class="grid grid-cols-1 gap-2 text-xs">
+                            <div class="p-2.5 bg-slate-900 border-l-4 border-purple-500 rounded-r shadow flex justify-between items-center">
+                                <div><strong class="text-purple-300">1. Superconducting Magnet:</strong> Generates B0 (1.5T/3.0T) inside cryostat cooled by liquid Helium (4 Kelvin).</div>
+                                <button onclick="explainComponent('magnet')" class="text-sky-400 underline text-[10px]">WHY?</button>
+                            </div>
+                            <div class="p-2.5 bg-slate-900 border-l-4 border-rose-500 rounded-r shadow flex justify-between items-center">
+                                <div><strong class="text-rose-300">2. RF Transmitter:</strong> Synthesizes high-power RF excitation pulses tuned precisely to Larmor Frequency.</div>
+                                <button onclick="explainComponent('rf')" class="text-sky-400 underline text-[10px]">WHY?</button>
+                            </div>
+                            <div class="p-2.5 bg-slate-900 border-l-4 border-emerald-500 rounded-r shadow flex justify-between items-center">
+                                <div><strong class="text-emerald-300">3. Gradient Amplifiers & Coils:</strong> Modify B0 linearly across X, Y, Z axes for spatial position encoding.</div>
+                                <button onclick="explainComponent('gradient')" class="text-sky-400 underline text-[10px]">WHY?</button>
+                            </div>
+                            <div class="p-2.5 bg-slate-900 border-l-4 border-amber-500 rounded-r shadow flex justify-between items-center">
+                                <div><strong class="text-amber-300">4. Receive Coils & LNA:</strong> Detect tiny microvolt Precession FID signals and amplify with Low Noise Amplifiers.</div>
+                                <button onclick="explainComponent('receiver')" class="text-sky-400 underline text-[10px]">WHY?</button>
+                            </div>
+                            <div class="p-2.5 bg-slate-900 border-l-4 border-sky-500 rounded-r shadow flex justify-between items-center">
+                                <div><strong class="text-sky-300">5. ADC & DSP Computer:</strong> Digitizes raw signal, fills 2D K-Space matrix, executes 2D Inverse Fast Fourier Transform.</div>
+                                <button onclick="explainComponent('computer')" class="text-sky-400 underline text-[10px]">WHY?</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Progress Overlay Bar for Scan Sequence -->
+                <div class="bg-slate-900 border-t border-slate-800 p-2 px-4 flex items-center justify-between gap-3 text-xs">
+                    <div class="flex items-center gap-2 flex-1">
+                        <span class="font-bold text-slate-400 whitespace-nowrap">Status:</span>
+                        <span id="scan-stage-label" class="text-sky-400 font-mono truncate">Ready for Scan</span>
+                    </div>
+                    <div class="w-32 bg-slate-800 h-2 rounded-full overflow-hidden border border-slate-700">
+                        <div id="scan-progress-bar" class="bg-sky-400 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Engineering Metrics Dashboard Bar -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                <div class="p-1.5 bg-slate-950 rounded-lg border border-slate-800">
+                    <div class="text-[10px] text-slate-400 uppercase">Larmor Freq (f₀)</div>
+                    <div id="metric-larmor" class="font-mono font-bold text-sky-400 text-sm">127.74 MHz</div>
+                </div>
+                <div class="p-1.5 bg-slate-950 rounded-lg border border-slate-800">
+                    <div class="text-[10px] text-slate-400 uppercase">Precession Magnetization</div>
+                    <div id="metric-mag" class="font-mono font-bold text-emerald-400 text-sm">M_z: 100% | M_xy: 0%</div>
+                </div>
+                <div class="p-1.5 bg-slate-950 rounded-lg border border-slate-800">
+                    <div class="text-[10px] text-slate-400 uppercase">Gradient B-Shift</div>
+                    <div id="metric-grad" class="font-mono font-bold text-amber-400 text-sm">ΔB: 0.00 mT</div>
+                </div>
+                <div class="p-1.5 bg-slate-950 rounded-lg border border-slate-800">
+                    <div class="text-[10px] text-slate-400 uppercase">Simulated SNR</div>
+                    <div id="metric-snr" class="font-mono font-bold text-rose-400 text-sm">42.5 dB</div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: Signal, K-Space & Image Reconstruction (Col 3) -->
+        <aside class="lg:col-span-3 flex flex-col gap-3">
+            
+            <!-- Physics Waveform Graphs Panel -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-line text-rose-400"></i> Signal Waveforms
+                    </h2>
+                    <span class="text-[10px] font-mono text-slate-500">Live Bloch Dynamics</span>
+                </div>
+                <!-- Realtime Canvas for Magnetization and Signal FID -->
+                <div class="bg-slate-950 rounded-lg border border-slate-800 h-32 relative">
+                    <canvas id="waveform-canvas" class="w-full h-full block"></canvas>
+                </div>
+                <div class="flex justify-between text-[10px] text-slate-400 mt-1.5 px-1">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span> M_z (T1)</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> M_xy (T2)</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-400 inline-block"></span> RF FID Signal</span>
+                </div>
+            </div>
+
+            <!-- K-Space Matrix Acquisition Panel -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg">
+                <div class="flex justify-between items-center mb-1.5">
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-border-all text-sky-400"></i> K-Space Matrix
+                    </h2>
+                    <button onclick="explainComponent('kspace')" class="text-[10px] text-sky-400 hover:underline">What is this?</button>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <div class="w-28 h-28 bg-slate-950 rounded border border-slate-800 relative overflow-hidden flex-shrink-0">
+                        <canvas id="kspace-canvas" width="128" height="128" class="w-full h-full block"></canvas>
+                    </div>
+                    <div class="text-[11px] text-slate-300 space-y-1 flex-1">
+                        <div class="text-[10px] text-slate-400">Spatial Frequency Grid</div>
+                        <div>Phase Steps: <span id="kspace-lines" class="font-mono text-sky-400">0 / 128</span></div>
+                        <p class="text-[10px] text-slate-500 leading-tight">Central points determine high contrast; peripheral points hold edge sharpness.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Final Reconstructed MRI Image Display -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg flex-1 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-image text-emerald-400"></i> Reconstructed Image
+                        </h2>
+                        <span id="recon-status" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">2D FFT Ready</span>
+                    </div>
+
+                    <!-- Reconstructed Canvas Image -->
+                    <div class="aspect-square bg-slate-950 rounded-xl border border-slate-800 relative overflow-hidden flex items-center justify-center glow-box">
+                        <canvas id="mri-image-canvas" width="256" height="256" class="w-full h-full object-contain"></canvas>
+                        <div id="image-watermark" class="absolute bottom-2 right-2 text-[9px] text-slate-600 font-mono pointer-events-none">
+                            SIMULATED PHANTOM
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-2 space-y-1.5">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-slate-400">Slice Selector:</span>
+                        <span id="slice-val-display" class="font-mono text-sky-400">Slice 12/24</span>
+                    </div>
+                    <input type="range" min="1" max="24" value="12" oninput="updateSlice(this.value)" class="w-full accent-sky-500 bg-slate-800 h-1.5 rounded-lg">
+                </div>
+            </div>
+
+        </aside>
+
+    </main>
+
+    <!-- MODALS SECTION -->
+
+    <!-- 1. "WHY?" & Component Explanation Modal -->
+    <div id="explain-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 id="modal-title" class="text-base font-bold text-sky-400 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-question"></i> Component Explanation
+                </h3>
+                <button onclick="closeModal('explain-modal')" class="text-slate-400 hover:text-white text-lg">&times;</button>
+            </div>
+            <div id="modal-body-simple" class="p-3 bg-sky-950/30 border border-sky-800/40 rounded-xl text-xs text-sky-200 leading-relaxed space-y-1">
+                <strong><i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i> Beginner Explanation:</strong>
+                <p id="modal-text-simple">Simple concept text goes here...</p>
+            </div>
+            <div id="modal-body-advanced" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300 leading-relaxed space-y-1">
+                <strong><i class="fa-solid fa-microchip text-emerald-400 mr-1"></i> Engineering & Physics Details:</strong>
+                <p id="modal-text-advanced">Advanced technical description goes here...</p>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="closeModal('explain-modal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg">Got It</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Interactive MRI Safety Sandbox Modal -->
+    <div id="safety-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-5 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i> MRI Safety & Ferromagnetic Hazard Demonstration
+                </h3>
+                <button onclick="closeModal('safety-modal')" class="text-slate-400 hover:text-white text-lg">&times;</button>
+            </div>
+            <p class="text-xs text-slate-300">
+                The static B₀ magnetic field (1.5T – 3.0T) is <strong>always active</strong>. Ferromagnetic materials (iron, nickel, steel) experience extreme missile forces toward the magnet bore. Non-ferromagnetic objects are safe.
+            </p>
+            
+            <!-- Interactive Object Drop Area -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center relative min-h-[220px] overflow-hidden" id="safety-sandbox">
+                <div class="w-32 h-32 rounded-full border-4 border-dashed border-purple-500/50 flex items-center justify-center text-purple-400 font-bold text-xs bg-purple-950/20 mb-4">
+                    MRI BORE (B₀ Field Zone)
+                </div>
+                <div id="flying-object" class="absolute bottom-4 left-1/2 -translate-x-1/2 p-2 rounded bg-slate-800 border border-slate-700 text-xs text-white font-mono flex items-center gap-2 transition-all duration-700">
+                    <i class="fa-solid fa-cube"></i> Select an Object Below
+                </div>
+            </div>
+
+            <!-- Objects Selector Buttons -->
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-xs">
+                <button onclick="testSafetyObject('bottle', false)" class="p-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-center">
+                    <i class="fa-solid fa-bottle-water text-sky-400 block text-lg mb-1"></i> Plastic Bottle
+                </button>
+                <button onclick="testSafetyObject('wood', false)" class="p-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-center">
+                    <i class="fa-solid fa-tree text-emerald-400 block text-lg mb-1"></i> Wood
+                </button>
+                <button onclick="testSafetyObject('aluminum', false)" class="p-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-center">
+                    <i class="fa-solid fa-can-food text-slate-300 block text-lg mb-1"></i> Aluminum
+                </button>
+                <button onclick="testSafetyObject('steel', true)" class="p-2 rounded bg-rose-950/50 hover:bg-rose-900/60 border border-rose-700 text-center text-rose-200">
+                    <i class="fa-solid fa-wrench text-rose-400 block text-lg mb-1"></i> Steel Wrench
+                </button>
+                <button onclick="testSafetyObject('scissors', true)" class="p-2 rounded bg-rose-950/50 hover:bg-rose-900/60 border border-rose-700 text-center text-rose-200">
+                    <i class="fa-solid fa-scissors text-rose-400 block text-lg mb-1"></i> Scissors
+                </button>
+                <button onclick="testSafetyObject('oxygen', true)" class="p-2 rounded bg-rose-950/50 hover:bg-rose-900/60 border border-rose-700 text-center text-rose-200">
+                    <i class="fa-solid fa-gas-cylinder text-rose-400 block text-lg mb-1"></i> O₂ Tank
+                </button>
+            </div>
+
+            <div id="safety-result" class="p-2.5 rounded-lg bg-slate-950 text-xs text-slate-300 font-mono">
+                Status: Click an item to test magnetic torque and missile attraction.
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Interactive Quiz Modal -->
+    <div id="quiz-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-indigo-400 flex items-center gap-2">
+                    <i class="fa-solid fa-brain"></i> Test Your Knowledge
+                </h3>
+                <button onclick="closeModal('quiz-modal')" class="text-slate-400 hover:text-white text-lg">&times;</button>
+            </div>
+            
+            <div id="quiz-container" class="space-y-3">
+                <div class="flex justify-between text-xs text-slate-400">
+                    <span id="quiz-progress">Question 1 / 5</span>
+                    <span id="quiz-score" class="text-emerald-400 font-bold">Score: 0</span>
+                </div>
+                <div id="quiz-question" class="text-xs font-semibold text-white leading-relaxed p-3 bg-slate-950 rounded-lg border border-slate-800">
+                    Loading question...
+                </div>
+                <div id="quiz-options" class="space-y-2 text-xs">
+                    <!-- Options inserted via JS -->
+                </div>
+                <div id="quiz-feedback" class="p-2 rounded text-xs hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Story Mode Floating Wizard Bar -->
+    <div id="story-banner" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-sky-500 p-4 rounded-2xl shadow-2xl max-w-xl w-11/12 z-30 flex flex-col gap-2 transition-all duration-300 hidden">
+        <div class="flex justify-between items-center">
+            <span class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-graduation-cap"></i> Guided MRI Physics Tour — Step <span id="story-step-num">1</span>/10
+            </span>
+            <button onclick="exitStoryMode()" class="text-slate-400 hover:text-white text-xs">&times; Exit Tour</button>
+        </div>
+        <p id="story-text" class="text-xs text-slate-200 leading-relaxed">
+            Welcome to the Guided MRI Physics Tour!
+        </p>
+        <div class="flex justify-between items-center pt-1 border-t border-slate-800">
+            <button id="story-prev-btn" onclick="prevStoryStep()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded text-slate-300">Previous</button>
+            <button id="story-next-btn" onclick="nextStoryStep()" class="px-4 py-1 bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-bold rounded">Next Step &rarr;</button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT SIMULATOR ENGINE -->
+    <script>
+        // Global Application State
+        const state = {
+            mode: 'beginner', // 'beginner' | 'engineer'
+            exam: 'brain',
+            b0: 3.0, // Tesla
+            flipAngle: 90, // Degrees
+            t1: 800, // ms
+            t2: 80, // ms
+            gradients: { x: false, y: false, z: false },
+            sequence: 't1w',
+            slice: 12,
+            isScanning: false,
+            scanProgress: 0,
+            audioEnabled: false,
+            patientBedPos: -1.2,
+            activeTab: '3d', // '3d' | 'micro' | 'block'
+            transparency: false,
+            storyStep: 0
+        };
+
+        // Audio Context (Synthesizer for MRI noise)
+        let audioCtx = null;
+        let b0HumOsc = null;
+
+        // Three.js Scene Variables
+        let scene, camera, renderer, controls;
+        let mriGantry, patientBed, patientMesh, protonGroup, b0FieldLines, rfPulseMesh, gradientSlicePlane;
+        let mriComponents = {};
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function toggleAudio() {
+            initAudio();
+            state.audioEnabled = !state.audioEnabled;
+            const icon = document.getElementById('audio-icon');
+            const btn = document.getElementById('audio-toggle-btn');
+
+            if (state.audioEnabled) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                icon.className = 'fa-solid fa-volume-high text-emerald-400';
+                btn.classList.add('border-emerald-500');
+                playB0Hum();
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-rose-400';
+                btn.classList.remove('border-emerald-500');
+                stopB0Hum();
+            }
+        }
+
+        function playB0Hum() {
+            if (!state.audioEnabled || b0HumOsc) return;
+            b0HumOsc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            b0HumOsc.type = 'sine';
+            b0HumOsc.frequency.setValueAtTime(60, audioCtx.currentTime); // 60Hz hum
+            gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+            b0HumOsc.connect(gain);
+            gain.connect(audioCtx.destination);
+            b0HumOsc.start();
+        }
+
+        function stopB0Hum() {
+            if (b0HumOsc) {
+                b0HumOsc.stop();
+                b0HumOsc = null;
+            }
+        }
+
+        function playGradientThump() {
+            if (!state.audioEnabled || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(120 + Math.random() * 80, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.08);
+        }
+
+        function playRFPulseSound() {
+            if (!state.audioEnabled || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        function init3D() {
+            const container = document.getElementById('three-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene & Camera
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x070a12);
+
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+            camera.position.set(3.5, 2.5, 4.5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxDistance = 10;
+            controls.minDistance = 1.5;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0x38bdf8, 0.8);
+            dirLight.position.set(5, 8, 5);
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0xa855f7, 0.5, 10);
+            pointLight.position.set(0, 0, 0);
+            scene.add(pointLight);
+
+            // Construct Scanner Components
+            buildMRIScanner();
+            buildPatientModel();
+            buildProtonParticles();
+            buildFieldLines();
+
+            // Raycasting for Component Inspector
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            renderer.domElement.addEventListener('pointerdown', (e) => {
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(scene.children, true);
+
+                if (intersects.length > 0) {
+                    let obj = intersects[0].object;
+                    while (obj.parent && !obj.userData.componentKey && obj.parent !== scene) {
+                        obj = obj.parent;
+                    }
+                    if (obj.userData.componentKey) {
+                        explainComponent(obj.userData.componentKey);
+                    }
+                }
+            });
+
+            window.addEventListener('resize', onWindowResize);
+            animate3D();
+        }
+
+        function buildMRIScanner() {
+            mriGantry = new THREE.Group();
+
+            // Outer Cylindrical Housing
+            const outerGeo = new THREE.CylinderGeometry(1.5, 1.5, 2.2, 32, 1, true);
+            const outerMat = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                roughness: 0.3,
+                metalness: 0.8,
+                side: THREE.DoubleSide
+            });
+            const outerGantry = new THREE.Mesh(outerGeo, outerMat);
+            outerGantry.rotation.z = Math.PI / 2;
+            mriGantry.add(outerGantry);
+            mriComponents['magnet'] = outerGantry;
+            outerGantry.userData.componentKey = 'magnet';
+
+            // Inner Bore Liner
+            const innerGeo = new THREE.CylinderGeometry(0.7, 0.7, 2.25, 32, 1, true);
+            const innerMat = new THREE.MeshStandardMaterial({
+                color: 0xf8fafc,
+                roughness: 0.2,
+                side: THREE.DoubleSide
+            });
+            const innerBore = new THREE.Mesh(innerGeo, innerMat);
+            innerBore.rotation.z = Math.PI / 2;
+            mriGantry.add(innerBore);
+
+            // Gradient Coils (Colored Ring Mesh inside Gantry)
+            const gradGeo = new THREE.CylinderGeometry(0.85, 0.85, 1.8, 16, 1, true);
+            const gradMat = new THREE.MeshStandardMaterial({
+                color: 0x10b981,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.3
+            });
+            const gradientCoils = new THREE.Mesh(gradGeo, gradMat);
+            gradientCoils.rotation.z = Math.PI / 2;
+            mriGantry.add(gradientCoils);
+            mriComponents['gradient'] = gradientCoils;
+            gradientCoils.userData.componentKey = 'gradient';
+
+            // RF Coil Rings
+            const rfGeo = new THREE.TorusGeometry(0.75, 0.02, 16, 32);
+            const rfMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
+            const rfCoil1 = new THREE.Mesh(rfGeo, rfMat);
+            rfCoil1.rotation.y = Math.PI / 2;
+            rfCoil1.position.x = -0.4;
+            const rfCoil2 = rfCoil1.clone();
+            rfCoil2.position.x = 0.4;
+            mriGantry.add(rfCoil1);
+            mriGantry.add(rfCoil2);
+            mriComponents['rf'] = rfCoil1;
+            rfCoil1.userData.componentKey = 'rf';
+
+            // Patient Table Dock & Bed
+            const dockGeo = new THREE.BoxGeometry(0.8, 0.4, 3.2);
+            const dockMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+            const tableDock = new THREE.Mesh(dockGeo, dockMat);
+            tableDock.position.set(0, -0.7, 0);
+            scene.add(tableDock);
+
+            // Sliding Patient Couch
+            const bedGeo = new THREE.BoxGeometry(0.6, 0.08, 2.4);
+            const bedMat = new THREE.MeshStandardMaterial({ color: 0x0284c7 });
+            patientBed = new THREE.Mesh(bedGeo, bedMat);
+            patientBed.position.set(state.patientBedPos, -0.45, 0);
+            scene.add(patientBed);
+            patientBed.userData.componentKey = 'table';
+
+            // Slice Plane Indicator
+            const sliceGeo = new THREE.PlaneGeometry(1.2, 1.2);
+            const sliceMat = new THREE.MeshBasicMaterial({
+                color: 0x38bdf8,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.35
+            });
+            gradientSlicePlane = new THREE.Mesh(sliceGeo, sliceMat);
+            gradientSlicePlane.rotation.y = Math.PI / 2;
+            scene.add(gradientSlicePlane);
+
+            scene.add(mriGantry);
+        }
+
+        function buildPatientModel() {
+            patientMesh = new THREE.Group();
+
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.4 });
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xfbcfe8, roughness: 0.4 });
+
+            // Head
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), headMat);
+            head.position.set(0.7, 0.2, 0);
+            patientMesh.add(head);
+
+            // Torso
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.18, 0.8), bodyMat);
+            torso.rotation.z = Math.PI / 2;
+            torso.position.set(0.2, 0.18, 0);
+            patientMesh.add(torso);
+
+            // Legs
+            const leg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.8), bodyMat);
+            leg1.rotation.z = Math.PI / 2;
+            leg1.position.set(-0.5, 0.15, 0.1);
+            const leg2 = leg1.clone();
+            leg2.position.z = -0.1;
+            patientMesh.add(leg1);
+            patientMesh.add(leg2);
+
+            patientMesh.position.set(0, 0, 0);
+            patientBed.add(patientMesh);
+        }
+
+        function buildProtonParticles() {
+            protonGroup = new THREE.Group();
+            const count = 35;
+            const arrowGeo = new THREE.ConeGeometry(0.02, 0.08, 8);
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+            for (let i = 0; i < count; i++) {
+                const p = new THREE.Mesh(arrowGeo, arrowMat);
+                p.position.set(
+                    (Math.random() - 0.5) * 0.4,
+                    (Math.random() - 0.5) * 0.2 + 0.2,
+                    (Math.random() - 0.5) * 0.2
+                );
+                p.userData = {
+                    randomRot: new THREE.Euler(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, 0),
+                    phase: Math.random() * Math.PI * 2
+                };
+                protonGroup.add(p);
+            }
+            patientBed.add(protonGroup);
+        }
+
+        function buildFieldLines() {
+            b0FieldLines = new THREE.Group();
+            const lineMat = new THREE.LineDashedMaterial({ color: 0x38bdf8, dashSize: 0.1, gapSize: 0.05, opacity: 0.4, transparent: true });
+
+            for (let i = 0; i < 8; i++) {
+                const points = [];
+                const radius = 0.3 + (i % 3) * 0.12;
+                const angle = (i / 8) * Math.PI * 2;
+                const y = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+
+                points.push(new THREE.Vector3(-1.5, y, z));
+                points.push(new THREE.Vector3(1.5, y, z));
+
+                const geo = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(geo, lineMat);
+                line.computeLineDistances();
+                b0FieldLines.add(line);
+            }
+            scene.add(b0FieldLines);
+        }
+
+        function setPatientPosition(x) {
+            state.patientBedPos = x;
+            patientBed.position.x = x;
+        }
+
+        function toggleTransparency() {
+            state.transparency = !state.transparency;
+            mriGantry.children.forEach(child => {
+                if (child.material) {
+                    child.material.transparent = true;
+                    child.material.opacity = state.transparency ? 0.25 : 1.0;
+                }
+            });
+        }
+
+        function resetCamera() {
+            camera.position.set(3.5, 2.5, 4.5);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('three-container');
+            if (!container) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            // Animate Proton Precession depending on B0
+            const larmorSpeed = state.b0 * 0.03;
+            protonGroup.children.forEach(p => {
+                if (state.flipAngle > 0 && state.isScanning) {
+                    // Precession around B0 axis (X-axis in our scene geometry)
+                    p.rotation.x += larmorSpeed;
+                    p.rotation.z = (state.flipAngle * Math.PI) / 180;
+                } else {
+                    // Return slowly to B0 alignment
+                    p.rotation.x += 0.01;
+                    p.rotation.z *= 0.95;
+                }
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function renderMicroCanvas() {
+            const canvas = document.getElementById('micro-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = (canvas.width = canvas.clientWidth);
+            const h = (canvas.height = canvas.clientHeight);
+
+            ctx.clearRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h / 2;
+
+            // Draw Precession Cone
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy - 40, 70, 25, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Draw B0 Axis Vector
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy + 80);
+            ctx.lineTo(cx, cy - 100);
+            ctx.stroke();
+
+            // Arrow head for B0
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.moveTo(cx - 6, cy - 100);
+            ctx.lineTo(cx + 6, cy - 100);
+            ctx.lineTo(cx, cy - 112);
+            ctx.fill();
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = '12px monospace';
+            ctx.fillText(`B₀ Static Field (${state.b0} T)`, cx + 15, cy - 90);
+
+            // Magnetization Vector M
+            const time = Date.now() * 0.003;
+            const angle = time * state.b0;
+            const tilt = (state.flipAngle * Math.PI) / 180;
+            const tipX = cx + Math.sin(angle) * 70 * Math.sin(tilt);
+            const tipY = cy - 40 + Math.cos(angle) * 25 * Math.sin(tilt) - Math.cos(tilt) * 40;
+
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(tipX, tipY);
+            ctx.stroke();
+
+            // Net Magnetization Vector Label
+            ctx.fillStyle = '#f43f5e';
+            ctx.fillText('Net Magnetization (M)', tipX + 10, tipY);
+        }
+
+        function renderWaveforms() {
+            const canvas = document.getElementById('waveform-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = (canvas.width = canvas.clientWidth);
+            const h = (canvas.height = canvas.clientHeight);
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Grid lines
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, h / 2);
+            ctx.lineTo(w, h / 2);
+            ctx.stroke();
+
+            // Plot T1 Longitudinal Recovery Mz(t)
+            ctx.strokeStyle = '#10b981'; // Emerald
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let x = 0; x < w; x++) {
+                const t = (x / w) * 2000; // 0 to 2000ms
+                const mz = 1 - Math.exp(-t / state.t1);
+                const y = h - mz * (h - 20) - 10;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Plot T2 Transverse Decay Mxy(t)
+            ctx.strokeStyle = '#f59e0b'; // Amber
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let x = 0; x < w; x++) {
+                const t = (x / w) * 300; // 0 to 300ms
+                const mxy = Math.exp(-t / state.t2);
+                const y = h - mxy * (h - 20) - 10;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Plot RF Signal FID Oscillation Wave
+            if (state.isScanning) {
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                const freq = state.b0 * 15;
+                for (let x = 0; x < w; x++) {
+                    const t = x / w;
+                    const fid = Math.exp(-t * 4) * Math.sin(x * freq * 0.1);
+                    const y = h / 2 - fid * (h / 2 - 10);
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function renderKSpace() {
+            const canvas = document.getElementById('kspace-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            if (state.scanProgress === 0) {
+                ctx.fillStyle = '#020617';
+                ctx.fillRect(0, 0, w, h);
+                return;
+            }
+
+            const filledLines = Math.floor((state.scanProgress / 100) * h);
+            document.getElementById('kspace-lines').innerText = `${filledLines} / ${h}`;
+
+            const imgData = ctx.createImageData(w, h);
+            for (let y = 0; y < filledLines; y++) {
+                for (let x = 0; x < w; x++) {
+                    const dx = x - w / 2;
+                    const dy = y - h / 2;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    // Fourier magnitude spectrum pattern (bright center, low outer)
+                    const val = Math.min(255, Math.floor(255 / (1 + dist * 0.15)));
+                    const idx = (y * w + x) * 4;
+                    imgData.data[idx] = val * 0.2; // R
+                    imgData.data[idx + 1] = val * 0.8; // G
+                    imgData.data[idx + 2] = val; // B
+                    imgData.data[idx + 3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        /* Procedural MRI Slice Generator */
+        function renderReconstructedImage() {
+            const canvas = document.getElementById('mri-image-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (state.scanProgress < 100 && !state.isScanning) {
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(0, 0, w, h);
+                ctx.fillStyle = '#64748b';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Press START SCAN to reconstruct image', w / 2, h / 2);
+                return;
+            }
+
+            // Draw Procedural Anatomical Phantom Image based on Exam Target
+            const cx = w / 2;
+            const cy = h / 2;
+
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, w, h);
+
+            // Contrast modifier based on T1/T2 setup
+            const contrast = state.sequence === 't1w' ? 1.2 : 0.8;
+
+            if (state.exam === 'brain') {
+                // Skull
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 90, 110, 0, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Brain Cortex
+                ctx.fillStyle = state.sequence === 't2w' ? '#38bdf8' : '#94a3b8';
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 80, 100, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ventricles (CSF - Bright on T2, Dark on T1)
+                ctx.fillStyle = state.sequence === 't2w' ? '#ffffff' : '#1e293b';
+                ctx.beginPath();
+                ctx.ellipse(cx - 20, cy - 10, 15, 30, -0.2, 0, Math.PI * 2);
+                ctx.ellipse(cx + 20, cy - 10, 15, 30, 0.2, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (state.exam === 'knee') {
+                // Femur & Tibia bone joint
+                ctx.fillStyle = '#cbd5e1';
+                ctx.beginPath();
+                ctx.arc(cx, cy - 50, 60, 0, Math.PI);
+                ctx.arc(cx, cy + 50, 60, Math.PI, Math.PI * 2);
+                ctx.fill();
+
+                // Cartilage & Fluid
+                ctx.fillStyle = state.sequence === 't2w' ? '#38bdf8' : '#475569';
+                ctx.fillRect(cx - 50, cy - 10, 100, 20);
+            } else {
+                // Generic Torso Cross-Section
+                ctx.fillStyle = '#64748b';
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 100, 75, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = state.sequence === 't2w' ? '#ffffff' : '#0f172a';
+                ctx.beginPath();
+                ctx.arc(cx - 30, cy, 25, 0, Math.PI * 2);
+                ctx.arc(cx + 30, cy, 25, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Slice overlay watermark text
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = '10px font-mono';
+            ctx.textAlign = 'left';
+            ctx.fillText(`TR/TE: ${state.sequence.toUpperCase()} | Slice: ${state.slice}`, 10, 20);
+        }
+
+        function toggleScanSequence() {
+            if (state.isScanning) {
+                state.isScanning = false;
+                document.getElementById('scan-btn-text').innerText = 'START FULL SCAN';
+                document.getElementById('scan-btn-icon').className = 'fa-solid fa-play';
+                document.getElementById('scan-stage-label').innerText = 'Scan Paused';
+                return;
+            }
+
+            state.isScanning = true;
+            state.scanProgress = 0;
+            document.getElementById('scan-btn-text').innerText = 'PAUSE SCAN';
+            document.getElementById('scan-btn-icon').className = 'fa-solid fa-pause';
+
+            // Auto Bed Movement to Bore Center
+            setPatientPosition(0);
+
+            const stages = [
+                '1/7 Patient Table Positioned in Bore',
+                '2/7 Main Static Field B₀ Activated',
+                '3/7 Slice Selection Gradient (G_z) Applied',
+                '4/7 RF Excitation Pulse Transmitted',
+                '5/7 Phase & Frequency Encoding (Gₓ, Gᵧ)',
+                '6/7 Echo Signal Detected by RF Receiver',
+                '7/7 2D K-Space Filling & Inverse FFT Image Recon'
+            ];
+
+            let stageIdx = 0;
+            const interval = setInterval(() => {
+                if (!state.isScanning) {
+                    clearInterval(interval);
+                    return;
+                }
+
+                state.scanProgress += 2;
+                if (state.scanProgress % 15 === 0 && stageIdx < stages.length - 1) {
+                    stageIdx++;
+                    playGradientThump();
+                }
+
+                document.getElementById('scan-progress-bar').style.width = `${state.scanProgress}%`;
+                document.getElementById('scan-stage-label').innerText = stages[stageIdx];
+
+                renderKSpace();
+
+                if (state.scanProgress >= 100) {
+                    clearInterval(interval);
+                    state.isScanning = false;
+                    document.getElementById('scan-btn-text').innerText = 'RE-SCAN';
+                    document.getElementById('scan-btn-icon').className = 'fa-solid fa-rotate-right';
+                    document.getElementById('scan-stage-label').innerText = 'Scan Complete! Image Reconstructed.';
+                    document.getElementById('recon-status').innerText = 'Reconstruction 100%';
+                    document.getElementById('recon-status').className = 'text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-bold';
+                    renderReconstructedImage();
+                }
+            }, 100);
+        }
+
+        function setB0(val) {
+            state.b0 = val;
+            document.getElementById('b0-val-display').innerText = `${val.toFixed(1)} Tesla`;
+            document.getElementById('b0-15-btn').className = val === 1.5 ? 'py-1 rounded bg-sky-900 border border-sky-500 text-xs font-bold text-white' : 'py-1 rounded bg-slate-800 border border-slate-700 text-xs text-slate-400';
+            document.getElementById('b0-30-btn').className = val === 3.0 ? 'py-1 rounded bg-sky-900 border border-sky-500 text-xs font-bold text-white' : 'py-1 rounded bg-slate-800 border border-slate-700 text-xs text-slate-400';
+
+            // Calculate Larmor Frequency f = gamma * B0 (Gamma for H1 = 42.58 MHz/T)
+            const larmor = val * 42.58;
+            document.getElementById('metric-larmor').innerText = `${larmor.toFixed(2)} MHz`;
+        }
+
+        function updateFlipAngle(val) {
+            state.flipAngle = parseInt(val);
+            document.getElementById('flip-val-display').innerText = `${val}°`;
+        }
+
+        function updateT1(val) {
+            state.t1 = parseInt(val);
+            document.getElementById('t1-val-display').innerText = `${val} ms`;
+        }
+
+        function updateT2(val) {
+            state.t2 = parseInt(val);
+            document.getElementById('t2-val-display').innerText = `${val} ms`;
+        }
+
+        function toggleGradient(axis) {
+            state.gradients[axis] = !state.gradients[axis];
+            const btn = document.getElementById(`g${axis}-btn`);
+            if (state.gradients[axis]) {
+                btn.className = 'py-1 px-2 rounded bg-sky-900 border border-sky-500 text-xs font-mono text-sky-300 font-bold';
+                playGradientThump();
+            } else {
+                btn.className = 'py-1 px-2 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-slate-400';
+            }
+        }
+
+        function selectExam(examKey) {
+            state.exam = examKey;
+            document.querySelectorAll('.exam-btn').forEach(b => b.classList.replace('border-sky-500/50', 'border-slate-700'));
+            const activeBtn = document.getElementById(`exam-${examKey}`);
+            if (activeBtn) activeBtn.classList.replace('border-slate-700', 'border-sky-500/50');
+            renderReconstructedImage();
+        }
+
+        function triggerRFPulse() {
+            playRFPulseSound();
+            state.flipAngle = 90;
+            document.getElementById('flip-slider').value = 90;
+            document.getElementById('flip-val-display').innerText = '90°';
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            document.getElementById('mode-beginner-btn').className = mode === 'beginner' ? 'px-2.5 py-1 rounded-md font-medium transition bg-sky-600 text-white' : 'px-2.5 py-1 rounded-md font-medium transition text-slate-400';
+            document.getElementById('mode-engineer-btn').className = mode === 'engineer' ? 'px-2.5 py-1 rounded-md font-medium transition bg-sky-600 text-white' : 'px-2.5 py-1 rounded-md font-medium transition text-slate-400';
+        }
+
+        function switchMainTab(tabKey) {
+            state.activeTab = tabKey;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tabKey}-btn`).classList.add('active');
+
+            document.getElementById('three-container').classList.toggle('hidden', tabKey !== '3d');
+            document.getElementById('micro-container').classList.toggle('hidden', tabKey !== 'micro');
+            document.getElementById('block-container').classList.toggle('hidden', tabKey !== 'block');
+        }
+
+        function toggleMicroscopeView() {
+            switchMainTab('micro');
+        }
+
+        function updateSlice(val) {
+            state.slice = parseInt(val);
+            document.getElementById('slice-val-display').innerText = `Slice ${val}/24`;
+            renderReconstructedImage();
+        }
+
+        function resetPhysics() {
+            setB0(3.0);
+            updateFlipAngle(90);
+            document.getElementById('flip-slider').value = 90;
+            updateT1(800);
+            document.getElementById('t1-slider').value = 800;
+            updateT2(80);
+            document.getElementById('t2-slider').value = 80;
+            state.gradients = { x: false, y: false, z: false };
+            ['x', 'y', 'z'].forEach(a => {
+                document.getElementById(`g${a}-btn`).className = 'py-1 px-2 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-slate-400';
+            });
+        }
+
+        const componentExplanations = {
+            magnet: {
+                title: 'Main Superconducting Magnet (B₀)',
+                simple: 'Creates an extraordinarily strong, continuous magnetic field that forces hydrogen protons in your body to align like tiny compass needles.',
+                advanced: 'Superconducting niobium-titanium coils kept at 4.2 Kelvin (-269°C) in liquid Helium. Produces static B0 field (typically 1.5T to 3.0T) with high spatial homogeneity (<1 ppm).'
+            },
+            gradient: {
+                title: 'Gradient Coils (Spatial Encoding)',
+                simple: 'Slightly alters the magnetic field across X, Y, and Z directions so the scanner can tell exactly where signals originate inside the body.',
+                advanced: 'Three orthogonal gradient coil sets driven by high-power linear amplifiers (up to 80 mT/m slew rates). Enables frequency and phase spatial encoding according to B(x) = B0 + Gx*x.'
+            },
+            rf: {
+                title: 'RF Transmit & Receive Coils',
+                simple: 'Sends safe radio waves to tip protons out of alignment. When protons return, these coils pick up the faint signal.',
+                advanced: 'Transmits RF energy at Larmor frequency (42.58 MHz/T). Tips net magnetization vector M into transverse plane. Detects microvolt-level Precession Free Induction Decay (FID) signals.'
+            },
+            table: {
+                title: 'Patient Positioning Bed',
+                simple: 'Precisely moves the target body part directly into the sweet spot (isocenter) of the magnetic field.',
+                advanced: 'Computer-controlled non-magnetic motor drive system with laser localizer accuracy within ±0.5mm.'
+            },
+            kspace: {
+                title: 'K-Space Spatial Frequency Matrix',
+                simple: 'A raw digital grid containing spatial frequencies collected during the scan before being converted into a visible image.',
+                advanced: '2D matrix storing spatial frequency domain data (kx, ky). Center represents high signal/contrast; periphery represents high spatial resolution edges.'
+            },
+            computer: {
+                title: 'Digital Signal Processor & Reconstruction System',
+                simple: 'Takes raw radio frequency signals, fills k-space, and applies Fast Fourier Transforms to build the final image.',
+                advanced: 'Converts analog RF signals via high-speed ADCs. Performs 2D/3D Inverse Fast Fourier Transformation (2D-IFFT) to calculate spatial voxel intensities.'
+            }
+        };
+
+        function explainComponent(key) {
+            const data = componentExplanations[key] || componentExplanations['magnet'];
+            document.getElementById('modal-title').innerHTML = `<i class="fa-solid fa-circle-question"></i> ${data.title}`;
+            document.getElementById('modal-text-simple').innerText = data.simple;
+            document.getElementById('modal-text-advanced').innerText = data.advanced;
+            document.getElementById('explain-modal').classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function openSafetyModal() {
+            document.getElementById('safety-modal').classList.remove('hidden');
+        }
+
+        function testSafetyObject(name, isFerromagnetic) {
+            const objEl = document.getElementById('flying-object');
+            const resEl = document.getElementById('safety-result');
+
+            if (isFerromagnetic) {
+                objEl.className = 'absolute top-12 left-1/2 -translate-x-1/2 p-2 rounded bg-rose-600 text-white font-bold text-xs flex items-center gap-2 transition-all duration-300 shadow-lg scale-125';
+                objEl.innerHTML = `<i class="fa-solid fa-bolt text-amber-300"></i> DANGER: ${name.toUpperCase()} PULLED INTO BORE!`;
+                resEl.className = 'p-2.5 rounded-lg bg-rose-950/80 border border-rose-700 text-xs text-rose-200 font-mono';
+                resEl.innerText = `CRITICAL WARNING: ${name} is strongly ferromagnetic! Experiencing massive missile acceleration force towards magnet center!`;
+                playGradientThump();
+            } else {
+                objEl.className = 'absolute bottom-4 left-1/2 -translate-x-1/2 p-2 rounded bg-emerald-800 text-white text-xs flex items-center gap-2 transition-all duration-500';
+                objEl.innerHTML = `<i class="fa-solid fa-check text-emerald-300"></i> SAFE: ${name.toUpperCase()}`;
+                resEl.className = 'p-2.5 rounded-lg bg-emerald-950/80 border border-emerald-700 text-xs text-emerald-200 font-mono';
+                resEl.innerText = `SAFE: ${name} is non-ferromagnetic. No magnetic projectile risk.`;
+            }
+        }
+
+        const quizData = [
+            {
+                q: "What fundamental property of hydrogen nuclei (protons) makes them suitable for MRI?",
+                opts: ["They have no charge", "They possess nuclear magnetic dipole moment (spin)", "They emit gamma rays", "They are radioactive"],
+                ans: 1,
+                exp: "Hydrogen protons possess intrinsic spin and charge, giving them a magnetic moment that interacts with B0."
+            },
+            {
+                q: "What is the primary function of Gradient Coils in an MRI scanner?",
+                opts: ["To cool the superconducting magnet", "To create noise", "To encode spatial position information", "To tip net magnetization"],
+                ans: 2,
+                exp: "Gradients slightly alter B0 linearly to encode location using frequency and phase."
+            },
+            {
+                q: "What mathematical operation transforms K-Space raw data into a visible MRI image?",
+                opts: ["Fourier Transform", "Pythagorean Theorem", "Linear Regression", "Logarithmic Decay"],
+                ans: 0,
+                exp: "The Inverse Fast Fourier Transform converts spatial frequencies into spatial image intensities."
+            }
+        ];
+
+        let currentQuizIdx = 0;
+        let quizScore = 0;
+
+        function openQuizModal() {
+            currentQuizIdx = 0;
+            quizScore = 0;
+            showQuizQuestion();
+            document.getElementById('quiz-modal').classList.remove('hidden');
+        }
+
+        function showQuizQuestion() {
+            const qData = quizData[currentQuizIdx];
+            document.getElementById('quiz-progress').innerText = `Question ${currentQuizIdx + 1} / ${quizData.length}`;
+            document.getElementById('quiz-score').innerText = `Score: ${quizScore}`;
+            document.getElementById('quiz-question').innerText = qData.q;
+            document.getElementById('quiz-feedback').classList.add('hidden');
+
+            const optsContainer = document.getElementById('quiz-options');
+            optsContainer.innerHTML = '';
+
+            qData.opts.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition';
+                btn.innerText = `${String.fromCharCode(65 + idx)}. ${opt}`;
+                btn.onclick = () => answerQuiz(idx);
+                optsContainer.appendChild(btn);
+            });
+        }
+
+        function answerQuiz(selectedIdx) {
+            const qData = quizData[currentQuizIdx];
+            const feedback = document.getElementById('quiz-feedback');
+            feedback.classList.remove('hidden');
+
+            if (selectedIdx === qData.ans) {
+                quizScore += 10;
+                feedback.className = 'p-2 rounded text-xs bg-emerald-950 text-emerald-300 border border-emerald-700';
+                feedback.innerText = `Correct! ${qData.exp}`;
+            } else {
+                feedback.className = 'p-2 rounded text-xs bg-rose-950 text-rose-300 border border-rose-700';
+                feedback.innerText = `Incorrect. ${qData.exp}`;
+            }
+
+            setTimeout(() => {
+                currentQuizIdx++;
+                if (currentQuizIdx < quizData.length) {
+                    showQuizQuestion();
+                } else {
+                    document.getElementById('quiz-question').innerText = `Quiz Complete! Final Score: ${quizScore} / ${quizData.length * 10}`;
+                    document.getElementById('quiz-options').innerHTML = '';
+                }
+            }, 2000);
+        }
+
+        const storySteps = [
+            { text: "Welcome to MRI Physics Lab! STEP 1: Observe the 3D cylindrical scanner housing the main superconducting magnet B0.", action: () => switchMainTab('3d') },
+            { text: "STEP 2: Hydrogen protons in tissue act like tiny magnets. Without B0, their directions are completely random.", action: () => switchMainTab('micro') },
+            { text: "STEP 3: When the patient enters the scanner bore, B0 aligns net magnetization along the z-axis.", action: () => setPatientPosition(0) },
+            { text: "STEP 4: An RF pulse tuned to the Larmor frequency is transmitted, tipping protons 90° into the transverse plane.", action: () => triggerRFPulse() },
+            { text: "STEP 5: Gradient coils switch on to encode spatial location (X, Y, Z coordinates).", action: () => toggleGradient('x') },
+            { text: "STEP 6: Receiver coils detect the precessing signal as protons undergo T1 and T2 relaxation.", action: () => switchMainTab('3d') },
+            { text: "STEP 7: Raw signals fill the 2D K-Space frequency matrix line by line.", action: () => {} },
+            { text: "STEP 8: Fast Fourier Transform mathematically reconstructs K-space into a high-contrast anatomical slice!", action: () => toggleScanSequence() }
+        ];
+
+        function startStoryMode() {
+            state.storyStep = 0;
+            document.getElementById('story-banner').classList.remove('hidden');
+            updateStoryStep();
+        }
+
+        function updateStoryStep() {
+            const step = storySteps[state.storyStep];
+            document.getElementById('story-step-num').innerText = state.storyStep + 1;
+            document.getElementById('story-text').innerText = step.text;
+            if (step.action) step.action();
+        }
+
+        function nextStoryStep() {
+            if (state.storyStep < storySteps.length - 1) {
+                state.storyStep++;
+                updateStoryStep();
+            } else {
+                exitStoryMode();
+            }
+        }
+
+        function prevStoryStep() {
+            if (state.storyStep > 0) {
+                state.storyStep--;
+                updateStoryStep();
+            }
+        }
+
+        function exitStoryMode() {
+            document.getElementById('story-banner').classList.add('hidden');
+        }
+
+        window.onload = function() {
+            init3D();
+            setB0(3.0);
+            renderReconstructedImage();
+
+            // Main Animation render loop for 2D Canvases
+            function mainLoop() {
+                if (state.activeTab === 'micro') {
+                    renderMicroCanvas();
+                }
+                renderWaveforms();
+                requestAnimationFrame(mainLoop);
+            }
+            mainLoop();
+        };
+    </script>
+</body>
+</html>
+```
+
+Key features implemented in this interactive simulator:
+1. **Interactive 3D Three.js MRI Gantry & Patient Model**: Orbit/pan/zoom controls, cutaway transparent view, animated B₀ field lines, RF coils, gradient coils, and moving couch bed.
+2. **Step-by-Step MRI Physics Engine**: Bloch equations, Larmor frequency calculations ($f_0 = \gamma B_0$), $90^\circ/180^\circ$ RF flip angles, T1 longitudinal recovery, and T2 transverse decay.
+3. **Interactive Microscopic Proton Precession View**: Visualizes hydrogen proton spin vectors, precession cone, and B₀ field vectors.
+4. **K-Space Matrix & Image Reconstruction Engine**: Live 2D k-space acquisition line-by-line feeding into a procedural 2D Inverse FFT image reconstruction engine.
+5. **Real-time Waveform Canvas & Dashboard**: Live Bloch magnetization curves ($M_z$, $M_{xy}$) and RF Free Induction Decay (FID) signal plot.
+6. **Web Audio API Sound Synthesizer**: Gradient switching clicks and scanner hum.
+7. **MRI Safety Sandbox**: Interactive ferromagnetic missile risk testing (plastic, wood, steel, scissors, O₂ tank).
+8. **Interactive Quiz Mode & Guided Story Tour Mode**: Knowledge check with scoring and step-by-step educational tour.
