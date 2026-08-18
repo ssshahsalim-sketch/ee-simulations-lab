@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>IP &amp; NEMA Enclosure Rating Simulator | Apna Electromechanic Service</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:#0a0e1a;
+  --bg2:#0d1220;
+  --panel:#111a2e;
+  --panel2:#0d1526;
+  --grid:rgba(0,217,255,0.06);
+  --cyan:#00d9ff;
+  --cyan-dim:#0891a8;
+  --amber:#ffb300;
+  --amber-dim:#a87400;
+  --text:#dce8f5;
+  --text-dim:#7e93ab;
+  --danger:#ff4d5e;
+  --success:#33e08a;
+  --border:#1d2b45;
+  --mono:'IBM Plex Mono', 'Courier New', monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    repeating-linear-gradient(0deg, var(--grid) 0px, var(--grid) 1px, transparent 1px, transparent 40px),
+    repeating-linear-gradient(90deg, var(--grid) 0px, var(--grid) 1px, transparent 1px, transparent 40px),
+    linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%);
+  color:var(--text);
+  font-family:var(--mono);
+  min-height:100vh;
+  -webkit-tap-highlight-color:transparent;
+}
+a{color:var(--cyan);}
+.wrap{max-width:1200px;margin:0 auto;padding:14px 14px 60px;}
+
+/* Header */
+header.app{
+  border:1px solid var(--border);
+  background:linear-gradient(180deg, rgba(0,217,255,0.06), rgba(0,0,0,0));
+  border-radius:10px;
+  padding:16px 18px;
+  margin-bottom:14px;
+  position:relative;
+  overflow:hidden;
+}
+header.app::before{
+  content:"";
+  position:absolute; inset:0;
+  background:linear-gradient(90deg, var(--cyan), var(--amber));
+  opacity:0.7; height:3px; top:0; left:0; right:0;
+}
+.brand{font-size:11px; letter-spacing:1.5px; color:var(--amber); text-transform:uppercase; margin-bottom:4px;}
+.title{font-size:22px; font-weight:700; color:#fff; letter-spacing:0.5px;}
+.subtitle{font-size:12.5px; color:var(--text-dim); margin-top:4px; max-width:760px; line-height:1.5;}
+
+/* Tabs */
+nav.tabs{
+  display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;
+}
+nav.tabs button{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  color:var(--text-dim);
+  font-family:var(--mono);
+  font-size:12px;
+  padding:9px 13px;
+  border-radius:7px;
+  cursor:pointer;
+  transition:all .15s ease;
+  white-space:nowrap;
+}
+nav.tabs button:hover{border-color:var(--cyan-dim); color:var(--text);}
+nav.tabs button.active{
+  background:linear-gradient(180deg, rgba(0,217,255,0.16), rgba(0,217,255,0.04));
+  border-color:var(--cyan); color:var(--cyan); font-weight:600;
+}
+
+.panel{display:none;}
+.panel.active{display:block; animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+.card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:16px;
+  margin-bottom:14px;
+}
+.card h2{margin:0 0 10px; font-size:16px; color:var(--cyan); letter-spacing:.4px;}
+.card h3{margin:14px 0 8px; font-size:13.5px; color:var(--amber);}
+.card p{font-size:12.8px; line-height:1.6; color:var(--text-dim); margin:6px 0;}
+.card p b, .card p strong{color:var(--text);}
+
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media(max-width:820px){.grid2,.grid3{grid-template-columns:1fr;}}
+
+/* Home gallery */
+.gallery{display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
+@media(max-width:820px){.gallery{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:520px){.gallery{grid-template-columns:1fr;}}
+.gcard{
+  background:var(--panel2); border:1px solid var(--border); border-radius:9px;
+  padding:14px; cursor:pointer; transition:all .15s ease;
+}
+.gcard:hover{border-color:var(--cyan); transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,217,255,.08);}
+.gcard .ico{font-size:22px; margin-bottom:6px;}
+.gcard .gt{font-size:13px; color:var(--text); font-weight:600; margin-bottom:4px;}
+.gcard .gd{font-size:11.3px; color:var(--text-dim); line-height:1.5;}
+
+/* Rating readout */
+.readout{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  background:var(--panel2); border:1px dashed var(--border); border-radius:9px;
+  padding:14px; margin-bottom:14px;
+}
+.readout .big{
+  font-size:30px; font-weight:700; color:var(--cyan);
+  letter-spacing:1px; text-shadow:0 0 18px rgba(0,217,255,.35);
+}
+.readout .meta{font-size:12px; color:var(--text-dim); line-height:1.5;}
+
+/* Selectors */
+.selrow{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+.selgroup{flex:1; min-width:220px;}
+.selgroup label{display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px; text-transform:uppercase; letter-spacing:.5px;}
+select, input[type=range]{
+  width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--border);
+  border-radius:6px; padding:8px 10px; font-family:var(--mono); font-size:12.5px;
+}
+select:focus{outline:1px solid var(--cyan);}
+
+.chiprow{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;}
+.chip{
+  background:var(--panel2); border:1px solid var(--border); color:var(--text-dim);
+  font-size:11px; padding:6px 10px; border-radius:999px; cursor:pointer; transition:.15s;
+}
+.chip:hover{border-color:var(--cyan-dim);}
+.chip.on{background:rgba(0,217,255,.14); border-color:var(--cyan); color:var(--cyan); font-weight:600;}
+
+/* Table */
+table{width:100%; border-collapse:collapse; font-size:11.8px;}
+table th{
+  text-align:left; color:var(--amber); border-bottom:1px solid var(--border);
+  padding:7px 8px; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px;
+}
+table td{padding:7px 8px; border-bottom:1px solid rgba(29,43,69,0.6); color:var(--text-dim); vertical-align:top;}
+table tr.hl td{background:rgba(0,217,255,0.07); color:var(--text);}
+table tr:hover td{background:rgba(255,255,255,0.02);}
+.tblwrap{overflow-x:auto;}
+
+/* buttons */
+.btn{
+  background:linear-gradient(180deg, rgba(0,217,255,.18), rgba(0,217,255,.06));
+  border:1px solid var(--cyan); color:var(--cyan); font-family:var(--mono);
+  font-size:12px; font-weight:600; padding:9px 16px; border-radius:7px; cursor:pointer;
+}
+.btn:hover{background:rgba(0,217,255,.24);}
+.btn.amber{border-color:var(--amber); color:var(--amber); background:linear-gradient(180deg, rgba(255,179,0,.18), rgba(255,179,0,.05));}
+.btn.amber:hover{background:rgba(255,179,0,.24);}
+.btn:disabled{opacity:.4; cursor:not-allowed;}
+.btn.small{padding:6px 10px; font-size:11px;}
+
+/* Simulator layout */
+.simwrap{display:grid; grid-template-columns:280px 1fr; gap:16px;}
+@media(max-width:900px){.simwrap{grid-template-columns:1fr;}}
+.simstage{
+  background:radial-gradient(ellipse at 50% 10%, rgba(0,217,255,.08), transparent 60%), var(--panel2);
+  border:1px solid var(--border); border-radius:10px; padding:10px; min-height:340px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;
+}
+.status-badge{
+  position:absolute; top:10px; left:10px; font-size:11px; padding:5px 10px; border-radius:6px;
+  border:1px solid var(--border); color:var(--text-dim); background:rgba(0,0,0,.3);
+}
+.status-badge.pass{border-color:var(--success); color:var(--success); background:rgba(51,224,138,.1);}
+.status-badge.fail{border-color:var(--danger); color:var(--danger); background:rgba(255,77,94,.1);}
+.verdict-banner{
+  margin-top:10px; text-align:center; font-size:13px; padding:10px; border-radius:8px; width:100%;
+  border:1px solid var(--border); color:var(--text-dim); background:rgba(0,0,0,.2);
+}
+.verdict-banner.pass{border-color:var(--success); color:var(--success); background:rgba(51,224,138,.08);}
+.verdict-banner.fail{border-color:var(--danger); color:var(--danger); background:rgba(255,77,94,.08);}
+
+.testlist{display:flex; flex-direction:column; gap:6px;}
+.testbtn{
+  text-align:left; background:var(--panel2); border:1px solid var(--border); color:var(--text-dim);
+  padding:9px 11px; border-radius:7px; font-family:var(--mono); font-size:11.5px; cursor:pointer; transition:.15s;
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+}
+.testbtn:hover{border-color:var(--cyan-dim); color:var(--text);}
+.testbtn.active{border-color:var(--cyan); color:var(--cyan); background:rgba(0,217,255,.08);}
+.testbtn .need{font-size:9.5px; color:var(--text-dim); opacity:.8;}
+
+/* particle svg */
+svg.stage-svg{width:100%; max-width:420px; height:auto; display:block;}
+.particle{transition:transform 1.1s cubic-bezier(.3,.6,.2,1), opacity .5s ease;}
+.interior-fill{transition:fill .4s ease, opacity .4s ease;}
+.spark{opacity:0; transition:opacity .3s ease;}
+.spark.show{opacity:1;}
+
+/* legend / info boxes */
+.info-box{
+  border-left:3px solid var(--cyan); background:rgba(0,217,255,.05); padding:10px 12px; border-radius:0 6px 6px 0;
+  font-size:12px; color:var(--text-dim); margin:10px 0; line-height:1.6;
+}
+.info-box.warn{border-left-color:var(--amber); background:rgba(255,179,0,.06);}
+.info-box.danger{border-left-color:var(--danger); background:rgba(255,77,94,.06);}
+
+.badge{display:inline-block; font-size:10px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim); margin-right:5px;}
+.badge.cyan{border-color:var(--cyan); color:var(--cyan);}
+.badge.amber{border-color:var(--amber); color:var(--amber);}
+
+footer{text-align:center; font-size:11px; color:var(--text-dim); padding:24px 10px 6px;}
+footer b{color:var(--amber);}
+
+/* Quiz */
+.qopt{
+  display:block; width:100%; text-align:left; background:var(--panel2); border:1px solid var(--border);
+  color:var(--text); padding:10px 12px; border-radius:7px; margin-bottom:8px; cursor:pointer; font-family:var(--mono); font-size:12.5px;
+}
+.qopt:hover{border-color:var(--cyan-dim);}
+.qopt.correct{border-color:var(--success); background:rgba(51,224,138,.1); color:var(--success);}
+.qopt.wrong{border-color:var(--danger); background:rgba(255,77,94,.1); color:var(--danger);}
+.qopt:disabled{cursor:default;}
+.qprog{font-size:11.5px; color:var(--text-dim); margin-bottom:10px;}
+.scorepill{font-size:13px; padding:8px 14px; border:1px solid var(--cyan); color:var(--cyan); border-radius:999px; display:inline-block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app">
+    <div class="brand">Apna Electromechanic Service &mdash; Engineering Tools Suite</div>
+    <div class="title">IP &amp; NEMA Enclosure Rating Simulator</div>
+    <div class="subtitle">Interactive tool for understanding ingress-protection ratings for panels, enclosures and devices — dust &amp; water test simulation per IEC&nbsp;60529, plus the NEMA&nbsp;250 (North American) enclosure-type system and a cross-reference guide between the two.</div>
+  </header>
+
+  <nav class="tabs" id="tabnav"></nav>
+
+  <div id="panels"></div>
+
+  <footer>Offline reference &amp; teaching tool &middot; Standards referenced: <b>IEC 60529</b> (2013), <b>NEMA 250-2020</b>, <b>UL 50 / UL 50E</b> &middot; Always verify against manufacturer datasheets and the certified test report for a specific product — this simulator is for training only.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================= DATA ============================= */
+
+var IP_FIRST = [
+  {d:"0", val:0, label:"No protection", test:"none", size:null, desc:"No special protection against contact or ingress of solid foreign objects."},
+  {d:"1", val:1, label:"Protected against solid objects ≥ 50 mm", test:"hand", size:"50 mm (back of hand)", desc:"Protects against large surfaces such as an accidental back-of-hand touch. Not protected against deliberate access."},
+  {d:"2", val:2, label:"Protected against solid objects ≥ 12.5 mm", test:"finger", size:"12.5 mm (finger)", desc:"Protects against fingers or similar objects of comparable length."},
+  {d:"3", val:3, label:"Protected against solid objects ≥ 2.5 mm", test:"tool", size:"2.5 mm (tool)", desc:"Protects against tools, thick wires and similar."},
+  {d:"4", val:4, label:"Protected against solid objects ≥ 1 mm", test:"wire", size:"1 mm (wire)", desc:"Protects against most wires, screws, small tools and insects."},
+  {d:"5", val:5, label:"Dust protected", test:"dust-limited", size:"fine dust (limited ingress)", desc:"Ingress of dust is not totally prevented but dust does not enter in a quantity sufficient to interfere with satisfactory operation or impair safety."},
+  {d:"6", val:6, label:"Dust tight", test:"dust-tight", size:"fine dust (zero ingress)", desc:"No ingress of dust at all — complete protection against contact and dust, verified with a vacuum-assisted test chamber."}
+];
+
+var IP_SECOND = [
+  {d:"0", val:0, label:"No protection", test:"none", desc:"No protection against water."},
+  {d:"1", val:1, label:"Dripping water", test:"drip-vertical", desc:"Vertically falling drops (e.g. condensation) shall have no harmful effect."},
+  {d:"2", val:2, label:"Dripping water, tilted 15°", test:"drip-tilt", desc:"Vertically dripping water shall have no harmful effect when the enclosure is tilted at any angle up to 15° from its normal position."},
+  {d:"3", val:3, label:"Spraying water", test:"spray", desc:"Water sprayed at an angle up to 60° from vertical shall have no harmful effect."},
+  {d:"4", val:4, label:"Splashing water", test:"splash", desc:"Water splashed against the enclosure from any direction shall have no harmful effect."},
+  {d:"5", val:5, label:"Water jets", test:"jet", desc:"Water projected by a 6.3 mm nozzle from any direction shall have no harmful effect."},
+  {d:"6", val:6, label:"Powerful water jets", test:"powerful-jet", desc:"Water projected by a 12.5 mm nozzle (100 L/min) from any direction shall have no harmful effect — suitable for heavy seas / high-pressure wash-down."},
+  {d:"6K", val:6.5, label:"Powerful water jets, high pressure (K)", test:"powerful-jet-k", desc:"Supplementary test (mainly road-vehicle / rail standards) — higher pressure jet than IPx6, closer range."},
+  {d:"7", val:7, label:"Temporary immersion", test:"immersion-temp", desc:"Ingress of water in quantities causing harmful effects shall not be possible when the enclosure is temporarily immersed in water (up to 1 m depth, 30 min)."},
+  {d:"8", val:8, label:"Continuous immersion", test:"immersion-cont", desc:"Suitable for continuous immersion in water under conditions specified by the manufacturer, normally deeper than 1 m — exact depth/duration must be stated."},
+  {d:"9K", val:9, label:"High-pressure / steam-jet cleaning", test:"steam-jet", desc:"Withstands close-range high-pressure, high-temperature spray-down/steam-jet cleaning (common in food, dairy, automotive wash-down). Tested on a separate scale — does not automatically imply IPx7/IPx8."}
+];
+
+var DUST_TESTS = [
+  {key:"hand", label:"Back of hand (50 mm)", need:1, icon:"✋"},
+  {key:"finger", label:"Finger probe (12.5 mm)", need:2, icon:"☝"},
+  {key:"tool", label:"Tool / thick wire (2.5 mm)", need:3, icon:"🔧"},
+  {key:"wire", label:"Thin wire (1 mm)", need:4, icon:"🪝"},
+  {key:"dust-limited", label:"Talcum dust chamber (limited ingress ok)", need:5, icon:"🌫"},
+  {key:"dust-tight", label:"Talcum dust chamber, vacuum-assisted (zero ingress)", need:6, icon:"🌪"}
+];
+
+var WATER_TESTS = [
+  {key:"drip-vertical", label:"Dripping water — vertical", need:1, icon:"💧"},
+  {key:"drip-tilt", label:"Dripping water — tilted 15°", need:2, icon:"💧"},
+  {key:"spray", label:"Spraying water (60° cone)", need:3, icon:"🌦"},
+  {key:"splash", label:"Splashing water, all directions", need:4, icon:"🚿"},
+  {key:"jet", label:"Water jet (6.3 mm nozzle)", need:5, icon:"🚒"},
+  {key:"powerful-jet", label:"Powerful water jet (12.5 mm nozzle)", need:6, icon:"🚒"},
+  {key:"immersion-temp", label:"Temporary immersion (1 m / 30 min)", need:7, icon:"🌊"},
+  {key:"immersion-cont", label:"Continuous immersion", need:8, icon:"🌊"},
+  {key:"steam-jet", label:"High-pressure steam-jet wash-down", need:9, icon:"♨"}
+];
+
+var NEMA_TYPES = [
+  {t:"1", env:"Indoor", ip:"IP20", title:"General Purpose", desc:"Basic protection against incidental contact with enclosed equipment and against a limited amount of falling dirt in normal indoor, non-hazardous locations.", tags:["Indoor","Dust (light)"]},
+  {t:"2", env:"Indoor", ip:"IP21", title:"Drip-Tight", desc:"Adds protection against dripping/light splashing water in indoor locations, e.g. equipment below overhead pipework.", tags:["Indoor","Drip"]},
+  {t:"3", env:"Outdoor", ip:"IP54", title:"Weather Resistant", desc:"Outdoor use — protects against windblown dust, rain, sleet/ice on the enclosure (external mechanism NOT required to operate when ice-laden).", tags:["Outdoor","Rain","Windblown dust","Ice (external)"]},
+  {t:"3R", env:"Outdoor", ip:"IP14", title:"Rainproof", desc:"Outdoor use — protects against falling rain and ice formation on the enclosure; not tested for windblown dust like Type 3.", tags:["Outdoor","Rain","Ice (external)"]},
+  {t:"3S", env:"Outdoor", ip:"IP54", title:"Weather Resistant, Ice-Operable", desc:"Like Type 3, but external mechanisms (handles, cranks) remain operable even when the enclosure is covered in external ice.", tags:["Outdoor","Rain","Windblown dust","Ice (operable)"]},
+  {t:"3X / 3RX / 3SX", env:"Outdoor", ip:"IP54/64", title:"Corrosion-Resistant variants", desc:"Same mechanical/ingress protection as 3 / 3R / 3S respectively, with the added \"X\" suffix requirement of corrosion resistance.", tags:["Outdoor","Corrosion-resistant"]},
+  {t:"4", env:"Indoor/Outdoor", ip:"IP66", title:"Watertight", desc:"Protects against windblown dust/rain, splashing water and hose-directed water; no harmful effect from the formation of ice.", tags:["Indoor/Outdoor","Hose-directed water","Ice (external)"]},
+  {t:"4X", env:"Indoor/Outdoor", ip:"IP66", title:"Watertight + Corrosion-Resistant", desc:"Same as Type 4 with added corrosion resistance — the most common rating for outdoor industrial control panels.", tags:["Indoor/Outdoor","Hose-directed water","Corrosion-resistant"]},
+  {t:"5", env:"Indoor", ip:"IP52", title:"Dust-Tight (indoor)", desc:"Indoor use — protects against settling airborne dust, falling dirt and dripping non-corrosive liquids.", tags:["Indoor","Dust","Drip"]},
+  {t:"6", env:"Indoor/Outdoor", ip:"IP67", title:"Submersible (temporary)", desc:"Protects against entry of water during temporary submersion at a limited depth for a limited time (conditions specified by manufacturer).", tags:["Submersible (temp.)","Ice (external)"]},
+  {t:"6P", env:"Indoor/Outdoor", ip:"IP67", title:"Submersible (prolonged) + Corrosion-Resistant", desc:"Like Type 6 but rated for prolonged submersion, plus corrosion resistance — used subsea/lift-station applications.", tags:["Submersible (prolonged)","Corrosion-resistant"]},
+  {t:"12", env:"Indoor", ip:"IP52", title:"Industrial, Dust-Tight / Drip-Tight", desc:"Indoor use without knockouts — protects against circulating dust, falling dirt and dripping non-corrosive liquids. Very common for indoor industrial control panels.", tags:["Indoor","Dust","Drip","Oil (light)"]},
+  {t:"12K", env:"Indoor", ip:"IP52", title:"Type 12 with Knockouts", desc:"Same protection level as Type 12 but the enclosure is supplied with knockouts for conduit entry.", tags:["Indoor","Dust","Drip"]},
+  {t:"13", env:"Indoor", ip:"IP54", title:"Oil-Tight / Dust-Tight", desc:"Indoor use — protects against dust, spraying water/coolant and oil, plus non-corrosive liquids typical of a machine-tool environment.", tags:["Indoor","Dust","Oil / coolant spray"]}
+];
+
+/* Approx numeric IP equivalent used for cross-reference matching */
+var NEMA_IP_NUM = {"1":[2,0],"2":[2,1],"3":[5,4],"3R":[1,4],"3S":[5,4],"3X":[5,4],"3RX":[1,4],"3SX":[5,4],
+  "4":[6,6],"4X":[6,6],"5":[5,2],"6":[6,7],"6P":[6,7],"12":[5,2],"12K":[5,2],"13":[5,4]};
+
+/* ============================= STATE ============================= */
+var state = {
+  ipFirst: 6,
+  ipSecond: 6,
+  activeDustTest: null,
+  activeWaterTest: null,
+  nemaSel: "4X",
+  quiz: {idx:0, score:0, answered:false}
+};
+
+/* ============================= UTIL ============================= */
+function el(tag, attrs, children){
+  var e = document.createElement(tag);
+  if(attrs) for(var k in attrs){
+    if(k === "class") e.className = attrs[k];
+    else if(k === "html") e.innerHTML = attrs[k];
+    else if(k.indexOf("on")===0 && typeof attrs[k]==="function") e.addEventListener(k.slice(2), attrs[k]);
+    else e.setAttribute(k, attrs[k]);
+  }
+  if(children) children.forEach(function(c){ if(c!=null) e.appendChild(typeof c==="string"?document.createTextNode(c):c); });
+  return e;
+}
+function ipFirstByDigit(d){ for(var i=0;i<IP_FIRST.length;i++) if(IP_FIRST[i].d===d) return IP_FIRST[i]; return IP_FIRST[0]; }
+function ipSecondByDigit(d){ for(var i=0;i<IP_SECOND.length;i++) if(IP_SECOND[i].d===d) return IP_SECOND[i]; return IP_SECOND[0]; }
+
+/* ============================= TABS ============================= */
+var TABS = [
+  {id:"home", label:"Home"},
+  {id:"ip", label:"IP Rating Lab"},
+  {id:"nema", label:"NEMA Rating Lab"},
+  {id:"cross", label:"Cross-Reference"},
+  {id:"quiz", label:"Quiz"},
+  {id:"ref", label:"Standards & Notes"}
+];
+
+function buildTabs(){
+  var nav = document.getElementById("tabnav");
+  TABS.forEach(function(t){
+    var b = el("button", {onclick:function(){ showTab(t.id); }}, [t.label]);
+    b.dataset.tab = t.id;
+    nav.appendChild(b);
+  });
+}
+function showTab(id){
+  document.querySelectorAll("nav.tabs button").forEach(function(b){ b.classList.toggle("active", b.dataset.tab===id); });
+  document.querySelectorAll(".panel").forEach(function(p){ p.classList.toggle("active", p.id==="panel-"+id); });
+  if(id==="ip") renderStage("dust");
+  if(id==="nema") renderNema();
+  if(id==="cross") renderCross();
+  if(id==="quiz") renderQuiz();
+}
+
+/* ============================= HOME ============================= */
+function buildHome(){
+  var p = el("div", {id:"panel-home", class:"panel active"});
+  var card = el("div", {class:"card"});
+  card.appendChild(el("h2", null, ["What is an ingress-protection rating?"]));
+  card.appendChild(el("p", null, ["An enclosure rating tells you how well a panel, junction box, motor, luminaire or other device resists solid objects (dust, tools, fingers) and liquids (drips, sprays, jets, immersion) getting inside. Two systems are in everyday use: the international ", el("b",null,["IP Code (IEC 60529)"]), " used almost everywhere outside North America, and the ", el("b",null,["NEMA 250"]), " enclosure-type system used in the USA/Canada, which also folds in mechanical/corrosion requirements that IP alone does not cover."]));
+  card.appendChild(el("div",{class:"info-box"},["Use the tabs above: run live dust/water pass-fail tests on any IP combination, browse every NEMA enclosure type, cross-reference the two systems, or test yourself with the quiz."]));
+  p.appendChild(card);
+
+  var gal = el("div", {class:"gallery"});
+  var items = [
+    {ico:"🧪", t:"IP Rating Lab", d:"Pick any IPxx combination and fire dust/water test scenarios at an animated enclosure to see pass or fail.", tab:"ip"},
+    {ico:"🇺🇸", t:"NEMA Rating Lab", d:"Browse all common NEMA 250 enclosure types (1 through 6P, 12, 13) with environment, features & approx. IP equivalent.", tab:"nema"},
+    {ico:"🔀", t:"Cross-Reference", d:"Side-by-side NEMA ⇄ IP comparison table plus a two-way lookup tool.", tab:"cross"},
+    {ico:"❓", t:"Quiz", d:"10-question quiz covering IP digit meanings, NEMA types and common misconceptions.", tab:"quiz"},
+    {ico:"📘", t:"Standards & Notes", d:"IEC 60529 / NEMA 250 / UL 50 references, additional & supplementary letters, and important caveats.", tab:"ref"}
+  ];
+  items.forEach(function(it){
+    var g = el("div", {class:"gcard", onclick:function(){ showTab(it.tab); }});
+    g.appendChild(el("div",{class:"ico"},[it.ico]));
+    g.appendChild(el("div",{class:"gt"},[it.t]));
+    g.appendChild(el("div",{class:"gd"},[it.d]));
+    gal.appendChild(g);
+  });
+  p.appendChild(gal);
+  return p;
+}
+
+/* ============================= IP LAB ============================= */
+function buildIP(){
+  var p = el("div", {id:"panel-ip", class:"panel"});
+
+  var readout = el("div", {class:"readout", id:"ip-readout"});
+  p.appendChild(readout);
+
+  var selCard = el("div", {class:"card"});
+  var row = el("div", {class:"selrow"});
+
+  var g1 = el("div", {class:"selgroup"});
+  g1.appendChild(el("label", null, ["First digit — solid object / dust protection"]));
+  var sel1 = el("select", {id:"sel-ipfirst"});
+  IP_FIRST.forEach(function(f){ sel1.appendChild(el("option", {value:f.d}, [f.d+" — "+f.label])); });
+  sel1.value = String(state.ipFirst);
+  sel1.addEventListener("change", function(){ state.ipFirst = ipFirstByDigit(this.value).val; state.activeDustTest=null; setStageMode("dust"); renderIPReadout(); });
+  g1.appendChild(sel1);
+  row.appendChild(g1);
+
+  var g2 = el("div", {class:"selgroup"});
+  g2.appendChild(el("label", null, ["Second digit — liquid / water protection"]));
+  var sel2 = el("select", {id:"sel-ipsecond"});
+  IP_SECOND.forEach(function(f){ sel2.appendChild(el("option", {value:f.d}, [f.d+" — "+f.label])); });
+  sel2.value = "6";
+  sel2.addEventListener("change", function(){ state.ipSecond = ipSecondByDigit(this.value).val; state.activeWaterTest=null; setStageMode("water"); renderIPReadout(); });
+  g2.appendChild(sel2);
+  row.appendChild(g2);
+
+  selCard.appendChild(row);
+  p.appendChild(selCard);
+
+  /* Simulator */
+  var simCard = el("div", {class:"card"});
+  simCard.appendChild(el("h2", null, ["Live Ingress Test Simulator"]));
+  var toggleRow = el("div", {class:"chiprow"});
+  var chipDust = el("button", {class:"chip on", id:"chip-dust", onclick:function(){ setStageMode("dust"); }}, ["🌫 Dust / Solids Tests"]);
+  var chipWater = el("button", {class:"chip", id:"chip-water", onclick:function(){ setStageMode("water"); }}, ["💧 Water Tests"]);
+  toggleRow.appendChild(chipDust); toggleRow.appendChild(chipWater);
+  simCard.appendChild(toggleRow);
+
+  var simwrap = el("div", {class:"simwrap"});
+  var testlist = el("div", {class:"testlist", id:"test-list"});
+  var stage = el("div", {class:"simstage", id:"sim-stage"});
+  simwrap.appendChild(testlist);
+  simwrap.appendChild(stage);
+  simCard.appendChild(simwrap);
+  p.appendChild(simCard);
+
+  /* Reference tables */
+  var refCard = el("div", {class:"card"});
+  refCard.appendChild(el("h2", null, ["IP Code Reference Tables"]));
+  var g = el("div", {class:"grid2"});
+
+  var t1 = el("div");
+  t1.appendChild(el("h3", null, ["First digit — solid particle protection"]));
+  var tw1 = el("div", {class:"tblwrap"});
+  var tbl1 = el("table");
+  tbl1.appendChild(el("tr",null,[el("th",null,["Digit"]),el("th",null,["Protects against"]),el("th",null,["Test probe"])]));
+  IP_FIRST.forEach(function(f){
+    var tr = el("tr", {id:"ref1-"+f.d});
+    tr.appendChild(el("td",null,[f.d]));
+    tr.appendChild(el("td",null,[f.label]));
+    tr.appendChild(el("td",null,[f.size||"—"]));
+    tbl1.appendChild(tr);
+  });
+  tw1.appendChild(tbl1); t1.appendChild(tw1);
+  g.appendChild(t1);
+
+  var t2 = el("div");
+  t2.appendChild(el("h3", null, ["Second digit — liquid protection"]));
+  var tw2 = el("div", {class:"tblwrap"});
+  var tbl2 = el("table");
+  tbl2.appendChild(el("tr",null,[el("th",null,["Digit"]),el("th",null,["Protects against"])]));
+  IP_SECOND.forEach(function(f){
+    var tr = el("tr", {id:"ref2-"+f.d});
+    tr.appendChild(el("td",null,[f.d]));
+    tr.appendChild(el("td",null,[f.label]));
+    tbl2.appendChild(tr);
+  });
+  tw2.appendChild(tbl2); t2.appendChild(tw2);
+  g.appendChild(t2);
+
+  refCard.appendChild(g);
+  refCard.appendChild(el("div",{class:"info-box"},["Optional letters can extend the code, e.g. ", el("b",null,["IP65C H"]), ": an ", el("b",null,["additional letter"]), " (A/B/C/D) specifies protection against access to hazardous parts when the first digit is replaced with X, and a ", el("b",null,["supplementary letter"]), " (H = high-voltage device, M = tested while moving parts operating, S = tested while stationary, W = weather conditions) adds extra test context."]));
+  p.appendChild(refCard);
+
+  return p;
+}
+
+function setStageMode(mode){
+  document.getElementById("chip-dust").classList.toggle("on", mode==="dust");
+  document.getElementById("chip-water").classList.toggle("on", mode==="water");
+  renderStage(mode);
+}
+function currentStageMode(){
+  return document.getElementById("chip-water") && document.getElementById("chip-water").classList.contains("on") ? "water" : "dust";
+}
+
+function renderIPReadout(){
+  var r = document.getElementById("ip-readout");
+  if(!r) return;
+  r.innerHTML = "";
+  var fd = ipFirstDigitStr(), sd = ipSecondDigitStr();
+  r.appendChild(el("div", {class:"big"}, ["IP"+fd+sd]));
+  var meta = el("div", {class:"meta"});
+  var f = IP_FIRST.filter(function(x){return x.val===state.ipFirst;})[0];
+  var s = IP_SECOND.filter(function(x){return x.val===state.ipSecond;})[0];
+  meta.appendChild(document.createTextNode(f.label + "  •  " + s.label));
+  meta.appendChild(document.createElement("br"));
+  var em = document.createElement("span");
+  em.style.color = "var(--text-dim)";
+  em.textContent = f.desc;
+  meta.appendChild(em);
+  r.appendChild(meta);
+}
+function ipFirstDigitStr(){
+  var f = IP_FIRST.filter(function(x){return x.val===state.ipFirst;})[0];
+  return f ? f.d : "0";
+}
+function ipSecondDigitStr(){
+  var s = IP_SECOND.filter(function(x){return x.val===state.ipSecond;})[0];
+  return s ? s.d : "0";
+}
+
+function renderStage(mode){
+  renderIPReadout();
+  var listEl = document.getElementById("test-list");
+  var stage = document.getElementById("sim-stage");
+  if(!listEl || !stage) return;
+  listEl.innerHTML = "";
+  var tests = mode==="dust" ? DUST_TESTS : WATER_TESTS;
+  var currentRatingVal = mode==="dust" ? state.ipFirst : state.ipSecond;
+  var activeKey = mode==="dust" ? state.activeDustTest : state.activeWaterTest;
+
+  tests.forEach(function(t){
+    var b = el("button", {class:"testbtn"+(activeKey===t.key?" active":""), onclick:function(){
+      if(mode==="dust") state.activeDustTest = t.key; else state.activeWaterTest = t.key;
+      renderStage(mode);
+      runTest(mode, t);
+    }}, [
+      el("span", null, [t.icon+"  "+t.label]),
+      el("span", {class:"need"}, ["req ≥ "+t.need])
+    ]);
+    listEl.appendChild(b);
+  });
+
+  buildStageSvg(stage, mode);
+
+  var active = tests.filter(function(t){return t.key===activeKey;})[0];
+  if(active){
+    // re-render verdict without animation (state restore, e.g. tab re-entry)
+    var pass = currentRatingVal >= active.need;
+    showVerdict(pass, mode, active, false);
+  }
+}
+
+function buildStageSvg(stage, mode){
+  stage.innerHTML = "";
+  var badge = el("div", {class:"status-badge", id:"stage-badge"}, ["Select a test →"]);
+  stage.appendChild(badge);
+
+  var svgNS = "http://www.w3.org/2000/svg";
+  var svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox","0 0 420 300");
+  svg.setAttribute("class","stage-svg");
+  svg.setAttribute("id","stage-svg");
+
+  svg.innerHTML =
+    '<defs>'+
+      '<linearGradient id="boxGrad" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0" stop-color="#1c2a44"/>'+
+        '<stop offset="1" stop-color="#0f1830"/>'+
+      '</linearGradient>'+
+      '<linearGradient id="interiorGrad" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0" stop-color="#060a14"/>'+
+        '<stop offset="1" stop-color="#0a0f1e"/>'+
+      '</linearGradient>'+
+    '</defs>'+
+    '<line x1="30" y1="270" x2="390" y2="270" stroke="#1d2b45" stroke-width="2"/>'+
+    '<g id="enclosure-group">'+
+      '<rect x="110" y="110" width="200" height="150" rx="6" fill="url(#boxGrad)" stroke="#30456b" stroke-width="2"/>'+
+      '<rect id="interior" x="122" y="122" width="176" height="126" rx="3" fill="url(#interiorGrad)" class="interior-fill"/>'+
+      '<rect x="110" y="110" width="200" height="14" rx="4" fill="#233457" stroke="#30456b" stroke-width="1.5"/>'+
+      '<circle cx="290" cy="117" r="3" fill="#0891a8"/>'+
+      '<text x="210" y="260" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#4d6183">ENCLOSURE UNDER TEST</text>'+
+      '<g id="spark" class="spark" transform="translate(210,180)">'+
+        '<circle r="26" fill="#ff4d5e" opacity="0.18"/>'+
+        '<text x="0" y="6" text-anchor="middle" font-size="20">⚠</text>'+
+      '</g>'+
+    '</g>'+
+    '<g id="source-group" transform="translate(210,40)">'+
+      '<text id="source-icon" x="0" y="10" text-anchor="middle" font-size="26">🧪</text>'+
+    '</g>'+
+    '<g id="particle-wrap"></g>';
+
+  stage.appendChild(svg);
+  var banner = el("div", {class:"verdict-banner", id:"verdict-banner"}, [mode==="dust" ? "Choose a solid-object test scenario on the left." : "Choose a water test scenario on the left."]);
+  stage.appendChild(banner);
+}
+
+function runTest(mode, test){
+  var stage = document.getElementById("sim-stage");
+  var svg = document.getElementById("stage-svg");
+  if(!svg) return;
+  var svgNS = "http://www.w3.org/2000/svg";
+  var wrap = document.getElementById("particle-wrap");
+  wrap.innerHTML = "";
+  var interior = document.getElementById("interior");
+  var spark = document.getElementById("spark");
+  interior.setAttribute("fill", "url(#interiorGrad)");
+  spark.classList.remove("show");
+
+  var currentRatingVal = mode==="dust" ? state.ipFirst : state.ipSecond;
+  var pass = currentRatingVal >= test.need;
+
+  var badge = document.getElementById("stage-badge");
+  badge.className = "status-badge";
+  badge.textContent = "Testing…";
+
+  var count = mode==="dust" ? 10 : 8;
+  var color = mode==="dust" ? "#c9a25a" : "#3fc7ff";
+
+  for(var i=0;i<count;i++){
+    var startX = 160 + Math.random()*100;
+    var startY = 45 + Math.random()*20;
+    var p = document.createElementNS(svgNS, mode==="dust" ? "circle" : "circle");
+    p.setAttribute("cx", startX);
+    p.setAttribute("cy", startY);
+    p.setAttribute("r", mode==="dust" ? (test.key.indexOf("dust")===0 ? 1.6 : 5) : 3.2);
+    p.setAttribute("fill", color);
+    p.setAttribute("class","particle");
+    p.style.opacity = "0.95";
+    wrap.appendChild(p);
+    (function(p, idx){
+      setTimeout(function(){
+        var seamY = 116;
+        var targetY = pass ? (seamY - 6 - Math.random()*10) : (150 + Math.random()*70);
+        var targetX = pass ? (parseFloat(p.getAttribute("cx")) + (Math.random()*40-20)) : (150 + Math.random()*120);
+        p.style.transform = "translate("+ (targetX-parseFloat(p.getAttribute("cx"))) +"px,"+ (targetY-parseFloat(p.getAttribute("cy"))) +"px)";
+        if(!pass){
+          setTimeout(function(){ p.style.opacity = "0.85"; }, 600);
+        } else {
+          setTimeout(function(){ p.style.opacity = "0"; }, 900);
+        }
+      }, idx*40);
+    })(p, i);
+  }
+
+  setTimeout(function(){
+    showVerdict(pass, mode, test, true);
+  }, 1250);
+}
+
+function showVerdict(pass, mode, test, animate){
+  var badge = document.getElementById("stage-badge");
+  var banner = document.getElementById("verdict-banner");
+  var interior = document.getElementById("interior");
+  var spark = document.getElementById("spark");
+  if(!badge || !banner) return;
+  badge.className = "status-badge " + (pass ? "pass" : "fail");
+  badge.textContent = pass ? "PROTECTED" : "BREACH DETECTED";
+  banner.className = "verdict-banner " + (pass ? "pass" : "fail");
+  var ratingStr = mode==="dust" ? "IP"+ipFirstDigitStr()+"x" : "IPx"+ipSecondDigitStr();
+  if(pass){
+    banner.textContent = "PASS — "+ratingStr+" meets or exceeds the requirement for \""+test.label+"\" (needs digit ≥ "+test.need+"). The particle/water is repelled before reaching the interior.";
+    if(interior) interior.setAttribute("fill","url(#interiorGrad)");
+    if(spark) spark.classList.remove("show");
+  } else {
+    banner.textContent = "FAIL — "+ratingStr+" does NOT meet the requirement for \""+test.label+"\" (needs digit ≥ "+test.need+"). Ingress reaches the interior — equipment would be exposed.";
+    if(interior) interior.setAttribute("fill","#3a1620");
+    if(spark) spark.classList.add("show");
+  }
+}
+
+/* ============================= NEMA LAB ============================= */
+function buildNema(){
+  var p = el("div", {id:"panel-nema", class:"panel"});
+  var card = el("div", {class:"card"});
+  card.appendChild(el("h2", null, ["NEMA 250 Enclosure Types"]));
+  card.appendChild(el("p", null, ["NEMA (National Electrical Manufacturers Association, USA) ratings describe an enclosure's ability to protect against ingress plus, for many types, ", el("b",null,["corrosion, icing and other environmental hazards that IP alone does not test"]), ". Select a type below."]));
+
+  var chiprow = el("div", {class:"chiprow", id:"nema-chips"});
+  NEMA_TYPES.forEach(function(n){
+    var c = el("button", {class:"chip"+(state.nemaSel===n.t?" on":""), onclick:function(){ state.nemaSel = n.t; renderNema(); }}, ["Type "+n.t]);
+    c.dataset.t = n.t;
+    chiprow.appendChild(c);
+  });
+  card.appendChild(chiprow);
+
+  card.appendChild(el("div", {id:"nema-detail"}));
+  p.appendChild(card);
+
+  var tblCard = el("div", {class:"card"});
+  tblCard.appendChild(el("h2", null, ["Full NEMA 250 Quick-Reference Table"]));
+  var tw = el("div", {class:"tblwrap"});
+  var tbl = el("table");
+  tbl.appendChild(el("tr", null, [el("th",null,["Type"]),el("th",null,["Environment"]),el("th",null,["Approx. IP"]),el("th",null,["Summary"])]));
+  NEMA_TYPES.forEach(function(n){
+    var tr = el("tr", {id:"nema-row-"+n.t.replace(/[^A-Za-z0-9]/g,"")});
+    tr.appendChild(el("td",null,[n.t]));
+    tr.appendChild(el("td",null,[n.env]));
+    tr.appendChild(el("td",null,[n.ip]));
+    tr.appendChild(el("td",null,[n.title]));
+    tbl.appendChild(tr);
+  });
+  tw.appendChild(tbl);
+  tblCard.appendChild(tw);
+  tblCard.appendChild(el("div", {class:"info-box warn"}, ["The \"Approx. IP\" column is a commonly-used correlation (per NEMA 250 informative appendix), ", el("b",null,["not a certified equivalence"]), " — NEMA testing includes items (corrosion, icing, oil-tightness, gasket ageing) that IEC 60529 does not evaluate, and vice-versa IP69K-type hygienic wash-down tests have no direct NEMA counterpart."]));
+  p.appendChild(tblCard);
+
+  return p;
+}
+
+function renderNema(){
+  document.querySelectorAll("#nema-chips .chip").forEach(function(c){ c.classList.toggle("on", c.dataset.t===state.nemaSel); });
+  document.querySelectorAll("table tr[id^='nema-row-']").forEach(function(tr){ tr.classList.remove("hl"); });
+  var safeId = "nema-row-"+state.nemaSel.replace(/[^A-Za-z0-9]/g,"");
+  var row = document.getElementById(safeId);
+  if(row) row.classList.add("hl");
+
+  var n = NEMA_TYPES.filter(function(x){return x.t===state.nemaSel;})[0];
+  var d = document.getElementById("nema-detail");
+  if(!d || !n) return;
+  d.innerHTML = "";
+  var head = el("div", {class:"readout"});
+  head.appendChild(el("div", {class:"big"}, ["NEMA "+n.t]));
+  var meta = el("div", {class:"meta"});
+  meta.appendChild(document.createTextNode(n.title + "  •  " + n.env + "  •  approx. equivalent " + n.ip));
+  head.appendChild(meta);
+  d.appendChild(head);
+  d.appendChild(el("p", null, [n.desc]));
+  var tagWrap = el("div");
+  n.tags.forEach(function(tg){ tagWrap.appendChild(el("span", {class:"badge cyan"}, [tg])); });
+  d.appendChild(tagWrap);
+}
+
+/* ============================= CROSS-REFERENCE ============================= */
+function buildCross(){
+  var p = el("div", {id:"panel-cross", class:"panel"});
+  var card = el("div", {class:"card"});
+  card.appendChild(el("h2", null, ["Two-Way Lookup"]));
+  card.appendChild(el("p", null, ["Pick a NEMA type to see its closest IP code, or pick an IP combination to see the closest NEMA type(s). These are ", el("b",null,["approximate correlations for orientation only"]), " — always confirm against a certified test report when protection is safety-critical."]));
+
+  var row = el("div", {class:"selrow"});
+  var g1 = el("div", {class:"selgroup"});
+  g1.appendChild(el("label", null, ["Start from NEMA type"]));
+  var sel1 = el("select", {id:"cross-nema"});
+  NEMA_TYPES.forEach(function(n){ sel1.appendChild(el("option", {value:n.t}, ["Type "+n.t])); });
+  sel1.value = state.nemaSel;
+  sel1.addEventListener("change", function(){ state.nemaSel = this.value; renderCross(); });
+  g1.appendChild(sel1);
+  row.appendChild(g1);
+
+  var g2 = el("div", {class:"selgroup"});
+  g2.appendChild(el("label", null, ["...or start from an IP code"]));
+  var innerRow = el("div", {style:"display:flex; gap:6px;"});
+  var s1 = el("select", {id:"cross-ip1"});
+  IP_FIRST.forEach(function(f){ s1.appendChild(el("option", {value:f.d}, [f.d])); });
+  var s2 = el("select", {id:"cross-ip2"});
+  IP_SECOND.forEach(function(f){ s2.appendChild(el("option", {value:f.d}, [f.d])); });
+  s1.value = ipFirstDigitStr(); s2.value = ipSecondDigitStr();
+  s1.addEventListener("change", renderCross); s2.addEventListener("change", renderCross);
+  innerRow.appendChild(s1); innerRow.appendChild(s2);
+  g2.appendChild(innerRow);
+  row.appendChild(g2);
+
+  card.appendChild(row);
+  card.appendChild(el("div", {id:"cross-result"}));
+  p.appendChild(card);
+
+  var tblCard = el("div", {class:"card"});
+  tblCard.appendChild(el("h2", null, ["NEMA ⇄ IP Correlation Table"]));
+  var tw = el("div", {class:"tblwrap"});
+  var tbl = el("table");
+  tbl.appendChild(el("tr", null, [el("th",null,["NEMA Type"]),el("th",null,["Closest IP"]),el("th",null,["Environment"]),el("th",null,["Key extra NEMA requirements beyond IP"])]));
+  var extras = {"1":"—","2":"—","3":"External icing, windblown dust","3R":"External icing","3S":"Ice-operable mechanisms","3X":"Corrosion resistance","4":"External icing","4X":"Corrosion resistance","5":"—","6":"Limited submersion, external icing","6P":"Prolonged submersion, corrosion resistance","12":"Oil (light)","12K":"Oil (light), knockouts","13":"Oil/coolant spray"};
+  NEMA_TYPES.forEach(function(n){
+    var tr = el("tr");
+    tr.appendChild(el("td",null,[n.t]));
+    tr.appendChild(el("td",null,[n.ip]));
+    tr.appendChild(el("td",null,[n.env]));
+    tr.appendChild(el("td",null,[extras[n.t]||"—"]));
+    tbl.appendChild(tr);
+  });
+  tw.appendChild(tbl);
+  tblCard.appendChild(tw);
+  p.appendChild(tblCard);
+
+  return p;
+}
+
+function ipDistance(a1,a2,b1,b2){
+  return Math.abs(a1-b1)*1.2 + Math.abs(a2-b2);
+}
+
+function renderCross(){
+  var nemaSel = document.getElementById("cross-nema");
+  var s1 = document.getElementById("cross-ip1"), s2 = document.getElementById("cross-ip2");
+  if(!nemaSel || !s1 || !s2) return;
+  nemaSel.value = state.nemaSel;
+
+  var n = NEMA_TYPES.filter(function(x){return x.t===nemaSel.value;})[0];
+  var pair = NEMA_IP_NUM[nemaSel.value] || [0,0];
+
+  var ipD1 = parseFloat(s1.value.replace("K",".5"));
+  var ipD2 = parseFloat(s2.value.replace("K",".5"));
+
+  // find nearest NEMA types to the chosen IP pair
+  var scored = NEMA_TYPES.map(function(nt){
+    var pr = NEMA_IP_NUM[nt.t] || [0,0];
+    return {nt:nt, dist: ipDistance(pr[0],pr[1], ipD1, ipD2)};
+  }).sort(function(a,b){ return a.dist-b.dist; });
+  var nearest = scored.slice(0,3);
+
+  var out = document.getElementById("cross-result");
+  out.innerHTML = "";
+
+  var col = el("div", {class:"grid2"});
+
+  var left = el("div", {class:"info-box"});
+  left.appendChild(el("h3", null, ["NEMA "+n.t+" →"]));
+  left.appendChild(el("p", null, ["Closest IP equivalent: ", el("b",null,[n.ip]), ". "+n.desc]));
+  col.appendChild(left);
+
+  var right = el("div", {class:"info-box"});
+  right.appendChild(el("h3", null, ["IP"+s1.value+s2.value+" →"]));
+  var list = el("p");
+  list.appendChild(document.createTextNode("Nearest NEMA type(s): "));
+  nearest.forEach(function(sc, i){
+    var b = el("b", null, ["NEMA "+sc.nt.t + (i<nearest.length-1 ? ", " : "")]);
+    list.appendChild(b);
+  });
+  right.appendChild(list);
+  col.appendChild(right);
+
+  out.appendChild(col);
+}
+
+/* ============================= QUIZ ============================= */
+var QUIZ = [
+  {q:"In IP54, what does the FIRST digit '5' protect against?", opts:["Complete dust tightness — zero ingress","Dust protected — limited ingress that doesn't harm operation","Protection against 12.5mm objects only","Water spray"], a:1, exp:"Digit 5 is 'dust protected' — some dust may enter but not enough to interfere with operation or impair safety. Digit 6 is required for total (zero-ingress) dust tightness."},
+  {q:"What does the SECOND digit in an IP code describe?", opts:["Impact resistance (IK rating)","Protection against solid objects","Protection against liquids","Operating temperature range"], a:2, exp:"The second digit of the IP code always covers liquid/water ingress protection, from 0 (none) to 9K (high-pressure steam-jet cleaning)."},
+  {q:"An enclosure rated IPx7 is guaranteed to withstand...", opts:["Continuous deep submersion","Temporary immersion up to 1 m for 30 minutes","High-pressure jet washing","Nothing — 7 is not a valid digit"], a:1, exp:"IPx7 = temporary immersion, typically to 1 m depth for 30 minutes. Continuous/deeper immersion requires IPx8 with manufacturer-specified conditions."},
+  {q:"Which NEMA type is most commonly specified for an OUTDOOR industrial control panel needing corrosion resistance?", opts:["NEMA 1","NEMA 12","NEMA 4X","NEMA 2"], a:2, exp:"NEMA 4X adds corrosion resistance to the watertight NEMA 4 requirements, making it the standard choice for outdoor panels, especially in corrosive/coastal environments."},
+  {q:"True or False: NEMA and IP ratings measure exactly the same things, so a NEMA 4X enclosure is IP66 by direct legal equivalence.", opts:["True — they are legally interchangeable","False — NEMA also covers corrosion, icing and other factors IP does not test, so correlations are approximate"], a:1, exp:"NEMA 250 testing includes corrosion resistance, external icing, gasket aging and other criteria beyond IEC 60529's pure ingress tests, so published NEMA↔IP tables are informative approximations, not certified equivalences."},
+  {q:"A device is rated IP2X (X = untested second digit). What can you say about its water protection?", opts:["It is dust-tight and waterproof","It is protected against 12.5mm solid objects; water protection was not tested/specified","It has no protection at all","It is submersible"], a:1, exp:"An 'X' in place of a digit simply means that characteristic was not tested/specified — it is NOT the same as a '0'. Here only solid-object protection (digit 2) is defined."},
+  {q:"Which IP second-digit level is required to withstand a powerful water jet from a 12.5mm nozzle at high flow rate?", opts:["IPx4","IPx5","IPx6","IPx8"], a:2, exp:"IPx6 covers powerful water jets (12.5mm nozzle, ~100 L/min) from any direction — typical for deck wash-down and heavy marine spray applications."},
+  {q:"NEMA Type 3R is best described as:", opts:["Rainproof, with protection against ice formation on the enclosure, but not windblown dust","Fully submersible","Explosion-proof for hazardous locations","Identical protection to Type 4X"], a:0, exp:"NEMA 3R protects against falling rain and external ice formation, but (unlike Type 3) is not specifically tested against windblown dust."},
+  {q:"What is the purpose of the ADDITIONAL letter (A/B/C/D) in an IP code such as IPXXB?", opts:["Denotes the manufacturer","Specifies protection against access to hazardous parts (e.g. by a finger) when the first digit is replaced by X","Denotes corrosion resistance","Denotes the enclosure material"], a:1, exp:"Additional letters A–D specify protection against access to hazardous live/moving parts by back of hand, finger, tool, or wire respectively — used when the numeral digit is omitted (X)."},
+  {q:"Which is a correct approximate correlation commonly cited between systems?", opts:["NEMA 4X ≈ IP66","NEMA 1 ≈ IP68","NEMA 6P ≈ IP20","NEMA 12 ≈ IP00"], a:0, exp:"NEMA 4X (watertight + corrosion-resistant) is commonly correlated to approximately IP66 (dust-tight, protected against powerful water jets) — though again, this is an approximate, non-certified correlation."}
+];
+
+function buildQuiz(){
+  var p = el("div", {id:"panel-quiz", class:"panel"});
+  var card = el("div", {class:"card"});
+  card.appendChild(el("h2", null, ["Ratings Quiz"]));
+  card.appendChild(el("div", {id:"quiz-body"}));
+  p.appendChild(card);
+  return p;
+}
+
+function renderQuiz(){
+  var body = document.getElementById("quiz-body");
+  if(!body) return;
+  body.innerHTML = "";
+  if(state.quiz.idx >= QUIZ.length){
+    body.appendChild(el("div", {class:"scorepill"}, ["Final score: "+state.quiz.score+" / "+QUIZ.length]));
+    body.appendChild(el("div", {style:"margin-top:14px;"}, [
+      el("button", {class:"btn", onclick:function(){ state.quiz = {idx:0, score:0, answered:false}; renderQuiz(); }}, ["Restart Quiz"])
+    ]));
+    return;
+  }
+  var qi = QUIZ[state.quiz.idx];
+  body.appendChild(el("div", {class:"qprog"}, ["Question "+(state.quiz.idx+1)+" of "+QUIZ.length+"   •   Score: "+state.quiz.score]));
+  body.appendChild(el("p", {style:"color:var(--text); font-size:13.5px;"}, [qi.q]));
+  var optWrap = el("div");
+  qi.opts.forEach(function(opt, i){
+    var b = el("button", {class:"qopt", onclick:function(){ answerQuiz(i); }}, [opt]);
+    optWrap.appendChild(b);
+  });
+  body.appendChild(optWrap);
+  body.appendChild(el("div", {id:"quiz-exp"}));
+}
+
+function answerQuiz(i){
+  if(state.quiz.answered) return;
+  state.quiz.answered = true;
+  var qi = QUIZ[state.quiz.idx];
+  var correct = i === qi.a;
+  if(correct) state.quiz.score++;
+  var opts = document.querySelectorAll("#quiz-body .qopt");
+  opts.forEach(function(b, idx){
+    b.disabled = true;
+    if(idx === qi.a) b.classList.add("correct");
+    else if(idx === i) b.classList.add("wrong");
+  });
+  var exp = document.getElementById("quiz-exp");
+  exp.appendChild(el("div", {class:"info-box "+(correct?"":"warn")}, [(correct?"Correct. ":"Not quite. ")+qi.exp]));
+  exp.appendChild(el("div", {style:"margin-top:12px;"}, [
+    el("button", {class:"btn amber", onclick:function(){ state.quiz.idx++; state.quiz.answered=false; renderQuiz(); }}, [state.quiz.idx===QUIZ.length-1 ? "See Score" : "Next Question →"])
+  ]));
+}
+
+/* ============================= STANDARDS & NOTES ============================= */
+function buildRef(){
+  var p = el("div", {id:"panel-ref", class:"panel"});
+  var card = el("div", {class:"card"});
+  card.appendChild(el("h2", null, ["Standards Referenced"]));
+  var tbl = el("table");
+  tbl.appendChild(el("tr", null, [el("th",null,["Standard"]),el("th",null,["Scope"])]));
+  [
+    ["IEC 60529 (2001 + A2:2013)","Degrees of protection provided by enclosures (IP Code) — the base international standard."],
+    ["NEMA 250-2020","Enclosures for Electrical Equipment (1000 Volts Maximum) — North American enclosure-type system."],
+    ["UL 50 / UL 50E","Enclosures for Electrical Equipment, Non-Environmental / Environmental Considerations — US safety listing standards aligned with NEMA 250."],
+    ["ISO 20653","Road vehicles — degrees of protection (IP code); source of the 'K' suffix tests (6K, 9K) for higher-pressure/temperature jet tests."],
+    ["IEC 62262 (IK code)","Impact protection rating — a separate mechanical-impact scale, often confused with IP but NOT part of it."]
+  ].forEach(function(r){
+    var tr = el("tr");
+    tr.appendChild(el("td",null,[r[0]]));
+    tr.appendChild(el("td",null,[r[1]]));
+    tbl.appendChild(tr);
+  });
+  card.appendChild(tbl);
+  p.appendChild(card);
+
+  var card2 = el("div", {class:"card"});
+  card2.appendChild(el("h2", null, ["Important Caveats"]));
+  card2.appendChild(el("div", {class:"info-box warn"}, ["A higher second digit does NOT automatically include protection from lower digits' test conditions in every edition of the standard for immersion/jet levels — however in practice IEC 60529 defines the scale as cumulative for digits 1–6, meaning a device meeting IPx6 has also passed the tests for IPx1–IPx5. Digits 7, 8 and the 'K' tests (6K, 9K) sit on branch/special test conditions and are ", el("b",null,["not automatically implied by each other"]), " — an IPx8-rated device is not automatically certified for IPx9K steam-jet cleaning, and vice-versa."]));
+  card2.appendChild(el("div", {class:"info-box danger"}, ["NEMA and IP correlations shown in this tool (and in most published tables) are ", el("b",null,["approximate and informative only"]), ". For safety-critical or contractual specifications, always request the manufacturer's certified test report for the exact IP or NEMA rating claimed, and confirm both against the actual installation environment (chemical exposure, temperature cycling, UV, vibration) which neither system fully captures."]));
+  card2.appendChild(el("div", {class:"info-box"}, ["Impact protection is a separate rating entirely: ", el("b",null,["IK code (IEC 62262)"]), ", from IK00 (no protection) to IK10 (20 joules). An enclosure can be IP66 and still have a low IK rating if its shell is not impact-resistant."]));
+  p.appendChild(card2);
+
+  return p;
+}
+
+/* ============================= BOOTSTRAP ============================= */
+function buildAll(){
+  buildTabs();
+  var container = document.getElementById("panels");
+  container.appendChild(buildHome());
+  container.appendChild(buildIP());
+  container.appendChild(buildNema());
+  container.appendChild(buildCross());
+  container.appendChild(buildQuiz());
+  container.appendChild(buildRef());
+  showTab("home");
+}
+
+document.addEventListener("DOMContentLoaded", buildAll);
+})();
+</script>
+</body>
+</html>
