@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>3D Charges and Fields Simulation</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Three.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- OrbitControls for 3D Interaction -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #030712;
+    }
+
+    #webgl-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .custom-shadow {
+      box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Scrollbar styling for panels */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.5);
+      border-radius: 4px;
+    }
+
+    .formula-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Mobile safety zone padding */
+    .pb-safe {
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    }
+  </style>
+</head>
+<body class="text-slate-100 flex flex-col h-screen w-screen relative select-none">
+
+  <div id="webgl-container"></div>
+
+  <!-- TOP HEADER & CHARGE SPAWN / DELETE TOOLBAR -->
+  <header class="relative z-20 bg-slate-900/90 border-b border-slate-800/80 px-2 sm:px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0 glass-panel">
+    <div class="flex items-center justify-between w-full sm:w-auto gap-2">
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
+          <i class="fa-solid fa-cube text-sm"></i>
+        </div>
+        <h1 class="font-bold text-xs sm:text-base tracking-wide text-slate-100 flex items-center gap-1.5">
+          3D Charges & Fields
+          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-normal border border-indigo-500/30 hidden sm:inline">Lab 3D</span>
+        </h1>
+      </div>
+
+      <!-- Presets Header Menu for Desktop -->
+      <div class="hidden lg:flex items-center space-x-1.5 bg-slate-950/70 p-1 rounded-xl border border-slate-800 text-xs">
+        <span class="text-slate-400 text-[11px] font-medium px-1.5">Presets:</span>
+        <button onclick="applyPreset('dipole')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition">Dipole</button>
+        <button onclick="applyPreset('quadrupole')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition">3D Cube</button>
+        <button onclick="applyPreset('line')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition">Plates</button>
+        <button onclick="applyPreset('single')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition">Point</button>
+      </div>
+
+      <!-- Mobile Settings Toggle -->
+      <button onclick="toggleMobileSettings()" class="lg:hidden p-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 text-xs font-medium">
+        <i class="fa-solid fa-sliders"></i>
+      </button>
+    </div>
+
+    <!-- MAIN TOP TOOLBAR FOR ADDING AND DELETING CHARGES -->
+    <div class="flex items-center justify-center gap-1.5 sm:gap-2 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800/80 shadow-inner max-w-full overflow-x-auto">
+      <span class="text-slate-400 text-[10px] sm:text-xs font-semibold pl-1 hidden md:inline">Add:</span>
+      
+      <!-- Add Positive Charge -->
+      <button onclick="spawnEntity('pos')" class="flex items-center gap-1.5 bg-rose-600/30 hover:bg-rose-600/50 text-rose-200 border border-rose-500/50 px-2.5 py-1 rounded-xl text-xs font-semibold transition active:scale-95 shrink-0 shadow-sm">
+        <span class="w-5 h-5 rounded-full bg-rose-600 text-white font-bold flex items-center justify-center text-xs">+</span>
+        <span>+ Charge</span>
+      </button>
+
+      <!-- Add Negative Charge -->
+      <button onclick="spawnEntity('neg')" class="flex items-center gap-1.5 bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/50 px-2.5 py-1 rounded-xl text-xs font-semibold transition active:scale-95 shrink-0 shadow-sm">
+        <span class="w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">&minus;</span>
+        <span>&minus; Charge</span>
+      </button>
+
+      <!-- Add Sensor -->
+      <button onclick="spawnEntity('sensor')" class="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/40 text-amber-200 border border-amber-500/40 px-2.5 py-1 rounded-xl text-xs font-semibold transition active:scale-95 shrink-0 shadow-sm">
+        <span class="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-[10px]">
+          <i class="fa-solid fa-location-crosshairs"></i>
+        </span>
+        <span class="hidden sm:inline">Sensor</span>
+      </button>
+
+      <div class="h-5 w-px bg-slate-800 mx-0.5"></div>
+
+      <!-- Delete Selected Trash Bin Button -->
+      <button id="btn-top-delete" onclick="deleteSelectedEntity()" class="flex items-center gap-1.5 bg-slate-800 hover:bg-rose-600 text-slate-400 hover:text-white border border-slate-700 hover:border-rose-500 px-2.5 py-1 rounded-xl text-xs font-semibold transition active:scale-95 shrink-0" title="Delete Selected Charge or Sensor">
+        <i class="fa-solid fa-trash-can text-sm"></i>
+        <span class="hidden sm:inline">Delete</span>
+      </button>
+
+      <!-- Clear All Simulation -->
+      <button onclick="resetSimulation()" class="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs transition shrink-0" title="Clear All Charges">
+        <i class="fa-solid fa-rotate-left"></i>
+      </button>
+    </div>
+
+    <!-- Extra View Controls -->
+    <div class="hidden sm:flex items-center space-x-1.5">
+      <button onclick="resetCamera()" class="p-1.5 px-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition flex items-center gap-1" title="Reset Camera View">
+        <i class="fa-solid fa-camera-rotate text-indigo-400"></i>
+        <span class="hidden lg:inline">Reset View</span>
+      </button>
+
+      <button onclick="toggleFormulaModal()" class="p-1.5 px-2.5 rounded-xl bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-600/40 text-xs font-medium transition flex items-center gap-1">
+        <i class="fa-solid fa-square-root-variable"></i>
+        <span class="hidden lg:inline">Formulas</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace Area containing overlay controls -->
+  <div class="relative flex-1 w-full h-full overflow-hidden pointer-events-none z-10">
+
+    <!-- TOP-LEFT: 3D PROBE & EQUIPOTENTIAL TOOLBOX -->
+    <div class="pointer-events-auto absolute top-3 left-3 w-52 sm:w-60 glass-panel rounded-2xl p-3 custom-shadow flex flex-col gap-2.5 text-xs">
+      <div class="font-semibold text-slate-200 text-xs sm:text-sm border-b border-slate-700/60 pb-1.5 flex justify-between items-center">
+        <span class="flex items-center gap-1.5">
+          <i class="fa-solid fa-crosshairs text-cyan-400"></i> Potential Probe
+        </span>
+        <span class="text-[10px] text-cyan-400 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800">3D</span>
+      </div>
+
+      <div class="flex items-center justify-between bg-slate-950/80 px-2.5 py-1.5 rounded-xl border border-slate-800 font-mono">
+        <span class="text-slate-400 text-[11px]">Potential V:</span>
+        <span id="probe-v-val" class="text-cyan-300 font-bold text-xs sm:text-sm">0.00 V</span>
+      </div>
+
+      <div class="flex items-center justify-between text-[11px] text-slate-300 pt-1">
+        <span>Position (X,Y,Z):</span>
+        <span id="probe-pos-val" class="font-mono text-slate-400 text-[10px]">(0, 0, 0)</span>
+      </div>
+
+      <div class="pt-1 border-t border-slate-800 flex items-center justify-between">
+        <span class="text-slate-300 text-[11px]">3D Distance Tape</span>
+        <button id="btn-toggle-tape" onclick="toggleTape()" class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-medium transition">
+          <i class="fa-solid fa-ruler-horizontal mr-1"></i> Toggle Tape
+        </button>
+      </div>
+    </div>
+
+    <!-- TOP-RIGHT: CONTROL DISPLAY OPTIONS PANEL (Collapsible on Mobile) -->
+    <div id="settings-panel" class="pointer-events-auto absolute top-3 right-3 w-56 sm:w-64 glass-panel rounded-2xl p-3.5 custom-shadow flex flex-col gap-2.5 text-xs max-h-[80vh] overflow-y-auto transition-all duration-300 hidden lg:flex">
+      <div class="font-semibold text-slate-200 text-xs sm:text-sm border-b border-slate-700/60 pb-2 flex justify-between items-center">
+        <span>3D Display Options</span>
+        <button onclick="toggleMobileSettings()" class="lg:hidden text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Display Toggles -->
+      <label class="flex items-center justify-between cursor-pointer group">
+        <span class="text-slate-300 group-hover:text-white transition">3D Field Vectors</span>
+        <input type="checkbox" id="chk-field" checked class="w-4 h-4 accent-indigo-500 rounded cursor-pointer">
+      </label>
+
+      <label class="flex items-center justify-between cursor-pointer group">
+        <span class="text-slate-300 group-hover:text-white transition">3D Field Lines</span>
+        <input type="checkbox" id="chk-lines" checked class="w-4 h-4 accent-indigo-500 rounded cursor-pointer">
+      </label>
+
+      <label class="flex items-center justify-between cursor-pointer group">
+        <span class="text-slate-300 group-hover:text-white transition">Potential Plane Heatmap</span>
+        <input type="checkbox" id="chk-voltage" checked class="w-4 h-4 accent-indigo-500 rounded cursor-pointer">
+      </label>
+
+      <label class="flex items-center justify-between cursor-pointer group">
+        <span class="text-slate-300 group-hover:text-white transition">Sensor Values Overlay</span>
+        <input type="checkbox" id="chk-values" checked class="w-4 h-4 accent-indigo-500 rounded cursor-pointer">
+      </label>
+
+      <label class="flex items-center justify-between cursor-pointer group">
+        <span class="text-slate-300 group-hover:text-white transition">Grid (XY & XZ)</span>
+        <input type="checkbox" id="chk-grid" checked class="w-4 h-4 accent-indigo-500 rounded cursor-pointer">
+      </label>
+
+      <label class="flex items-center justify-between cursor-pointer group">
+        <span class="text-slate-300 group-hover:text-white transition">Snap to Grid (0.5m)</span>
+        <input type="checkbox" id="chk-snap" class="w-4 h-4 accent-indigo-500 rounded cursor-pointer">
+      </label>
+
+      <!-- Grid density slider -->
+      <div class="pt-2 border-t border-slate-700/60 flex flex-col gap-1.5">
+        <div class="flex justify-between text-slate-400 text-[11px]">
+          <span>Field Vector Density</span>
+          <span id="grid-density-val" class="font-mono text-indigo-400">7 x 7</span>
+        </div>
+        <input type="range" id="rng-density" min="5" max="11" step="2" value="7" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+      </div>
+
+      <!-- Presets for Mobile inside panel -->
+      <div class="pt-2 border-t border-slate-700/60 flex flex-col gap-1.5 lg:hidden">
+        <span class="text-slate-400 text-[11px] font-medium">Presets:</span>
+        <div class="grid grid-cols-2 gap-1.5">
+          <button onclick="applyPreset('dipole'); toggleMobileSettings()" class="px-2 py-1 rounded bg-slate-800 text-slate-200 text-[11px]">Dipole</button>
+          <button onclick="applyPreset('quadrupole'); toggleMobileSettings()" class="px-2 py-1 rounded bg-slate-800 text-slate-200 text-[11px]">3D Cube</button>
+          <button onclick="applyPreset('line'); toggleMobileSettings()" class="px-2 py-1 rounded bg-slate-800 text-slate-200 text-[11px]">Parallel Plates</button>
+          <button onclick="applyPreset('single'); toggleMobileSettings()" class="px-2 py-1 rounded bg-slate-800 text-slate-200 text-[11px]">Point Charge</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLOATING SELECTED CHARGE EDITING TOOLBAR -->
+    <div id="selected-toolbar" class="pointer-events-auto hidden absolute top-16 left-1/2 -translate-x-1/2 glass-panel px-3 py-1.5 rounded-2xl flex items-center gap-2 text-xs border border-indigo-500/50 shadow-2xl z-30 transition-all duration-150">
+      <span class="text-slate-300 font-semibold text-[11px]">Selected:</span>
+      <button onclick="adjustSelectedCharge(-1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 flex items-center justify-center font-bold text-sm transition">-</button>
+      <span id="selected-charge-val" class="font-mono text-indigo-300 font-bold px-1.5 text-xs">+1 nC</span>
+      <button onclick="adjustSelectedCharge(1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 flex items-center justify-center font-bold text-sm transition">+</button>
+      <div class="h-4 w-px bg-slate-700 mx-1"></div>
+      <button onclick="deleteSelectedEntity()" class="flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white px-2.5 py-1 rounded-xl text-xs font-semibold transition border border-rose-500 shadow-md shadow-rose-900/40">
+        <i class="fa-solid fa-trash-can"></i> Delete
+      </button>
+    </div>
+
+    <!-- BOTTOM INSTRUCTION / NAVIGATION TIP OVERLAY -->
+    <div class="pointer-events-none absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full border border-slate-800 text-[10px] sm:text-[11px] text-slate-300 flex items-center gap-2 shadow-md">
+      <span><i class="fa-solid fa-hand-pointer text-indigo-400"></i> Orbit: <b>Left-Click + Drag</b></span>
+      <span class="text-slate-600">|</span>
+      <span><b>Scroll</b> to Zoom</span>
+      <span class="text-slate-600">|</span>
+      <span>Drag charges directly</span>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM TRAY & CHARGE SPAWNER BAR (RESPONSIVE FIX FOR MOBILE & DESKTOP) -->
+  <footer class="relative z-20 w-full bg-slate-900/90 border-t border-slate-800/80 px-2 sm:px-4 py-2 flex items-center justify-center glass-panel shrink-0 pb-safe">
+    <div class="flex items-center justify-center gap-2 sm:gap-6 max-w-full overflow-x-auto py-0.5">
+      
+      <!-- Spawn Positive Charge -->
+      <button onclick="spawnEntity('pos')" class="flex items-center gap-2 bg-gradient-to-r from-rose-600/30 to-red-600/20 hover:from-rose-600/40 hover:to-red-600/30 border border-rose-500/40 px-3 py-1.5 rounded-xl transition group active:scale-95 shrink-0">
+        <div class="w-7 h-7 rounded-full bg-rose-600 text-white font-bold flex items-center justify-center text-base shadow-md shadow-rose-500/30 group-hover:scale-105 transition">
+          +
+        </div>
+        <div class="text-left">
+          <div class="text-xs font-semibold text-rose-200">+1 nC Charge</div>
+          <div class="text-[9px] text-slate-400 hidden sm:block">Add Positive</div>
+        </div>
+      </button>
+
+      <!-- Spawn Negative Charge -->
+      <button onclick="spawnEntity('neg')" class="flex items-center gap-2 bg-gradient-to-r from-blue-600/30 to-indigo-600/20 hover:from-blue-600/40 hover:to-indigo-600/30 border border-blue-500/40 px-3 py-1.5 rounded-xl transition group active:scale-95 shrink-0">
+        <div class="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-base shadow-md shadow-blue-500/30 group-hover:scale-105 transition">
+          &minus;
+        </div>
+        <div class="text-left">
+          <div class="text-xs font-semibold text-blue-200">&minus;1 nC Charge</div>
+          <div class="text-[9px] text-slate-400 hidden sm:block">Add Negative</div>
+        </div>
+      </button>
+
+      <div class="h-8 w-px bg-slate-800 shrink-0"></div>
+
+      <!-- Spawn Sensor -->
+      <button onclick="spawnEntity('sensor')" class="flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-amber-600/10 hover:from-amber-500/30 hover:to-amber-600/20 border border-amber-500/40 px-3 py-1.5 rounded-xl transition group active:scale-95 shrink-0">
+        <div class="w-7 h-7 rounded-full bg-amber-400 text-slate-950 font-bold flex items-center justify-center text-xs shadow-md shadow-amber-400/30 group-hover:scale-105 transition">
+          <i class="fa-solid fa-location-crosshairs"></i>
+        </div>
+        <div class="text-left">
+          <div class="text-xs font-semibold text-amber-200">Sensor</div>
+          <div class="text-[9px] text-slate-400 hidden sm:block">Field Detector</div>
+        </div>
+      </button>
+
+    </div>
+  </footer>
+
+  <!-- PHYSICS FORMULAS MODAL -->
+  <div id="formula-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-2xl rounded-2xl border border-slate-700 p-5 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <button onclick="toggleFormulaModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-sm transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3 border-b border-slate-800 pb-3 mb-4">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-300 text-lg font-bold">
+          <i class="fa-solid fa-square-root-variable"></i>
+        </div>
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-white">3D Electrostatics Principles</h2>
+          <p class="text-xs text-slate-400">Physics formulas applied in 3D vector space</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div class="formula-card p-4 rounded-xl flex flex-col gap-2">
+          <div class="font-semibold text-indigo-300 text-xs sm:text-sm flex items-center justify-between">
+            <span>3D Electric Field Vector</span>
+            <span class="text-[10px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-800">Vector Field</span>
+          </div>
+          <div class="bg-slate-900/90 p-3 rounded-lg text-center font-mono text-cyan-300 text-xs sm:text-sm border border-slate-800">
+            <b>E</b>(r) = k_e · ∑ (q_i / |r - r_i|²) · <b>r̂</b>_i
+          </div>
+          <p class="text-slate-300 text-[11px] leading-relaxed">
+            Net field is calculated in 3D space (X, Y, Z) using the vector sum of all point charge influences.
+          </p>
+        </div>
+
+        <div class="formula-card p-4 rounded-xl flex flex-col gap-2">
+          <div class="font-semibold text-indigo-300 text-sm flex items-center justify-between">
+            <span>3D Electric Potential</span>
+            <span class="text-[10px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-800">Scalar Field</span>
+          </div>
+          <div class="bg-slate-900/90 p-3 rounded-lg text-center font-mono text-cyan-300 text-xs sm:text-sm border border-slate-800">
+            V(r) = k_e · ∑ (q_i / |r - r_i|)
+          </div>
+          <p class="text-slate-300 text-[11px] leading-relaxed">
+            Scalar electrostatic potential field in Volts, rendered on the slice heatmap plane.
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-800 text-right">
+        <button onclick="toggleFormulaModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl text-xs transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Physics Constants
+    const K_E = 8.98755e9; // Coulomb constant
+    const NANO_COULOMB = 1e-9;
+    const UNITS_PER_METER = 2.0; // 2 Three.js world units = 1.0 meter
+
+    // Application & 3D Scene State
+    let scene, camera, renderer, controls;
+    let charges = [];   // Objects: { id, mesh, q, labelSprite }
+    let sensors = [];   // Objects: { id, mesh, arrow, labelSprite }
+    let selectedEntity = null; // { type: 'charge'|'sensor', index }
+    
+    // Auxiliary 3D Objects
+    let probeMesh, tapeGroup, fieldVectorsGroup, fieldLinesGroup, voltagePlaneMesh;
+    let gridHelperXY, gridHelperXZ;
+
+    // Probe & Tape Data
+    let probePos = new THREE.Vector3(0, 1.2, 0);
+    let tapeData = {
+      visible: false,
+      start: new THREE.Vector3(-2, 0, 0),
+      end: new THREE.Vector3(2, 0, 0)
+    };
+
+    // UI Toggle Options
+    const options = {
+      showField: true,
+      showLines: true,
+      showVoltage: true,
+      showValues: true,
+      showGrid: true,
+      snapToGrid: false,
+      gridDensity: 7
+    };
+
+    // Dragging & Interaction State
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let isDragging3D = false;
+    let draggedObject = null;
+    let dragPlane = new THREE.Plane();
+    let planeIntersection = new THREE.Vector3();
+
+    function init3D() {
+      const container = document.getElementById('webgl-container');
+      
+      // Scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x030712);
+      scene.fog = new THREE.FogExp2(0x030712, 0.025);
+
+      // Camera
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+      camera.position.set(0, 6, 10);
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      // OrbitControls
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI - 0.05;
+      controls.minDistance = 2;
+      controls.maxDistance = 30;
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(10, 15, 10);
+      dirLight.castShadow = true;
+      scene.add(dirLight);
+
+      const pointLight = new THREE.PointLight(0x6366f1, 1, 20);
+      pointLight.position.set(0, 0, 0);
+      scene.add(pointLight);
+
+      // Initialize Auxilary 3D Elements
+      initGrids();
+      initVoltagePlane();
+      initProbe3D();
+      initTape3D();
+
+      fieldVectorsGroup = new THREE.Group();
+      scene.add(fieldVectorsGroup);
+
+      fieldLinesGroup = new THREE.Group();
+      scene.add(fieldLinesGroup);
+
+      // Window Event Listeners
+      window.addEventListener('resize', onWindowResize);
+      
+      // Canvas Touch/Mouse Events for Dragging Objects
+      const dom = renderer.domElement;
+      dom.addEventListener('pointerdown', onPointerDown);
+      dom.addEventListener('pointermove', onPointerMove);
+      dom.addEventListener('pointerup', onPointerUp);
+    }
+
+    function initGrids() {
+      // Horizontal XZ plane grid
+      gridHelperXZ = new THREE.GridHelper(20, 20, 0x4f46e5, 0x1e293b);
+      gridHelperXZ.position.y = -0.01;
+      scene.add(gridHelperXZ);
+
+      // Vertical XY plane grid
+      gridHelperXY = new THREE.GridHelper(20, 20, 0x3b82f6, 0x0f172a);
+      gridHelperXY.rotation.x = Math.PI / 2;
+      gridHelperXY.position.z = -0.01;
+      scene.add(gridHelperXY);
+    }
+
+    // 3D Voltage Heatmap Canvas & Mesh Plane
+    const voltageCanvas = document.createElement('canvas');
+    voltageCanvas.width = 128;
+    voltageCanvas.height = 128;
+    const voltageTexture = new THREE.CanvasTexture(voltageCanvas);
+
+    function initVoltagePlane() {
+      const geo = new THREE.PlaneGeometry(16, 16, 64, 64);
+      const mat = new THREE.MeshBasicMaterial({
+        map: voltageTexture,
+        transparent: true,
+        opacity: 0.55,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+
+      voltagePlaneMesh = new THREE.Mesh(geo, mat);
+      voltagePlaneMesh.rotation.x = -Math.PI / 2;
+      voltagePlaneMesh.position.y = 0;
+      scene.add(voltagePlaneMesh);
+    }
+
+    function updateVoltagePlane() {
+      if (!options.showVoltage || charges.length === 0) {
+        voltagePlaneMesh.visible = false;
+        return;
+      }
+      voltagePlaneMesh.visible = true;
+
+      const ctx = voltageCanvas.getContext('2d');
+      const w = voltageCanvas.width;
+      const h = voltageCanvas.height;
+      const imgData = ctx.createImageData(w, h);
+      const data = imgData.data;
+
+      const size = 16; // world width/height
+
+      for (let y = 0; y < h; y++) {
+        const worldZ = ((y / h) - 0.5) * size;
+        for (let x = 0; x < w; x++) {
+          const worldX = ((x / w) - 0.5) * size;
+          
+          const phys = calculatePhysicsAt(worldX, 0, worldZ);
+          const V = phys.V;
+          const idx = (y * w + x) * 4;
+
+          let r = 0, g = 0, b = 0, a = 0;
+          const maxV = 45;
+
+          if (V > 0) {
+            const intensity = Math.min(1, Math.log10(1 + V) / Math.log10(1 + maxV));
+            r = 239;
+            g = Math.floor(68 * intensity);
+            b = Math.floor(68 * (1 - intensity));
+            a = Math.floor(intensity * 180);
+          } else if (V < 0) {
+            const intensity = Math.min(1, Math.log10(1 - V) / Math.log10(1 + maxV));
+            r = Math.floor(59 * (1 - intensity));
+            g = Math.floor(130 * intensity);
+            b = 246;
+            a = Math.floor(intensity * 180);
+          }
+
+          data[idx] = r;
+          data[idx + 1] = g;
+          data[idx + 2] = b;
+          data[idx + 3] = a;
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      voltageTexture.needsUpdate = true;
+    }
+
+    function calculatePhysicsAt(x, y, z) {
+      let Ex = 0, Ey = 0, Ez = 0, V = 0;
+
+      for (let i = 0; i < charges.length; i++) {
+        const c = charges[i];
+        const dx = (x - c.mesh.position.x) / UNITS_PER_METER; // in meters
+        const dy = (y - c.mesh.position.y) / UNITS_PER_METER;
+        const dz = (z - c.mesh.position.z) / UNITS_PER_METER;
+        
+        const r2 = dx * dx + dy * dy + dz * dz;
+        const r = Math.sqrt(r2);
+
+        const minR = 0.08; 
+        const effectiveR = Math.max(r, minR);
+        const effectiveR2 = effectiveR * effectiveR;
+        const chargeInCoulombs = c.q * NANO_COULOMB;
+
+        // Potential V = k * q / r
+        V += (K_E * chargeInCoulombs) / effectiveR;
+
+        // Electric Field E = k * |q| / r^2
+        const E_mag = (K_E * chargeInCoulombs) / effectiveR2;
+
+        if (r > 0) {
+          Ex += E_mag * (dx / effectiveR);
+          Ey += E_mag * (dy / effectiveR);
+          Ez += E_mag * (dz / effectiveR);
+        }
+      }
+
+      const E_total = Math.sqrt(Ex * Ex + Ey * Ey + Ez * Ez);
+      return { Ex, Ey, Ez, E: E_total, V };
+    }
+
+    function updateFieldVectors3D() {
+      // Clear previous arrows
+      while (fieldVectorsGroup.children.length > 0) {
+        const obj = fieldVectorsGroup.children.pop();
+        if (obj.geometry) obj.geometry.dispose();
+      }
+
+      if (!options.showField || charges.length === 0) return;
+
+      const density = parseInt(options.gridDensity); // e.g. 7
+      const step = 14 / density;
+      const start = -7 + step / 2;
+
+      for (let x = start; x <= 7; x += step) {
+        for (let z = start; z <= 7; z += step) {
+          const phys = calculatePhysicsAt(x, 0, z);
+          if (phys.E < 1e-2) continue;
+
+          const dir = new THREE.Vector3(phys.Ex, phys.Ey, phys.Ez).normalize();
+          const origin = new THREE.Vector3(x, 0, z);
+          
+          const logE = Math.log10(phys.E + 1);
+          const length = Math.min(1.2, Math.max(0.3, logE * 0.4));
+          
+          // Color based on field strength
+          const hue = Math.max(0, 0.65 - Math.min(0.65, logE * 0.2));
+          const color = new THREE.Color().setHSL(hue, 0.9, 0.55);
+
+          const arrowHelper = new THREE.ArrowHelper(dir, origin, length, color.getHex(), length * 0.3, length * 0.2);
+          fieldVectorsGroup.add(arrowHelper);
+        }
+      }
+    }
+
+    function updateFieldLines3D() {
+      while (fieldLinesGroup.children.length > 0) {
+        const obj = fieldLinesGroup.children.pop();
+        if (obj.geometry) obj.geometry.dispose();
+      }
+
+      if (!options.showLines || charges.length === 0) return;
+
+      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.75, linewidth: 2 });
+
+      // Seeds points around positive charges
+      charges.forEach(c => {
+        if (c.q <= 0) return;
+
+        const numLines = 12;
+        for (let i = 0; i < numLines; i++) {
+          const phi = Math.acos(-1 + (2 * i) / numLines);
+          const theta = Math.sqrt(numLines * Math.PI) * phi;
+
+          const dx = Math.sin(phi) * Math.cos(theta) * 0.5;
+          const dy = Math.sin(phi) * Math.sin(theta) * 0.5;
+          const dz = Math.cos(phi) * 0.5;
+
+          let curr = new THREE.Vector3().copy(c.mesh.position).add(new THREE.Vector3(dx, dy, dz));
+          const points = [curr.clone()];
+          
+          const maxSteps = 120;
+          const stepSize = 0.15;
+
+          for (let step = 0; step < maxSteps; step++) {
+            const phys = calculatePhysicsAt(curr.x, curr.y, curr.z);
+            if (phys.E < 1e-2) break;
+
+            const dir = new THREE.Vector3(phys.Ex, phys.Ey, phys.Ez).normalize();
+            curr.addScaledVector(dir, stepSize);
+            points.push(curr.clone());
+
+            if (curr.length() > 15) break; // Out of bounds
+
+            // Check if reached negative charge
+            let reachedNeg = false;
+            charges.forEach(nc => {
+              if (nc.q < 0 && curr.distanceTo(nc.mesh.position) < 0.5) {
+                reachedNeg = true;
+              }
+            });
+            if (reachedNeg) break;
+          }
+
+          if (points.length > 2) {
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(geo, lineMaterial);
+            fieldLinesGroup.add(line);
+          }
+        }
+      });
+    }
+
+    function initProbe3D() {
+      const geo = new THREE.OctahedronGeometry(0.25, 2);
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x22d3ee,
+        wireframe: true,
+        emissive: 0x0891b2,
+        emissiveIntensity: 0.8
+      });
+      probeMesh = new THREE.Mesh(geo, mat);
+      probeMesh.position.copy(probePos);
+      probeMesh.userData = { type: 'probe' };
+      scene.add(probeMesh);
+    }
+
+    function initTape3D() {
+      tapeGroup = new THREE.Group();
+      
+      const sphereGeo = new THREE.SphereGeometry(0.15, 16, 16);
+      const mat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706 });
+
+      const startMesh = new THREE.Mesh(sphereGeo, mat);
+      startMesh.position.copy(tapeData.start);
+      startMesh.userData = { type: 'tapeStart' };
+      tapeGroup.add(startMesh);
+
+      const endMesh = new THREE.Mesh(sphereGeo, mat);
+      endMesh.position.copy(tapeData.end);
+      endMesh.userData = { type: 'tapeEnd' };
+      tapeGroup.add(endMesh);
+
+      tapeGroup.visible = false;
+      scene.add(tapeGroup);
+    }
+
+    function updateTape3D() {
+      if (!tapeData.visible) {
+        tapeGroup.visible = false;
+        return;
+      }
+      tapeGroup.visible = true;
+
+      // Update line connecting tape ends
+      let line = tapeGroup.getObjectByName('tapeLine');
+      if (line) tapeGroup.remove(line);
+
+      const geo = new THREE.BufferGeometry().setFromPoints([tapeData.start, tapeData.end]);
+      const mat = new THREE.LineDashedMaterial({ color: 0xfbbf24, dashSize: 0.2, gapSize: 0.1 });
+      line = new THREE.Line(geo, mat);
+      line.computeLineDistances();
+      line.name = 'tapeLine';
+      tapeGroup.add(line);
+    }
+
+    function createTextSprite(text, colorHex = '#ffffff') {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.strokeStyle = colorHex;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.roundRect(8, 8, 240, 48, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = colorHex;
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 128, 32);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(1.5, 0.375, 1);
+      return sprite;
+    }
+
+    function createCharge3D(x, y, z, q) {
+      const radius = 0.4;
+      const geo = new THREE.SphereGeometry(radius, 32, 32);
+      
+      const isPos = q > 0;
+      const mat = new THREE.MeshStandardMaterial({
+        color: isPos ? 0xef4444 : 0x3b82f6,
+        metalness: 0.2,
+        roughness: 0.3,
+        emissive: isPos ? 0x991b1b : 0x1e40af,
+        emissiveIntensity: 0.5
+      });
+
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+
+      // Add text symbol (+ or -) sprite
+      const symbolSprite = createTextSprite(isPos ? '+' : '−', '#ffffff');
+      symbolSprite.position.set(0, 0, 0);
+      symbolSprite.scale.set(0.6, 0.6, 1);
+      mesh.add(symbolSprite);
+
+      // Label Sprite below
+      const labelSprite = createTextSprite(`${q > 0 ? '+' : ''}${q} nC`, isPos ? '#fca5a5' : '#93c5fd');
+      labelSprite.position.set(0, -0.65, 0);
+      mesh.add(labelSprite);
+
+      scene.add(mesh);
+
+      const chargeObj = { id: Date.now() + Math.random(), mesh, q, labelSprite };
+      mesh.userData = { type: 'charge', chargeObj };
+      charges.push(chargeObj);
+
+      selectEntity('charge', charges.length - 1);
+      return chargeObj;
+    }
+
+    function createSensor3D(x, y, z) {
+      const geo = new THREE.SphereGeometry(0.2, 24, 24);
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xfbbf24,
+        emissive: 0xd97706,
+        emissiveIntensity: 0.6
+      });
+
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+
+      // Arrow helper for field vector
+      const arrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), 1, 0xfbbf24, 0.3, 0.2);
+      mesh.add(arrow);
+
+      const labelSprite = createTextSprite('0.00 V/m', '#fef08a');
+      labelSprite.position.set(0, 0.6, 0);
+      mesh.add(labelSprite);
+
+      scene.add(mesh);
+
+      const sensorObj = { id: Date.now() + Math.random(), mesh, arrow, labelSprite };
+      mesh.userData = { type: 'sensor', sensorObj };
+      sensors.push(sensorObj);
+
+      selectEntity('sensor', sensors.length - 1);
+      return sensorObj;
+    }
+
+    function updateSensors3D() {
+      sensors.forEach(s => {
+        const p = s.mesh.position;
+        const phys = calculatePhysicsAt(p.x, p.y, p.z);
+
+        if (phys.E > 1e-2) {
+          s.arrow.visible = true;
+          const dir = new THREE.Vector3(phys.Ex, phys.Ey, phys.Ez).normalize();
+          s.arrow.setDirection(dir);
+          
+          const len = Math.min(2.5, Math.max(0.6, phys.E * 0.4));
+          s.arrow.setLength(len, len * 0.3, len * 0.2);
+        } else {
+          s.arrow.visible = false;
+        }
+
+        s.labelSprite.visible = options.showValues;
+        if (options.showValues) {
+          s.mesh.remove(s.labelSprite);
+          s.labelSprite = createTextSprite(`${phys.E.toFixed(2)} V/m`, '#fef08a');
+          s.labelSprite.position.set(0, 0.6, 0);
+          s.mesh.add(s.labelSprite);
+        }
+      });
+    }
+
+    function onPointerDown(e) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      // Check raycast hits against charges, sensors, probe, tape
+      const interactiveMeshes = [];
+      charges.forEach(c => interactiveMeshes.push(c.mesh));
+      sensors.forEach(s => interactiveMeshes.push(s.mesh));
+      interactiveMeshes.push(probeMesh);
+      if (tapeData.visible) {
+        interactiveMeshes.push(tapeGroup.children[0]); // tapeStart
+        interactiveMeshes.push(tapeGroup.children[1]); // tapeEnd
+      }
+
+      const intersects = raycaster.intersectObjects(interactiveMeshes, false);
+
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
+        isDragging3D = true;
+        draggedObject = hit;
+        controls.enabled = false; // Temporarily disable camera rotation during object drag
+
+        // Set up drag plane parallel to camera view passing through hit point
+        const normal = camera.getWorldDirection(new THREE.Vector3()).negate();
+        dragPlane.setFromNormalAndCoplanarPoint(normal, hit.position);
+
+        if (hit.userData.type === 'charge') {
+          const idx = charges.findIndex(c => c.mesh === hit);
+          selectEntity('charge', idx);
+        } else if (hit.userData.type === 'sensor') {
+          const idx = sensors.findIndex(s => s.mesh === hit);
+          selectEntity('sensor', idx);
+        }
+      } else {
+        deselectEntity();
+      }
+    }
+
+    function onPointerMove(e) {
+      if (!isDragging3D || !draggedObject) return;
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      if (raycaster.ray.intersectPlane(dragPlane, planeIntersection)) {
+        let pos = planeIntersection.clone();
+
+        if (options.snapToGrid) {
+          const snapStep = 0.5;
+          pos.x = Math.round(pos.x / snapStep) * snapStep;
+          pos.y = Math.round(pos.y / snapStep) * snapStep;
+          pos.z = Math.round(pos.z / snapStep) * snapStep;
+        }
+
+        if (draggedObject === probeMesh) {
+          probePos.copy(pos);
+          probeMesh.position.copy(pos);
+        } else if (draggedObject.userData.type === 'tapeStart') {
+          tapeData.start.copy(pos);
+          draggedObject.position.copy(pos);
+        } else if (draggedObject.userData.type === 'tapeEnd') {
+          tapeData.end.copy(pos);
+          draggedObject.position.copy(pos);
+        } else {
+          draggedObject.position.copy(pos);
+        }
+      }
+    }
+
+    function onPointerUp() {
+      isDragging3D = false;
+      draggedObject = null;
+      controls.enabled = true; // Re-enable camera rotation
+    }
+
+    function selectEntity(type, index) {
+      selectedEntity = { type, index };
+      const toolbar = document.getElementById('selected-toolbar');
+      const topDeleteBtn = document.getElementById('btn-top-delete');
+
+      // Highlight top trash bin when an item is selected
+      if (topDeleteBtn) {
+        topDeleteBtn.classList.add('bg-rose-600', 'text-white', 'border-rose-500', 'shadow-md', 'shadow-rose-900/50');
+        topDeleteBtn.classList.remove('bg-slate-800', 'text-slate-400', 'border-slate-700');
+      }
+
+      if (type === 'charge' && charges[index]) {
+        toolbar.classList.remove('hidden');
+        document.getElementById('selected-charge-val').textContent = `${charges[index].q > 0 ? '+' : ''}${charges[index].q} nC`;
+      } else if (type === 'sensor' && sensors[index]) {
+        toolbar.classList.remove('hidden');
+        document.getElementById('selected-charge-val').textContent = `Sensor`;
+      }
+    }
+
+    function deselectEntity() {
+      selectedEntity = null;
+      document.getElementById('selected-toolbar').classList.add('hidden');
+      const topDeleteBtn = document.getElementById('btn-top-delete');
+      if (topDeleteBtn) {
+        topDeleteBtn.classList.remove('bg-rose-600', 'text-white', 'border-rose-500', 'shadow-md', 'shadow-rose-900/50');
+        topDeleteBtn.classList.add('bg-slate-800', 'text-slate-400', 'border-slate-700');
+      }
+    }
+
+    function adjustSelectedCharge(delta) {
+      if (!selectedEntity || selectedEntity.type !== 'charge') return;
+      const c = charges[selectedEntity.index];
+      if (!c) return;
+
+      c.q += delta;
+      if (c.q === 0) c.q = delta > 0 ? 1 : -1;
+      c.q = Math.max(-10, Math.min(10, c.q));
+
+      // Update colors & label
+      const isPos = c.q > 0;
+      c.mesh.material.color.setHex(isPos ? 0xef4444 : 0x3b82f6);
+      c.mesh.material.emissive.setHex(isPos ? 0x991b1b : 0x1e40af);
+
+      c.mesh.remove(c.labelSprite);
+      c.labelSprite = createTextSprite(`${c.q > 0 ? '+' : ''}${c.q} nC`, isPos ? '#fca5a5' : '#93c5fd');
+      c.labelSprite.position.set(0, -0.65, 0);
+      c.mesh.add(c.labelSprite);
+
+      document.getElementById('selected-charge-val').textContent = `${c.q > 0 ? '+' : ''}${c.q} nC`;
+    }
+
+    function deleteSelectedEntity() {
+      if (!selectedEntity) return;
+
+      if (selectedEntity.type === 'charge' && charges[selectedEntity.index]) {
+        scene.remove(charges[selectedEntity.index].mesh);
+        charges.splice(selectedEntity.index, 1);
+      } else if (selectedEntity.type === 'sensor' && sensors[selectedEntity.index]) {
+        scene.remove(sensors[selectedEntity.index].mesh);
+        sensors.splice(selectedEntity.index, 1);
+      }
+
+      deselectEntity();
+    }
+
+    function spawnEntity(type) {
+      const rx = (Math.random() - 0.5) * 3;
+      const rz = (Math.random() - 0.5) * 3;
+
+      if (type === 'pos') {
+        createCharge3D(rx, 0, rz, 1);
+      } else if (type === 'neg') {
+        createCharge3D(rx, 0, rz, -1);
+      } else if (type === 'sensor') {
+        createSensor3D(rx, 0, rz);
+      }
+    }
+
+    // Preset Configurations
+    function applyPreset(presetType) {
+      resetSimulation();
+
+      if (presetType === 'dipole') {
+        createCharge3D(-2, 0, 0, 1);
+        createCharge3D(2, 0, 0, -1);
+        createSensor3D(0, 0, -1.5);
+      } else if (presetType === 'quadrupole') {
+        // 3D Cube / Quadrupole setup
+        createCharge3D(-2, 1.5, -2, 1);
+        createCharge3D(2, 1.5, -2, -1);
+        createCharge3D(-2, 1.5, 2, -1);
+        createCharge3D(2, 1.5, 2, 1);
+      } else if (presetType === 'line') {
+        // Parallel plate capacitor setup
+        for (let z = -2; z <= 2; z += 1) {
+          createCharge3D(-2.5, 0, z, 1);
+          createCharge3D(2.5, 0, z, -1);
+        }
+      } else if (presetType === 'single') {
+        createCharge3D(0, 0, 0, 1);
+        createSensor3D(2.5, 0, 0);
+      }
+    }
+
+    function resetSimulation() {
+      charges.forEach(c => scene.remove(c.mesh));
+      sensors.forEach(s => scene.remove(s.mesh));
+      charges = [];
+      sensors = [];
+      deselectEntity();
+    }
+
+    function resetCamera() {
+      camera.position.set(0, 6, 10);
+      controls.target.set(0, 0, 0);
+      controls.update();
+    }
+
+    // UI Toggle Handlers
+    document.getElementById('chk-field').addEventListener('change', e => options.showField = e.target.checked);
+    document.getElementById('chk-lines').addEventListener('change', e => options.showLines = e.target.checked);
+    document.getElementById('chk-voltage').addEventListener('change', e => options.showVoltage = e.target.checked);
+    document.getElementById('chk-values').addEventListener('change', e => options.showValues = e.target.checked);
+    document.getElementById('chk-grid').addEventListener('change', e => {
+      options.showGrid = e.target.checked;
+      gridHelperXZ.visible = e.target.checked;
+      gridHelperXY.visible = e.target.checked;
+    });
+    document.getElementById('chk-snap').addEventListener('change', e => options.snapToGrid = e.target.checked);
+
+    document.getElementById('rng-density').addEventListener('input', e => {
+      options.gridDensity = parseInt(e.target.value);
+      document.getElementById('grid-density-val').textContent = `${e.target.value} x ${e.target.value}`;
+    });
+
+    function toggleTape() {
+      tapeData.visible = !tapeData.visible;
+      const btn = document.getElementById('btn-toggle-tape');
+      btn.classList.toggle('bg-amber-500/40', tapeData.visible);
+    }
+
+    function toggleFormulaModal() {
+      document.getElementById('formula-modal').classList.toggle('hidden');
+    }
+
+    function toggleMobileSettings() {
+      const panel = document.getElementById('settings-panel');
+      panel.classList.toggle('hidden');
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('webgl-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      controls.update();
+
+      // Update Physics & 3D Elements
+      updateVoltagePlane();
+      updateFieldVectors3D();
+      updateFieldLines3D();
+      updateSensors3D();
+      updateTape3D();
+
+      // Update Probe readout UI
+      const probePhys = calculatePhysicsAt(probePos.x, probePos.y, probePos.z);
+      document.getElementById('probe-v-val').textContent = `${probePhys.V.toFixed(2)} V`;
+      document.getElementById('probe-pos-val').textContent = `(${probePos.x.toFixed(1)}, ${probePos.y.toFixed(1)}, ${probePos.z.toFixed(1)})`;
+
+      renderer.render(scene, camera);
+    }
+
+    window.onload = function() {
+      init3D();
+      applyPreset('dipole');
+      animate();
+    };
+  </script>
+</body>
+</html>
