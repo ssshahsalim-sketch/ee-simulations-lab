@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X-Ray Lab Pro: Interactive Radiography Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        medical: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                            darkBg: '#0b1329',
+                            panelBg: '#111c3a',
+                            border: '#1e2d5a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #080d1a;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        canvas {
+            touch-action: none;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+        .glow-amber {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+        .pulse-radiation {
+            animation: pulseRad 1.5s infinite;
+        }
+        @keyframes pulseRad {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .xray-canvas-filter {
+            transition: filter 0.1s ease;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col custom-scrollbar select-none">
+
+    <!-- Top Header & Navigation -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between shrink-0 z-20">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-cyan-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
+                <i class="fa-solid fa-x-ray text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-white tracking-wide flex items-center space-x-2">
+                    <span>X-RAY LAB PRO</span>
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded bg-cyan-900/60 text-cyan-400 border border-cyan-700/50">Educational Simulator</span>
+                </h1>
+                <p class="text-xs text-slate-400">Interactive Radiography, Physics & Diagnostic Suite</p>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex items-center space-x-1 my-2 md:my-0 overflow-x-auto max-w-full pb-1 md:pb-0 custom-scrollbar">
+            <button onclick="switchTab('tab-3d')" id="nav-tab-3d" class="nav-btn active px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 bg-cyan-600 text-white transition-all">
+                <i class="fa-solid fa-cube"></i><span>3D Virtual Lab</span>
+            </button>
+            <button onclick="switchTab('tab-physics')" id="nav-tab-physics" class="nav-btn px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">
+                <i class="fa-solid fa-atom"></i><span>Physics & Attenuation</span>
+            </button>
+            <button onclick="switchTab('tab-viewer')" id="nav-tab-viewer" class="nav-btn px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">
+                <i class="fa-solid fa-sliders"></i><span>Scan & Radiograph</span>
+            </button>
+            <button onclick="switchTab('tab-report')" id="nav-tab-report" class="nav-btn px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">
+                <i class="fa-solid fa-file-medical"></i><span>Radiology Report</span>
+            </button>
+            <button onclick="switchTab('tab-theory')" id="nav-tab-theory" class="nav-btn px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">
+                <i class="fa-solid fa-shield-halved"></i><span>Safety & Eng</span>
+            </button>
+            <button onclick="switchTab('tab-quiz')" id="nav-tab-quiz" class="nav-btn px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">
+                <i class="fa-solid fa-graduation-cap"></i><span>Quiz</span>
+            </button>
+        </nav>
+
+        <!-- Action Header Buttons -->
+        <div class="flex items-center space-x-2">
+            <button onclick="startGuidedTour()" class="px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center space-x-1 shadow transition">
+                <i class="fa-solid fa-route"></i><span>Teach Me Walkthrough</span>
+            </button>
+            <button onclick="toggleAudio()" id="audio-btn" class="p-1.5 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs" title="Toggle Audio Sound Effects">
+                <i class="fa-solid fa-volume-high"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Mandatory Educational Disclaimer Banner -->
+    <div class="bg-amber-950/80 border-b border-amber-800/80 px-4 py-1.5 text-xs text-amber-200 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-2 truncate">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400 shrink-0"></i>
+            <span class="truncate"><strong>EDUCATIONAL SIMULATION ONLY:</strong> All images, measurements, and radiology reports generated are synthetic simulations and MUST NOT be used for real medical diagnosis or decision making.</span>
+        </div>
+        <button onclick="this.parentElement.style.display='none'" class="text-amber-400 hover:text-white ml-2 text-xs shrink-0"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+        <!-- LEFT/CENTER VIEWPORT DISPLAY -->
+        <div class="flex-1 flex flex-col bg-slate-950 border-r border-slate-800 relative min-h-[400px]">
+
+            <!-- TAB 1: 3D X-RAY MACHINE LAB -->
+            <div id="view-3d" class="tab-view flex-1 flex flex-col relative">
+                <!-- 3D Canvas Container -->
+                <div id="canvas-3d-container" class="w-full h-full absolute inset-0 bg-gradient-to-b from-slate-950 to-slate-900"></div>
+
+                <!-- 3D View Overlay Controls -->
+                <div class="absolute top-4 left-4 z-10 flex flex-col space-y-2 max-w-xs">
+                    <div class="bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/80 shadow-xl text-xs space-y-2">
+                        <div class="font-bold text-cyan-400 flex items-center justify-between">
+                            <span><i class="fa-solid fa-sliders mr-1"></i> 3D Rig Controls</span>
+                            <span class="text-[10px] text-slate-400">Drag to Orbit</span>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="flex justify-between text-slate-300 text-[11px]">
+                                <span>Tube Height (Z)</span>
+                                <span id="val-tube-height">140 cm</span>
+                            </label>
+                            <input type="range" min="80" max="200" value="140" class="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer" id="slider-tube-height">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="flex justify-between text-slate-300 text-[11px]">
+                                <span>Tube Angle</span>
+                                <span id="val-tube-angle">0°</span>
+                            </label>
+                            <input type="range" min="-90" max="90" value="0" class="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer" id="slider-tube-angle">
+                        </div>
+                        <div class="flex items-center justify-between pt-1">
+                            <button id="btn-patient-pose" onclick="togglePatientPose()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-cyan-300 text-[11px] font-medium flex items-center space-x-1">
+                                <i class="fa-solid fa-person"></i><span id="txt-patient-pose">Pose: Standing</span>
+                            </button>
+                            <button onclick="reset3DCamera()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-slate-300 text-[11px] font-medium" title="Reset Camera View">
+                                <i class="fa-solid fa-arrows-to-dot"></i> Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive 3D Component Inspector Floating Card -->
+                <div id="inspector-card" class="absolute bottom-4 left-4 right-4 md:right-auto md:max-w-md z-10 bg-slate-900/95 backdrop-blur-md p-4 rounded-xl border border-cyan-500/40 shadow-2xl hidden">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="p-2 bg-cyan-950 text-cyan-400 rounded-lg border border-cyan-800"><i class="fa-solid fa-circle-info text-lg"></i></span>
+                            <div>
+                                <h3 id="inspector-title" class="text-sm font-bold text-white">X-Ray Tube Assembly</h3>
+                                <p id="inspector-subtitle" class="text-[11px] text-cyan-400">High-Voltage Radiation Source</p>
+                            </div>
+                        </div>
+                        <button onclick="closeInspector()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <p id="inspector-desc" class="text-xs text-slate-300 mt-2 leading-relaxed">
+                        The X-ray tube contains an evacuated glass/metal envelope housing a tungsten filament cathode and a rotating tungsten anode target. High voltage accelerates electrons across the vacuum gap.
+                    </p>
+                    <div class="mt-3 flex items-center justify-between border-t border-slate-800 pt-2 text-[11px]">
+                        <span id="inspector-tag" class="text-slate-400">Key Physics: Bremsstrahlung emission</span>
+                        <button onclick="openComponentWhy()" class="text-cyan-400 hover:underline font-semibold">Learn Physics <i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: PHYSICS & ATTENUATION ENGINE -->
+            <div id="view-physics" class="tab-view flex-1 flex flex-col p-4 overflow-y-auto custom-scrollbar hidden">
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1">
+                    
+                    <!-- 2D Photon Particle Attenuation Visualizer -->
+                    <div class="bg-slate-900/90 rounded-xl p-4 border border-slate-800 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-sm font-bold text-cyan-400 flex items-center">
+                                    <i class="fa-solid fa-atom mr-2"></i> Tissue Attenuation Photon Simulator
+                                </h3>
+                                <span class="text-xs bg-cyan-950 border border-cyan-800 text-cyan-300 px-2 py-0.5 rounded">
+                                    I = I₀ · e<sup>-μx</sup>
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-3">
+                                Watch X-ray photons strike multi-layered tissue materials. Dense materials (Bone) have higher attenuation coefficients (μ), absorbing more photons and preventing them from reaching the detector.
+                            </p>
+
+                            <!-- Physics Interactive Canvas -->
+                            <div class="relative w-full h-56 bg-black rounded-lg border border-slate-800 overflow-hidden shadow-inner">
+                                <canvas id="canvas-physics" class="w-full h-full"></canvas>
+                                <div class="absolute bottom-2 left-2 right-2 flex justify-between text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1 rounded">
+                                    <span>Source: Tube (<span id="phys-kvp-display">80</span> kVp)</span>
+                                    <span>Transmitted: <span id="phys-transmitted-pct" class="text-emerald-400 font-bold">28%</span></span>
+                                    <span>Detector Output</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Interactive Sliders for Physics -->
+                        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                                <label class="flex justify-between text-slate-300 font-medium mb-1">
+                                    <span>Bone Thickness (x)</span>
+                                    <span id="lbl-bone-thick">3.0 cm</span>
+                                </label>
+                                <input type="range" min="0" max="8" step="0.5" value="3.0" id="slider-bone-thick" oninput="updatePhysicsSim()" class="w-full accent-cyan-500 h-1 bg-slate-700 rounded">
+                            </div>
+                            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                                <label class="flex justify-between text-slate-300 font-medium mb-1">
+                                    <span>Photon Energy (kVp)</span>
+                                    <span id="lbl-phys-kv">80 kVp</span>
+                                </label>
+                                <input type="range" min="40" max="120" step="5" value="80" id="slider-phys-kv" oninput="updatePhysicsSim()" class="w-full accent-cyan-500 h-1 bg-slate-700 rounded">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- "Why Bones Look White" & Tissue Breakdown -->
+                    <div class="bg-slate-900/90 rounded-xl p-4 border border-slate-800 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-amber-400 mb-2 flex items-center">
+                                <i class="fa-solid fa-lightbulb mr-2"></i> Why Do Bones Look White on X-Ray?
+                            </h3>
+                            <div class="space-y-3 text-xs text-slate-300">
+                                <div class="bg-slate-950 p-3 rounded-lg border-l-4 border-amber-500">
+                                    <h4 class="font-bold text-white mb-1">1. High Photoelectric Absorption</h4>
+                                    <p class="text-slate-400 leading-relaxed">
+                                        Bone contains high atomic number calcium (Z=20). The probability of photoelectric absorption scales roughly with <strong>Z³</strong>. Bone absorbs far more photons than muscle or fat.
+                                    </p>
+                                </div>
+                                <div class="bg-slate-950 p-3 rounded-lg border-l-4 border-cyan-500">
+                                    <h4 class="font-bold text-white mb-1">2. Inverse Grayscale Mapping</h4>
+                                    <p class="text-slate-400 leading-relaxed">
+                                        Fewer X-ray photons reach the detector behind bone. Detectors register low radiation dose. Digital processing maps <strong>low exposure to light/white</strong> and <strong>high exposure (air) to dark/black</strong>.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tissue Density Comparison Bar Chart -->
+                        <div class="mt-4 bg-slate-950 p-3 rounded-lg border border-slate-800">
+                            <span class="text-[11px] font-semibold text-slate-400 block mb-2">Relative X-Ray Attenuation Comparison:</span>
+                            <div class="space-y-2 text-[11px]">
+                                <div>
+                                    <div class="flex justify-between text-slate-300 mb-0.5"><span>Air (Lungs)</span><span>Very Low (Black)</span></div>
+                                    <div class="w-full bg-slate-800 h-2 rounded-full"><div class="bg-slate-500 h-2 rounded-full" style="width: 5%"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-slate-300 mb-0.5"><span>Fat Tissue</span><span>Low (Dark Gray)</span></div>
+                                    <div class="w-full bg-slate-800 h-2 rounded-full"><div class="bg-slate-400 h-2 rounded-full" style="width: 25%"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-slate-300 mb-0.5"><span>Soft Tissue / Muscle</span><span>Moderate (Mid Gray)</span></div>
+                                    <div class="w-full bg-slate-800 h-2 rounded-full"><div class="bg-blue-400 h-2 rounded-full" style="width: 50%"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-slate-300 mb-0.5"><span>Cortical Bone</span><span>High (Bright White)</span></div>
+                                    <div class="w-full bg-slate-800 h-2 rounded-full"><div class="bg-white h-2 rounded-full" style="width: 88%"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-slate-300 mb-0.5"><span>Metal Implant</span><span>Very High (Radiopaque)</span></div>
+                                    <div class="w-full bg-slate-800 h-2 rounded-full"><div class="bg-cyan-300 h-2 rounded-full" style="width: 100%"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: SCAN & RADIOGRAPH DISPLAY -->
+            <div id="view-viewer" class="tab-view flex-1 flex flex-col relative hidden">
+                <!-- Main X-ray Image Display Canvas -->
+                <div class="flex-1 bg-black flex items-center justify-center relative overflow-hidden p-2">
+                    <canvas id="canvas-xray" class="max-w-full max-h-full object-contain rounded shadow-2xl transition-all cursor-crosshair"></canvas>
+
+                    <!-- Scanning Progress Bar Overlay -->
+                    <div id="scan-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 hidden z-30">
+                        <div class="w-20 h-20 rounded-full border-4 border-cyan-500/20 border-t-cyan-400 animate-spin flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-bolt text-2xl text-cyan-400"></i>
+                        </div>
+                        <h3 id="scan-step-title" class="text-lg font-bold text-white mb-1">Stage 1: Position Verification</h3>
+                        <p id="scan-step-desc" class="text-xs text-slate-400 mb-4 max-w-sm text-center">Accelerating electrons from cathode filament toward rotating anode target...</p>
+                        <div class="w-64 bg-slate-800 h-2 rounded-full overflow-hidden mb-2">
+                            <div id="scan-progress-bar" class="bg-cyan-500 h-full w-0 transition-all duration-300"></div>
+                        </div>
+                        <span id="scan-progress-txt" class="text-xs font-mono text-cyan-400">0%</span>
+                    </div>
+
+                    <!-- Watermark / Overlay Tag -->
+                    <div class="absolute bottom-3 right-3 text-[10px] text-red-400/80 font-mono bg-slate-950/80 border border-red-900/50 px-2.5 py-1 rounded backdrop-blur pointer-events-none">
+                        SIMULATED EDUCATIONAL X-RAY — NOT FOR DIAGNOSIS
+                    </div>
+
+                    <!-- Density ROI Tooltip on Canvas Hover -->
+                    <div id="roi-tooltip" class="absolute hidden bg-slate-900/90 border border-slate-700 text-[11px] p-2 rounded shadow-lg pointer-events-none text-slate-200 z-20">
+                        <div>Density: <span id="roi-density-val" class="font-bold text-cyan-400">142 HU</span></div>
+                        <div id="roi-tissue-type" class="text-[10px] text-slate-400">Estimated: Soft Tissue</div>
+                    </div>
+                </div>
+
+                <!-- Radiograph Adjustments Toolbar -->
+                <div class="bg-slate-900 border-t border-slate-800 p-2.5 flex flex-wrap items-center justify-between text-xs gap-2 shrink-0">
+                    <div class="flex items-center space-x-3">
+                        <div class="flex items-center space-x-1">
+                            <span class="text-slate-400 text-[11px]">Brightness:</span>
+                            <input type="range" id="img-bright" min="-50" max="50" value="0" oninput="applyImageFilters()" class="w-20 accent-cyan-500 h-1 bg-slate-700 rounded">
+                        </div>
+                        <div class="flex items-center space-x-1">
+                            <span class="text-slate-400 text-[11px]">Contrast:</span>
+                            <input type="range" id="img-contrast" min="50" max="200" value="100" oninput="applyImageFilters()" class="w-20 accent-cyan-500 h-1 bg-slate-700 rounded">
+                        </div>
+                        <button onclick="toggleInvert()" id="btn-invert" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 border border-slate-700 flex items-center space-x-1">
+                            <i class="fa-solid fa-circle-half-stroke"></i><span>Invert</span>
+                        </button>
+                        <button onclick="toggleEdgeEnhance()" id="btn-edge" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 border border-slate-700 flex items-center space-x-1">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i><span>Edge Filter</span>
+                        </button>
+                        <button onclick="resetImageFilters()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-400">
+                            Reset Filters
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="downloadImage('png')" class="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded font-medium flex items-center space-x-1 shadow">
+                            <i class="fa-solid fa-download"></i><span>Save PNG</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: RADIOLOGY REPORT -->
+            <div id="view-report" class="tab-view flex-1 flex flex-col p-4 overflow-y-auto custom-scrollbar hidden">
+                <div class="max-w-3xl mx-auto w-full bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl text-slate-200">
+                    <!-- Report Header -->
+                    <div class="border-b border-slate-800 pb-4 mb-4 flex justify-between items-start">
+                        <div>
+                            <h2 class="text-xl font-bold text-white tracking-wide flex items-center">
+                                <i class="fa-solid fa-hospital-user text-cyan-400 mr-2"></i> SIMULATED RADIOLOGY REPORT
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Educational Medical Imaging Laboratory</p>
+                        </div>
+                        <span class="px-2.5 py-1 bg-red-950 border border-red-800 text-red-300 text-[10px] font-bold rounded">
+                            NON-CLINICAL / SIMULATED
+                        </span>
+                    </div>
+
+                    <!-- Patient Demographics Form -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs mb-4">
+                        <div>
+                            <span class="text-slate-500 block text-[10px]">PATIENT NAME</span>
+                            <input type="text" id="rpt-patient-name" value="Jane Doe (Simulated)" class="bg-transparent text-white font-semibold border-b border-slate-700 focus:border-cyan-400 outline-none w-full">
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[10px]">AGE / GENDER</span>
+                            <input type="text" id="rpt-patient-age" value="38 / Female" class="bg-transparent text-white font-semibold border-b border-slate-700 focus:border-cyan-400 outline-none w-full">
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[10px]">MRN ID</span>
+                            <input type="text" id="rpt-mrn" value="SIM-89421-X" class="bg-transparent text-white font-semibold border-b border-slate-700 focus:border-cyan-400 outline-none w-full">
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[10px]">EXAM DATE</span>
+                            <input type="text" id="rpt-date" value="2026-08-18" class="bg-transparent text-white font-semibold border-b border-slate-700 focus:border-cyan-400 outline-none w-full">
+                        </div>
+                    </div>
+
+                    <!-- Clinical Details Sections -->
+                    <div class="space-y-4 text-xs">
+                        <div>
+                            <h3 class="font-bold text-cyan-400 border-b border-slate-800 pb-1 mb-1">EXAMINATION REQUESTED</h3>
+                            <p id="rpt-exam-type" class="text-slate-300 font-medium">Chest Radiography (PA & Lateral Views)</p>
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-cyan-400 border-b border-slate-800 pb-1 mb-1">TECHNICAL TECHNIQUE</h3>
+                            <p id="rpt-technique" class="text-slate-300">
+                                Digital Projection Radiography. Voltage: 110 kVp, Exposure: 4.0 mAs. Source-to-Image Distance: 180 cm. Patient positioned upright in full inspiration.
+                            </p>
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-cyan-400 border-b border-slate-800 pb-1 mb-1">FINDINGS (STRUCTURED INTERPRETATION)</h3>
+                            <div id="rpt-findings" class="text-slate-300 leading-relaxed bg-slate-950/60 p-3 rounded border border-slate-800">
+                                Lungs: Clear lung fields bilaterally without focal consolidation, pleural effusion, or pneumothorax.<br>
+                                Cardiac: Cardiomediastinal silhouette is within normal limits for size and contour.<br>
+                                Osseous: Bony structures including ribs, clavicles, and thoracic spine are intact without acute fracture line.
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-cyan-400 border-b border-slate-800 pb-1 mb-1">IMPRESSION</h3>
+                            <p id="rpt-impression" class="text-slate-100 font-semibold bg-cyan-950/40 border-l-4 border-cyan-500 p-2.5 rounded">
+                                Unremarkable simulated radiographic study. No acute cardiopulmonary process identified in this educational model.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Report Export & Interactive Guide Buttons -->
+                    <div class="mt-6 border-t border-slate-800 pt-4 flex flex-wrap items-center justify-between gap-2">
+                        <button onclick="explainReportTerms()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs rounded border border-slate-700 flex items-center space-x-1">
+                            <i class="fa-solid fa-book-medical"></i><span>How to Read This Report</span>
+                        </button>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="downloadReportTXT()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded border border-slate-700 flex items-center space-x-1">
+                                <i class="fa-solid fa-file-lines"></i><span>Download TXT</span>
+                            </button>
+                            <button onclick="downloadReportPDF()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold rounded shadow flex items-center space-x-1">
+                                <i class="fa-solid fa-file-pdf"></i><span>Download PDF Report</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: SAFETY & ENGINEERING MODE -->
+            <div id="view-theory" class="tab-view flex-1 flex flex-col p-4 overflow-y-auto custom-scrollbar hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    
+                    <!-- Radiation Spectrum & Tube Physics -->
+                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 space-y-3">
+                        <h3 class="text-sm font-bold text-cyan-400 flex items-center">
+                            <i class="fa-solid fa-chart-line mr-2"></i> Simulated X-Ray Energy Spectrum (kVp Curve)
+                        </h3>
+                        <p class="text-xs text-slate-400">
+                            Shows photon intensity vs photon energy (keV). Features continuous Bremsstrahlung spectrum plus tungsten Characteristic radiation energy peaks (K-alpha ~59 keV).
+                        </p>
+                        <div class="w-full h-48 bg-slate-950 rounded-lg p-2 border border-slate-800">
+                            <canvas id="canvas-spectrum"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Radiation Safety & ALARA Principles -->
+                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 space-y-3">
+                        <h3 class="text-sm font-bold text-amber-400 flex items-center">
+                            <i class="fa-solid fa-shield-virus mr-2"></i> Radiation Protection & ALARA Principle
+                        </h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            <strong>ALARA</strong> stands for <em>As Low As Reasonably Achievable</em>. The three cardinal rules of radiation safety are:
+                        </p>
+                        <div class="grid grid-cols-3 gap-2 text-xs">
+                            <div class="bg-slate-950 p-2.5 rounded border border-slate-800 text-center">
+                                <i class="fa-solid fa-clock text-cyan-400 text-lg mb-1 block"></i>
+                                <strong>1. TIME</strong>
+                                <span class="text-[10px] text-slate-400 block mt-1">Minimize duration of exposure</span>
+                            </div>
+                            <div class="bg-slate-950 p-2.5 rounded border border-slate-800 text-center">
+                                <i class="fa-solid fa-arrows-left-right-to-line text-emerald-400 text-lg mb-1 block"></i>
+                                <strong>2. DISTANCE</strong>
+                                <span class="text-[10px] text-slate-400 block mt-1">Maximize distance (Inverse Square Law)</span>
+                            </div>
+                            <div class="bg-slate-950 p-2.5 rounded border border-slate-800 text-center">
+                                <i class="fa-solid fa-shield text-amber-400 text-lg mb-1 block"></i>
+                                <strong>3. SHIELDING</strong>
+                                <span class="text-[10px] text-slate-400 block mt-1">Use lead aprons & walls</span>
+                            </div>
+                        </div>
+
+                        <!-- Distance Dose Calculator -->
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs">
+                            <span class="font-semibold text-slate-300 block mb-1">Inverse Square Law Simulator: I₂ = I₁ · (d₁ / d₂)²</span>
+                            <div class="flex items-center space-x-3">
+                                <input type="range" min="1" max="5" step="0.5" value="1" id="slider-safety-dist" oninput="updateSafetyCalc()" class="flex-1 accent-cyan-500 h-1 bg-slate-700 rounded">
+                                <span class="text-cyan-400 font-mono font-bold w-20"><span id="lbl-dist-val">1.0</span> meters</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-2">
+                                Relative Dose Intensity at worker position: <strong id="lbl-relative-dose" class="text-emerald-400">100%</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Modality Comparison Matrix -->
+                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 lg:col-span-2">
+                        <h3 class="text-sm font-bold text-white mb-2 flex items-center">
+                            <i class="fa-solid fa-table-list mr-2 text-cyan-400"></i> Medical Imaging Modality Comparison
+                        </h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300 border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-950 text-cyan-400 border-b border-slate-800">
+                                        <th class="p-2">Modality</th>
+                                        <th class="p-2">Ionizing Radiation</th>
+                                        <th class="p-2">Primary Advantage</th>
+                                        <th class="p-2">Best For</th>
+                                        <th class="p-2">Limitations</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800">
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="p-2 font-bold text-white">X-Ray (Radiography)</td>
+                                        <td class="p-2 text-amber-400 font-semibold">Yes (Low-Mod)</td>
+                                        <td class="p-2">Fast, inexpensive, widespread</td>
+                                        <td class="p-2">Bones, fractures, chest screens</td>
+                                        <td class="p-2">2D projection overlap, low soft-tissue contrast</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="p-2 font-bold text-white">CT Scan (Computed Tomography)</td>
+                                        <td class="p-2 text-red-400 font-semibold">Yes (High)</td>
+                                        <td class="p-2">3D cross-sectional detailed bone & tissue</td>
+                                        <td class="p-2">Trauma, head injury, complex fracture</td>
+                                        <td class="p-2">Higher radiation dose, cost</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="p-2 font-bold text-white">MRI (Magnetic Resonance)</td>
+                                        <td class="p-2 text-emerald-400 font-semibold">No (Magnetic)</td>
+                                        <td class="p-2">Superior soft tissue & neurological contrast</td>
+                                        <td class="p-2">Brain, spinal cord, ligaments, cartilage</td>
+                                        <td class="p-2">Slow, expensive, claustrophobia, metal implants</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="p-2 font-bold text-white">Ultrasound (US)</td>
+                                        <td class="p-2 text-emerald-400 font-semibold">No (Sound waves)</td>
+                                        <td class="p-2">Safe, portable, real-time dynamic motion</td>
+                                        <td class="p-2">Obstetrics, vascular flow, abdominal organs</td>
+                                        <td class="p-2">Cannot penetrate deep bone or gas-filled lung</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: INTERACTIVE QUIZ MODE -->
+            <div id="view-quiz" class="tab-view flex-1 flex flex-col p-4 overflow-y-auto custom-scrollbar hidden">
+                <div class="max-w-2xl mx-auto w-full bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                        <h2 class="text-base font-bold text-white flex items-center">
+                            <i class="fa-solid fa-graduation-cap text-cyan-400 mr-2"></i> Radiography & Physics Knowledge Quiz
+                        </h2>
+                        <span id="quiz-score-badge" class="px-2.5 py-1 bg-cyan-950 text-cyan-300 border border-cyan-800 rounded text-xs font-bold">
+                            Score: 0 / 0
+                        </span>
+                    </div>
+
+                    <div id="quiz-card" class="space-y-4">
+                        <div class="text-xs text-cyan-400 font-semibold uppercase tracking-wider" id="quiz-num">Question 1 of 5</div>
+                        <h3 id="quiz-question" class="text-sm font-semibold text-slate-100 leading-snug">
+                            Loading quiz question...
+                        </h3>
+                        <div id="quiz-options" class="space-y-2">
+                            <!-- Options injected dynamically -->
+                        </div>
+                        <div id="quiz-feedback" class="p-3 rounded-lg text-xs hidden"></div>
+                        <div class="flex justify-end pt-2">
+                            <button id="btn-next-quiz" onclick="nextQuizQuestion()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs font-semibold shadow">
+                                Next Question <i class="fa-solid fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT SIDEBAR: EXPOSURE GENERATOR & EXAM CONTROLS -->
+        <aside class="w-full lg:w-96 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
+
+            <!-- Examination Selector Header -->
+            <div class="p-4 border-b border-slate-800 bg-slate-950/60">
+                <label class="text-xs font-bold text-cyan-400 uppercase tracking-wider block mb-2 flex items-center justify-between">
+                    <span><i class="fa-solid fa-bullseye mr-1"></i> Select Examination Target</span>
+                    <button onclick="openWhy('exam')" class="text-slate-400 hover:text-cyan-400 text-[10px] lowercase"><i class="fa-solid fa-circle-question"></i> why?</button>
+                </label>
+                <select id="select-exam" onchange="changeExamination()" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-lg p-2.5 focus:border-cyan-500 outline-none">
+                    <option value="chest">Chest X-Ray (PA View)</option>
+                    <option value="hand">Hand / Wrist (PA View)</option>
+                    <option value="knee">Knee Joint (AP View)</option>
+                    <option value="skull">Skull Radiograph (Lateral)</option>
+                    <option value="spine">Lumbar Spine (AP View)</option>
+                    <option value="pelvis">Pelvis Radiograph (AP View)</option>
+                    <option value="foot">Foot Radiograph (AP View)</option>
+                    <option value="abdomen">Abdomen (AP View)</option>
+                </select>
+            </div>
+
+            <!-- Projection & Preset Abnormality Selection -->
+            <div class="p-4 border-b border-slate-800 space-y-3">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-300 font-medium">Educational Pathology Preset:</span>
+                    <button onclick="openWhy('pathology')" class="text-slate-400 hover:text-cyan-400 text-[10px]"><i class="fa-solid fa-circle-question"></i> why?</button>
+                </div>
+                <select id="select-preset" onchange="updateExamPreset()" class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg p-2 focus:border-cyan-500 outline-none">
+                    <option value="normal">Normal Educational Anatomical Study</option>
+                    <option value="abnormal1">Simulated Pathological Feature (e.g. Fracture/Opacity)</option>
+                </select>
+            </div>
+
+            <!-- High-Voltage Exposure Control Console -->
+            <div class="p-4 border-b border-slate-800 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center">
+                        <i class="fa-solid fa-sliders text-cyan-400 mr-2"></i> Exposure Generator Console
+                    </h3>
+                    <button onclick="openWhy('generator')" class="text-slate-400 hover:text-cyan-400 text-[10px]"><i class="fa-solid fa-circle-question"></i> why?</button>
+                </div>
+
+                <!-- Tube Voltage (kVp) -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-300">Tube Voltage (kVp)</span>
+                        <span id="val-kvp" class="text-cyan-400 font-mono font-bold">110 kVp</span>
+                    </div>
+                    <input type="range" min="40" max="140" step="1" value="110" id="slider-kvp" oninput="updateGeneratorValues()" class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-slate-500">
+                        <span>40 (Low energy / High contrast)</span>
+                        <span>140 (High penetration)</span>
+                    </div>
+                </div>
+
+                <!-- Tube Current (mA) & Time (ms) = mAs -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="flex justify-between text-xs text-slate-300">
+                            <span>Current (mA)</span>
+                            <span id="val-ma" class="text-cyan-400 font-mono font-bold">200 mA</span>
+                        </label>
+                        <input type="range" min="50" max="500" step="10" value="200" id="slider-ma" oninput="updateGeneratorValues()" class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="flex justify-between text-xs text-slate-300">
+                            <span>Time (ms)</span>
+                            <span id="val-time" class="text-cyan-400 font-mono font-bold">20 ms</span>
+                        </label>
+                        <input type="range" min="5" max="200" step="5" value="20" id="slider-time" oninput="updateGeneratorValues()" class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Calculated mAs Display Card -->
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between text-xs">
+                    <div>
+                        <span class="text-slate-400 text-[11px] block">Total Exposure (mAs):</span>
+                        <span class="text-[10px] text-slate-500">mA × seconds</span>
+                    </div>
+                    <span id="val-mas" class="text-base font-bold text-amber-400 font-mono">4.0 mAs</span>
+                </div>
+
+                <!-- Collimation Field Size Slider -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-300">Collimator Beam Field Size</span>
+                        <span id="val-collimator" class="text-cyan-400 font-mono font-bold">35 × 43 cm</span>
+                    </div>
+                    <input type="range" min="10" max="45" value="35" id="slider-collimator" oninput="updateCollimatorField()" class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                </div>
+            </div>
+
+            <!-- START SCAN TRIGGER BUTTON -->
+            <div class="p-4 border-b border-slate-800 bg-slate-950/40">
+                <button onclick="startScanSequence()" id="btn-start-scan" class="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-cyan-600/30 flex items-center justify-center space-x-2 transition-all transform active:scale-95">
+                    <i class="fa-solid fa-bolt text-amber-300 text-lg"></i>
+                    <span>START X-RAY SCAN</span>
+                </button>
+            </div>
+
+            <!-- Live Status & Machine Telemetry Dashboard -->
+            <div class="p-4 flex-1 space-y-3 text-xs">
+                <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[11px]">Machine Telemetry & Status</h4>
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                        <span class="text-slate-500 block">X-Ray Tube</span>
+                        <span class="text-emerald-400 font-semibold flex items-center"><i class="fa-solid fa-circle text-[8px] mr-1"></i> Ready</span>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                        <span class="text-slate-500 block">Digital Detector</span>
+                        <span class="text-emerald-400 font-semibold flex items-center"><i class="fa-solid fa-circle text-[8px] mr-1"></i> Standby</span>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                        <span class="text-slate-500 block">Patient Position</span>
+                        <span id="status-patient-pos" class="text-cyan-400 font-semibold">Chest PA Aligned</span>
+                    </div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                        <span class="text-slate-500 block">Grid Status</span>
+                        <span class="text-slate-300 font-semibold">Anti-Scatter In</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+    </main>
+
+    <!-- INTERACTIVE "WHY?" KNOWLEDGE DRAWER MODAL -->
+    <div id="modal-why" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6 relative text-slate-200">
+            <button onclick="closeWhy()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <div class="flex items-center space-x-2 text-cyan-400 mb-2">
+                <i class="fa-solid fa-circle-question text-xl"></i>
+                <h3 id="why-title" class="text-base font-bold text-white">Why does this happen?</h3>
+            </div>
+            
+            <!-- Toggle Beginner / Advanced Mode -->
+            <div class="flex border-b border-slate-800 my-3">
+                <button onclick="setWhyLevel('beginner')" id="why-btn-beg" class="px-3 py-1.5 text-xs font-semibold text-cyan-400 border-b-2 border-cyan-400">Beginner Mode</button>
+                <button onclick="setWhyLevel('advanced')" id="why-btn-adv" class="px-3 py-1.5 text-xs font-semibold text-slate-400">Advanced Engineering Mode</button>
+            </div>
+
+            <div id="why-body-beg" class="text-xs text-slate-300 space-y-2 leading-relaxed">
+                <!-- Injected content -->
+            </div>
+            <div id="why-body-adv" class="text-xs text-slate-300 space-y-2 leading-relaxed hidden">
+                <!-- Injected content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC ENGINE -->
+    <script>
+        // Global App State
+        let currentTab = 'tab-3d';
+        let isAudioMuted = false;
+        let audioCtx = null;
+        let selectedExam = 'chest';
+        let examPreset = 'normal';
+        let currentKvp = 110;
+        let currentMa = 200;
+        let currentTimeMs = 20;
+        let collimatorSize = 35;
+        let patientPose = 'standing'; // standing or lying
+        let imageInverted = false;
+        let edgeEnhanced = false;
+        let currentWhyKey = 'generator';
+
+        // Three.js State
+        let scene, camera, renderer, controls;
+        let tubeGroup, patientGroup, lightBeamMesh, collimatorBoxMesh;
+
+        // Quiz State
+        let currentQuizIdx = 0;
+        let quizScore = 0;
+
+        // Sound Synthesizer (Web Audio API)
+        function playSound(type) {
+            if (isAudioMuted) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'beep') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.15);
+                } else if (type === 'xray') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 1.2);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function toggleAudio() {
+            isAudioMuted = !isAudioMuted;
+            const btn = document.getElementById('audio-btn');
+            btn.innerHTML = isAudioMuted ? '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+        }
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-cyan-600', 'text-white');
+                btn.classList.add('bg-slate-800', 'text-slate-300');
+            });
+
+            const activeNav = document.getElementById('nav-' + tabId);
+            if (activeNav) {
+                activeNav.classList.remove('bg-slate-800', 'text-slate-300');
+                activeNav.classList.add('bg-cyan-600', 'text-white');
+            }
+
+            const activeView = document.getElementById(tabId.replace('tab-', 'view-'));
+            if (activeView) activeView.classList.remove('hidden');
+
+            if (tabId === 'tab-3d' && renderer) {
+                onWindowResize();
+            } else if (tabId === 'tab-physics') {
+                initPhysicsCanvas();
+            } else if (tabId === 'tab-theory') {
+                initSpectrumChart();
+            } else if (tabId === 'tab-quiz') {
+                loadQuizQuestion();
+            }
+        }
+
+        function init3DStudio() {
+            const container = document.getElementById('canvas-3d-container');
+            const width = container.clientWidth || window.innerWidth;
+            const height = container.clientHeight || 500;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x080d1a);
+            scene.fog = new THREE.FogExp2(0x080d1a, 0.002);
+
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(220, 160, 220);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.05;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x384152, 1.2);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(150, 300, 100);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const cyanPoint = new THREE.PointLight(0x06b6d4, 2, 200);
+            cyanPoint.position.set(0, 140, 0);
+            scene.add(cyanPoint);
+
+            // Floor Grid
+            const grid = new THREE.GridHelper(400, 40, 0x0284c7, 0x1e2d5a);
+            grid.position.y = 0;
+            scene.add(grid);
+
+            // X-Ray Tube Assembly
+            tubeGroup = new THREE.Group();
+            
+            // Tube Housing Cylinder
+            const tubeMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.2 });
+            const tubeGeom = new THREE.CylinderGeometry(14, 14, 32, 24);
+            const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
+            tubeMesh.rotation.z = Math.PI / 2;
+            tubeGroup.add(tubeMesh);
+
+            // Collimator Box
+            const colMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5 });
+            const colGeom = new THREE.BoxGeometry(16, 12, 16);
+            collimatorBoxMesh = new THREE.Mesh(colGeom, colMat);
+            collimatorBoxMesh.position.y = -14;
+            tubeGroup.add(collimatorBoxMesh);
+
+            // Light Beam Cone
+            const beamMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+            const beamGeom = new THREE.ConeGeometry(30, 120, 32, 1, true);
+            lightBeamMesh = new THREE.Mesh(beamGeom, beamMat);
+            lightBeamMesh.position.y = -74;
+            tubeGroup.add(lightBeamMesh);
+
+            tubeGroup.position.set(0, 140, 0);
+            scene.add(tubeGroup);
+
+            // Patient & Table / Wall Stand Setup
+            buildPatientModel();
+
+            window.addEventListener('resize', onWindowResize);
+            animate3D();
+        }
+
+        function buildPatientModel() {
+            if (patientGroup) scene.remove(patientGroup);
+            patientGroup = new THREE.Group();
+
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.85 });
+            const boneMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, wireframe: true });
+
+            if (patientPose === 'standing') {
+                // Standing Detector Wall Stand
+                const standMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+                const stand = new THREE.Mesh(new THREE.BoxGeometry(4, 180, 50), standMat);
+                stand.position.set(0, 90, -50);
+                patientGroup.add(stand);
+
+                const detector = new THREE.Mesh(new THREE.BoxGeometry(2, 60, 50), new THREE.MeshStandardMaterial({ color: 0x0284c7 }));
+                detector.position.set(2, 120, -50);
+                patientGroup.add(detector);
+
+                // Mannequin
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(12, 10, 70, 16), skinMat);
+                body.position.set(0, 115, -35);
+                patientGroup.add(body);
+
+                const head = new THREE.Mesh(new THREE.SphereGeometry(8, 16, 16), skinMat);
+                head.position.set(0, 158, -35);
+                patientGroup.add(head);
+
+                const spine = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 65, 8), boneMat);
+                spine.position.set(0, 115, -35);
+                patientGroup.add(spine);
+            } else {
+                // Table
+                const tableMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+                const table = new THREE.Mesh(new THREE.BoxGeometry(70, 10, 180), tableMat);
+                table.position.set(0, 45, 0);
+                patientGroup.add(table);
+
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(10, 12, 70, 16), skinMat);
+                body.rotation.x = Math.PI / 2;
+                body.position.set(0, 58, 0);
+                patientGroup.add(body);
+            }
+
+            scene.add(patientGroup);
+        }
+
+        function togglePatientPose() {
+            patientPose = patientPose === 'standing' ? 'lying' : 'standing';
+            document.getElementById('txt-patient-pose').innerText = 'Pose: ' + (patientPose === 'standing' ? 'Standing' : 'Lying Table');
+            document.getElementById('status-patient-pos').innerText = patientPose === 'standing' ? 'Standing Upright' : 'Lying Decubitus';
+            buildPatientModel();
+        }
+
+        function reset3DCamera() {
+            camera.position.set(220, 160, 220);
+            controls.target.set(0, 90, 0);
+            controls.update();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-3d-container');
+            if (!container || !renderer || !camera) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            if (controls) controls.update();
+            if (renderer && scene && camera) renderer.render(scene, camera);
+        }
+
+        // Sliders for 3D Studio Rig
+        document.getElementById('slider-tube-height').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('val-tube-height').innerText = val + ' cm';
+            if (tubeGroup) tubeGroup.position.y = val;
+        });
+
+        document.getElementById('slider-tube-angle').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('val-tube-angle').innerText = val + '°';
+            if (tubeGroup) tubeGroup.rotation.z = (val * Math.PI) / 180;
+        });
+
+        let physAnimId = null;
+        let particles = [];
+
+        function initPhysicsCanvas() {
+            const canvas = document.getElementById('canvas-physics');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+
+            // Initialize test particles
+            particles = [];
+            for (let i = 0; i < 60; i++) {
+                particles.push({
+                    x: Math.random() * (canvas.width * 0.2),
+                    y: 20 + Math.random() * (canvas.height - 40),
+                    vx: 3 + Math.random() * 2,
+                    absorbed: false,
+                    scattered: false
+                });
+            }
+
+            function drawPhysics() {
+                ctx.fillStyle = '#080d1a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const boneThick = parseFloat(document.getElementById('slider-bone-thick').value);
+                const kvp = parseFloat(document.getElementById('slider-phys-kv').value);
+
+                // Draw Tissue Layers
+                const layerX1 = canvas.width * 0.3;
+                const boneWidth = Math.min(canvas.width * 0.3, boneThick * 20);
+                const layerX2 = layerX1 + boneWidth;
+                const layerX3 = canvas.width * 0.8;
+
+                // Soft tissue
+                ctx.fillStyle = 'rgba(2, 132, 199, 0.2)';
+                ctx.fillRect(layerX1, 0, boneWidth, canvas.height);
+
+                // Bone Layer
+                ctx.fillStyle = 'rgba(248, 250, 252, 0.85)';
+                ctx.fillRect(layerX1 + 10, 0, Math.max(0, boneWidth - 20), canvas.height);
+
+                // Detector Wall
+                ctx.fillStyle = '#0284c7';
+                ctx.fillRect(canvas.width - 15, 0, 15, canvas.height);
+
+                // Move & Draw Photons
+                let transmittedCount = 0;
+                particles.forEach(p => {
+                    if (!p.absorbed) {
+                        p.x += p.vx;
+                        // Check Bone absorption probability (in bone region)
+                        if (p.x > layerX1 + 10 && p.x < layerX1 + boneWidth - 10) {
+                            const absProb = 0.04 * (120 / kvp) * (boneThick / 3);
+                            if (Math.random() < absProb) p.absorbed = true;
+                        }
+
+                        if (p.x >= canvas.width - 15) {
+                            transmittedCount++;
+                            p.x = 0; // Respawn
+                            p.absorbed = false;
+                        }
+                    } else {
+                        // Reset absorbed photon
+                        if (Math.random() < 0.05) {
+                            p.x = 0;
+                            p.absorbed = false;
+                        }
+                    }
+
+                    // Render Photon Particle
+                    if (!p.absorbed) {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                        ctx.fillStyle = '#06b6d4';
+                        ctx.shadowBlur = 6;
+                        ctx.shadowColor = '#06b6d4';
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+                });
+
+                const pct = Math.round((transmittedCount / particles.length) * 100);
+                const pctEl = document.getElementById('phys-transmitted-pct');
+                if (pctEl) pctEl.innerText = Math.min(99, Math.max(1, pct)) + '%';
+
+                physAnimId = requestAnimationFrame(drawPhysics);
+            }
+
+            if (physAnimId) cancelAnimationFrame(physAnimId);
+            drawPhysics();
+        }
+
+        function updatePhysicsSim() {
+            const b = document.getElementById('slider-bone-thick').value;
+            const k = document.getElementById('slider-phys-kv').value;
+            document.getElementById('lbl-bone-thick').innerText = b + ' cm';
+            document.getElementById('lbl-phys-kv').innerText = k + ' kVp';
+            document.getElementById('phys-kvp-display').innerText = k;
+        }
+
+        function drawRadiograph() {
+            const canvas = document.getElementById('canvas-xray');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = 600;
+            canvas.height = 600;
+
+            // Clear Background (Air Exposure = Dark/Black)
+            ctx.fillStyle = '#05070d';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Soft Tissue Outline (Mid Gray)
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.ellipse(300, 300, 220, 250, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 4;
+            ctx.fillStyle = '#f8fafc';
+
+            if (selectedExam === 'chest') {
+                // Lungs (Dark Air Fields)
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.ellipse(210, 280, 65, 120, 0, 0, Math.PI * 2);
+                ctx.ellipse(390, 280, 65, 120, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ribs (White Bones)
+                ctx.strokeStyle = '#f8fafc';
+                ctx.lineWidth = 8;
+                for (let i = 0; i < 7; i++) {
+                    ctx.beginPath();
+                    ctx.arc(300, 180 + i * 35, 110 + i * 8, Math.PI * 0.1, Math.PI * 0.9);
+                    ctx.stroke();
+                }
+
+                // Spine
+                ctx.fillStyle = '#e2e8f0';
+                ctx.fillRect(285, 100, 30, 380);
+
+                // Heart Silhouette
+                ctx.fillStyle = 'rgba(226, 232, 240, 0.7)';
+                ctx.beginPath();
+                ctx.ellipse(330, 320, 75, 55, Math.PI * 0.25, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else if (selectedExam === 'hand') {
+                // Hand Phalanges & Metacarpals
+                for (let finger = 0; finger < 5; finger++) {
+                    const fx = 160 + finger * 70;
+                    // Metacarpal
+                    ctx.fillRect(fx, 340, 18, 120);
+                    // Proximal phalanx
+                    ctx.fillRect(fx, 240, 16, 80);
+                    // Distal phalanx
+                    ctx.fillRect(fx + 2, 170, 12, 50);
+                }
+                // Wrist Carpal Cluster
+                ctx.beginPath();
+                ctx.arc(300, 480, 60, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else {
+                // Generic Bone Joint (Knee / Skull / Spine)
+                ctx.fillRect(270, 60, 60, 220); // Top bone
+                ctx.fillRect(270, 320, 60, 220); // Bottom bone
+                // Joint Space
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(250, 280, 100, 40);
+            }
+
+            // Simulated Pathology Feature Overlay
+            if (examPreset === 'abnormal1') {
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.6)';
+                ctx.beginPath();
+                ctx.arc(230, 260, 35, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.strokeText("SIMULATED OPACITY / FRACTURE", 240, 260);
+            }
+
+            applyImageFilters();
+        }
+
+        function applyImageFilters() {
+            const canvas = document.getElementById('canvas-xray');
+            if (!canvas) return;
+            const b = document.getElementById('img-bright').value;
+            const c = document.getElementById('img-contrast').value;
+            
+            let filterStr = `brightness(${100 + parseInt(b)}%) contrast(${c}%)`;
+            if (imageInverted) filterStr += ' invert(100%)';
+            if (edgeEnhanced) filterStr += ' contrast(200%) drop-shadow(0 0 2px #000)';
+
+            canvas.style.filter = filterStr;
+        }
+
+        function toggleInvert() {
+            imageInverted = !imageInverted;
+            document.getElementById('btn-invert').classList.toggle('bg-cyan-700');
+            applyImageFilters();
+        }
+
+        function toggleEdgeEnhance() {
+            edgeEnhanced = !edgeEnhanced;
+            document.getElementById('btn-edge').classList.toggle('bg-cyan-700');
+            applyImageFilters();
+        }
+
+        function resetImageFilters() {
+            document.getElementById('img-bright').value = 0;
+            document.getElementById('img-contrast').value = 100;
+            imageInverted = false;
+            edgeEnhanced = false;
+            applyImageFilters();
+        }
+
+        function startScanSequence() {
+            playSound('xray');
+            switchTab('tab-viewer');
+            const overlay = document.getElementById('scan-overlay');
+            const bar = document.getElementById('scan-progress-bar');
+            const txt = document.getElementById('scan-progress-txt');
+            const title = document.getElementById('scan-step-title');
+            const desc = document.getElementById('scan-step-desc');
+
+            overlay.classList.remove('hidden');
+
+            const stages = [
+                { p: 10, title: "Stage 1: Position Verification", desc: "Checking grid alignment and target position." },
+                { p: 25, title: "Stage 2: Filament Heating", desc: "Cathode thermionic emission generating electron cloud." },
+                { p: 40, title: "Stage 3: High Voltage Acceleration", desc: `${currentKvp} kV applied across anode-cathode vacuum gap.` },
+                { p: 60, title: "Stage 4: Target Collision", desc: "Bremsstrahlung radiation generated at tungsten target." },
+                { p: 75, title: "Stage 5: Collimation & Attenuation", desc: "Photons traveling through patient tissue layers." },
+                { p: 90, title: "Stage 6: Detector Capture", desc: "Digital flat-panel converting radiation to electrical signal." },
+                { p: 100, title: "Stage 7: Image Reconstruction", desc: "Processing digital radiograph image matrix." }
+            ];
+
+            let idx = 0;
+            const interval = setInterval(() => {
+                if (idx < stages.length) {
+                    const st = stages[idx];
+                    bar.style.width = st.p + '%';
+                    txt.innerText = st.p + '%';
+                    title.innerText = st.title;
+                    desc.innerText = st.desc;
+                    idx++;
+                } else {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                        drawRadiograph();
+                        playSound('beep');
+                    }, 400);
+                }
+            }, 300);
+        }
+
+        function updateGeneratorValues() {
+            currentKvp = document.getElementById('slider-kvp').value;
+            currentMa = document.getElementById('slider-ma').value;
+            currentTimeMs = document.getElementById('slider-time').value;
+
+            document.getElementById('val-kvp').innerText = currentKvp + ' kVp';
+            document.getElementById('val-ma').innerText = currentMa + ' mA';
+            document.getElementById('val-time').innerText = currentTimeMs + ' ms';
+
+            const mas = ((currentMa * currentTimeMs) / 1000).toFixed(1);
+            document.getElementById('val-mas').innerText = mas + ' mAs';
+
+            if (chartSpectrum) initSpectrumChart();
+        }
+
+        function updateCollimatorField() {
+            collimatorSize = document.getElementById('slider-collimator').value;
+            document.getElementById('val-collimator').innerText = collimatorSize + ' × ' + Math.round(collimatorSize * 1.2) + ' cm';
+        }
+
+        function changeExamination() {
+            selectedExam = document.getElementById('select-exam').value;
+            const examNames = {
+                chest: "Chest Radiography (PA View)",
+                hand: "Hand / Wrist (PA Projection)",
+                knee: "Knee Joint (AP View)",
+                skull: "Skull Radiograph (Lateral)",
+                spine: "Lumbar Spine (AP View)",
+                pelvis: "Pelvis Radiograph (AP View)",
+                foot: "Foot Radiograph (AP View)",
+                abdomen: "Abdomen (AP View)"
+            };
+            document.getElementById('rpt-exam-type').innerText = examNames[selectedExam] || "Radiographic Exam";
+            drawRadiograph();
+        }
+
+        function updateExamPreset() {
+            examPreset = document.getElementById('select-preset').value;
+            drawRadiograph();
+        }
+
+        let chartSpectrum = null;
+        function initSpectrumChart() {
+            const ctx = document.getElementById('canvas-spectrum');
+            if (!ctx) return;
+
+            const kvp = parseInt(currentKvp);
+            const labels = [];
+            const data = [];
+
+            for (let e = 0; e <= kvp; e += 2) {
+                labels.push(e);
+                // Simplified Kramers Bremsstrahlung formula intensity model
+                let val = (kvp - e) * e * 0.05;
+                // Add characteristic K-shell peak near 59 keV if energy allows
+                if (e >= 58 && e <= 60 && kvp >= 70) val += 150;
+                data.push(Math.max(0, val));
+            }
+
+            if (chartSpectrum) chartSpectrum.destroy();
+            chartSpectrum = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Photon Intensity (Relative Flux)',
+                        data: data,
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.15)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Photon Energy (keV)', color: '#94a3b8' }, ticks: { color: '#64748b' } },
+                        y: { title: { display: true, text: 'Intensity', color: '#94a3b8' }, ticks: { color: '#64748b' } }
+                    },
+                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
+                }
+            });
+        }
+
+        function updateSafetyCalc() {
+            const dist = parseFloat(document.getElementById('slider-safety-dist').value);
+            document.getElementById('lbl-dist-val').innerText = dist.toFixed(1);
+            // Inverse Square Law: (1 / d^2)
+            const relDose = Math.round((1 / (dist * dist)) * 100);
+            document.getElementById('lbl-relative-dose').innerText = relDose + '%';
+        }
+
+        const quizQuestions = [
+            {
+                q: "Where inside the X-ray tube are electrons generated via thermionic emission?",
+                opts: ["Rotating Anode Target", "Cathode Filament", "Glass Envelope", "Collimator Shutter"],
+                correct: 1,
+                explain: "The cathode filament heats up, emitting a cloud of electrons through thermionic emission."
+            },
+            {
+                q: "What parameter primarily controls the PENETRATING POWER (energy) of the X-ray beam?",
+                opts: ["mAs (Milliampere-seconds)", "Tube Voltage (kVp)", "Collimator Size", "Source-to-Image Distance"],
+                correct: 1,
+                explain: "Tube voltage (kVp) sets the peak electric potential, dictating maximum photon energy and beam penetrability."
+            },
+            {
+                q: "Why does cortical bone appear BRIGHT WHITE on a digital radiograph?",
+                opts: ["Bone reflects light back into the camera", "Bone absorbs more X-rays, leaving low exposure at the detector", "Bone contains air pockets", "Bone emits its own X-rays"],
+                correct: 1,
+                explain: "Bone strongly attenuates X-rays due to calcium content (high Z number). Digital processing maps low detector exposure to bright white."
+            }
+        ];
+
+        function loadQuizQuestion() {
+            const q = quizQuestions[currentQuizIdx];
+            document.getElementById('quiz-num').innerText = `Question ${currentQuizIdx + 1} of ${quizQuestions.length}`;
+            document.getElementById('quiz-question').innerText = q.q;
+
+            const optsDiv = document.getElementById('quiz-options');
+            optsDiv.innerHTML = '';
+            q.opts.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-2.5 rounded-lg border border-slate-700 bg-slate-950 hover:bg-slate-800 text-xs text-slate-200 transition";
+                btn.innerText = `${String.fromCharCode(65 + idx)}. ${opt}`;
+                btn.onclick = () => checkQuizAnswer(idx);
+                optsDiv.appendChild(btn);
+            });
+
+            document.getElementById('quiz-feedback').classList.add('hidden');
+        }
+
+        function checkQuizAnswer(selectedIdx) {
+            const q = quizQuestions[currentQuizIdx];
+            const fb = document.getElementById('quiz-feedback');
+            fb.classList.remove('hidden');
+
+            if (selectedIdx === q.correct) {
+                quizScore++;
+                fb.className = "p-3 rounded-lg text-xs bg-emerald-950 border border-emerald-800 text-emerald-300";
+                fb.innerHTML = `<strong><i class="fa-solid fa-circle-check"></i> Correct!</strong> ${q.explain}`;
+            } else {
+                fb.className = "p-3 rounded-lg text-xs bg-red-950 border border-red-800 text-red-300";
+                fb.innerHTML = `<strong><i class="fa-solid fa-circle-xmark"></i> Incorrect.</strong> ${q.explain}`;
+            }
+
+            document.getElementById('quiz-score-badge').innerText = `Score: ${quizScore} / ${quizQuestions.length}`;
+        }
+
+        function nextQuizQuestion() {
+            currentQuizIdx = (currentQuizIdx + 1) % quizQuestions.length;
+            loadQuizQuestion();
+        }
+
+        const whyData = {
+            generator: {
+                title: "Why control kVp and mAs?",
+                beg: "kVp controls how strong/penetrating the X-rays are. mAs controls how many X-rays are produced in total. Together they create the ideal exposure balance.",
+                adv: "kVp establishes tube potential difference, governing electron kinetic energy $E_{max} = e \cdot V$. mAs is the time integral of tube current, directly scaling electron flux $\Phi \propto I \cdot t$."
+            },
+            exam: {
+                title: "Why position differently for each body part?",
+                beg: "X-rays flatten 3D anatomy into a 2D shadow. Proper positioning isolates specific bones and prevents overlapping shadows.",
+                adv: "Radiographic projections (AP vs PA) alter geometric magnification and parallax distortion due to beam divergence from the focal spot."
+            },
+            pathology: {
+                title: "Why study simulated abnormalities?",
+                beg: "Comparing normal anatomy to abnormal shadows (like bone cracks or lung spots) teaches how radiologists detect disease.",
+                adv: "Pathologies alter local tissue attenuation coefficients ($\mu$), causing visual density contrast anomalies on digital detectors."
+            }
+        };
+
+        function openWhy(key) {
+            currentWhyKey = key;
+            const item = whyData[key] || whyData['generator'];
+            document.getElementById('why-title').innerText = item.title;
+            document.getElementById('why-body-beg').innerText = item.beg;
+            document.getElementById('why-body-adv').innerText = item.adv;
+            document.getElementById('modal-why').classList.remove('hidden');
+        }
+
+        function closeWhy() {
+            document.getElementById('modal-why').classList.add('hidden');
+        }
+
+        function setWhyLevel(level) {
+            const beg = document.getElementById('why-body-beg');
+            const adv = document.getElementById('why-body-adv');
+            const btnB = document.getElementById('why-btn-beg');
+            const btnA = document.getElementById('why-btn-adv');
+
+            if (level === 'beginner') {
+                beg.classList.remove('hidden');
+                adv.classList.add('hidden');
+                btnB.className = "px-3 py-1.5 text-xs font-semibold text-cyan-400 border-b-2 border-cyan-400";
+                btnA.className = "px-3 py-1.5 text-xs font-semibold text-slate-400";
+            } else {
+                beg.classList.add('hidden');
+                adv.classList.remove('hidden');
+                btnA.className = "px-3 py-1.5 text-xs font-semibold text-cyan-400 border-b-2 border-cyan-400";
+                btnB.className = "px-3 py-1.5 text-xs font-semibold text-slate-400";
+            }
+        }
+
+        function downloadReportTXT() {
+            const name = document.getElementById('rpt-patient-name').value;
+            const exam = document.getElementById('rpt-exam-type').innerText;
+            const findings = document.getElementById('rpt-findings').innerText;
+            const impression = document.getElementById('rpt-impression').innerText;
+
+            const text = `========================================================
+SIMULATED RADIOLOGY REPORT (EDUCATIONAL PURPOSES ONLY)
+========================================================
+PATIENT: ${name}
+EXAMINATION: ${exam}
+DATE: ${document.getElementById('rpt-date').value}
+
+FINDINGS:
+${findings}
+
+IMPRESSION:
+${impression}
+
+DISCLAIMER: SIMULATED REPORT — NOT FOR CLINICAL USE.
+========================================================`;
+
+            const blob = new Blob([text], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `XRay_Simulated_Report_${name.replace(/\s+/g, '_')}.txt`;
+            link.click();
+        }
+
+        function downloadReportPDF() {
+            if (!window.jspdf) {
+                alert("PDF library loading...");
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(16);
+            doc.text("SIMULATED RADIOLOGY REPORT", 20, 20);
+            doc.setFontSize(10);
+            doc.text("EDUCATIONAL SIMULATION — NOT FOR MEDICAL DIAGNOSIS", 20, 28);
+
+            doc.line(20, 32, 190, 32);
+
+            doc.text(`Patient: ${document.getElementById('rpt-patient-name').value}`, 20, 42);
+            doc.text(`Exam: ${document.getElementById('rpt-exam-type').innerText}`, 20, 50);
+
+            doc.text("FINDINGS:", 20, 65);
+            const splitFindings = doc.splitTextToSize(document.getElementById('rpt-findings').innerText, 160);
+            doc.text(splitFindings, 20, 72);
+
+            doc.text("IMPRESSION:", 20, 110);
+            const splitImp = doc.splitTextToSize(document.getElementById('rpt-impression').innerText, 160);
+            doc.text(splitImp, 20, 118);
+
+            doc.setFontSize(8);
+            doc.text("Generated by X-Ray Lab Pro Educational Simulator", 20, 280);
+
+            doc.save("Simulated_XRay_Report.pdf");
+        }
+
+        function downloadImage(format) {
+            const canvas = document.getElementById('canvas-xray');
+            if (!canvas) return;
+            const link = document.createElement('a');
+            link.download = `Simulated_XRay_${selectedExam}.${format}`;
+            link.href = canvas.toDataURL(`image/${format}`);
+            link.click();
+        }
+
+        function startGuidedTour() {
+            switchTab('tab-3d');
+            alert("TEACH ME WALKTHROUGH:\n\n1. Rotate the 3D X-Ray machine rig on your left.\n2. Adjust kVp & mAs on the right console.\n3. Click 'START X-RAY SCAN' to watch the 11-stage exposure sequence.\n4. Explore physics in the 'Physics & Attenuation' tab!");
+        }
+
+        // Window Init Event
+        window.onload = function () {
+            init3DStudio();
+            drawRadiograph();
+        };
+    </script>
+</body>
+</html>
