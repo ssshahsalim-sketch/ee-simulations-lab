@@ -1,0 +1,2284 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial Electrical Sensors & Analog Signal Simulation Suite</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        industrial: {
+                            900: '#0F172A',
+                            800: '#1E293B',
+                            700: '#334155',
+                            accent: '#0EA5E9',
+                            success: '#10B981',
+                            warning: '#F59E0B',
+                            danger: '#EF4444',
+                            glow: '#38BDF8'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'Fira Code', 'Monaco', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0ea5e9;
+        }
+
+        /* Signal line glow effect */
+        .signal-glow {
+            filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.8));
+        }
+        .signal-glow-amber {
+            filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8));
+        }
+        .signal-glow-red {
+            filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.8));
+        }
+
+        /* Animated grid background for canvas */
+        .bg-grid {
+            background-size: 20px 20px;
+            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        }
+
+        /* Dynamic LED pulse */
+        @keyframes led-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.92); }
+        }
+        .animate-led {
+            animation: led-pulse 1.5s infinite ease-in-out;
+        }
+
+        /* Wire connector pulse */
+        @keyframes dash-flow {
+            to { stroke-dashoffset: -20; }
+        }
+        .flowing-wire {
+            stroke-dasharray: 6, 6;
+            animation: dash-flow 0.8s linear infinite;
+        }
+
+        /* Water Tank Animation */
+        @keyframes wave {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .wave-anim {
+            animation: wave 3s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- TOP HEADER & MASTER SIGNAL FLOW BANNER -->
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 shadow-xl">
+        <div class="max-w-[1920px] mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-3">
+            <!-- Brand & Mode Controls -->
+            <div class="flex items-center gap-4">
+                <button id="toggle-sidebar" class="md:hidden text-slate-400 hover:text-white p-2">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400 flex items-center justify-center text-sky-400 font-bold text-lg">
+                        <i class="fa-solid fa-microchip"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-sm md:text-base text-slate-100 leading-tight">INDUCITY <span class="text-sky-400 text-xs font-mono uppercase bg-sky-950 px-1.5 py-0.5 rounded border border-sky-800">Lab v4.2</span></h1>
+                        <p class="text-[11px] text-slate-400 hidden sm:block">Industrial Electrical Sensors, Signal Conditioning & PLC I/O Simulator</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Controls & Status -->
+            <div class="flex items-center gap-3 text-xs">
+                <!-- Mode Selector -->
+                <div class="bg-slate-950 border border-slate-800 rounded-lg p-1 flex items-center gap-1">
+                    <button id="mode-beginner" onclick="setExplanationMode('beginner')" class="px-2.5 py-1 rounded-md transition-all font-medium bg-sky-600 text-white shadow">
+                        <i class="fa-solid fa-graduation-cap mr-1"></i> Beginner (ELIA5)
+                    </button>
+                    <button id="mode-engineering" onclick="setExplanationMode('engineering')" class="px-2.5 py-1 rounded-md transition-all font-medium text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-calculator mr-1"></i> Engineering
+                    </button>
+                </div>
+
+                <!-- Instrument Toggles -->
+                <button onclick="toggleOscilloscope()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-wave-square text-sky-400"></i> Oscilloscope
+                </button>
+                <button onclick="toggleMultimeter()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-gauge-high text-amber-400"></i> DMM Probe
+                </button>
+
+                <!-- System Fault Injector Dropdown -->
+                <div class="relative">
+                    <select id="global-fault-select" onchange="injectGlobalFault(this.value)" class="bg-red-950/40 border border-red-800/80 text-red-200 font-mono text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-red-500">
+                        <option value="NONE">⚡ System Normal (No Fault)</option>
+                        <option value="WIRE_BREAK">❌ Wire Break (Open Circuit)</option>
+                        <option value="SHORT_CIRCUIT">🔥 Short Circuit (0Ω Load)</option>
+                        <option value="POWER_FAILURE">🔌 24V DC Power Failure</option>
+                        <option value="EXCESS_NOISE">📻 Severe EMI Noise (+2.5V)</option>
+                        <option value="OVERRANGE">⚠️ Sensor Overrange (>100%)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Animated Master Signal Flow Chain Ribbon -->
+        <div class="bg-slate-950 border-t border-slate-800/80 py-1.5 px-4 overflow-x-auto text-[11px] font-mono">
+            <div class="max-w-[1920px] mx-auto flex items-center justify-between min-w-[900px] gap-2">
+                
+                <!-- Stage 1: Physical Quantity -->
+                <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded px-2.5 py-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-led"></span>
+                    <span class="text-slate-400">1. Process:</span>
+                    <span id="chain-pv-val" class="font-bold text-emerald-400">25.0 °C / 5.0 Bar</span>
+                </div>
+
+                <i class="fa-solid fa-chevron-right text-slate-600 animate-pulse"></i>
+
+                <!-- Stage 2: Sensor Electrical Signal -->
+                <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded px-2.5 py-1">
+                    <span class="text-slate-400">2. Sensor:</span>
+                    <span id="chain-sensor-val" class="font-bold text-amber-400">10,000 Ω (NTC)</span>
+                </div>
+
+                <i class="fa-solid fa-chevron-right text-slate-600 animate-pulse"></i>
+
+                <!-- Stage 3: Transmitter Output -->
+                <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded px-2.5 py-1">
+                    <span class="text-slate-400">3. Transmitter:</span>
+                    <span id="chain-tx-val" class="font-bold text-sky-400">12.00 mA (4-20mA)</span>
+                </div>
+
+                <i class="fa-solid fa-chevron-right text-slate-600 animate-pulse"></i>
+
+                <!-- Stage 4: PLC Analog Input & ADC -->
+                <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded px-2.5 py-1">
+                    <span class="text-slate-400">4. AI / ADC:</span>
+                    <span id="chain-adc-val" class="font-bold text-indigo-400">2048 Counts (12-bit)</span>
+                </div>
+
+                <i class="fa-solid fa-chevron-right text-slate-600 animate-pulse"></i>
+
+                <!-- Stage 5: Scaled Engineering Value -->
+                <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded px-2.5 py-1">
+                    <span class="text-slate-400">5. Scaled HMI:</span>
+                    <span id="chain-scaled-val" class="font-bold text-emerald-300">50.0 % (5.00 Bar)</span>
+                </div>
+
+                <i class="fa-solid fa-chevron-right text-slate-600 animate-pulse"></i>
+
+                <!-- Stage 6: Actuator / Control Output -->
+                <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded px-2.5 py-1">
+                    <span class="text-slate-400">6. Actuator (AO):</span>
+                    <span id="chain-ao-val" class="font-bold text-fuchsia-400">5.00 V (50.0% Speed)</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN APP LAYOUT (Sidebar + Active Workspace) -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- LEFT NAVIGATION SIDEBAR -->
+        <aside id="sidebar" class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 transition-all duration-300 z-30 absolute md:relative inset-y-0 left-0 -translate-x-full md:translate-x-0">
+            <div class="p-3 border-b border-slate-800 text-xs font-semibold uppercase text-slate-400 tracking-wider flex items-center justify-between">
+                <span>Learning Modules</span>
+                <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">18 Labs</span>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto p-2 space-y-1 font-medium text-xs">
+                
+                <div class="text-[10px] font-bold text-slate-500 uppercase px-2 pt-2 pb-1">Fundamentls & Thermistors</div>
+                <button onclick="switchTab('tab-fundamentals')" class="nav-btn active w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-shapes text-sky-400 w-4 text-center"></i>
+                    <span>1. Sensor Fundamentals</span>
+                </button>
+                <button onclick="switchTab('tab-ntc')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-temperature-arrow-down text-blue-400 w-4 text-center"></i>
+                    <span>2. NTC Thermistor</span>
+                </button>
+                <button onclick="switchTab('tab-ptc')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-temperature-arrow-up text-red-400 w-4 text-center"></i>
+                    <span>3. PTC Thermistor & RTD</span>
+                </button>
+
+                <div class="text-[10px] font-bold text-slate-500 uppercase px-2 pt-3 pb-1">Industrial Analog Loops</div>
+                <button onclick="switchTab('tab-420ma')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-arrows-spin text-emerald-400 w-4 text-center"></i>
+                    <span>4. 4–20 mA Loop Simulation</span>
+                </button>
+                <button onclick="switchTab('tab-why420')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-circle-question text-amber-400 w-4 text-center"></i>
+                    <span>5. Why 4–20mA? Live Zero</span>
+                </button>
+                <button onclick="switchTab('tab-020ma')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-bolt text-indigo-400 w-4 text-center"></i>
+                    <span>6. 0–20 mA Transmission</span>
+                </button>
+                <button onclick="switchTab('tab-010v')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-wave-square text-cyan-400 w-4 text-center"></i>
+                    <span>7. 0–10 V DC Voltage Loop</span>
+                </button>
+                <button onclick="switchTab('tab-comparison')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-table-columns text-purple-400 w-4 text-center"></i>
+                    <span>8. 3-Way Signal Comparison</span>
+                </button>
+
+                <div class="text-[10px] font-bold text-slate-500 uppercase px-2 pt-3 pb-1">PLC I/O & Digital Logic</div>
+                <button onclick="switchTab('tab-ai-module')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-download text-teal-400 w-4 text-center"></i>
+                    <span>9. Analog Input & Conditioning</span>
+                </button>
+                <button onclick="switchTab('tab-adc-dac')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-binary text-fuchsia-400 w-4 text-center"></i>
+                    <span>10. ADC & DAC Resolution</span>
+                </button>
+                <button onclick="switchTab('tab-scaling')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-calculator text-emerald-400 w-4 text-center"></i>
+                    <span>11. Math Scaling Calculator</span>
+                </button>
+                <button onclick="switchTab('tab-ao-actuator')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-fan text-rose-400 w-4 text-center"></i>
+                    <span>12. Analog Output & VFD/Valve</span>
+                </button>
+
+                <div class="text-[10px] font-bold text-slate-500 uppercase px-2 pt-3 pb-1">Advanced Dynamics & Sandbox</div>
+                <button onclick="switchTab('tab-master-chain')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-diagram-project text-sky-400 w-4 text-center"></i>
+                    <span>13. Tank Level Process System</span>
+                </button>
+                <button onclick="switchTab('tab-noise')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-shield-halved text-yellow-400 w-4 text-center"></i>
+                    <span>14. Noise, EMI & Shielding</span>
+                </button>
+                <button onclick="switchTab('tab-wiring')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-plug text-orange-400 w-4 text-center"></i>
+                    <span>15. Interactive Wiring Sandbox</span>
+                </button>
+                <button onclick="switchTab('tab-challenges')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-trophy text-amber-300 w-4 text-center"></i>
+                    <span>16. Engineering Challenges</span>
+                </button>
+                <button onclick="switchTab('tab-troubleshoot')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-stethoscope text-red-400 w-4 text-center"></i>
+                    <span>17. Fault Troubleshooting</span>
+                </button>
+                <button onclick="switchTab('tab-quiz')" class="nav-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition">
+                    <i class="fa-solid fa-clipboard-question text-sky-300 w-4 text-center"></i>
+                    <span>18. Knowledge Assessment</span>
+                </button>
+
+            </nav>
+
+            <div class="p-3 border-t border-slate-800 bg-slate-950 text-[11px] text-slate-400 flex justify-between items-center">
+                <span>System Health:</span>
+                <span class="text-emerald-400 font-mono font-bold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> 24V DC OK
+                </span>
+            </div>
+        </aside>
+
+        <!-- MAIN WORKSPACE -->
+        <main class="flex-1 overflow-y-auto bg-slate-950 p-4 md:p-6 space-y-6 relative" id="main-content">
+            
+            <!-- EXPLANATION BANNER (ELIA5 vs Engineering) -->
+            <div id="explanation-box" class="bg-slate-900 border-l-4 border-sky-500 rounded-r-xl p-4 shadow-lg transition-all">
+                <div class="flex items-start gap-3">
+                    <div class="p-2 bg-sky-500/20 text-sky-400 rounded-lg shrink-0 mt-0.5">
+                        <i id="explanation-icon" class="fa-solid fa-lightbulb text-lg"></i>
+                    </div>
+                    <div>
+                        <h2 id="explanation-title" class="font-bold text-sm text-sky-300 uppercase tracking-wider mb-1">Concept Explanation</h2>
+                        <p id="explanation-text" class="text-xs md:text-sm text-slate-300 leading-relaxed">
+                            Welcome to the Industrial Electrical Sensors & Signal Conditioning Simulator. Select any module on the left to begin exploring dynamic signal chains!
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 1: SENSOR FUNDAMENTALS -->
+            <div id="tab-fundamentals" class="tab-content block space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Controls & Selector -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                        <h3 class="font-bold text-slate-200 flex items-center gap-2 text-sm uppercase tracking-wider">
+                            <i class="fa-solid fa-sliders text-sky-400"></i> Select Industrial Physical Quantity
+                        </h3>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="setFundamentalSensor('temp')" class="sens-btn active p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-left transition flex items-center gap-3">
+                                <i class="fa-solid fa-temperature-high text-red-400 text-lg"></i>
+                                <div><div class="font-bold text-xs">Temperature</div><div class="text-[10px] text-slate-400">°C / °F</div></div>
+                            </button>
+                            <button onclick="setFundamentalSensor('pressure')" class="sens-btn p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-left transition flex items-center gap-3">
+                                <i class="fa-solid fa-gauge text-emerald-400 text-lg"></i>
+                                <div><div class="font-bold text-xs">Pressure</div><div class="text-[10px] text-slate-400">Bar / PSI</div></div>
+                            </button>
+                            <button onclick="setFundamentalSensor('level')" class="sens-btn p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-left transition flex items-center gap-3">
+                                <i class="fa-solid fa-water text-sky-400 text-lg"></i>
+                                <div><div class="font-bold text-xs">Level</div><div class="text-[10px] text-slate-400">Meters / %</div></div>
+                            </button>
+                            <button onclick="setFundamentalSensor('flow')" class="sens-btn p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-left transition flex items-center gap-3">
+                                <i class="fa-solid fa-wind text-cyan-400 text-lg"></i>
+                                <div><div class="font-bold text-xs">Flow Rate</div><div class="text-[10px] text-slate-400">L/min</div></div>
+                            </button>
+                            <button onclick="setFundamentalSensor('light')" class="sens-btn p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-left transition flex items-center gap-3">
+                                <i class="fa-solid fa-sun text-yellow-400 text-lg"></i>
+                                <div><div class="font-bold text-xs">Light (LDR)</div><div class="text-[10px] text-slate-400">Lux</div></div>
+                            </button>
+                            <button onclick="setFundamentalSensor('speed')" class="sens-btn p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-left transition flex items-center gap-3">
+                                <i class="fa-solid fa-rotate text-fuchsia-400 text-lg"></i>
+                                <div><div class="font-bold text-xs">Speed (RPM)</div><div class="text-[10px] text-slate-400">Encoder / Hz</div></div>
+                            </button>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-800 space-y-3">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-400">Physical Input Slider:</span>
+                                <span id="fund-pv-display" class="font-bold font-mono text-emerald-400">25 °C</span>
+                            </div>
+                            <input id="fund-pv-slider" type="range" min="0" max="100" value="25" oninput="updateFundamentals()" class="w-full accent-sky-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+                    </div>
+
+                    <!-- Interactive Sensor Schematic Canvas -->
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-microchip text-emerald-400"></i> Signal Chain Visualizer
+                            </h3>
+                            <span class="text-[11px] font-mono bg-emerald-950/80 border border-emerald-800 text-emerald-300 px-2 py-0.5 rounded">DYNAMIC SIGNAL FLOW</span>
+                        </div>
+
+                        <!-- Canvas Box -->
+                        <div class="relative flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[260px] flex items-center justify-center bg-grid">
+                            <canvas id="canvas-fundamentals" class="w-full h-full block"></canvas>
+                        </div>
+
+                        <!-- Parameter Table -->
+                        <div class="grid grid-cols-4 gap-2 mt-4 text-center font-mono text-xs">
+                            <div class="bg-slate-950 p-2 border border-slate-800 rounded-lg">
+                                <div class="text-[10px] text-slate-400">Physical PV</div>
+                                <div id="fund-out-pv" class="font-bold text-emerald-400">25.0 °C</div>
+                            </div>
+                            <div class="bg-slate-950 p-2 border border-slate-800 rounded-lg">
+                                <div class="text-[10px] text-slate-400">Transducer Out</div>
+                                <div id="fund-out-elec" class="font-bold text-amber-400">10,000 Ω</div>
+                            </div>
+                            <div class="bg-slate-950 p-2 border border-slate-800 rounded-lg">
+                                <div class="text-[10px] text-slate-400">Conditioned V</div>
+                                <div id="fund-out-volt" class="font-bold text-sky-400">2.50 V</div>
+                            </div>
+                            <div class="bg-slate-950 p-2 border border-slate-800 rounded-lg">
+                                <div class="text-[10px] text-slate-400">PLC Raw ADC</div>
+                                <div id="fund-out-adc" class="font-bold text-indigo-400">1024 Counts</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: NTC THERMISTOR -->
+            <div id="tab-ntc" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Control Panel -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                            <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-temperature-low text-blue-400"></i> NTC Circuit Controls
+                            </h3>
+                            <span class="text-[10px] bg-blue-950 text-blue-300 border border-blue-800 px-2 py-0.5 rounded font-mono">BETA = 3950K</span>
+                        </div>
+
+                        <!-- Temp Slider -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Temperature (°C):</span>
+                                <span id="ntc-temp-val" class="font-bold font-mono text-sky-400 text-sm">25.0 °C</span>
+                            </div>
+                            <input id="ntc-slider" type="range" min="-20" max="150" value="25" step="0.5" oninput="updateNTC()" class="w-full accent-sky-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                                <span>-20°C (Freezing)</span>
+                                <span>+25°C (Ref)</span>
+                                <span>+150°C (Hot)</span>
+                            </div>
+                        </div>
+
+                        <!-- Fixed Voltage Divider Config -->
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-3 text-xs">
+                            <div class="font-semibold text-slate-300">Voltage Divider Circuit:</div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400">Supply Voltage (Vcc):</span>
+                                <span class="font-mono font-bold text-emerald-400">5.00 V DC</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400">Fixed Resistor (R_ref):</span>
+                                <span class="font-mono font-bold text-amber-400">10,000 Ω (10k)</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400">NTC R25 Resistance:</span>
+                                <span class="font-mono text-slate-300">10,000 Ω @ 25°C</span>
+                            </div>
+                        </div>
+
+                        <!-- Live Formulas Breakdown -->
+                        <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 text-[11px] font-mono space-y-1.5 text-slate-300">
+                            <div class="text-sky-400 font-bold mb-1">Steinhart-Hart / Beta Equation:</div>
+                            <div>R_NTC = R25 * exp(β * (1/T - 1/T0))</div>
+                            <div>V_out = Vcc * [R_NTC / (R_NTC + R_fixed)]</div>
+                        </div>
+                    </div>
+
+                    <!-- Schematic & Realtime Graph -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Canvas Visualizer -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Live NTC Voltage Divider Schematic</span>
+                                <span id="ntc-state-badge" class="text-[10px] font-mono bg-blue-900/60 text-blue-300 border border-blue-700 px-2 py-0.5 rounded">TEMP RISING ➔ RESISTANCE DROPPING</span>
+                            </div>
+                            <div class="relative bg-slate-950 border border-slate-800 rounded-xl overflow-hidden h-56 bg-grid">
+                                <canvas id="canvas-ntc" class="w-full h-full block"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Dual Live Graph (Temp vs R, Temp vs V) -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                            <div class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                <span><i class="fa-solid fa-chart-line text-sky-400 mr-1"></i> Non-Linear Characteristic Curves</span>
+                                <span class="text-[10px] text-slate-400 font-normal">NTC Beta Curve (Inverse Exponential)</span>
+                            </div>
+                            <div class="h-44 bg-slate-950 border border-slate-800 rounded-xl p-2 relative">
+                                <canvas id="canvas-ntc-graph" class="w-full h-full block"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: PTC THERMISTOR & RTD -->
+            <div id="tab-ptc" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                            <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">
+                                <i class="fa-solid fa-temperature-arrow-up text-red-400"></i> PTC vs NTC Toggle
+                            </h3>
+                            <span class="text-[10px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded">PTC vs NTC</span>
+                        </div>
+
+                        <!-- Selector -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="btn-select-ntc" onclick="setThermistorType('NTC')" class="p-3 bg-slate-800 border border-slate-700 rounded-xl text-center hover:bg-slate-700 transition">
+                                <div class="font-bold text-xs text-blue-400">NTC</div>
+                                <div class="text-[10px] text-slate-400">Temp ↑ Resistance ↓</div>
+                            </button>
+                            <button id="btn-select-ptc" onclick="setThermistorType('PTC')" class="p-3 bg-sky-600 border border-sky-400 rounded-xl text-center text-white font-bold shadow">
+                                <div class="font-bold text-xs">PTC / PT100</div>
+                                <div class="text-[10px] text-sky-100">Temp ↑ Resistance ↑</div>
+                            </button>
+                        </div>
+
+                        <!-- Temperature Slider -->
+                        <div class="space-y-2 pt-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300">Temperature (°C):</span>
+                                <span id="ptc-temp-val" class="font-bold font-mono text-red-400 text-sm">25.0 °C</span>
+                            </div>
+                            <input id="ptc-slider" type="range" min="-50" max="200" value="25" step="1" oninput="updatePTC()" class="w-full accent-red-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2 text-xs font-mono">
+                            <div class="text-slate-400">Selected Sensor: <span id="ptc-type-name" class="text-sky-400 font-bold">PTC / PT100 RTD</span></div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Calculated R:</span>
+                                <span id="ptc-res-out" class="font-bold text-amber-400">109.73 Ω</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Signal Voltage:</span>
+                                <span id="ptc-volt-out" class="font-bold text-emerald-400">1.09 V</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider mb-2">PTC / RTD Resistance Characteristic Curve</h3>
+                            <div class="h-64 bg-slate-950 border border-slate-800 rounded-xl p-2 relative">
+                                <canvas id="canvas-ptc-graph" class="w-full h-full block"></canvas>
+                            </div>
+                        </div>
+                        <div class="mt-4 p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-300 flex items-center justify-between">
+                            <div><i class="fa-solid fa-info-circle text-sky-400 mr-2"></i> Standard PT100 Resistance at 0°C is <strong>100.00 Ω</strong>. Alpha coefficient α = 0.00385 Ω/Ω/°C.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: 4–20 mA LOOP SIMULATION -->
+            <div id="tab-420ma" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Controls -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                            <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-arrows-spin text-emerald-400"></i> Pressure Transmitter (4–20 mA)
+                            </h3>
+                            <span class="text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded">2-WIRE LOOP</span>
+                        </div>
+
+                        <!-- Pressure Slider -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Process Pressure (Bar):</span>
+                                <span id="loop420-pv-val" class="font-bold font-mono text-emerald-400 text-sm">5.00 Bar (50%)</span>
+                            </div>
+                            <input id="loop420-slider" type="range" min="0" max="10" value="5" step="0.05" oninput="update420Loop()" class="w-full accent-emerald-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                                <span>0 Bar (4 mA)</span>
+                                <span>5 Bar (12 mA)</span>
+                                <span>10 Bar (20 mA)</span>
+                            </div>
+                        </div>
+
+                        <!-- Cable Length & Resistance Controls -->
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-3 text-xs">
+                            <div class="font-semibold text-slate-300 flex justify-between">
+                                <span>Cable Length (Meters):</span>
+                                <span id="loop420-len-val" class="font-mono text-sky-400">250 m</span>
+                            </div>
+                            <input id="loop420-len-slider" type="range" min="10" max="2000" value="250" step="10" oninput="update420Loop()" class="w-full accent-sky-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer">
+                            
+                            <div class="flex justify-between text-[11px] text-slate-400">
+                                <span>Cable Resistance (R_wire):</span>
+                                <span id="loop420-rwire-val" class="font-mono text-amber-400">8.5 Ω</span>
+                            </div>
+                            <div class="flex justify-between text-[11px] text-slate-400">
+                                <span>PLC Input Sense Resistor (R_sense):</span>
+                                <span class="font-mono text-slate-200">250 Ω (1-5V DC)</span>
+                            </div>
+                        </div>
+
+                        <!-- Math & Calculation Box -->
+                        <div class="bg-slate-950/90 p-3 rounded-xl border border-slate-800 font-mono text-[11px] space-y-1 text-slate-300">
+                            <div class="text-emerald-400 font-bold mb-1">Linear Loop Formula:</div>
+                            <div>I_out = 4mA + [ (PV - PV_min)/(PV_max - PV_min) * 16mA ]</div>
+                            <div>I_out = 4 + [ (5.0 - 0)/(10 - 0) * 16 ] = <span id="loop420-calc-ma" class="text-emerald-400 font-bold">12.00 mA</span></div>
+                            <div class="pt-1 text-slate-400">Voltage Drop across PLC (250Ω): <span id="loop420-calc-v" class="text-sky-400">3.00 V</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Schematic Visualizer -->
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">Animated 2-Wire 4–20mA Loop Schematic</h3>
+                            <span class="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> LOOP ACTIVE
+                            </span>
+                        </div>
+
+                        <div class="relative flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[300px] bg-grid">
+                            <canvas id="canvas-420loop" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: WHY 4–20 mA? LIVE ZERO VS DEAD ZERO -->
+            <div id="tab-why420" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-6">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <div>
+                            <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">Wire Break Experiment: 0–20 mA vs 4–20 mA</h3>
+                            <p class="text-xs text-slate-400">Demonstrating why 4 mA (Live Zero) prevents catastrophic undetected wire cuts.</p>
+                        </div>
+                        <button id="btn-break-wire" onclick="toggleWireBreakExperiment()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition shadow flex items-center gap-2">
+                            <i class="fa-solid fa-scissors"></i> <span id="wire-break-lbl">Cut Wire (Simulate Fault)</span>
+                        </button>
+                    </div>
+
+                    <!-- Side-by-Side Comparison Panels -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <!-- Panel A: 0-20 mA (Dead Zero) -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-amber-400 text-xs uppercase tracking-wider">System A: 0–20 mA (Dead Zero)</span>
+                                <span id="badge-020-status" class="text-[10px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded">NORMAL</span>
+                            </div>
+
+                            <div class="h-32 relative bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex items-center justify-center">
+                                <canvas id="canvas-why-020" class="w-full h-full block"></canvas>
+                            </div>
+
+                            <div class="space-y-1.5 text-xs font-mono bg-slate-900 p-3 rounded-xl border border-slate-800">
+                                <div class="flex justify-between"><span>Transmitter Output:</span> <span id="why-020-ma" class="font-bold text-amber-400">0.00 mA</span></div>
+                                <div class="flex justify-between"><span>PLC Interpretation:</span> <span id="why-020-plc" class="font-bold text-amber-300">0.0 Bar (0% Level)</span></div>
+                                <div class="flex justify-between"><span>Alarm Status:</span> <span id="why-020-alarm" class="text-slate-400">NO ALARM DETECTED</span></div>
+                            </div>
+                            <p id="why-020-desc" class="text-[11px] text-slate-400 italic">When pressure is 0 bar, output is 0 mA. If the wire snaps, output is also 0 mA. The PLC cannot distinguish between zero pressure and a severed wire!</p>
+                        </div>
+
+                        <!-- Panel B: 4-20 mA (Live Zero) -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-emerald-400 text-xs uppercase tracking-wider">System B: 4–20 mA (Live Zero)</span>
+                                <span id="badge-420-status" class="text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded">LIVE ZERO OK</span>
+                            </div>
+
+                            <div class="h-32 relative bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex items-center justify-center">
+                                <canvas id="canvas-why-420" class="w-full h-full block"></canvas>
+                            </div>
+
+                            <div class="space-y-1.5 text-xs font-mono bg-slate-900 p-3 rounded-xl border border-slate-800">
+                                <div class="flex justify-between"><span>Transmitter Output:</span> <span id="why-420-ma" class="font-bold text-emerald-400">4.00 mA</span></div>
+                                <div class="flex justify-between"><span>PLC Interpretation:</span> <span id="why-420-plc" class="font-bold text-emerald-300">0.0 Bar (0% Level)</span></div>
+                                <div class="flex justify-between"><span>Alarm Status:</span> <span id="why-420-alarm" class="text-emerald-400 font-bold">NORMAL (LIVE ZERO)</span></div>
+                            </div>
+                            <p id="why-420-desc" class="text-[11px] text-slate-400 italic">4 mA represents 0 Bar. If signal drops below 3.6 mA (e.g. 0 mA), the PLC instantly knows the cable is broken and triggers an alarm!</p>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: 0–20 mA SIMULATION -->
+            <div id="tab-020ma" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                    <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">0–20 mA Current Transmitter Simulator</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300">Process Pressure:</span>
+                                <span id="loop020-pv-val" class="font-bold font-mono text-indigo-400">5.0 Bar</span>
+                            </div>
+                            <input id="loop020-slider" type="range" min="0" max="10" value="5" step="0.1" oninput="update020Loop()" class="w-full accent-indigo-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                            <div class="text-[11px] text-slate-400 font-mono space-y-1">
+                                <div>Formula: I = (PV / PV_max) * 20mA</div>
+                                <div>Current: <span id="loop020-ma-out" class="font-bold text-indigo-400">10.00 mA</span></div>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2 bg-slate-950 border border-slate-800 rounded-xl h-48 relative overflow-hidden bg-grid">
+                            <canvas id="canvas-020loop" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 7: 0–10 V DC VOLTAGE LOOP SIMULATION -->
+            <div id="tab-010v" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-wave-square text-cyan-400"></i> 0–10 V DC Transmitter Controls
+                        </h3>
+
+                        <!-- Voltage PV Slider -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300">Set Signal Voltage (V_tx):</span>
+                                <span id="v10-pv-val" class="font-bold font-mono text-cyan-400 text-sm">5.00 V DC</span>
+                            </div>
+                            <input id="v10-slider" type="range" min="0" max="10" value="5" step="0.05" oninput="update010V()" class="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <!-- Distance / Resistance Slider -->
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-3 text-xs">
+                            <div class="flex justify-between">
+                                <span class="text-slate-300">Cable Distance:</span>
+                                <span id="v10-dist-val" class="font-mono text-amber-400">500 meters</span>
+                            </div>
+                            <input id="v10-dist-slider" type="range" min="10" max="1000" value="500" step="10" oninput="update010V()" class="w-full accent-amber-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer">
+                            
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">PLC Input Resistance:</span>
+                                <span class="font-mono text-slate-200">100,000 Ω (100k)</span>
+                            </div>
+                            <div class="flex justify-between border-t border-slate-800 pt-2">
+                                <span class="text-slate-400">Voltage Drop (I*R_cable):</span>
+                                <span id="v10-vdrop-val" class="font-mono text-red-400 font-bold">-0.008 V</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">PLC Received Voltage:</span>
+                                <span id="v10-vrec-val" class="font-mono text-emerald-400 font-bold">4.992 V</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-300 space-y-1">
+                            <div class="font-bold text-amber-400">Voltage Loop Warning:</div>
+                            <p>Voltage signals suffer from IR voltage drop over long distances and are extremely susceptible to EMI electromagnetic noise interference.</p>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider mb-2">Voltage Signal Transmission Visualizer</h3>
+                        <div class="relative flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[280px] bg-grid">
+                            <canvas id="canvas-v10loop" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 8: 3-WAY LIVE COMPARISON LAB -->
+            <div id="tab-comparison" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-2">
+                        <div>
+                            <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">Simultaneous 3-Way Signal Comparison Lab</h3>
+                            <p class="text-xs text-slate-400">Channel A (0–20mA), Channel B (4–20mA), and Channel C (0–10V) reacting to the exact same physical process.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-mono text-slate-300">Master PV (0–100%):</span>
+                            <span id="comp-pv-val" class="font-bold font-mono text-sky-400 text-sm">50.0 %</span>
+                        </div>
+                    </div>
+
+                    <!-- Master Slider -->
+                    <input id="comp-slider" type="range" min="0" max="100" value="50" step="0.5" oninput="updateComparisonLab()" class="w-full accent-sky-500 bg-slate-800 h-3 rounded-lg cursor-pointer">
+
+                    <!-- Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs font-mono text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                                    <th class="p-3">Signal Format</th>
+                                    <th class="p-3">Physical Process</th>
+                                    <th class="p-3">Electrical Signal</th>
+                                    <th class="p-3">12-bit ADC Counts</th>
+                                    <th class="p-3">PLC Scaled Value</th>
+                                    <th class="p-3">Wire Cut Safety</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800">
+                                <tr class="hover:bg-slate-800/40">
+                                    <td class="p-3 font-bold text-amber-400">0–20 mA</td>
+                                    <td id="comp-pv-a" class="p-3">50.0 %</td>
+                                    <td id="comp-sig-a" class="p-3 font-bold text-amber-300">10.00 mA</td>
+                                    <td id="comp-adc-a" class="p-3">2048 Counts</td>
+                                    <td id="comp-plc-a" class="p-3">50.0 %</td>
+                                    <td class="p-3 text-red-400">❌ Poor (Ambiguous 0mA)</td>
+                                </tr>
+                                <tr class="hover:bg-slate-800/40">
+                                    <td class="p-3 font-bold text-emerald-400">4–20 mA</td>
+                                    <td id="comp-pv-b" class="p-3">50.0 %</td>
+                                    <td id="comp-sig-b" class="p-3 font-bold text-emerald-300">12.00 mA</td>
+                                    <td id="comp-adc-b" class="p-3">2048 Counts</td>
+                                    <td id="comp-plc-b" class="p-3">50.0 %</td>
+                                    <td class="p-3 text-emerald-400">✅ Excellent (Live Zero)</td>
+                                </tr>
+                                <tr class="hover:bg-slate-800/40">
+                                    <td class="p-3 font-bold text-cyan-400">0–10 V DC</td>
+                                    <td id="comp-pv-c" class="p-3">50.0 %</td>
+                                    <td id="comp-sig-c" class="p-3 font-bold text-cyan-300">5.00 V DC</td>
+                                    <td id="comp-adc-c" class="p-3">2048 Counts</td>
+                                    <td id="comp-plc-c" class="p-3">50.0 %</td>
+                                    <td class="p-3 text-amber-400">⚠️ Moderate (Noise Sensitive)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="h-56 bg-slate-950 border border-slate-800 rounded-xl p-2 relative">
+                        <canvas id="canvas-comp-graph" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 9: ANALOG INPUT & SIGNAL CONDITIONING -->
+            <div id="tab-ai-module" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                    <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">PLC Analog Input Module Internal Architecture</h3>
+                    <div class="h-64 bg-slate-950 border border-slate-800 rounded-xl p-3 relative bg-grid">
+                        <canvas id="canvas-ai-arch" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 10: ADC & DAC RESOLUTION VISUALIZER -->
+            <div id="tab-adc-dac" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">ADC Bit Resolution Controls</h3>
+                        
+                        <div class="space-y-2">
+                            <label class="text-xs text-slate-300 font-medium">Select Bit Resolution:</label>
+                            <div class="grid grid-cols-2 gap-2 font-mono text-xs">
+                                <button onclick="setADCBit(8)" class="adc-btn p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700">8-bit (256)</button>
+                                <button onclick="setADCBit(10)" class="adc-btn p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700">10-bit (1024)</button>
+                                <button onclick="setADCBit(12)" class="adc-btn active p-2 bg-sky-600 font-bold text-white rounded-lg border border-sky-400">12-bit (4096)</button>
+                                <button onclick="setADCBit(16)" class="adc-btn p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700">16-bit (65536)</button>
+                            </div>
+                        </div>
+
+                        <!-- Voltage Input -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300">Input Voltage (0-10V):</span>
+                                <span id="adc-v-val" class="font-bold font-mono text-fuchsia-400">5.00 V</span>
+                            </div>
+                            <input id="adc-slider" type="range" min="0" max="10" value="5" step="0.01" oninput="updateADC()" class="w-full accent-fuchsia-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Step Size (LSB Voltage):</span>
+                                <span id="adc-step-size" class="font-bold text-amber-400">2.44 mV</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Calculated ADC Count:</span>
+                                <span id="adc-count-val" class="font-bold text-fuchsia-400">2048</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider mb-2">Quantization Staircase Waveform</h3>
+                        <div class="relative flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[280px]">
+                            <canvas id="canvas-adc-graph" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 11: SIGNAL SCALING CALCULATOR -->
+            <div id="tab-scaling" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                    <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">Interactive PLC Engineering Scaling Calculator</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono">
+                            <div class="font-bold text-sky-400">Input Electrical Range:</div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-slate-400">Input Min (I_min):</label>
+                                    <input id="scale-in-min" type="number" value="4" onchange="calculateScaling()" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400">Input Max (I_max):</label>
+                                    <input id="scale-in-max" type="number" value="20" onchange="calculateScaling()" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-white">
+                                </div>
+                            </div>
+
+                            <div class="font-bold text-emerald-400 pt-2">Engineering Process Range:</div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-slate-400">Engineering Min (EU_min):</label>
+                                    <input id="scale-eu-min" type="number" value="0" onchange="calculateScaling()" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400">Engineering Max (EU_max):</label>
+                                    <input id="scale-eu-max" type="number" value="100" onchange="calculateScaling()" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-white">
+                                </div>
+                            </div>
+
+                            <div class="pt-2">
+                                <label class="text-amber-400 font-bold">Present Measured Input Signal:</label>
+                                <input id="scale-in-val" type="number" value="12" step="0.1" oninput="calculateScaling()" class="w-full bg-slate-900 border border-amber-500 p-2 rounded text-amber-300 font-bold mt-1">
+                            </div>
+                        </div>
+
+                        <!-- Calculation Result Box -->
+                        <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 flex flex-col justify-between font-mono space-y-4">
+                            <div class="text-xs space-y-2">
+                                <div class="text-slate-400 uppercase tracking-wider text-[10px]">Standard Scaling Formula</div>
+                                <div class="bg-slate-900 p-3 rounded border border-slate-800 text-sky-300">
+                                    EU = [ (In - In_min) / (In_max - In_min) ] * (EU_max - EU_min) + EU_min
+                                </div>
+                            </div>
+
+                            <div class="text-center p-4 bg-emerald-950/40 border border-emerald-800 rounded-xl">
+                                <div class="text-xs text-slate-400 uppercase">Calculated Engineering Value</div>
+                                <div id="scale-result-eu" class="text-3xl font-bold text-emerald-400 my-1">50.00 EU</div>
+                                <div id="scale-result-pct" class="text-xs text-slate-300">(50.0 % of full scale)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 12: ANALOG OUTPUT & VFD/VALVE CONTROL -->
+            <div id="tab-ao-actuator" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">PLC Analog Output (AO) Controls</h3>
+                        
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300">PLC Speed Setpoint:</span>
+                                <span id="ao-sp-val" class="font-bold font-mono text-rose-400">50 %</span>
+                            </div>
+                            <input id="ao-sp-slider" type="range" min="0" max="100" value="50" step="1" oninput="updateAnalogOutput()" class="w-full accent-rose-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2 text-xs font-mono">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">AO Voltage Output (0-10V):</span>
+                                <span id="ao-volt-out" class="font-bold text-rose-400">5.00 V DC</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">VFD Motor Speed:</span>
+                                <span id="ao-rpm-out" class="font-bold text-emerald-400">870 RPM</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Motor Power Draw:</span>
+                                <span id="ao-kw-out" class="font-bold text-amber-400">2.5 kW</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider mb-2">VFD & Motor Fan Interactive Visualizer</h3>
+                        <div class="relative flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[280px] bg-grid">
+                            <canvas id="canvas-ao-actuator" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 13: MASTER SYSTEM (TANK LEVEL PROCESS) -->
+            <div id="tab-master-chain" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">Closed-Loop Water Tank Industrial Process Simulation</h3>
+                        <div class="flex gap-2">
+                            <button onclick="togglePumpAuto()" id="btn-pump-auto" class="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-lg transition">AUTO LEVEL PID</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="space-y-4 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
+                            <div class="flex justify-between">
+                                <span class="text-slate-300">Water Tank Level (0-5m):</span>
+                                <span id="tank-level-val" class="font-bold font-mono text-sky-400">2.50 m</span>
+                            </div>
+                            <input id="tank-level-slider" type="range" min="0" max="5" value="2.5" step="0.02" oninput="updateTankSystem()" class="w-full accent-sky-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+
+                            <div class="space-y-1.5 font-mono text-[11px] border-t border-slate-800 pt-3 text-slate-300">
+                                <div class="flex justify-between"><span>Submerged Sensor Pressure:</span> <span id="tank-p-out" class="font-bold text-amber-400">0.245 Bar</span></div>
+                                <div class="flex justify-between"><span>Level Tx Output:</span> <span id="tank-ma-out" class="font-bold text-emerald-400">12.00 mA</span></div>
+                                <div class="flex justify-between"><span>PLC AI Raw ADC:</span> <span id="tank-adc-out" class="font-bold text-indigo-400">2048 Counts</span></div>
+                                <div class="flex justify-between"><span>PLC HMI Level Reading:</span> <span id="tank-hmi-out" class="font-bold text-sky-300">2.50 m (50%)</span></div>
+                                <div class="flex justify-between"><span>Drain Valve Position (AO):</span> <span id="tank-valve-out" class="font-bold text-rose-400">50.0 %</span></div>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-xl h-80 relative overflow-hidden bg-grid">
+                            <canvas id="canvas-tank-system" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 14: NOISE, EMI & SHIELDING LAB -->
+            <div id="tab-noise" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">EMI Noise Controls</h3>
+                        
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300">Electromagnetic Interference (Noise):</span>
+                                <span id="noise-amp-val" class="font-bold font-mono text-yellow-400">1.50 V</span>
+                            </div>
+                            <input id="noise-slider" type="range" min="0" max="4" value="1.5" step="0.1" oninput="updateNoiseLab()" class="w-full accent-yellow-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <!-- Shield Toggle -->
+                        <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
+                            <span class="text-xs font-bold text-slate-300">Cable Shield Grounding:</span>
+                            <button id="btn-toggle-shield" onclick="toggleShield()" class="px-3 py-1.5 bg-emerald-600 text-white font-bold text-xs rounded-lg shadow">SHIELD ON (GROUNDED)</button>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Voltage Signal Noise Error:</span>
+                                <span id="noise-v-err" class="font-bold text-red-400">±15.2 %</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">4-20mA Current Error:</span>
+                                <span id="noise-ma-err" class="font-bold text-emerald-400">±0.2 % (Immune)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider mb-2">Live Oscilloscope Waveform (Clean vs Noisy)</h3>
+                        <div class="relative flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[280px]">
+                            <canvas id="canvas-noise-graph" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 15: INTERACTIVE WIRING SANDBOX -->
+            <div id="tab-wiring" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <div>
+                            <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">Interactive Terminal Wiring Terminal Block</h3>
+                            <p class="text-xs text-slate-400">Click terminals to create wire paths from the 24V DC Power Supply to the 4-20mA Transmitter and PLC Input.</p>
+                        </div>
+                        <button onclick="resetWiring()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700">Clear Wires</button>
+                    </div>
+
+                    <div class="h-80 bg-slate-950 border border-slate-800 rounded-xl relative overflow-hidden bg-grid">
+                        <canvas id="canvas-wiring" class="w-full h-full block cursor-crosshair"></canvas>
+                    </div>
+
+                    <div id="wiring-feedback" class="p-3 bg-slate-950 rounded-xl border border-slate-800 font-mono text-xs text-slate-300">
+                        Click on terminal <strong class="text-sky-400">+24V DC</strong> then click on <strong class="text-amber-400">Transmitter Tx(+)</strong> to draw a wire.
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 16: ENGINEERING CHALLENGES -->
+            <div id="tab-challenges" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">Engineering Practical Challenges (15 Tasks)</h3>
+                        <span id="challenge-score" class="font-mono text-xs font-bold bg-amber-950 border border-amber-800 text-amber-300 px-3 py-1 rounded-lg">Score: 0 / 15 Complete</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Challenge List -->
+                        <div class="space-y-2 max-h-[400px] overflow-y-auto pr-2" id="challenge-list">
+                            <!-- Populated via JS -->
+                        </div>
+
+                        <!-- Challenge Detail & Work Area -->
+                        <div class="md:col-span-2 bg-slate-950 p-5 rounded-xl border border-slate-800 flex flex-col justify-between space-y-4">
+                            <div>
+                                <span id="ch-badge" class="text-[10px] font-mono bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded">CHALLENGE #1</span>
+                                <h4 id="ch-title" class="font-bold text-slate-100 text-base my-2">Calibrate 4-20mA Pressure Scaling</h4>
+                                <p id="ch-desc" class="text-xs text-slate-300 leading-relaxed">
+                                    Set up the transmitter so that 12 mA corresponds exactly to 5.0 Bar on a 0-10 Bar scale.
+                                </p>
+                            </div>
+
+                            <div id="ch-interactive-zone" class="p-4 bg-slate-900 rounded-lg border border-slate-800 space-y-3 text-xs">
+                                <!-- Interactive controls for challenge will inject here -->
+                            </div>
+
+                            <div class="flex justify-between items-center pt-2">
+                                <div id="ch-status" class="text-xs font-mono font-bold text-slate-400">Pending Execution</div>
+                                <button onclick="verifyChallenge()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition shadow">
+                                    Verify Solution
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 17: FAULT TROUBLESHOOTING MODE -->
+            <div id="tab-troubleshoot" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                    <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">Industrial Fault Diagnostic Simulator</h3>
+                    <p class="text-xs text-slate-400">The PLC HMI is displaying erroneous readings. Use probes and multimeter to identify the root cause!</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <button onclick="startFaultScenario(1)" class="p-4 bg-slate-950 border border-slate-800 hover:border-sky-500 rounded-xl text-left transition space-y-1">
+                            <div class="font-bold text-xs text-sky-400">Scenario A: HMI Reads -9999 (Underflow)</div>
+                            <div class="text-[11px] text-slate-400">Diagnose if wire is severed or power supply failed.</div>
+                        </button>
+                        <button onclick="startFaultScenario(2)" class="p-4 bg-slate-950 border border-slate-800 hover:border-sky-500 rounded-xl text-left transition space-y-1">
+                            <div class="font-bold text-xs text-amber-400">Scenario B: Reading Stuck at 50% Constant</div>
+                            <div class="text-[11px] text-slate-400">Diagnose sensor short circuit or frozen transmitter output.</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 18: KNOWLEDGE ASSESSMENT QUIZ -->
+            <div id="tab-quiz" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wider">Industrial Signals Knowledge Quiz</h3>
+                        <span id="quiz-progress" class="font-mono text-xs text-sky-400">Question 1 of 10</span>
+                    </div>
+
+                    <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-4">
+                        <h4 id="quiz-question-text" class="font-bold text-sm text-slate-100">Why is 4 mA chosen as the baseline signal instead of 0 mA for standard industrial current loops?</h4>
+                        
+                        <div id="quiz-options" class="space-y-2 text-xs">
+                            <!-- Populated via JS -->
+                        </div>
+
+                        <div id="quiz-explanation" class="hidden p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-300">
+                            <!-- Explanation -->
+                        </div>
+
+                        <div class="flex justify-end pt-2">
+                            <button id="btn-next-quiz" onclick="nextQuizQuestion()" class="hidden px-5 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow">
+                                Next Question <i class="fa-solid fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- OVERLAY VIRTUAL INSTRUMENTS (OSCILLOSCOPE & MULTIMETER PROBES) -->
+    
+    <!-- Virtual Oscilloscope Drawer -->
+    <div id="oscilloscope-panel" class="hidden fixed bottom-4 right-4 w-[90vw] max-w-xl bg-slate-900 border-2 border-sky-500/80 rounded-2xl p-4 shadow-2xl z-50">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+            <span class="font-bold text-xs text-sky-400 font-mono uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-wave-square"></i> Virtual Oscilloscope DSO-2000
+            </span>
+            <button onclick="toggleOscilloscope()" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <div class="h-44 bg-slate-950 border border-slate-800 rounded-xl relative overflow-hidden">
+            <canvas id="canvas-oscilloscope" class="w-full h-full block"></canvas>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mt-3 font-mono text-[11px]">
+            <div class="bg-slate-950 p-2 rounded border border-slate-800 text-slate-300">Volts/Div: <span class="text-sky-400 font-bold">1.0 V</span></div>
+            <div class="bg-slate-950 p-2 rounded border border-slate-800 text-slate-300">Time/Div: <span class="text-emerald-400 font-bold">10 ms</span></div>
+            <div class="bg-slate-950 p-2 rounded border border-slate-800 text-slate-300">Trigger: <span class="text-amber-400 font-bold">Auto 2.5V</span></div>
+        </div>
+    </div>
+
+    <!-- Virtual Multimeter Tool Overlay -->
+    <div id="multimeter-panel" class="hidden fixed top-20 right-6 w-64 bg-slate-900 border-2 border-amber-500/80 rounded-2xl p-4 shadow-2xl z-50 font-mono">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+            <span class="font-bold text-xs text-amber-400 uppercase flex items-center gap-2">
+                <i class="fa-solid fa-gauge-high"></i> Fluke DMM 87V
+            </span>
+            <button onclick="toggleMultimeter()" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <!-- Meter LCD Display -->
+        <div class="bg-emerald-950/80 border border-emerald-600 rounded-lg p-3 text-right shadow-inner mb-3">
+            <div class="text-[10px] text-emerald-400 flex justify-between">
+                <span id="dmm-mode-lbl">DC VOLTS</span>
+                <span>AUTO RANGE</span>
+            </div>
+            <div id="dmm-lcd-val" class="text-2xl font-bold text-emerald-300 tracking-wider my-1">12.00 mA</div>
+        </div>
+
+        <!-- Mode Selector -->
+        <div class="grid grid-cols-3 gap-1 text-[10px] text-center mb-2">
+            <button onclick="setDMMMode('VDC')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded border border-slate-700 font-bold">V DC</button>
+            <button onclick="setDMMMode('IDC')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded border border-slate-700 font-bold">mA DC</button>
+            <button onclick="setDMMMode('OHM')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded border border-slate-700 font-bold">Ω OHM</button>
+        </div>
+    </div>
+
+    <script>
+        // GLOBAL STATE
+        const state = {
+            currentTab: 'tab-fundamentals',
+            explanationMode: 'beginner', // 'beginner' or 'engineering'
+            fault: 'NONE',
+            
+            // Fundamentals
+            fundamentalType: 'temp',
+            fundamentalPV: 25,
+
+            // NTC Thermistor
+            ntcTemp: 25.0,
+            ntcBeta: 3950,
+            ntcR25: 10000,
+            ntcRfixed: 10000,
+            ntcVcc: 5.0,
+
+            // PTC / RTD
+            ptcType: 'PTC', // PTC or NTC
+            ptcTemp: 25.0,
+
+            // 4-20mA Loop
+            loop420PV: 5.0, // 0 to 10 Bar
+            loop420WireLen: 250, // meters
+            loop420WireRPerM: 0.034, // ohms/m
+
+            // Wire Break Experiment
+            wireCut: false,
+
+            // 0-10V Loop
+            v10Voltage: 5.0,
+            v10Distance: 500,
+
+            // Master Comparison Lab
+            compPV: 50.0, // 0 - 100 %
+
+            // ADC / DAC
+            adcBits: 12,
+            adcVoltage: 5.0,
+
+            // Analog Output
+            aoSetpoint: 50.0, // 0 - 100 %
+
+            // Water Tank Master Process
+            tankLevel: 2.5, // 0 - 5.0 m
+            tankPumpAuto: false,
+
+            // Noise Lab
+            noiseAmp: 1.5,
+            shieldGrounded: true,
+
+            // Virtual DMM Probe Mode
+            dmmMode: 'IDC',
+
+            // Wiring Sandbox
+            wires: [],
+            selectedTerminal: null,
+
+            // Quiz State
+            quizIndex: 0,
+            quizScore: 0,
+
+            // Challenge State
+            challengeIndex: 0,
+            completedChallenges: new Set()
+        };
+
+        const EXPLANATIONS = {
+            'tab-fundamentals': {
+                beginner: "Sensors are like the physical senses (eyes, ears, skin) of an industrial machine. They measure physical things like heat or pressure and turn them into electricity so a computer can understand them.",
+                engineering: "A primary sensor transducer converts physical energy (temperature, force, velocity) into a proportional electrical parameter (resistance, capacitance, millivolt potential) for downstream signal conditioning."
+            },
+            'tab-ntc': {
+                beginner: "NTC stands for Negative Temperature Coefficient. Think of it as a resistor that gets easier for electricity to flow through when it gets hot! Higher Temperature = Lower Resistance.",
+                engineering: "NTC thermistors follow the Steinhart-Hart equation R(T) = R0 * exp(β * (1/T - 1/T0)). They exhibit a highly non-linear negative exponential resistance-temperature response."
+            },
+            'tab-ptc': {
+                beginner: "PTC thermistors and RTDs (like PT100) are the opposite of NTCs! When temperature rises, their electrical resistance increases (Positive Temperature Coefficient).",
+                engineering: "PT100 RTDs follow the Callendar-Van Dusen equation R(T) = R0 * (1 + αT). They feature high linearity and precision (+0.385 Ω/°C for Platinum standard)."
+            },
+            'tab-420ma': {
+                beginner: "4–20 mA is the universal standard for industrial signals. Electricity (current) flows in a loop through 2 wires. Current stays exact even through very long wires!",
+                engineering: "Current loops are immune to line resistance attenuation (Kirchhoff's Current Law). Transmitter regulates current linearly: 0% PV = 4.00 mA, 100% PV = 20.00 mA."
+            },
+            'tab-why420': {
+                beginner: "Why start at 4 mA instead of 0 mA? Because if a cable snaps, current drops to 0 mA! The computer immediately knows the wire is broken rather than assuming the tank is empty.",
+                engineering: "4 mA serves as a 'Live Zero'. Signal levels <3.6 mA trigger NAMUR NE43 fault alarms, distinguishing valid zero readings from open-circuit wire breaks."
+            },
+            'tab-020ma': {
+                beginner: "0–20 mA is an older current format. When process is zero, current is 0 mA. But if the cable breaks, it also reads 0 mA, making fault detection ambiguous.",
+                engineering: "0–20 mA provides full dynamic current scaling from 0 to 20 mA. However, it lacks live-zero fault diagnostic capabilities."
+            },
+            'tab-010v': {
+                beginner: "0–10V uses voltage to send values. It works well over short distances, but long wires cause voltage to drop, making readings inaccurate.",
+                engineering: "0–10V DC signals suffer from wire resistance voltage drop V_drop = I * R_wire, and high input impedance makes them susceptible to capacitive EMI noise pickup."
+            },
+            'tab-comparison': {
+                beginner: "Compare all three formats simultaneously! Notice how 4-20mA remains accurate and safe under all factory conditions.",
+                engineering: "Side-by-side evaluation of current loop vs voltage loop transmission characteristics, quantization, and noise margin."
+            },
+            'tab-ai-module': {
+                beginner: "The Analog Input module acts as a translator. It cleans up noisy signals, measures voltage across a sense resistor, and converts it into digital numbers.",
+                engineering: "PLC AI cards include surge protection, RC low-pass filtering, operational amplifier scaling, and an Analog-to-Digital Converter (ADC)."
+            },
+            'tab-adc-dac': {
+                beginner: "ADC converts smooth continuous real-world signals into discrete digital steps (like pixels on a screen). Higher bits = finer precision!",
+                engineering: "ADC resolution N yields 2^N discrete quantization levels. Step size LSB = V_fullscale / (2^N - 1). Quantization error is ±0.5 LSB."
+            },
+            'tab-scaling': {
+                beginner: "Scaling turns abstract raw numbers (like 4-20mA or 0-4095 counts) back into understandable engineering units like Bar, °C, or Liters.",
+                engineering: "Linear interpolation equation: EU = [(In - In_min) / (In_max - In_min)] * (EU_max - EU_min) + EU_min."
+            },
+            'tab-ao-actuator': {
+                beginner: "Analog Output (AO) is the reverse! The PLC sends a voltage or current signal to control motor speed or open a valve.",
+                engineering: "PLC DAC generates 0-10V DC or 4-20mA control signals to adjust VFD speed references or electro-pneumatic valve positioners."
+            },
+            'tab-master-chain': {
+                beginner: "Observe the complete industrial loop! Water level rises -> pressure sensor changes -> transmitter sends 4-20mA -> PLC scales reading -> output opens valve.",
+                engineering: "Full end-to-end closed-loop process automation architecture integrating physical transducers, signal loops, ADC/DAC, and PID control algorithms."
+            },
+            'tab-noise': {
+                beginner: "Shielding is like an umbrella for electrical wires. It protects delicate signals from electrical noise caused by large motors and power lines.",
+                engineering: "Faraday shield braid intercepts capacitive EMI noise and channels noise currents to earth ground, preventing differential signal corruption."
+            },
+            'tab-wiring': {
+                beginner: "Practice connecting wires correctly between power supplies, sensors, and PLC terminals in this sandbox.",
+                engineering: "Terminal block wiring simulation enforcing proper polarity (+24V DC, Signal+, Common Ground) for loop-powered instruments."
+            },
+            'tab-challenges': {
+                beginner: "Test your skills with hands-on industrial automation challenges!",
+                engineering: "Practical troubleshooting and calibration exercises evaluating signal chain setup and error diagnosis."
+            },
+            'tab-troubleshoot': {
+                beginner: "Find and fix broken components in realistic industrial failure scenarios.",
+                engineering: "Diagnostic troubleshooting utilizing multimeter probes to isolate open circuits, grounds, and sensor drift."
+            },
+            'tab-quiz': {
+                beginner: "Test your knowledge of industrial electrical sensors and signals!",
+                engineering: "Comprehensive assessment evaluating sensor physics, loop calculations, ADC resolution, and signal safety."
+            }
+        };
+
+        window.onload = function() {
+            initChallengeList();
+            initQuiz();
+            setupCanvasResize();
+            
+            // Start Animation Render Loop
+            requestAnimationFrame(renderLoop);
+
+            // Trigger initial state updates
+            updateFundamentals();
+            updateNTC();
+            updatePTC();
+            update420Loop();
+            update020Loop();
+            update010V();
+            updateComparisonLab();
+            updateADC();
+            calculateScaling();
+            updateAnalogOutput();
+            updateTankSystem();
+            updateNoiseLab();
+
+            console.log("Industrial Sensor Simulation Engine Loaded Successfully.");
+        };
+
+        function switchTab(tabId) {
+            state.currentTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('block'));
+            
+            const activeTabEl = document.getElementById(tabId);
+            if(activeTabEl) {
+                activeTabEl.classList.remove('hidden');
+                activeTabEl.classList.add('block');
+            }
+
+            // Update sidebar buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active', 'bg-sky-600', 'text-white'));
+            
+            updateExplanationText();
+        }
+
+        function setExplanationMode(mode) {
+            state.explanationMode = mode;
+            document.getElementById('mode-beginner').className = mode === 'beginner' 
+                ? 'px-2.5 py-1 rounded-md transition-all font-medium bg-sky-600 text-white shadow' 
+                : 'px-2.5 py-1 rounded-md transition-all font-medium text-slate-400 hover:text-white';
+            
+            document.getElementById('mode-engineering').className = mode === 'engineering' 
+                ? 'px-2.5 py-1 rounded-md transition-all font-medium bg-sky-600 text-white shadow' 
+                : 'px-2.5 py-1 rounded-md transition-all font-medium text-slate-400 hover:text-white';
+
+            updateExplanationText();
+        }
+
+        function updateExplanationText() {
+            const exp = EXPLANATIONS[state.currentTab] || EXPLANATIONS['tab-fundamentals'];
+            const text = state.explanationMode === 'beginner' ? exp.beginner : exp.engineering;
+            const title = state.explanationMode === 'beginner' ? "Beginner Explanation (ELIA5)" : "Engineering Technical Explanation";
+            
+            document.getElementById('explanation-title').innerText = title;
+            document.getElementById('explanation-text').innerText = text;
+        }
+
+        function injectGlobalFault(faultType) {
+            state.fault = faultType;
+            console.log("Global Fault Injected:", faultType);
+            
+            // Trigger recalculation on all modules
+            update420Loop();
+            updateComparisonLab();
+            updateTankSystem();
+        }
+
+        function setFundamentalSensor(type) {
+            state.fundamentalType = type;
+            updateFundamentals();
+        }
+
+        function updateFundamentals() {
+            const slider = document.getElementById('fund-pv-slider');
+            state.fundamentalPV = parseFloat(slider.value);
+
+            let unit = "°C", elecStr = "", volt = 0, adc = 0;
+            const pv = state.fundamentalPV;
+
+            if (state.fundamentalType === 'temp') {
+                unit = "°C";
+                // NTC exponential approximation
+                const R = 10000 * Math.exp(3950 * (1/(pv + 273.15) - 1/298.15));
+                elecStr = `${Math.round(R).toLocaleString()} Ω`;
+                volt = (R / (R + 10000)) * 5.0;
+            } else if (state.fundamentalType === 'pressure') {
+                unit = "Bar";
+                const ma = 4 + (pv / 100) * 16;
+                elecStr = `${ma.toFixed(2)} mA`;
+                volt = (ma / 20) * 5.0;
+            } else {
+                unit = "%";
+                volt = (pv / 100) * 5.0;
+                elecStr = `${volt.toFixed(2)} V`;
+            }
+
+            adc = Math.round((volt / 5.0) * 4095);
+
+            document.getElementById('fund-pv-display').innerText = `${pv} ${unit}`;
+            document.getElementById('fund-out-pv').innerText = `${pv} ${unit}`;
+            document.getElementById('fund-out-elec').innerText = elecStr;
+            document.getElementById('fund-out-volt').innerText = `${volt.toFixed(2)} V`;
+            document.getElementById('fund-out-adc').innerText = `${adc} Counts`;
+
+            updateMasterRibbon(pv, elecStr, `${volt.toFixed(2)}V`, adc, `${pv}%`, `${volt.toFixed(2)}V`);
+        }
+
+        function updateNTC() {
+            const temp = parseFloat(document.getElementById('ntc-slider').value);
+            state.ntcTemp = temp;
+
+            const T_kelvin = temp + 273.15;
+            const T0_kelvin = 25.0 + 273.15;
+            const R_ntc = state.ntcR25 * Math.exp(state.ntcBeta * (1/T_kelvin - 1/T0_kelvin));
+            
+            const V_out = state.ntcVcc * (R_ntc / (R_ntc + state.ntcRfixed));
+            const adc = Math.round((V_out / state.ntcVcc) * 4095);
+
+            document.getElementById('ntc-temp-val').innerText = `${temp.toFixed(1)} °C`;
+            
+            drawNTCGraph(temp, R_ntc, V_out);
+        }
+
+        function setThermistorType(type) {
+            state.ptcType = type;
+            document.getElementById('btn-select-ntc').className = type === 'NTC' ? 'p-3 bg-sky-600 font-bold text-white rounded-xl' : 'p-3 bg-slate-800 rounded-xl';
+            document.getElementById('btn-select-ptc').className = type === 'PTC' ? 'p-3 bg-sky-600 font-bold text-white rounded-xl' : 'p-3 bg-slate-800 rounded-xl';
+            updatePTC();
+        }
+
+        function updatePTC() {
+            const temp = parseFloat(document.getElementById('ptc-slider').value);
+            state.ptcTemp = temp;
+
+            let R = 100;
+            if (state.ptcType === 'PTC') {
+                // PT100 RTD equation
+                R = 100 * (1 + 0.00385 * temp);
+            } else {
+                R = 10000 * Math.exp(3950 * (1/(temp + 273.15) - 1/298.15));
+            }
+
+            const volt = (R / (R + 1000)) * 5.0;
+
+            document.getElementById('ptc-temp-val').innerText = `${temp.toFixed(1)} °C`;
+            document.getElementById('ptc-res-out').innerText = `${R.toFixed(2)} Ω`;
+            document.getElementById('ptc-volt-out').innerText = `${volt.toFixed(2)} V`;
+
+            drawPTCGraph(temp, R);
+        }
+
+        function update420Loop() {
+            let pv = parseFloat(document.getElementById('loop420-slider').value);
+            const len = parseFloat(document.getElementById('loop420-len-slider').value);
+            state.loop420PV = pv;
+            state.loop420WireLen = len;
+
+            let ma = 4.0 + (pv / 10.0) * 16.0;
+
+            // Inject Fault if Active
+            if(state.fault === 'WIRE_BREAK') ma = 0.0;
+            if(state.fault === 'OVERRANGE') ma = 22.5;
+
+            const rWire = len * state.loop420WireRPerM;
+            const vSense = (ma / 1000.0) * 250.0; // 250 ohm sense resistor
+
+            document.getElementById('loop420-pv-val').innerText = `${pv.toFixed(2)} Bar (${((pv/10)*100).toFixed(0)}%)`;
+            document.getElementById('loop420-len-val').innerText = `${len} m`;
+            document.getElementById('loop420-rwire-val').innerText = `${rWire.toFixed(1)} Ω`;
+            document.getElementById('loop420-calc-ma').innerText = `${ma.toFixed(2)} mA`;
+            document.getElementById('loop420-calc-v').innerText = `${vSense.toFixed(2)} V DC`;
+
+            const adc = Math.round(((ma - 4) / 16.0) * 4095);
+            updateMasterRibbon(pv, `${pv.toFixed(1)} Bar`, `${ma.toFixed(2)} mA`, adc > 0 ? adc : 0, `${((pv/10)*100).toFixed(1)} %`, `${vSense.toFixed(2)} V`);
+        }
+
+        function toggleWireBreakExperiment() {
+            state.wireCut = !state.wireCut;
+            document.getElementById('wire-break-lbl').innerText = state.wireCut ? "Reconnect Wire (Normal)" : "Cut Wire (Simulate Fault)";
+            
+            // Update 0-20mA vs 4-20mA UI
+            if (state.wireCut) {
+                document.getElementById('why-020-ma').innerText = "0.00 mA";
+                document.getElementById('why-020-plc').innerText = "0.0 Bar (0% Level)";
+                document.getElementById('why-020-alarm').innerText = "❌ NO ALARM DETECTED!";
+                document.getElementById('why-020-alarm').className = "text-red-400 font-bold";
+
+                document.getElementById('why-420-ma').innerText = "0.00 mA";
+                document.getElementById('why-420-plc').innerText = "FAULT / WIRE CUT";
+                document.getElementById('why-420-alarm').innerText = "🚨 ALARM: WIRE BREAK DETECTED (<3.6mA)";
+                document.getElementById('why-420-alarm').className = "text-red-400 font-bold animate-pulse";
+            } else {
+                document.getElementById('why-020-ma').innerText = "0.00 mA";
+                document.getElementById('why-020-plc').innerText = "0.0 Bar (0% Level)";
+                document.getElementById('why-020-alarm').innerText = "NORMAL";
+                document.getElementById('why-020-alarm').className = "text-slate-400";
+
+                document.getElementById('why-420-ma').innerText = "4.00 mA";
+                document.getElementById('why-420-plc').innerText = "0.0 Bar (0% Level)";
+                document.getElementById('why-420-alarm').innerText = "NORMAL (LIVE ZERO OK)";
+                document.getElementById('why-420-alarm').className = "text-emerald-400 font-bold";
+            }
+        }
+
+        function update020Loop() {
+            const pv = parseFloat(document.getElementById('loop020-slider').value);
+            const ma = (pv / 10.0) * 20.0;
+            document.getElementById('loop020-pv-val').innerText = `${pv.toFixed(1)} Bar`;
+            document.getElementById('loop020-ma-out').innerText = `${ma.toFixed(2)} mA`;
+        }
+
+        function update010V() {
+            const vTx = parseFloat(document.getElementById('v10-slider').value);
+            const dist = parseFloat(document.getElementById('v10-dist-slider').value);
+            
+            // Cable resistance + voltage drop into 100k input
+            const rCable = dist * 0.034;
+            const current = vTx / (100000 + rCable);
+            const vDrop = current * rCable;
+            const vRec = vTx - vDrop;
+
+            document.getElementById('v10-pv-val').innerText = `${vTx.toFixed(2)} V DC`;
+            document.getElementById('v10-dist-val').innerText = `${dist} meters`;
+            document.getElementById('v10-vdrop-val').innerText = `-${(vDrop*1000).toFixed(2)} mV`;
+            document.getElementById('v10-vrec-val').innerText = `${vRec.toFixed(3)} V DC`;
+        }
+
+        function updateComparisonLab() {
+            const pv = parseFloat(document.getElementById('comp-slider').value);
+            state.compPV = pv;
+
+            const ma020 = (pv / 100.0) * 20.0;
+            const ma420 = 4.0 + (pv / 100.0) * 16.0;
+            const v010 = (pv / 100.0) * 10.0;
+
+            const adcA = Math.round((ma020 / 20.0) * 4095);
+            const adcB = Math.round(((ma420 - 4) / 16.0) * 4095);
+            const adcC = Math.round((v010 / 10.0) * 4095);
+
+            document.getElementById('comp-pv-val').innerText = `${pv.toFixed(1)} %`;
+            
+            document.getElementById('comp-pv-a').innerText = `${pv.toFixed(1)} %`;
+            document.getElementById('comp-sig-a').innerText = `${ma020.toFixed(2)} mA`;
+            document.getElementById('comp-adc-a').innerText = `${adcA} Counts`;
+            document.getElementById('comp-plc-a').innerText = `${pv.toFixed(1)} %`;
+
+            document.getElementById('comp-pv-b').innerText = `${pv.toFixed(1)} %`;
+            document.getElementById('comp-sig-b').innerText = `${ma420.toFixed(2)} mA`;
+            document.getElementById('comp-adc-b').innerText = `${adcB} Counts`;
+            document.getElementById('comp-plc-b').innerText = `${pv.toFixed(1)} %`;
+
+            document.getElementById('comp-pv-c').innerText = `${pv.toFixed(1)} %`;
+            document.getElementById('comp-sig-c').innerText = `${v010.toFixed(2)} V DC`;
+            document.getElementById('comp-adc-c').innerText = `${adcC} Counts`;
+            document.getElementById('comp-plc-c').innerText = `${pv.toFixed(1)} %`;
+
+            drawComparisonGraph(pv, ma020, ma420, v010);
+        }
+
+        function setADCBit(bits) {
+            state.adcBits = bits;
+            document.querySelectorAll('.adc-btn').forEach(btn => btn.className = 'adc-btn p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700');
+            event.target.className = 'adc-btn active p-2 bg-sky-600 font-bold text-white rounded-lg border border-sky-400';
+            updateADC();
+        }
+
+        function updateADC() {
+            const volt = parseFloat(document.getElementById('adc-slider').value);
+            state.adcVoltage = volt;
+
+            const maxCounts = Math.pow(2, state.adcBits) - 1;
+            const stepSize = 10.0 / maxCounts;
+            const counts = Math.round((volt / 10.0) * maxCounts);
+
+            document.getElementById('adc-v-val').innerText = `${volt.toFixed(2)} V`;
+            document.getElementById('adc-step-size').innerText = `${(stepSize * 1000).toFixed(2)} mV`;
+            document.getElementById('adc-count-val').innerText = `${counts} Counts`;
+
+            drawADCGraph(volt, state.adcBits);
+        }
+
+        function calculateScaling() {
+            const inMin = parseFloat(document.getElementById('scale-in-min').value);
+            const inMax = parseFloat(document.getElementById('scale-in-max').value);
+            const euMin = parseFloat(document.getElementById('scale-eu-min').value);
+            const euMax = parseFloat(document.getElementById('scale-eu-max').value);
+            const inVal = parseFloat(document.getElementById('scale-in-val').value);
+
+            let eu = euMin + ((inVal - inMin) / (inMax - inMin)) * (euMax - euMin);
+            let pct = ((inVal - inMin) / (inMax - inMin)) * 100.0;
+
+            document.getElementById('scale-result-eu').innerText = `${eu.toFixed(2)} EU`;
+            document.getElementById('scale-result-pct').innerText = `(${pct.toFixed(1)} % of scale)`;
+        }
+
+        function updateAnalogOutput() {
+            const sp = parseFloat(document.getElementById('ao-sp-slider').value);
+            state.aoSetpoint = sp;
+
+            const volt = (sp / 100.0) * 10.0;
+            const rpm = (sp / 100.0) * 1740;
+            const kw = (sp / 100.0) * 5.0;
+
+            document.getElementById('ao-sp-val').innerText = `${sp} %`;
+            document.getElementById('ao-volt-out').innerText = `${volt.toFixed(2)} V DC`;
+            document.getElementById('ao-rpm-out').innerText = `${Math.round(rpm)} RPM`;
+            document.getElementById('ao-kw-out').innerText = `${kw.toFixed(2)} kW`;
+        }
+
+        function updateTankSystem() {
+            const level = parseFloat(document.getElementById('tank-level-slider').value);
+            state.tankLevel = level;
+
+            const pBar = (level / 5.0) * 0.49; // 5 meters of water = ~0.49 bar
+            const ma = 4.0 + (level / 5.0) * 16.0;
+            const adc = Math.round((level / 5.0) * 4095);
+
+            document.getElementById('tank-level-val').innerText = `${level.toFixed(2)} m`;
+            document.getElementById('tank-p-out').innerText = `${pBar.toFixed(3)} Bar`;
+            document.getElementById('tank-ma-out').innerText = `${ma.toFixed(2)} mA`;
+            document.getElementById('tank-adc-out').innerText = `${adc} Counts`;
+            document.getElementById('tank-hmi-out').innerText = `${level.toFixed(2)} m (${((level/5)*100).toFixed(0)}%)`;
+            document.getElementById('tank-valve-out').innerText = `${((level/5)*100).toFixed(1)} %`;
+        }
+
+        function togglePumpAuto() {
+            state.tankPumpAuto = !state.tankPumpAuto;
+            document.getElementById('btn-pump-auto').className = state.tankPumpAuto 
+                ? 'px-3 py-1 bg-emerald-600 text-white font-bold text-xs rounded-lg animate-pulse' 
+                : 'px-3 py-1 bg-sky-600 text-white font-bold text-xs rounded-lg';
+        }
+
+        function updateNoiseLab() {
+            const noise = parseFloat(document.getElementById('noise-slider').value);
+            state.noiseAmp = noise;
+            document.getElementById('noise-amp-val').innerText = `${noise.toFixed(2)} V`;
+
+            if(state.shieldGrounded) {
+                document.getElementById('noise-v-err').innerText = "±0.5 % (Shielded)";
+                document.getElementById('noise-v-err').className = "font-bold text-emerald-400";
+            } else {
+                const errPct = (noise / 10.0) * 100.0;
+                document.getElementById('noise-v-err').innerText = `±${errPct.toFixed(1)} % (High Noise)`;
+                document.getElementById('noise-v-err').className = "font-bold text-red-400";
+            }
+        }
+
+        function toggleShield() {
+            state.shieldGrounded = !state.shieldGrounded;
+            const btn = document.getElementById('btn-toggle-shield');
+            if(state.shieldGrounded) {
+                btn.innerText = "SHIELD ON (GROUNDED)";
+                btn.className = "px-3 py-1.5 bg-emerald-600 text-white font-bold text-xs rounded-lg shadow";
+            } else {
+                btn.innerText = "SHIELD OFF (UNGROUNDED)";
+                btn.className = "px-3 py-1.5 bg-red-600 text-white font-bold text-xs rounded-lg shadow animate-pulse";
+            }
+            updateNoiseLab();
+        }
+
+        function updateMasterRibbon(pv, sens, tx, adc, hmi, ao) {
+            document.getElementById('chain-pv-val').innerText = pv;
+            document.getElementById('chain-sensor-val').innerText = sens;
+            document.getElementById('chain-tx-val').innerText = tx;
+            document.getElementById('chain-adc-val').innerText = adc;
+            document.getElementById('chain-scaled-val').innerText = hmi;
+            document.getElementById('chain-ao-val').innerText = ao;
+        }
+
+        function toggleOscilloscope() {
+            const panel = document.getElementById('oscilloscope-panel');
+            panel.classList.toggle('hidden');
+        }
+
+        function toggleMultimeter() {
+            const panel = document.getElementById('multimeter-panel');
+            panel.classList.toggle('hidden');
+        }
+
+        function setDMMMode(mode) {
+            state.dmmMode = mode;
+            document.getElementById('dmm-mode-lbl').innerText = mode === 'VDC' ? 'DC VOLTS' : mode === 'IDC' ? 'mA DC' : 'RESISTANCE';
+            document.getElementById('dmm-lcd-val').innerText = mode === 'VDC' ? '5.00 V' : mode === 'IDC' ? '12.00 mA' : '10.0 kΩ';
+        }
+
+        function setupCanvasResize() {
+            const canvases = document.querySelectorAll('canvas');
+            canvases.forEach(c => {
+                if(c.parentElement) {
+                    c.width = c.parentElement.clientWidth;
+                    c.height = c.parentElement.clientHeight;
+                }
+            });
+        }
+        window.addEventListener('resize', setupCanvasResize);
+
+        let animTime = 0;
+        function renderLoop() {
+            animTime += 0.05;
+
+            // Render active tab canvas animations
+            if (state.currentTab === 'tab-fundamentals') drawFundamentalsCanvas(animTime);
+            if (state.currentTab === 'tab-ntc') drawNTCCanvas(animTime);
+            if (state.currentTab === 'tab-420ma') draw420LoopCanvas(animTime);
+            if (state.currentTab === 'tab-why420') drawWhy420Canvases(animTime);
+            if (state.currentTab === 'tab-020ma') draw020LoopCanvas(animTime);
+            if (state.currentTab === 'tab-010v') draw010VLoopCanvas(animTime);
+            if (state.currentTab === 'tab-ai-module') drawAIArchCanvas(animTime);
+            if (state.currentTab === 'tab-ao-actuator') drawAOActuatorCanvas(animTime);
+            if (state.currentTab === 'tab-master-chain') drawTankSystemCanvas(animTime);
+            if (state.currentTab === 'tab-noise') drawNoiseGraph(animTime);
+            if (state.currentTab === 'tab-wiring') drawWiringCanvas();
+
+            // Render virtual oscilloscope if visible
+            if (!document.getElementById('oscilloscope-panel').classList.contains('hidden')) {
+                drawOscilloscopeCanvas(animTime);
+            }
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        function drawFundamentalsCanvas(t) {
+            const canvas = document.getElementById('canvas-fundamentals');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw animated signal blocks
+            const blocks = [
+                { title: "Physical Input", val: `${state.fundamentalPV}°C`, color: "#10B981", x: w*0.1, y: h*0.5 },
+                { title: "Transducer", val: "Sensor", color: "#F59E0B", x: w*0.35, y: h*0.5 },
+                { title: "Signal Cond.", val: "Transmitter", color: "#0EA5E9", x: w*0.6, y: h*0.5 },
+                { title: "PLC ADC", val: "1024 Counts", color: "#818CF8", x: w*0.85, y: h*0.5 }
+            ];
+
+            // Draw connecting wires with animated particles
+            for(let i=0; i<blocks.length-1; i++) {
+                const b1 = blocks[i], b2 = blocks[i+1];
+                ctx.beginPath();
+                ctx.strokeStyle = "#334155";
+                ctx.lineWidth = 4;
+                ctx.moveTo(b1.x, b1.y);
+                ctx.lineTo(b2.x, b2.y);
+                ctx.stroke();
+
+                // Particle
+                const pPos = (t*20 + i*30) % Math.abs(b2.x - b1.x);
+                ctx.beginPath();
+                ctx.fillStyle = b1.color;
+                ctx.arc(b1.x + pPos, b1.y, 5, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            // Draw Blocks
+            blocks.forEach(b => {
+                ctx.fillStyle = "#0F172A";
+                ctx.strokeStyle = b.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(b.x - 50, b.y - 30, 100, 60, 10);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#94A3B8";
+                ctx.font = "10px Inter";
+                ctx.textAlign = "center";
+                ctx.fillText(b.title, b.x, b.y - 10);
+
+                ctx.fillStyle = b.color;
+                ctx.font = "bold 12px JetBrains Mono";
+                ctx.fillText(b.val, b.x, b.y + 12);
+            });
+        }
+
+        function drawNTCCanvas(t) {
+            const canvas = document.getElementById('canvas-ntc');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Voltage Divider Circuit
+            ctx.strokeStyle = "#38BDF8";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(w*0.2, h*0.2);
+            ctx.lineTo(w*0.8, h*0.2);
+            ctx.lineTo(w*0.8, h*0.8);
+            ctx.lineTo(w*0.2, h*0.8);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Draw NTC Thermistor Icon with heat glow
+            const temp = state.ntcTemp;
+            const glowRad = Math.min(40, Math.max(10, temp * 0.3));
+            ctx.fillStyle = temp > 50 ? "rgba(239, 68, 68, 0.3)" : "rgba(14, 165, 233, 0.3)";
+            ctx.beginPath();
+            ctx.arc(w*0.8, h*0.5, glowRad, 0, Math.PI*2);
+            ctx.fill();
+
+            // Labels
+            ctx.fillStyle = "#F8FAFC";
+            ctx.font = "bold 12px JetBrains Mono";
+            ctx.fillText("Vcc (+5V DC)", w*0.2, h*0.15);
+            ctx.fillText(`NTC Thermistor (${temp}°C)`, w*0.62, h*0.5);
+            ctx.fillText("GND (0V)", w*0.2, h*0.88);
+        }
+
+        function drawNTCGraph(temp, R, V) {
+            const canvas = document.getElementById('canvas-ntc-graph');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Grid Axis
+            ctx.strokeStyle = "#1E293B";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(30, 10); ctx.lineTo(30, h-20); ctx.lineTo(w-10, h-20);
+            ctx.stroke();
+
+            // Plot NTC Curve
+            ctx.beginPath();
+            ctx.strokeStyle = "#38BDF8";
+            ctx.lineWidth = 2;
+            for(let x = -20; x <= 150; x++) {
+                const px = 30 + ((x + 20) / 170) * (w - 40);
+                const Tk = x + 273.15;
+                const rCalc = 10000 * Math.exp(3950 * (1/Tk - 1/298.15));
+                const py = (h - 20) - (rCalc / 40000) * (h - 30);
+                if(x === -20) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+
+            // Active Temperature Dot
+            const activeX = 30 + ((temp + 20) / 170) * (w - 40);
+            const activeY = (h - 20) - (R / 40000) * (h - 30);
+            ctx.beginPath();
+            ctx.fillStyle = "#EF4444";
+            ctx.arc(activeX, Math.max(10, activeY), 6, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        function drawPTCGraph(temp, R) {
+            const canvas = document.getElementById('canvas-ptc-graph');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            ctx.strokeStyle = "#1E293B";
+            ctx.beginPath();
+            ctx.moveTo(30, 10); ctx.lineTo(30, h-20); ctx.lineTo(w-10, h-20);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.strokeStyle = "#EF4444";
+            ctx.lineWidth = 2;
+            for(let x = -50; x <= 200; x++) {
+                const px = 30 + ((x + 50) / 250) * (w - 40);
+                const rCalc = 100 * (1 + 0.00385 * x);
+                const py = (h - 20) - (rCalc / 200) * (h - 30);
+                if(x === -50) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+
+        function draw420LoopCanvas(t) {
+            const canvas = document.getElementById('canvas-420loop');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Loop wire box
+            ctx.strokeStyle = state.fault === 'WIRE_BREAK' ? "#EF4444" : "#10B981";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(w*0.15, h*0.2, w*0.7, h*0.6, 15);
+            ctx.stroke();
+
+            // Animated Electron flow particles
+            if(state.fault !== 'WIRE_BREAK') {
+                const ma = 4 + (state.loop420PV/10)*16;
+                const speed = ma * 0.8;
+                const particlePos = (t * speed * 10) % (w*0.7*2 + h*0.6*2);
+                ctx.fillStyle = "#38BDF8";
+                ctx.beginPath();
+                ctx.arc(w*0.15 + (particlePos % (w*0.7)), h*0.2, 5, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            // Draw Components
+            ctx.fillStyle = "#0F172A";
+            ctx.strokeStyle = "#0EA5E9";
+            ctx.beginPath(); ctx.roundRect(w*0.1, h*0.35, 90, 60, 10); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#FFF"; ctx.font = "bold 10px Inter"; ctx.fillText("24V DC Power", w*0.12, h*0.5);
+
+            ctx.fillStyle = "#0F172A";
+            ctx.strokeStyle = "#10B981";
+            ctx.beginPath(); ctx.roundRect(w*0.45, h*0.1, 100, 50, 10); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#FFF"; ctx.fillText("Transmitter", w*0.47, h*0.25);
+
+            ctx.fillStyle = "#0F172A";
+            ctx.strokeStyle = "#818CF8";
+            ctx.beginPath(); ctx.roundRect(w*0.75, h*0.35, 90, 60, 10); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#FFF"; ctx.fillText("PLC AI (250Ω)", w*0.77, h*0.5);
+        }
+
+        function drawWhy420Canvases(t) {
+            // Panel 0-20mA
+            const c1 = document.getElementById('canvas-why-020');
+            if(c1) {
+                const ctx = c1.getContext('2d');
+                ctx.clearRect(0,0,c1.width,c1.height);
+                ctx.fillStyle = state.wireCut ? "#EF4444" : "#F59E0B";
+                ctx.font = "bold 14px JetBrains Mono";
+                ctx.textAlign = "center";
+                ctx.fillText(state.wireCut ? "CUT WIRE (0 mA)" : "SIGNAL ACTIVE (0 mA)", c1.width/2, c1.height/2);
+            }
+
+            // Panel 4-20mA
+            const c2 = document.getElementById('canvas-why-420');
+            if(c2) {
+                const ctx = c2.getContext('2d');
+                ctx.clearRect(0,0,c2.width,c2.height);
+                ctx.fillStyle = state.wireCut ? "#EF4444" : "#10B981";
+                ctx.font = "bold 14px JetBrains Mono";
+                ctx.textAlign = "center";
+                ctx.fillText(state.wireCut ? "WIRE BREAK DETECTED (0 mA)" : "LIVE ZERO OK (4.00 mA)", c2.width/2, c2.height/2);
+            }
+        }
+
+        function draw020LoopCanvas(t) {
+            const canvas = document.getElementById('canvas-020loop');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#818CF8";
+            ctx.font = "12px JetBrains Mono";
+            ctx.fillText("0-20 mA Loop Active", 20, 30);
+        }
+
+        function draw010VLoopCanvas(t) {
+            const canvas = document.getElementById('canvas-v10loop');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "#38BDF8";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(30, canvas.height/2);
+            ctx.lineTo(canvas.width - 30, canvas.height/2);
+            ctx.stroke();
+        }
+
+        function drawComparisonGraph(pv, a, b, c) {
+            const canvas = document.getElementById('canvas-comp-graph');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#38BDF8";
+            ctx.fillText("Simultaneous Signals Comparison", 20, 20);
+        }
+
+        function drawAIArchCanvas(t) {
+            const canvas = document.getElementById('canvas-ai-arch');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#38BDF8";
+            ctx.font = "12px Inter";
+            ctx.fillText("PLC Analog Input Conditioning: RC Filter ➔ Op-Amp ➔ ADC Converter", 20, 30);
+        }
+
+        function drawADCGraph(volt, bits) {
+            const canvas = document.getElementById('canvas-adc-graph');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0,0,w,h);
+
+            // Quantization staircase
+            ctx.strokeStyle = "#E879F9";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const steps = Math.min(32, Math.pow(2, bits));
+            for(let i=0; i<steps; i++) {
+                const x1 = (i/steps)*w;
+                const x2 = ((i+1)/steps)*w;
+                const y = h - (i/steps)*h;
+                ctx.lineTo(x1, y);
+                ctx.lineTo(x2, y);
+            }
+            ctx.stroke();
+        }
+
+        function drawAOActuatorCanvas(t) {
+            const canvas = document.getElementById('canvas-ao-actuator');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0,0,w,h);
+
+            // Draw VFD Motor Fan Spinning Animation
+            const cx = w/2, cy = h/2;
+            const sp = state.aoSetpoint;
+            const angle = t * (sp * 0.2);
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle);
+            ctx.fillStyle = "#FB7185";
+            for(let i=0; i<4; i++) {
+                ctx.rotate(Math.PI/2);
+                ctx.beginPath();
+                ctx.ellipse(0, 30, 12, 35, 0, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // Center hub
+            ctx.fillStyle = "#0F172A";
+            ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = "#FB7185"; ctx.stroke();
+        }
+
+        function drawTankSystemCanvas(t) {
+            const canvas = document.getElementById('canvas-tank-system');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0,0,w,h);
+
+            // Draw Tank Outline
+            const tx = w*0.35, ty = h*0.1, tw = w*0.3, th = h*0.75;
+            ctx.strokeStyle = "#64748B";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(tx, ty, tw, th);
+
+            // Water Fill
+            const level = state.tankLevel;
+            const fillH = (level / 5.0) * th;
+            ctx.fillStyle = "rgba(14, 165, 233, 0.6)";
+            ctx.fillRect(tx, ty + th - fillH, tw, fillH);
+
+            // Label
+            ctx.fillStyle = "#FFF";
+            ctx.font = "bold 14px JetBrains Mono";
+            ctx.textAlign = "center";
+            ctx.fillText(`Tank Level: ${level.toFixed(2)} m`, tx + tw/2, ty + th/2);
+        }
+
+        function drawNoiseGraph(t) {
+            const canvas = document.getElementById('canvas-noise-graph');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0,0,w,h);
+
+            ctx.strokeStyle = state.shieldGrounded ? "#10B981" : "#F59E0B";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for(let x=0; x<w; x++) {
+                const noise = state.shieldGrounded ? 0 : (Math.random() - 0.5) * state.noiseAmp * 20;
+                const y = h/2 + Math.sin(x*0.05 + t*5)*30 + noise;
+                if(x===0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        function drawOscilloscopeCanvas(t) {
+            const canvas = document.getElementById('canvas-oscilloscope');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0,0,w,h);
+
+            // Scope Grid
+            ctx.strokeStyle = "#064E3B";
+            ctx.lineWidth = 1;
+            for(let x=0; x<w; x+=30) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+            for(let y=0; y<h; y+=30) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+
+            // Sine Wave
+            ctx.strokeStyle = "#34D399";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for(let x=0; x<w; x++) {
+                const y = h/2 + Math.sin(x*0.03 + t*8)*40;
+                if(x===0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        function drawWiringCanvas() {
+            const canvas = document.getElementById('canvas-wiring');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#38BDF8";
+            ctx.font = "12px JetBrains Mono";
+            ctx.fillText("Terminal Wiring Sandbox Active", 20, 30);
+        }
+
+        function resetWiring() {
+            state.wires = [];
+            document.getElementById('wiring-feedback').innerText = "Wires cleared.";
+        }
+
+        const CHALLENGES = [
+            { title: "Calibrate 4-20mA Pressure Scaling", desc: "Set process pressure so transmitter outputs exactly 12.00 mA (50% scale).", check: () => Math.abs(state.loop420PV - 5.0) < 0.2 },
+            { title: "Detect Wire Break Fault", desc: "Inject a Wire Break fault and observe safety alarms.", check: () => state.fault === 'WIRE_BREAK' },
+            { title: "Shield EMI Noise", desc: "Enable ground shielding to reduce voltage signal error below 1%.", check: () => state.shieldGrounded },
+            { title: "ADC 12-Bit Quantization", desc: "Set ADC resolution to 12-bit mode.", check: () => state.adcBits === 12 },
+            { title: "PT100 Temperature Sensing", desc: "Select PTC/PT100 mode and set temperature to 100°C.", check: () => state.ptcType === 'PTC' && Math.abs(state.ptcTemp - 100) < 5 }
+        ];
+
+        function initChallengeList() {
+            const container = document.getElementById('challenge-list');
+            container.innerHTML = '';
+            CHALLENGES.forEach((ch, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full p-3 bg-slate-950 border border-slate-800 hover:border-sky-500 rounded-xl text-left transition text-xs space-y-1";
+                btn.onclick = () => selectChallenge(idx);
+                btn.innerHTML = `<div class="font-bold text-slate-200">#${idx+1}. ${ch.title}</div><div class="text-[10px] text-slate-400 truncate">${ch.desc}</div>`;
+                container.appendChild(btn);
+            });
+            selectChallenge(0);
+        }
+
+        function selectChallenge(idx) {
+            state.challengeIndex = idx;
+            const ch = CHALLENGES[idx];
+            document.getElementById('ch-badge').innerText = `CHALLENGE #${idx+1}`;
+            document.getElementById('ch-title').innerText = ch.title;
+            document.getElementById('ch-desc').innerText = ch.desc;
+            document.getElementById('ch-status').innerText = "Pending Execution";
+            document.getElementById('ch-status').className = "text-xs font-mono font-bold text-slate-400";
+        }
+
+        function verifyChallenge() {
+            const ch = CHALLENGES[state.challengeIndex];
+            if(ch.check()) {
+                document.getElementById('ch-status').innerText = "✅ CHALLENGE PASSED!";
+                document.getElementById('ch-status').className = "text-xs font-mono font-bold text-emerald-400";
+                state.completedChallenges.add(state.challengeIndex);
+                document.getElementById('challenge-score').innerText = `Score: ${state.completedChallenges.size} / 15 Complete`;
+            } else {
+                document.getElementById('ch-status').innerText = "❌ CONDITIONS NOT MET. TRY AGAIN!";
+                document.getElementById('ch-status').className = "text-xs font-mono font-bold text-red-400";
+            }
+        }
+
+        const QUIZ_QUESTIONS = [
+            {
+                q: "Why is 4 mA chosen as the baseline signal instead of 0 mA for standard industrial current loops?",
+                options: ["To save electricity", "To allow wire-break open circuit fault detection (Live Zero)", "Because transmitters cannot run below 4 mA", "To prevent voltage drops"],
+                ans: 1,
+                exp: "4 mA provides a 'Live Zero'. If current drops to 0 mA, the PLC knows the wire is broken or power failed."
+            },
+            {
+                q: "What happens to the resistance of an NTC Thermistor as temperature increases?",
+                options: ["Resistance Increases", "Resistance Decreases", "Resistance remains constant", "Resistance drops to zero instantly"],
+                ans: 1,
+                exp: "NTC = Negative Temperature Coefficient. As temperature goes UP, resistance goes DOWN."
+            },
+            {
+                q: "How many discrete digital steps does a 12-bit ADC provide?",
+                options: ["256", "1024", "4096", "65536"],
+                ans: 2,
+                exp: "2^12 = 4096 counts (0 to 4095)."
+            }
+        ];
+
+        function initQuiz() {
+            state.quizIndex = 0;
+            showQuizQuestion();
+        }
+
+        function showQuizQuestion() {
+            const q = QUIZ_QUESTIONS[state.quizIndex];
+            document.getElementById('quiz-progress').innerText = `Question ${state.quizIndex + 1} of ${QUIZ_QUESTIONS.length}`;
+            document.getElementById('quiz-question-text').innerText = q.q;
+
+            const opts = document.getElementById('quiz-options');
+            opts.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full p-3 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-xl text-left text-slate-200 transition";
+                btn.innerText = opt;
+                btn.onclick = () => checkQuizAnswer(idx);
+                opts.appendChild(btn);
+            });
+
+            document.getElementById('quiz-explanation').classList.add('hidden');
+            document.getElementById('btn-next-quiz').classList.add('hidden');
+        }
+
+        function checkQuizAnswer(selectedIdx) {
+            const q = QUIZ_QUESTIONS[state.quizIndex];
+            const exp = document.getElementById('quiz-explanation');
+            exp.classList.remove('hidden');
+
+            if(selectedIdx === q.ans) {
+                exp.innerHTML = `<strong class="text-emerald-400">Correct!</strong> ${q.exp}`;
+            } else {
+                exp.innerHTML = `<strong class="text-red-400">Incorrect.</strong> ${q.exp}`;
+            }
+
+            document.getElementById('btn-next-quiz').classList.remove('hidden');
+        }
+
+        function nextQuizQuestion() {
+            state.quizIndex = (state.quizIndex + 1) % QUIZ_QUESTIONS.length;
+            showQuizQuestion();
+        }
+    </script>
+</body>
+</html>
