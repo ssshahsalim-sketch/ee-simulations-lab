@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Six Sigma Interactive Learning Lab & Simulator</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            800: '#0c4a6e',
+                            900: '#0a3651',
+                        },
+                        belt: {
+                            white: '#f8fafc',
+                            yellow: '#eab308',
+                            green: '#16a34a',
+                            black: '#1e293b',
+                            master: '#7c3aed'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 3px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(75, 85, 99, 0.5); }
+        
+        .tab-btn.active {
+            border-bottom-color: #0284c7;
+            color: #0284c7;
+            font-weight: 600;
+        }
+        .dark .tab-btn.active {
+            border-bottom-color: #38bdf8;
+            color: #38bdf8;
+        }
+
+        @keyframes pulse-light {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-slow { animation: pulse-light 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200">
+
+    <!-- Top Header Navigation -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <!-- Brand / Logo -->
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="switchMainTab('dashboard')">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-black text-xl shadow-md">
+                        6σ
+                    </div>
+                    <div>
+                        <div class="font-extrabold text-lg leading-none bg-gradient-to-r from-sky-600 to-indigo-600 bg-clip-text text-transparent">
+                            Six Sigma Learning Lab
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                            Zero to Black Belt Interactive Studio
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Global Search Bar -->
+                <div class="hidden md:flex flex-1 max-w-md mx-8 relative">
+                    <input type="text" id="globalSearchInput" oninput="handleGlobalSearch(this.value)" placeholder="Search tools, formulas, terms (e.g., Cpk, DMAIC, ANOVA)..." class="w-full bg-slate-100 dark:bg-slate-700/60 border border-slate-300 dark:border-slate-600 rounded-lg pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-800 dark:text-slate-100 placeholder-slate-400">
+                    <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <!-- Search Results Dropdown -->
+                    <div id="searchResultsDropdown" class="hidden absolute left-0 right-0 top-11 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto p-2"></div>
+                </div>
+
+                <!-- User XP & Stats Widget -->
+                <div class="flex items-center space-x-4">
+                    <div class="hidden sm:flex items-center space-x-3 bg-slate-100 dark:bg-slate-700/50 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-semibold">
+                        <div class="flex items-center space-x-1 text-amber-500">
+                            <span>⚡</span>
+                            <span id="headerXP">0 XP</span>
+                        </div>
+                        <div class="h-3 w-[1px] bg-slate-300 dark:bg-slate-600"></div>
+                        <div class="flex items-center space-x-1 text-sky-500">
+                            <span>🏆</span>
+                            <span id="headerBelt">White Belt</span>
+                        </div>
+                    </div>
+
+                    <!-- Dark Mode Toggle -->
+                    <button onclick="toggleDarkMode()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors" title="Toggle Theme">
+                        <svg id="themeMoon" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        <svg id="themeSun" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                    </button>
+
+                    <!-- Mobile Menu Button -->
+                    <button onclick="toggleMobileMenu()" class="lg:hidden p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Navigation Bar -->
+        <nav class="hidden lg:block border-t border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex space-x-1 overflow-x-auto py-2 custom-scrollbar text-xs font-medium">
+                    <button onclick="switchMainTab('dashboard')" class="nav-tab-btn active px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="dashboard">🏠 Dashboard</button>
+                    <button onclick="switchMainTab('intro')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="intro">💡 What is 6σ?</button>
+                    <button onclick="switchMainTab('belts')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="belts">🥋 Belt Paths</button>
+                    <button onclick="switchMainTab('dmaic-lab')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="dmaic-lab">⚡ DMAIC Scenario</button>
+                    <button onclick="switchMainTab('simulators')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="simulators">🧪 Interactive Labs</button>
+                    <button onclick="switchMainTab('builders')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="builders">🛠️ Tool Builders</button>
+                    <button onclick="switchMainTab('calculators')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="calculators">🧮 Calculator Center</button>
+                    <button onclick="switchMainTab('case-studies')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="case-studies">🏭 Case Studies</button>
+                    <button onclick="switchMainTab('knowledge')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="knowledge">📖 Knowledge Map & Formulas</button>
+                    <button onclick="switchMainTab('quiz')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="quiz">📝 Practice & Belt Exams</button>
+                    <button onclick="switchMainTab('project-builder')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="project-builder">💼 Project Builder</button>
+                    <button onclick="switchMainTab('progress')" class="nav-tab-btn px-3 py-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition" data-tab="progress">📊 My Progress</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Mobile Drawer Navigation -->
+        <div id="mobileMenu" class="hidden lg:hidden border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 space-y-1">
+            <button onclick="switchMainTab('dashboard'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">🏠 Dashboard</button>
+            <button onclick="switchMainTab('intro'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">💡 What is Six Sigma?</button>
+            <button onclick="switchMainTab('belts'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">🥋 Belt Paths</button>
+            <button onclick="switchMainTab('dmaic-lab'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">⚡ DMAIC Scenario</button>
+            <button onclick="switchMainTab('simulators'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">🧪 Interactive Labs</button>
+            <button onclick="switchMainTab('builders'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">🛠️ Tool Builders</button>
+            <button onclick="switchMainTab('calculators'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">🧮 Calculator Center</button>
+            <button onclick="switchMainTab('case-studies'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">🏭 Case Studies</button>
+            <button onclick="switchMainTab('knowledge'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">📖 Knowledge Map & Formulas</button>
+            <button onclick="switchMainTab('quiz'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">📝 Practice & Belt Exams</button>
+            <button onclick="switchMainTab('project-builder'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">💼 Project Builder</button>
+            <button onclick="switchMainTab('progress'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700">📊 My Progress</button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 1: DASHBOARD HOME -->
+        <!-- ========================================================================= -->
+        <section id="sec-dashboard" class="tab-content space-y-8">
+            <!-- Hero Banner -->
+            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-900 via-slate-900 to-indigo-950 text-white p-6 sm:p-10 border border-slate-700/50 shadow-xl">
+                <div class="relative z-10 max-w-3xl space-y-4">
+                    <div class="inline-flex items-center space-x-2 bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur">
+                        <span>✨ Interactive Educational Laboratory</span>
+                        <span>•</span>
+                        <span>DMAIC & DFSS Ready</span>
+                    </div>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+                        Master Six Sigma Through <span class="bg-gradient-to-r from-sky-400 to-emerald-400 bg-clip-text text-transparent">Live Simulation</span>
+                    </h1>
+                    <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+                        Step beyond static textbooks. Change manufacturing variables in real-time, test control charts, construct SIPOC diagrams, run Design of Experiments, solve industrial defect cases, and earn your certification badges.
+                    </p>
+                    <div class="flex flex-wrap gap-3 pt-2">
+                        <button onclick="switchMainTab('intro')" class="px-5 py-2.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl shadow-lg transition transform hover:-translate-y-0.5 text-sm">
+                            🚀 Start From Zero (Simple Intro)
+                        </button>
+                        <button onclick="switchMainTab('simulators')" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl border border-slate-600 transition text-sm">
+                            🧪 Open Interactive Labs
+                        </button>
+                        <button onclick="switchMainTab('quiz')" class="px-5 py-2.5 bg-indigo-600/80 hover:bg-indigo-600 text-white font-semibold rounded-xl border border-indigo-500/50 transition text-sm">
+                            📝 Take Belt Exam
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Animated Background Canvas -->
+                <canvas id="heroCanvas" class="absolute right-0 top-0 bottom-0 w-1/2 h-full opacity-30 pointer-events-none hidden md:block"></canvas>
+            </div>
+
+            <!-- Quick Path Launcher Grid -->
+            <div>
+                <h2 class="text-xl font-bold mb-4 flex items-center space-x-2">
+                    <span>⚡ Quick Learning Modules</span>
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Module Card 1 -->
+                    <div onclick="switchMainTab('intro')" class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-sky-500 dark:hover:border-sky-500 transition cursor-pointer shadow-sm group">
+                        <div class="w-10 h-10 rounded-lg bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold mb-3 group-hover:scale-110 transition-transform">
+                            10k
+                        </div>
+                        <h3 class="font-bold text-base group-hover:text-sky-500 transition-colors">Factory Line Defect Sim</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Visualize 10,000 electrical panels moving down a line. Adjust opportunities & defects live.</p>
+                    </div>
+
+                    <!-- Module Card 2 -->
+                    <div onclick="switchMainTab('simulators'); openSimTab('capability')" class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 transition cursor-pointer shadow-sm group">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold mb-3 group-hover:scale-110 transition-transform">
+                            Cp
+                        </div>
+                        <h3 class="font-bold text-base group-hover:text-emerald-500 transition-colors">Process Variation & Cpk</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Drag mean and standard deviation sliders to see how defects cross tolerance limits.</p>
+                    </div>
+
+                    <!-- Module Card 3 -->
+                    <div onclick="switchMainTab('builders'); openBuilderTab('sipoc')" class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-amber-500 dark:hover:border-amber-500 transition cursor-pointer shadow-sm group">
+                        <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold mb-3 group-hover:scale-110 transition-transform">
+                            S
+                        </div>
+                        <h3 class="font-bold text-base group-hover:text-amber-500 transition-colors">SIPOC & VSM Builder</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Construct high-level process maps, value streams, and calculate process cycle efficiency.</p>
+                    </div>
+
+                    <!-- Module Card 4 -->
+                    <div onclick="switchMainTab('dmaic-lab')" class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 transition cursor-pointer shadow-sm group">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold mb-3 group-hover:scale-110 transition-transform">
+                            DMAIC
+                        </div>
+                        <h3 class="font-bold text-base group-hover:text-indigo-500 transition-colors">Interactive Scenario Lab</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Solve realistic industrial defect problems step-by-step from Define to Control.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Belt Skill Path Overview -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-lg font-bold">🥋 Six Sigma Belt Career Roadmap</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Track your progress from absolute beginner to Master Black Belt</p>
+                    </div>
+                    <button onclick="switchMainTab('belts')" class="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline">
+                        View Full Belt Details →
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <!-- White Belt -->
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200">LEVEL 1</span>
+                            <span class="text-xs font-mono text-emerald-500">Completed</span>
+                        </div>
+                        <h4 class="font-bold text-sm">White Belt</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Basic awareness, Six Sigma terminology, process mindsets.</p>
+                    </div>
+
+                    <!-- Yellow Belt -->
+                    <div class="p-4 rounded-xl border border-amber-300 dark:border-amber-700/50 bg-amber-50/50 dark:bg-amber-950/20 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200">LEVEL 2</span>
+                            <span id="ybStatusTag" class="text-xs font-mono text-amber-600">In Progress</span>
+                        </div>
+                        <h4 class="font-bold text-sm">Yellow Belt</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Process mapping, 7 basic quality tools, DMAIC participation.</p>
+                    </div>
+
+                    <!-- Green Belt -->
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200">LEVEL 3</span>
+                            <span class="text-xs font-mono text-slate-400">Locked</span>
+                        </div>
+                        <h4 class="font-bold text-sm">Green Belt</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Statistical analysis, Cpk, hypothesis testing, project lead.</p>
+                    </div>
+
+                    <!-- Black Belt -->
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-100">LEVEL 4</span>
+                            <span class="text-xs font-mono text-slate-400">Locked</span>
+                        </div>
+                        <h4 class="font-bold text-sm">Black Belt</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">DOE, advanced ANOVA, regression, change management.</p>
+                    </div>
+
+                    <!-- Master Black Belt -->
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200">LEVEL 5</span>
+                            <span class="text-xs font-mono text-slate-400">Locked</span>
+                        </div>
+                        <h4 class="font-bold text-sm">Master Black Belt</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Enterprise deployment, coaching, statistical strategy.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 2: SIX SIGMA INTRO & SIMPLE EXPLANATION (10k Electrical Panels) -->
+        <!-- ========================================================================= -->
+        <section id="sec-intro" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                
+                <div class="max-w-3xl space-y-3">
+                    <span class="px-3 py-1 bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 rounded-full text-xs font-bold uppercase tracking-wide">
+                        Absolute Beginner Friendly
+                    </span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold">What is Six Sigma? (In Plain Words)</h2>
+                    <p class="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+                        At its core, **Six Sigma** is a disciplined, data-driven approach to eliminate defects and reduce variation in any process—whether manufacturing electrical control panels, processing insurance claims, or assembling motors.
+                    </p>
+                </div>
+
+                <!-- Simple Factory Defect Simulation Box -->
+                <div class="bg-slate-900 rounded-2xl p-6 text-white space-y-6 border border-slate-700">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-sky-400">🏭 Interactive Factory Line: Electrical Panel Manufacturing</h3>
+                            <p class="text-xs text-slate-400">Change manufacturing parameters below to see defects, yield, and Sigma level dynamically recalculate.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="inline-block w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span class="text-xs font-mono text-emerald-400">LIVE PROCESS SIMULATION</span>
+                        </div>
+                    </div>
+
+                    <!-- Canvas for Conveyor Belt Animation -->
+                    <div class="relative w-full h-28 bg-slate-950 rounded-xl border border-slate-800 overflow-hidden flex items-center justify-center">
+                        <canvas id="factoryConveyorCanvas" class="w-full h-full"></canvas>
+                    </div>
+
+                    <!-- Controls Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-slate-800/60 p-4 rounded-xl border border-slate-700/50">
+                        <!-- Input 1 -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">
+                                Total Units Produced ($N$): <span id="valUnits" class="text-sky-400 font-mono font-bold">10,000</span>
+                            </label>
+                            <input type="range" id="sliderUnits" min="1000" max="50000" step="1000" value="10000" oninput="updateIntroSim()" class="w-full accent-sky-500">
+                        </div>
+                        <!-- Input 2 -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">
+                                Total Defects Found ($D$): <span id="valDefects" class="text-rose-400 font-mono font-bold">500</span>
+                            </label>
+                            <input type="range" id="sliderDefects" min="0" max="2000" step="10" value="500" oninput="updateIntroSim()" class="w-full accent-rose-500">
+                        </div>
+                        <!-- Input 3 -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">
+                                Defect Opportunities / Unit ($O$): <span id="valOpp" class="text-amber-400 font-mono font-bold">4</span>
+                            </label>
+                            <input type="range" id="sliderOpp" min="1" max="20" step="1" value="4" oninput="updateIntroSim()" class="w-full accent-amber-500">
+                            <p class="text-[10px] text-slate-400 mt-1">(e.g., 1. Loose terminal, 2. Wrong wire gauge, 3. Label error, 4. MCCB trip)</p>
+                        </div>
+                    </div>
+
+                    <!-- Live Calculated Metrics Cards -->
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        <div class="bg-slate-800/90 p-3 rounded-lg border border-slate-700 text-center">
+                            <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Defect Rate</div>
+                            <div id="resDefectRate" class="text-lg font-mono font-bold text-rose-400">5.00%</div>
+                        </div>
+                        <div class="bg-slate-800/90 p-3 rounded-lg border border-slate-700 text-center">
+                            <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Process Yield</div>
+                            <div id="resYield" class="text-lg font-mono font-bold text-emerald-400">95.00%</div>
+                        </div>
+                        <div class="bg-slate-800/90 p-3 rounded-lg border border-slate-700 text-center">
+                            <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">DPU (Defects/Unit)</div>
+                            <div id="resDPU" class="text-lg font-mono font-bold text-sky-400">0.050</div>
+                        </div>
+                        <div class="bg-slate-800/90 p-3 rounded-lg border border-slate-700 text-center">
+                            <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">DPMO</div>
+                            <div id="resDPMO" class="text-lg font-mono font-bold text-amber-400">12,500</div>
+                        </div>
+                        <div class="bg-slate-800/90 p-3 rounded-lg border border-slate-700 text-center col-span-2 sm:col-span-1">
+                            <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Approx Sigma Level</div>
+                            <div id="resSigmaLevel" class="text-lg font-mono font-bold text-purple-400">3.74 σ</div>
+                        </div>
+                    </div>
+
+                    <!-- Educational Note box on 1.5 Shift -->
+                    <div class="bg-sky-950/50 border border-sky-800/60 p-4 rounded-xl text-xs text-sky-200 leading-relaxed flex items-start space-x-3">
+                        <span class="text-lg">ℹ️</span>
+                        <div>
+                            <strong class="font-bold">Six Sigma Convention Note (The 1.5σ Shift):</strong>
+                            In standard industry practice, Six Sigma assumes process shifts by up to 1.5 standard deviations over time due to wear, raw material batches, and environmental changes. A 6-Sigma process generates <strong>3.4 Defects Per Million Opportunities (DPMO)</strong> long-term.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Why Six Sigma? Variation Reduction Section -->
+                <div class="pt-6 border-t border-slate-200 dark:border-slate-700 space-y-4">
+                    <h3 class="text-xl font-bold">Why Six Sigma? Reducing Variation is Key</h3>
+                    <p class="text-slate-600 dark:text-slate-300 text-sm">
+                        Consider a copper busbar cutting process with a target length of <strong class="text-slate-900 dark:text-white font-mono">100.0 mm</strong> and specification tolerance of <strong class="text-slate-900 dark:text-white font-mono">98.0 mm to 102.0 mm</strong>. Compare three factories below:
+                    </p>
+
+                    <!-- Interactive Bell Curve Comparison -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/20 text-center space-y-2">
+                            <div class="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Process A (Low Sigma ~ 2σ)</div>
+                            <div class="h-28 flex items-end justify-center px-2">
+                                <svg viewBox="0 0 100 50" class="w-full h-full text-rose-500 overflow-visible">
+                                    <path d="M 0 45 Q 50 0 100 45" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="20" y1="0" x2="20" y2="50" stroke="#f43f5e" stroke-dasharray="2,2"/>
+                                    <line x1="80" y1="0" x2="80" y2="50" stroke="#f43f5e" stroke-dasharray="2,2"/>
+                                </svg>
+                            </div>
+                            <p class="text-xs text-slate-600 dark:text-slate-400">Wide spread. Many parts fall outside specification limit lines.</p>
+                        </div>
+
+                        <div class="p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 text-center space-y-2">
+                            <div class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">Process B (3σ to 4σ)</div>
+                            <div class="h-28 flex items-end justify-center px-2">
+                                <svg viewBox="0 0 100 50" class="w-full h-full text-amber-500 overflow-visible">
+                                    <path d="M 15 45 Q 50 5 85 45" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="20" y1="0" x2="20" y2="50" stroke="#f59e0b" stroke-dasharray="2,2"/>
+                                    <line x1="80" y1="0" x2="80" y2="50" stroke="#f59e0b" stroke-dasharray="2,2"/>
+                                </svg>
+                            </div>
+                            <p class="text-xs text-slate-600 dark:text-slate-400">Moderate spread. Few defects, but minor process shifts create scrap.</p>
+                        </div>
+
+                        <div class="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 text-center space-y-2">
+                            <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase">Process C (Six Sigma ~ 6σ)</div>
+                            <div class="h-28 flex items-end justify-center px-2">
+                                <svg viewBox="0 0 100 50" class="w-full h-full text-emerald-500 overflow-visible">
+                                    <path d="M 30 45 Q 50 0 70 45" fill="none" stroke="currentColor" stroke-width="2.5"/>
+                                    <line x1="20" y1="0" x2="20" y2="50" stroke="#10b981" stroke-dasharray="2,2"/>
+                                    <line x1="80" y1="0" x2="80" y2="50" stroke="#10b981" stroke-dasharray="2,2"/>
+                                </svg>
+                            </div>
+                            <p class="text-xs text-slate-600 dark:text-slate-400">Ultra-narrow variation. Entire process fits safely inside limits!</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 3: SIX SIGMA BELT PATHS & SKILL TREE -->
+        <!-- ========================================================================= -->
+        <section id="sec-belts" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                <div>
+                    <h2 class="text-2xl font-extrabold">🥋 Six Sigma Belt Skill Path & Roles</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Select a belt level below to inspect responsibilities, tools, and example project challenges.</p>
+                </div>
+
+                <!-- Belt Selection Tabs -->
+                <div class="flex border-b border-slate-200 dark:border-slate-700 overflow-x-auto custom-scrollbar">
+                    <button onclick="selectBeltDetail('white')" class="belt-detail-btn active px-4 py-2 border-b-2 font-bold text-sm whitespace-nowrap text-slate-600 border-transparent hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200" data-belt="white">
+                        ⚪ White Belt
+                    </button>
+                    <button onclick="selectBeltDetail('yellow')" class="belt-detail-btn px-4 py-2 border-b-2 font-bold text-sm whitespace-nowrap text-amber-500 border-amber-500" data-belt="yellow">
+                        🟡 Yellow Belt
+                    </button>
+                    <button onclick="selectBeltDetail('green')" class="belt-detail-btn px-4 py-2 border-b-2 font-bold text-sm whitespace-nowrap text-emerald-600 border-transparent hover:text-emerald-500" data-belt="green">
+                        🟢 Green Belt
+                    </button>
+                    <button onclick="selectBeltDetail('black')" class="belt-detail-btn px-4 py-2 border-b-2 font-bold text-sm whitespace-nowrap text-slate-800 border-transparent dark:text-slate-200" data-belt="black">
+                        ⬛ Black Belt
+                    </button>
+                    <button onclick="selectBeltDetail('master')" class="belt-detail-btn px-4 py-2 border-b-2 font-bold text-sm whitespace-nowrap text-purple-600 border-transparent hover:text-purple-500" data-belt="master">
+                        🟣 Master Black Belt
+                    </button>
+                </div>
+
+                <!-- Dynamic Belt Info Display -->
+                <div id="beltDetailContent" class="space-y-6">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 4: DMAIC INTERACTIVE SCENARIO LAB (Electrical Wiring Case) -->
+        <!-- ========================================================================= -->
+        <section id="sec-dmaic-lab" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 dark:border-slate-700 pb-4">
+                    <div>
+                        <span class="px-2.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 uppercase">
+                            Learn By Doing Scenario
+                        </span>
+                        <h2 class="text-2xl font-extrabold mt-1">⚡ Industrial Case: Control Panel Wiring Defects</h2>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-slate-500">Scenario Score</div>
+                        <div id="dmaicScore" class="text-xl font-mono font-extrabold text-indigo-600 dark:text-indigo-400">0 / 100 XP</div>
+                    </div>
+                </div>
+
+                <!-- DMAIC Progress Stepper -->
+                <div class="grid grid-cols-5 gap-2">
+                    <button id="step-D" class="dmaic-step-btn py-2 text-center rounded-lg font-bold text-xs bg-indigo-600 text-white shadow">1. DEFINE</button>
+                    <button id="step-M" class="dmaic-step-btn py-2 text-center rounded-lg font-bold text-xs bg-slate-100 dark:bg-slate-700 text-slate-500">2. MEASURE</button>
+                    <button id="step-A" class="dmaic-step-btn py-2 text-center rounded-lg font-bold text-xs bg-slate-100 dark:bg-slate-700 text-slate-500">3. ANALYZE</button>
+                    <button id="step-I" class="dmaic-step-btn py-2 text-center rounded-lg font-bold text-xs bg-slate-100 dark:bg-slate-700 text-slate-500">4. IMPROVE</button>
+                    <button id="step-C" class="dmaic-step-btn py-2 text-center rounded-lg font-bold text-xs bg-slate-100 dark:bg-slate-700 text-slate-500">5. CONTROL</button>
+                </div>
+
+                <!-- Scenario Container -->
+                <div id="dmaicScenarioBox" class="bg-slate-50 dark:bg-slate-900/60 p-6 rounded-xl border border-slate-200 dark:border-slate-700 space-y-6">
+                    <!-- Loaded dynamically via JS -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 5: INTERACTIVE SIMULATORS HUB -->
+        <!-- ========================================================================= -->
+        <section id="sec-simulators" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                <!-- Inner Navigation for Simulators -->
+                <div class="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-700 overflow-x-auto pb-2 custom-scrollbar">
+                    <button onclick="openSimTab('capability')" class="sim-tab-btn active px-3 py-1.5 rounded-lg font-semibold text-xs bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300" data-sim="capability">
+                        📊 Process Variation & Cpk
+                    </button>
+                    <button onclick="openSimTab('control-charts')" class="sim-tab-btn px-3 py-1.5 rounded-lg font-semibold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" data-sim="control-charts">
+                        📈 Control Charts (SPC)
+                    </button>
+                    <button onclick="openSimTab('gagerr')" class="sim-tab-btn px-3 py-1.5 rounded-lg font-semibold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" data-sim="gagerr">
+                        📐 Gage R&R (MSA)
+                    </button>
+                    <button onclick="openSimTab('hypothesis')" class="sim-tab-btn px-3 py-1.5 rounded-lg font-semibold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" data-sim="hypothesis">
+                        🧪 Hypothesis & ANOVA
+                    </button>
+                    <button onclick="openSimTab('regression')" class="sim-tab-btn px-3 py-1.5 rounded-lg font-semibold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" data-sim="regression">
+                        📉 Regression Analysis
+                    </button>
+                    <button onclick="openSimTab('doe')" class="sim-tab-btn px-3 py-1.5 rounded-lg font-semibold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" data-sim="doe">
+                        🎛️ Design of Experiments (DOE)
+                    </button>
+                    <button onclick="openSimTab('waste-hunter')" class="sim-tab-btn px-3 py-1.5 rounded-lg font-semibold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" data-sim="waste-hunter">
+                        🏭 Lean Waste Hunter Game
+                    </button>
+                </div>
+
+                <!-- SIMULATOR 1: PROCESS VARIATION & CP/CPK -->
+                <div id="sim-capability" class="sim-sub-content space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Controls Panel -->
+                        <div class="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                            <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center justify-between">
+                                <span>⚙️ Process Parameters</span>
+                                <button onclick="resetCapSim()" class="text-[11px] text-sky-600 dark:text-sky-400 hover:underline">Reset Defaults</button>
+                            </h3>
+
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Lower Spec Limit (LSL): <span id="valLSL" class="font-mono text-rose-500">98.0 mm</span></label>
+                                <input type="range" id="sliderLSL" min="90" max="99" step="0.5" value="98" oninput="drawCapSim()" class="w-full accent-rose-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Upper Spec Limit (USL): <span id="valUSL" class="font-mono text-rose-500">102.0 mm</span></label>
+                                <input type="range" id="sliderUSL" min="101" max="110" step="0.5" value="102" oninput="drawCapSim()" class="w-full accent-rose-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Process Mean ($\mu$): <span id="valMean" class="font-mono text-sky-500">100.0 mm</span></label>
+                                <input type="range" id="sliderMean" min="95" max="105" step="0.1" value="100" oninput="drawCapSim()" class="w-full accent-sky-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Std Deviation ($\sigma$): <span id="valStd" class="font-mono text-amber-500">0.67 mm</span></label>
+                                <input type="range" id="sliderStd" min="0.2" max="2.0" step="0.05" value="0.67" oninput="drawCapSim()" class="w-full accent-amber-500">
+                            </div>
+
+                            <!-- Preset Scenarios -->
+                            <div class="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                                <span class="text-[11px] font-bold text-slate-500 uppercase">Test Quick Scenarios:</span>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <button onclick="setCapScenario('centered-narrow')" class="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-sky-500 text-left">
+                                        🎯 Centered & Narrow
+                                    </button>
+                                    <button onclick="setCapScenario('centered-wide')" class="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-sky-500 text-left">
+                                        ↔️ Centered & Wide
+                                    </button>
+                                    <button onclick="setCapScenario('shifted')" class="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-sky-500 text-left">
+                                        ↗️ Shifted Mean
+                                    </button>
+                                    <button onclick="setCapScenario('off-center-wide')" class="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-sky-500 text-left">
+                                        ⚠️ Uncapable Process
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bell Curve Canvas & Calculated Metrics -->
+                        <div class="lg:col-span-2 space-y-4">
+                            <div class="bg-slate-900 rounded-xl p-4 border border-slate-700 h-64 relative">
+                                <canvas id="capCanvas" class="w-full h-full"></canvas>
+                            </div>
+
+                            <!-- Calculated Indices -->
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg text-center border border-slate-200 dark:border-slate-600">
+                                    <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Potential Capability (Cp)</div>
+                                    <div id="outCp" class="text-xl font-mono font-bold text-sky-600 dark:text-sky-400">1.00</div>
+                                </div>
+                                <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg text-center border border-slate-200 dark:border-slate-600">
+                                    <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Actual Capability (Cpk)</div>
+                                    <div id="outCpk" class="text-xl font-mono font-bold text-emerald-600 dark:text-emerald-400">1.00</div>
+                                </div>
+                                <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg text-center border border-slate-200 dark:border-slate-600">
+                                    <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Estimated DPMO</div>
+                                    <div id="outCapDPMO" class="text-xl font-mono font-bold text-rose-500">2,700</div>
+                                </div>
+                                <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg text-center border border-slate-200 dark:border-slate-600">
+                                    <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Sigma Level</div>
+                                    <div id="outCapSigma" class="text-xl font-mono font-bold text-purple-500">4.50 σ</div>
+                                </div>
+                            </div>
+
+                            <!-- Explanation Box -->
+                            <div id="capExplanation" class="p-4 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                                <!-- Computed explanation appears here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIMULATOR 2: CONTROL CHARTS (SPC) -->
+                <div id="sim-control-charts" class="sim-sub-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div class="flex items-center space-x-3">
+                            <label class="text-xs font-bold text-slate-500 uppercase">Select Chart Type:</label>
+                            <select id="ctrlChartType" onchange="generateControlChart()" class="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-semibold px-3 py-1.5">
+                                <option value="xbar">X-bar & R Chart (Variables - Subgroups)</option>
+                                <option value="imr">I-MR Chart (Variables - Individuals)</option>
+                                <option value="p">p-Chart (Attributes - Proportion Defective)</option>
+                                <option value="c">c-Chart (Attributes - Defect Count)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="injectSPCAnomaly('shift')" class="px-3 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 rounded text-xs font-semibold border border-amber-300 dark:border-amber-700">
+                                Inject Mean Shift
+                            </button>
+                            <button onclick="injectSPCAnomaly('trend')" class="px-3 py-1 bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200 rounded text-xs font-semibold border border-rose-300 dark:border-rose-700">
+                                Inject Trend Rule Violation
+                            </button>
+                            <button onclick="generateControlChart()" class="px-3 py-1 bg-sky-600 text-white rounded text-xs font-semibold">
+                                🔄 Reset Stable Process
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 h-80 relative">
+                        <canvas id="spcCanvas"></canvas>
+                    </div>
+
+                    <!-- SPC Rule Violation Alerts -->
+                    <div id="spcRuleAlerts" class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs space-y-2">
+                        <!-- Rule violations dynamically inserted -->
+                    </div>
+                </div>
+
+                <!-- SIMULATOR 3: GAGE R&R -->
+                <div id="sim-gagerr" class="sim-sub-content hidden space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                            <h3 class="font-bold text-sm">📐 Measurement System Parameters</h3>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Equipment Variation (EV - Repeatability): <span id="valEV" class="font-mono text-sky-500">15%</span></label>
+                                <input type="range" id="sliderEV" min="2" max="40" step="1" value="15" oninput="updateGageRR()" class="w-full accent-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Appraiser Variation (AV - Reproducibility): <span id="valAV" class="font-mono text-amber-500">20%</span></label>
+                                <input type="range" id="sliderAV" min="2" max="40" step="1" value="20" oninput="updateGageRR()" class="w-full accent-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Part-to-Part Variation (PV): <span id="valPV" class="font-mono text-emerald-500">80%</span></label>
+                                <input type="range" id="sliderPV" min="30" max="95" step="1" value="80" oninput="updateGageRR()" class="w-full accent-emerald-500">
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2 space-y-4">
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg text-center">
+                                    <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">%GRR Total</div>
+                                    <div id="resGRR" class="text-xl font-mono font-bold text-sky-500">25.0%</div>
+                                </div>
+                                <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg text-center">
+                                    <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">% Part-to-Part</div>
+                                    <div id="resPartVar" class="text-xl font-mono font-bold text-emerald-500">96.8%</div>
+                                </div>
+                                <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg text-center">
+                                    <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Measurement System Status</div>
+                                    <div id="resGageStatus" class="text-sm font-bold text-amber-500 mt-1">Marginal (10-30%)</div>
+                                </div>
+                            </div>
+                            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 h-60">
+                                <canvas id="gagerrCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIMULATOR 4: HYPOTHESIS TESTING & ANOVA -->
+                <div id="sim-hypothesis" class="sim-sub-content hidden space-y-6">
+                    <div class="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                        <h3 class="font-bold text-sm">🧪 ANOVA Machine Speed Comparison (Machines A, B, C)</h3>
+                        <p class="text-xs text-slate-500">Adjust the performance mean of Machine C to test statistical significance ($p$-value).</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Machine A Mean Time: <span class="font-mono text-sky-500">15.0 min</span></label>
+                                <input type="range" disabled value="15" class="w-full">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Machine B Mean Time: <span class="font-mono text-sky-500">15.2 min</span></label>
+                                <input type="range" disabled value="15.2" class="w-full">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Machine C Mean Time: <span id="valMachC" class="font-mono text-amber-500">17.5 min</span></label>
+                                <input type="range" id="sliderMachC" min="14" max="20" step="0.2" value="17.5" oninput="runANOVASim()" class="w-full accent-amber-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2 bg-slate-900 p-4 rounded-xl border border-slate-700 h-64">
+                            <canvas id="anovaCanvas"></canvas>
+                        </div>
+                        <div class="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                            <div class="text-xs font-bold text-slate-500 uppercase">Statistical Decision Summary</div>
+                            <div>
+                                <div class="text-[11px] text-slate-400">Calculated $F$-statistic:</div>
+                                <div id="outFStat" class="text-lg font-mono font-bold text-sky-500">18.42</div>
+                            </div>
+                            <div>
+                                <div class="text-[11px] text-slate-400">$p$-value:</div>
+                                <div id="outPVal" class="text-lg font-mono font-bold text-rose-500">0.0001 (&lt; 0.05)</div>
+                            </div>
+                            <div id="anovaVerdict" class="p-3 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200">
+                                Reject Null Hypothesis ($H_0$). At least one machine differs significantly!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIMULATOR 5: REGRESSION ANALYSIS -->
+                <div id="sim-regression" class="sim-sub-content hidden space-y-6">
+                    <div class="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                        <h3 class="font-bold text-sm">📉 Simple Linear Regression: Motor Temperature vs Operating Current</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Process Noise / Dispersion: <span id="valRegNoise" class="font-mono text-sky-500">Medium</span></label>
+                                <input type="range" id="sliderRegNoise" min="1" max="10" step="1" value="5" oninput="drawRegressionSim()" class="w-full accent-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Thermal Slope Factor: <span id="valRegSlope" class="font-mono text-amber-500">2.5</span></label>
+                                <input type="range" id="sliderRegSlope" min="0.5" max="5.0" step="0.5" value="2.5" oninput="drawRegressionSim()" class="w-full accent-amber-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2 bg-slate-900 p-4 rounded-xl border border-slate-700 h-64">
+                            <canvas id="regCanvas"></canvas>
+                        </div>
+                        <div class="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                            <div class="text-xs font-bold text-slate-500 uppercase">Model Output</div>
+                            <div>
+                                <div class="text-[11px] text-slate-400">Regression Equation:</div>
+                                <div id="outRegEq" class="text-sm font-mono font-bold text-sky-500">Temp = 25.0 + 2.50 × Current</div>
+                            </div>
+                            <div>
+                                <div class="text-[11px] text-slate-400">R-Squared ($R^2$):</div>
+                                <div id="outR2" class="text-xl font-mono font-bold text-emerald-500">89.4%</div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 leading-relaxed">
+                                High $R^2$ indicates strong linear relationship. Always verify residual plots to confirm homoscedasticity.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIMULATOR 6: DOE (DESIGN OF EXPERIMENTS) -->
+                <div id="sim-doe" class="sim-sub-content hidden space-y-6">
+                    <div class="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                        <h3 class="font-bold text-sm">🎛️ $2^2$ Full Factorial Optimization (Solder Wave Defect Reduction)</h3>
+                        <p class="text-xs text-slate-500">Explore Factor A (Solder Temp) and Factor B (Conveyor Speed) interaction effects.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Factor A: Temperature (230°C to 260°C)</label>
+                                <input type="range" id="sliderDOETemp" min="230" max="260" value="245" oninput="updateDOESim()" class="w-full accent-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Factor B: Conveyor Speed (1.0 to 2.5 m/min)</label>
+                                <input type="range" id="sliderDOESpeed" min="1.0" max="2.5" step="0.1" value="1.8" oninput="updateDOESim()" class="w-full accent-amber-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2 bg-slate-900 p-4 rounded-xl border border-slate-700 h-64">
+                            <canvas id="doeCanvas"></canvas>
+                        </div>
+                        <div class="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                            <div class="text-xs font-bold text-slate-500 uppercase">Predicted Defect Rate</div>
+                            <div id="outDOEDefects" class="text-3xl font-mono font-extrabold text-sky-500">1.2%</div>
+                            <div class="text-xs text-slate-500">Optimal Operating Window:</div>
+                            <div class="p-2.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-xs font-bold">
+                                Temp: 250°C | Speed: 1.2 m/min (Yield: 99.4%)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIMULATOR 7: LEAN WASTE HUNTER GAME -->
+                <div id="sim-waste-hunter" class="sim-sub-content hidden space-y-6">
+                    <div class="flex justify-between items-center bg-slate-900 p-4 rounded-xl text-white">
+                        <div>
+                            <h3 class="font-bold text-sm text-sky-400">🏭 Factory Floor Muda Search (TIMWOODS)</h3>
+                            <p class="text-xs text-slate-400">Click on non-value-adding activities below to uncover and eliminate waste!</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-slate-400">Wastes Found</div>
+                            <div id="wasteCount" class="text-xl font-mono font-bold text-amber-400">0 / 8</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <button onclick="findWaste('trans')" id="btnWaste-trans" class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-amber-500 text-left space-y-2">
+                            <div class="text-2xl">Forklift Driving Excess</div>
+                            <div class="font-bold text-xs">Transportation</div>
+                        </button>
+                        <button onclick="findWaste('inv')" id="btnWaste-inv" class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-amber-500 text-left space-y-2">
+                            <div class="text-2xl">Overflowing WIP Racks</div>
+                            <div class="font-bold text-xs">Inventory</div>
+                        </button>
+                        <button onclick="findWaste('mot')" id="btnWaste-mot" class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-amber-500 text-left space-y-2">
+                            <div class="text-2xl">Operator Reaching Far</div>
+                            <div class="font-bold text-xs">Motion</div>
+                        </button>
+                        <button onclick="findWaste('wait')" id="btnWaste-wait" class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-amber-500 text-left space-y-2">
+                            <div class="text-2xl">Idle Machine Queue</div>
+                            <div class="font-bold text-xs">Waiting</div>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 6: INTERACTIVE TOOL BUILDERS (SIPOC, Fishbone, FMEA, Pareto) -->
+        <!-- ========================================================================= -->
+        <section id="sec-builders" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                <!-- Inner Navigation for Builders -->
+                <div class="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-700 overflow-x-auto pb-2 custom-scrollbar">
+                    <button onclick="openBuilderTab('sipoc')" class="builder-tab-btn active px-3 py-1.5 rounded-lg font-semibold text-xs bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300" data-builder="sipoc">
+                        📋 Drag & Drop SIPOC
+                    </button>
+                    <button onclick="openBuilderTab('fishbone')" class="builder-tab-btn px-3 py-1.5 rounded-lg font-semibold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" data-builder="fishbone">
+                        🐟 Fishbone & 5-Why
+                    </button>
+                    <button onclick="openBuilderTab('fmea')" class="builder-tab-btn px-3 py-1.5 rounded-lg font-semibold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" data-builder="fmea">
+                        ⚠️ FMEA Matrix & RPN
+                    </button>
+                    <button onclick="openBuilderTab('pareto')" class="builder-tab-btn px-3 py-1.5 rounded-lg font-semibold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" data-builder="pareto">
+                        📊 Pareto Chart Generator
+                    </button>
+                    <button onclick="openBuilderTab('vsm')" class="builder-tab-btn px-3 py-1.5 rounded-lg font-semibold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" data-builder="vsm">
+                        🗺️ Value Stream Map (VSM)
+                    </button>
+                </div>
+
+                <!-- BUILDER 1: SIPOC BUILDER -->
+                <div id="builder-sipoc" class="builder-sub-content space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-base">Interactive SIPOC Diagram Builder</h3>
+                            <p class="text-xs text-slate-500">Map Suppliers, Inputs, Process Steps, Outputs, and Customers for any industrial process.</p>
+                        </div>
+                        <button onclick="addSIPOCRow()" class="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold hover:bg-sky-500">
+                            + Add Process Step
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-600">
+                                    <th class="p-3 font-bold w-1/5">S - SUPPLIERS</th>
+                                    <th class="p-3 font-bold w-1/5">I - INPUTS</th>
+                                    <th class="p-3 font-bold w-1/5">P - PROCESS STEPS</th>
+                                    <th class="p-3 font-bold w-1/5">O - OUTPUTS</th>
+                                    <th class="p-3 font-bold w-1/5">C - CUSTOMERS</th>
+                                    <th class="p-3 w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="sipocTableBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- BUILDER 2: FISHBONE DIAGRAM -->
+                <div id="builder-fishbone" class="builder-sub-content hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-base">Ishikawa (Fishbone) Cause & Effect Builder</h3>
+                        <div class="flex space-x-2">
+                            <input type="text" id="fishboneProblem" value="Panel Wiring Resistance Failure" class="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-3 py-1 text-xs font-bold w-64">
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-6 rounded-xl border border-slate-700 min-h-[350px] relative overflow-hidden">
+                        <canvas id="fishboneCanvas" class="w-full h-80"></canvas>
+                    </div>
+                </div>
+
+                <!-- BUILDER 3: FMEA MATRIX -->
+                <div id="builder-fmea" class="builder-sub-content hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-base">Failure Mode and Effects Analysis (FMEA)</h3>
+                            <p class="text-xs text-slate-500">Risk Priority Number ($\text{RPN} = \text{Severity} \times \text{Occurrence} \times \text{Detection}$)</p>
+                        </div>
+                        <button onclick="addFMEARow()" class="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold">
+                            + Add Failure Mode
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-600">
+                                    <th class="p-2 font-bold">Process Step</th>
+                                    <th class="p-2 font-bold">Potential Failure Mode</th>
+                                    <th class="p-2 font-bold">Potential Cause</th>
+                                    <th class="p-2 font-bold w-16 text-center">Sev (S)</th>
+                                    <th class="p-2 font-bold w-16 text-center">Occ (O)</th>
+                                    <th class="p-2 font-bold w-16 text-center">Det (D)</th>
+                                    <th class="p-2 font-bold w-20 text-center">RPN</th>
+                                    <th class="p-2 font-bold">Recommended Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fmeaTableBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- BUILDER 4: PARETO CHART -->
+                <div id="builder-pareto" class="builder-sub-content hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-base">Pareto Chart Analysis (The 80/20 Rule)</h3>
+                        <button onclick="generateParetoChart()" class="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold">
+                            🔄 Refresh Pareto
+                        </button>
+                    </div>
+
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 h-80">
+                        <canvas id="paretoCanvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- BUILDER 5: VALUE STREAM MAP (VSM) -->
+                <div id="builder-vsm" class="builder-sub-content hidden space-y-6">
+                    <div class="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                        <h3 class="font-bold text-sm">🗺️ Value Stream Map & Process Cycle Efficiency (PCE) Calculator</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Total Value-Added Time ($VA$): <span id="valVATime" class="font-mono text-emerald-500">45 mins</span></label>
+                                <input type="range" id="sliderVATime" min="5" max="120" step="5" value="45" oninput="calcVSM()" class="w-full accent-emerald-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Total Waiting / Lead Time ($LT$): <span id="valLeadTime" class="font-mono text-rose-500">12.5 hours</span></label>
+                                <input type="range" id="sliderLeadTime" min="1" max="48" step="0.5" value="12.5" oninput="calcVSM()" class="w-full accent-rose-500">
+                            </div>
+                            <div class="bg-slate-100 dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                                <div class="text-[10px] uppercase font-bold text-slate-500">Process Cycle Efficiency ($\text{PCE}$)</div>
+                                <div id="resPCE" class="text-xl font-mono font-bold text-sky-500">6.0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 7: SIX SIGMA CALCULATOR CENTER -->
+        <!-- ========================================================================= -->
+        <section id="sec-calculators" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                <div>
+                    <h2 class="text-2xl font-extrabold">🧮 Interactive Calculator Center</h2>
+                    <p class="text-xs text-slate-500">Step-by-step mathematical breakdowns for essential Six Sigma metrics.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Calculator 1: DPMO -->
+                    <div class="p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                        <h3 class="font-bold text-sm text-sky-600 dark:text-sky-400">1. DPMO Calculator</h3>
+                        <div class="space-y-2 text-xs">
+                            <input type="number" id="calcDPMO_D" placeholder="Defects (D)" value="25" class="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                            <input type="number" id="calcDPMO_U" placeholder="Units (N)" value="1000" class="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                            <input type="number" id="calcDPMO_O" placeholder="Opportunities/Unit (O)" value="5" class="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                            <button onclick="runDPMOCalc()" class="w-full py-1.5 bg-sky-600 text-white rounded font-bold">Calculate DPMO</button>
+                            <div id="outCalcDPMO" class="p-2 bg-slate-200 dark:bg-slate-800 rounded font-mono font-bold text-center">DPMO: 5,000</div>
+                        </div>
+                    </div>
+
+                    <!-- Calculator 2: Cp & Cpk -->
+                    <div class="p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                        <h3 class="font-bold text-sm text-emerald-600 dark:text-emerald-400">2. Cp & Cpk Calculator</h3>
+                        <div class="space-y-2 text-xs">
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="number" id="calcCpk_USL" placeholder="USL" value="10.5" class="p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                                <input type="number" id="calcCpk_LSL" placeholder="LSL" value="9.5" class="p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="number" id="calcCpk_Mean" placeholder="Mean (μ)" value="10.0" class="p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                                <input type="number" id="calcCpk_Std" placeholder="Std Dev (σ)" value="0.1" class="p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                            </div>
+                            <button onclick="runCpkCalc()" class="w-full py-1.5 bg-emerald-600 text-white rounded font-bold">Calculate Cp & Cpk</button>
+                            <div id="outCalcCpk" class="p-2 bg-slate-200 dark:bg-slate-800 rounded font-mono font-bold text-center">Cp: 1.67 | Cpk: 1.67</div>
+                        </div>
+                    </div>
+
+                    <!-- Calculator 3: Rolled Throughput Yield (RTY) -->
+                    <div class="p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                        <h3 class="font-bold text-sm text-amber-600 dark:text-amber-400">3. Rolled Throughput Yield ($\text{RTY}$)</h3>
+                        <div class="space-y-2 text-xs">
+                            <input type="text" id="calcRTY_Yields" placeholder="Yields (e.g., 0.98, 0.95, 0.99)" value="0.98, 0.95, 0.99" class="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                            <button onclick="runRTYCalc()" class="w-full py-1.5 bg-amber-600 text-white rounded font-bold">Calculate RTY</button>
+                            <div id="outCalcRTY" class="p-2 bg-slate-200 dark:bg-slate-800 rounded font-mono font-bold text-center">RTY: 92.17%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 8: INDUSTRIAL CASE STUDIES -->
+        <!-- ========================================================================= -->
+        <section id="sec-case-studies" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                <div>
+                    <h2 class="text-2xl font-extrabold">🏭 Real Industrial Case Studies</h2>
+                    <p class="text-xs text-slate-500">Detailed DMAIC breakdowns across electrical engineering, automotive, and healthcare sectors.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Case Study 1 -->
+                    <div class="p-5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200">ELECTRICAL PANEL MFG</span>
+                        <h3 class="font-bold text-base">Reducing Terminal Loose Torque Defects</h3>
+                        <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                            <strong>Problem:</strong> 8.2% of MCCB panels failed high-current testing due to loose screw terminations. <br>
+                            <strong>Root Cause:</strong> Operators relied on manual screwdriver feel without torque drivers. <br>
+                            <strong>Improvement:</strong> Calibrated pneumatic torque wrenches with poka-yoke shutoff. <br>
+                            <strong>Financial Benefit:</strong> $142,000 saved per year in rework costs.
+                        </p>
+                    </div>
+
+                    <!-- Case Study 2 -->
+                    <div class="p-5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">MOTOR MANUFACTURING</span>
+                        <h3 class="font-bold text-base">Stator Winding Resistance Variation</h3>
+                        <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                            <strong>Problem:</strong> Cpk of motor winding resistance was 0.72. <br>
+                            <strong>Root Cause:</strong> Copper wire tensioning variation during automatic spooling. <br>
+                            <strong>Improvement:</strong> Implemented SPC closed-loop tension control. Cpk reached 1.84. <br>
+                            <strong>Financial Benefit:</strong> Reduced scrap rate from 4.1% to 0.03%.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 9: KNOWLEDGE MAP & FORMULA REFERENCE -->
+        <!-- ========================================================================= -->
+        <section id="sec-knowledge" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                <div>
+                    <h2 class="text-2xl font-extrabold">📖 Knowledge Base & Formula Reference</h2>
+                    <p class="text-xs text-slate-500">Comprehensive reference dictionary, mathematical formulas, and common traps.</p>
+                </div>
+
+                <!-- Knowledge Search -->
+                <input type="text" id="kbSearchInput" oninput="filterKnowledgeBase(this.value)" placeholder="Filter topics or formulas (e.g., Cpk, ANOVA, FMEA)..." class="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 text-xs">
+
+                <div id="kbGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Dynamic KB cards inserted via JS -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 10: QUIZZES & BELT CERTIFICATION EXAMS -->
+        <!-- ========================================================================= -->
+        <section id="sec-quiz" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-extrabold">📝 Practice Quizzes & Belt Certification Exams</h2>
+                        <p class="text-xs text-slate-500">Test your knowledge with timed certification exam simulations.</p>
+                    </div>
+                </div>
+
+                <!-- Exam Selection Grid -->
+                <div id="examSelectionGrid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="p-6 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-950/20 space-y-4">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 text-amber-900">YELLOW BELT EXAM</span>
+                        <h3 class="font-bold text-base">Yellow Belt Certification Test</h3>
+                        <p class="text-xs text-slate-600 dark:text-slate-300">10 Questions • 10 Minutes • 80% Passing Score</p>
+                        <button onclick="startExam('yellow')" class="w-full py-2 bg-amber-500 text-white font-bold rounded-lg text-xs hover:bg-amber-400">
+                            Start Yellow Belt Exam
+                        </button>
+                    </div>
+
+                    <div class="p-6 rounded-xl border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-4">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-200 text-emerald-900">GREEN BELT EXAM</span>
+                        <h3 class="font-bold text-base">Green Belt Certification Test</h3>
+                        <p class="text-xs text-slate-600 dark:text-slate-300">15 Questions • 15 Minutes • 80% Passing Score</p>
+                        <button onclick="startExam('green')" class="w-full py-2 bg-emerald-600 text-white font-bold rounded-lg text-xs hover:bg-emerald-500">
+                            Start Green Belt Exam
+                        </button>
+                    </div>
+
+                    <div class="p-6 rounded-xl border border-slate-700 bg-slate-900 text-white space-y-4">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-200">BLACK BELT EXAM</span>
+                        <h3 class="font-bold text-base">Black Belt Certification Test</h3>
+                        <p class="text-xs text-slate-400">20 Questions • 20 Minutes • 85% Passing Score</p>
+                        <button onclick="startExam('black')" class="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg text-xs hover:bg-indigo-500">
+                            Start Black Belt Exam
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Quiz Box (Hidden by default) -->
+                <div id="activeQuizBox" class="hidden bg-slate-50 dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700 space-y-6">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 11: CAPSTONE PROJECT BUILDER -->
+        <!-- ========================================================================= -->
+        <section id="sec-project-builder" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-extrabold">💼 Six Sigma Project Charter & Report Builder</h2>
+                        <p class="text-xs text-slate-500">Document your real-world Six Sigma project and generate a printable report.</p>
+                    </div>
+                    <button onclick="printProjectReport()" class="px-4 py-2 bg-sky-600 text-white font-bold rounded-lg text-xs">
+                        🖨️ Print / Export Summary
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs space-y-2">
+                    <div>
+                        <label class="block font-bold mb-1">Project Name:</label>
+                        <input type="text" id="projName" value="Control Panel Wiring Error Reduction" class="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">Business Impact ($/yr):</label>
+                        <input type="text" id="projImpact" value="$120,000" class="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block font-bold mb-1">Problem Statement:</label>
+                        <textarea id="projProblem" rows="2" class="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">In Q2, 6.5% of assembled electrical panels had miswiring defects, causing shipment delays.</textarea>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 12: MY PROGRESS DASHBOARD -->
+        <!-- ========================================================================= -->
+        <section id="sec-progress" class="tab-content hidden space-y-8">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-extrabold">📊 My Learning Analytics</h2>
+                        <p class="text-xs text-slate-500">Track experience points, earned badges, and exam history.</p>
+                    </div>
+                    <button onclick="resetUserProgress()" class="px-3 py-1.5 bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300 font-bold text-xs rounded-lg">
+                        ⚠️ Reset Progress
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="p-4 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 text-center">
+                        <div class="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase">Total XP Points</div>
+                        <div id="progXP" class="text-3xl font-mono font-extrabold text-sky-600 dark:text-sky-300 mt-1">150 XP</div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-center">
+                        <div class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">Current Belt</div>
+                        <div id="progBelt" class="text-3xl font-bold text-amber-600 dark:text-amber-300 mt-1">Yellow Belt</div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-center">
+                        <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase">Badges Unlocked</div>
+                        <div id="progBadgesCount" class="text-3xl font-mono font-extrabold text-emerald-600 dark:text-emerald-300 mt-1">3 / 8</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-6 mt-12 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4">
+            Six Sigma Interactive Learning Lab • Self-Contained Educational Tool
+        </div>
+    </footer>
+
+
+    <!-- ========================================================================= -->
+    <!-- JAVASCRIPT LOGIC & ENGINE -->
+    <!-- ========================================================================= -->
+    <script>
+        // Global State Object
+        let state = {
+            xp: 0,
+            belt: 'White Belt',
+            badges: [],
+            darkMode: false
+        };
+
+        // Initialize on Load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadProgress();
+            initHeroCanvas();
+            initIntroCanvas();
+            renderBeltDetails('white');
+            loadDMAICStage('D');
+            drawCapSim();
+            initSIPOCTable();
+            initFMEATable();
+            initKnowledgeBase();
+        });
+
+        // LocalStorage Logic
+        function loadProgress() {
+            const saved = localStorage.getItem('six_sigma_lab_data');
+            if (saved) {
+                try {
+                    state = JSON.parse(saved);
+                } catch(e){}
+            }
+            updateUIHeader();
+        }
+
+        function saveProgress() {
+            localStorage.setItem('six_sigma_lab_data', JSON.stringify(state));
+            updateUIHeader();
+        }
+
+        function addXP(amount, reason) {
+            state.xp += amount;
+            saveProgress();
+        }
+
+        function updateUIHeader() {
+            document.getElementById('headerXP').innerText = `${state.xp} XP`;
+            document.getElementById('progXP').innerText = `${state.xp} XP`;
+            document.getElementById('headerBelt').innerText = state.belt;
+            document.getElementById('progBelt').innerText = state.belt;
+        }
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            state.darkMode = document.documentElement.classList.contains('dark');
+            saveProgress();
+        }
+
+        function switchMainTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById(`sec-${tabId}`);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+                if (btn.dataset.tab === tabId) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        }
+
+        function toggleMobileMenu() {
+            document.getElementById('mobileMenu').classList.toggle('hidden');
+        }
+
+        function initHeroCanvas() {
+            const canvas = document.getElementById('heroCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let w = canvas.width = canvas.offsetWidth;
+            let h = canvas.height = canvas.offsetHeight;
+
+            let particles = Array.from({length: 30}, () => ({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                r: Math.random() * 3 + 1,
+                vx: Math.random() * 0.5 + 0.2
+            }));
+
+            function animate() {
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = '#38bdf8';
+                particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fill();
+                    p.x += p.vx;
+                    if (p.x > w) p.x = 0;
+                });
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function initIntroCanvas() {
+            updateIntroSim();
+        }
+
+        function updateIntroSim() {
+            const N = parseInt(document.getElementById('sliderUnits').value);
+            const D = parseInt(document.getElementById('sliderDefects').value);
+            const O = parseInt(document.getElementById('sliderOpp').value);
+
+            document.getElementById('valUnits').innerText = N.toLocaleString();
+            document.getElementById('valDefects').innerText = D.toLocaleString();
+            document.getElementById('valOpp').innerText = O.toString();
+
+            const defectRate = (D / N) * 100;
+            const yieldVal = 100 - defectRate;
+            const DPU = D / N;
+            const DPMO = (D / (N * O)) * 1000000;
+
+            // Approximate Sigma Level with 1.5 Shift
+            let sigma = 0;
+            if (DPMO <= 3.4) sigma = 6.0;
+            else if (DPMO <= 233) sigma = 5.0;
+            else if (DPMO <= 6210) sigma = 4.0;
+            else if (DPMO <= 66807) sigma = 3.0;
+            else if (DPMO <= 308538) sigma = 2.0;
+            else sigma = 1.0;
+
+            document.getElementById('resDefectRate').innerText = defectRate.toFixed(2) + '%';
+            document.getElementById('resYield').innerText = yieldVal.toFixed(2) + '%';
+            document.getElementById('resDPU').innerText = DPU.toFixed(3);
+            document.getElementById('resDPMO').innerText = Math.round(DPMO).toLocaleString();
+            document.getElementById('resSigmaLevel').innerText = sigma.toFixed(2) + ' σ';
+
+            drawFactoryConveyor(defectRate);
+        }
+
+        function drawFactoryConveyor(defectRate) {
+            const canvas = document.getElementById('factoryConveyorCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, canvas.height / 2 + 10, canvas.width, 10);
+
+            // Draw panels on line
+            const numPanels = 8;
+            for (let i = 0; i < numPanels; i++) {
+                let x = (canvas.width / numPanels) * i + 20;
+                let isDefect = (i === 3 && defectRate > 2);
+                ctx.fillStyle = isDefect ? '#f43f5e' : '#10b981';
+                ctx.fillRect(x, canvas.height / 2 - 20, 30, 25);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '10px monospace';
+                ctx.fillText(isDefect ? 'FAIL' : 'OK', x + 5, canvas.height / 2 - 4);
+            }
+        }
+
+        const beltData = {
+            white: {
+                title: "White Belt",
+                desc: "Basic understanding of Six Sigma terminology, waste awareness, and DMAIC concepts.",
+                tools: ["Process Mindset", "7 Waste Identification", "Basic SIPOC"],
+                project: "Participate in department brainstorming and error reporting."
+            },
+            yellow: {
+                title: "Yellow Belt",
+                desc: "Supports Green/Black Belt projects, collects data, maps processes, and runs basic problem-solving.",
+                tools: ["Pareto Charts", "Fishbone Diagrams", "5 Why", "Basic DPMO/Yield"],
+                project: "Reduce assembly line screw drop defects on motor line."
+            },
+            green: {
+                title: "Green Belt",
+                desc: "Leads smaller DMAIC projects, performs statistical data analysis, and implements control plans.",
+                tools: ["Cp/Cpk", "Gage R&R", "Control Charts (SPC)", "Hypothesis Testing"],
+                project: "Improve electrical panel busbar bending Cpk from 0.8 to 1.5."
+            },
+            black: {
+                title: "Black Belt",
+                desc: "High-level statistical expert, leads enterprise projects, mentors Green Belts.",
+                tools: ["Design of Experiments (DOE)", "Multiple Regression", "Advanced ANOVA", "DFSS"],
+                project: "Eliminate nuisance tripping on high-voltage circuit breakers across 3 plants."
+            },
+            master: {
+                title: "Master Black Belt",
+                desc: "Strategic quality leader, coaches executive leadership, deploys enterprise Six Sigma.",
+                tools: ["Enterprise Strategy", "Statistical Coaching", "Portfolio Governance"],
+                project: "Deploy global Six Sigma quality system across 12 manufacturing sites."
+            }
+        };
+
+        function selectBeltDetail(beltKey) {
+            document.querySelectorAll('.belt-detail-btn').forEach(b => {
+                if (b.dataset.belt === beltKey) b.classList.add('border-sky-500', 'text-sky-500');
+                else b.classList.remove('border-sky-500', 'text-sky-500');
+            });
+            renderBeltDetails(beltKey);
+        }
+
+        function renderBeltDetails(key) {
+            const b = beltData[key];
+            const box = document.getElementById('beltDetailContent');
+            box.innerHTML = `
+                <div class="p-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 space-y-4">
+                    <h3 class="text-xl font-bold">${b.title}</h3>
+                    <p class="text-xs text-slate-600 dark:text-slate-300">${b.desc}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <div>
+                            <span class="text-xs font-bold text-slate-500 uppercase">Key Tools Mastered:</span>
+                            <ul class="list-disc list-inside text-xs space-y-1 mt-1 text-slate-700 dark:text-slate-300">
+                                ${b.tools.map(t => `<li>${t}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-500 uppercase">Typical Project Challenge:</span>
+                            <p class="text-xs text-slate-700 dark:text-slate-300 mt-1">${b.project}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        const dmaicStages = {
+            D: {
+                title: "1. DEFINE PHASE: Control Panel Wiring Defects",
+                question: "Customer complaints state that 6.5% of delivered control panels fail during site installation due to wire connection faults. What is the best Problem Statement?",
+                options: [
+                    { text: "Operators are careless and wiring needs to be fixed immediately.", correct: false, exp: "Blaming operators is not a measurable, objective problem statement." },
+                    { text: "Wiring failures caused 6.5% panel defects in Q2, increasing rework cost by $120,000/yr. Goal is < 0.5%.", correct: true, exp: "Excellent! It specifies metric (6.5%), financial impact ($120k), baseline, and clear target (<0.5%)." },
+                    { text: "We need to purchase automatic wire crimping machines.", correct: false, exp: "Jump to solution trap! Never state a solution in the Define problem statement." }
+                ]
+            },
+            M: {
+                title: "2. MEASURE PHASE: Baseline Data & MSA",
+                question: "Before trusting defect data, what step MUST the Green/Black belt take first?",
+                options: [
+                    { text: "Conduct a Measurement System Analysis (Gage R&R) on electrical resistance testers.", correct: true, exp: "Correct! You must verify the measurement system is reliable before analyzing process capability." },
+                    { text: "Immediately replace wire suppliers.", correct: false, exp: "Unjustified action without data." },
+                    { text: "Fire the line supervisor.", correct: false, exp: "Non-statistical and inappropriate decision." }
+                ]
+            },
+            A: {
+                title: "3. ANALYZE PHASE: Root Cause Identification",
+                question: "A Pareto chart shows 78% of all wiring errors belong to 'Incorrect Wire Terminal Crimping Torque'. What tool should be used next?",
+                options: [
+                    { text: "5-Why Analysis and Fishbone Diagram on terminal crimping process.", correct: true, exp: "Spot on! Drill down into the vital few defect categories using 5-Why." },
+                    { text: "Run an ANOVA test on factory ambient temperature.", correct: false, exp: "Irrelevant variable." }
+                ]
+            },
+            I: {
+                title: "4. IMPROVE PHASE: Countermeasure Selection",
+                question: "5-Why reveals operators use manual pliers with no torque limit. What Poka-Yoke improvement is best?",
+                options: [
+                    { text: "Post a paper warning sign above the bench.", correct: false, exp: "Signs are low-reliability controls." },
+                    { text: "Implement smart torque-limiting crimp tools that prevent wire release until correct torque is reached.", correct: true, exp: "Awesome Poka-Yoke! Mistakes become physically impossible." }
+                ]
+            },
+            C: {
+                title: "5. CONTROL PHASE: Sustaining Gains",
+                question: "To prevent relapse, how should the team lock in the improvement?",
+                options: [
+                    { text: "Update Standard Operating Procedures (SOP), maintain an X-bar Control Chart, and implement daily audit checklists.", correct: true, exp: "Perfect Control Plan! Ensures permanent process stability." },
+                    { text: "Close the project file and stop monitoring.", correct: false, exp: "Without controls, processes quickly degrade back to baseline." }
+                ]
+            }
+        };
+
+        function loadDMAICStage(stageKey) {
+            const stage = dmaicStages[stageKey];
+            const box = document.getElementById('dmaicScenarioBox');
+            box.innerHTML = `
+                <h3 class="font-bold text-base text-indigo-600 dark:text-indigo-400">${stage.title}</h3>
+                <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-semibold">${stage.question}</p>
+                <div class="space-y-2 pt-2">
+                    ${stage.options.map((opt, i) => `
+                        <button onclick="answerDMAIC('${stageKey}', ${i})" class="w-full text-left p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-indigo-500 text-xs transition">
+                            ${opt.text}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function answerDMAIC(stageKey, optIdx) {
+            const opt = dmaicStages[stageKey].options[optIdx];
+            if (opt.correct) {
+                addXP(20, "DMAIC Step Mastered");
+                alert("✅ Correct! " + opt.exp);
+                // Advance to next step
+                if (stageKey === 'D') loadDMAICStage('M');
+                else if (stageKey === 'M') loadDMAICStage('A');
+                else if (stageKey === 'A') loadDMAICStage('I');
+                else if (stageKey === 'I') loadDMAICStage('C');
+                else alert("🎉 Congratulations! You solved the entire DMAIC Control Panel Case!");
+            } else {
+                alert("❌ Incorrect. " + opt.exp);
+            }
+        }
+
+        function openSimTab(simKey) {
+            document.querySelectorAll('.sim-sub-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`sim-${simKey}`).classList.remove('hidden');
+
+            document.querySelectorAll('.sim-tab-btn').forEach(btn => {
+                if (btn.dataset.sim === simKey) {
+                    btn.classList.add('bg-sky-100', 'dark:bg-sky-900/60', 'text-sky-700', 'dark:text-sky-300');
+                } else {
+                    btn.classList.remove('bg-sky-100', 'dark:bg-sky-900/60', 'text-sky-700', 'dark:text-sky-300');
+                }
+            });
+
+            if (simKey === 'capability') drawCapSim();
+            else if (simKey === 'control-charts') generateControlChart();
+            else if (simKey === 'gagerr') updateGageRR();
+            else if (simKey === 'hypothesis') runANOVASim();
+            else if (simKey === 'regression') drawRegressionSim();
+            else if (simKey === 'doe') updateDOESim();
+        }
+
+        // Capability Sim Logic
+        function drawCapSim() {
+            const LSL = parseFloat(document.getElementById('sliderLSL').value);
+            const USL = parseFloat(document.getElementById('sliderUSL').value);
+            const mean = parseFloat(document.getElementById('sliderMean').value);
+            const std = parseFloat(document.getElementById('sliderStd').value);
+
+            document.getElementById('valLSL').innerText = LSL.toFixed(1) + ' mm';
+            document.getElementById('valUSL').innerText = USL.toFixed(1) + ' mm';
+            document.getElementById('valMean').innerText = mean.toFixed(1) + ' mm';
+            document.getElementById('valStd').innerText = std.toFixed(2) + ' mm';
+
+            const Cp = (USL - LSL) / (6 * std);
+            const Cpu = (USL - mean) / (3 * std);
+            const Cpl = (mean - LSL) / (3 * std);
+            const Cpk = Math.min(Cpu, Cpl);
+
+            document.getElementById('outCp').innerText = Cp.toFixed(2);
+            document.getElementById('outCpk').innerText = Cpk.toFixed(2);
+
+            // Canvas Drawing
+            const canvas = document.getElementById('capCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Map x values
+            const minX = 90, maxX = 110;
+            const toCanvasX = (val) => ((val - minX) / (maxX - minX)) * canvas.width;
+
+            // Draw Spec Lines
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(LSL), 0);
+            ctx.lineTo(toCanvasX(LSL), canvas.height);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(USL), 0);
+            ctx.lineTo(toCanvasX(USL), canvas.height);
+            ctx.stroke();
+
+            // Draw Normal Curve
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+
+            for (let x = minX; x <= maxX; x += 0.1) {
+                let y = (1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / std, 2));
+                let canvasX = toCanvasX(x);
+                let canvasY = canvas.height - (y * 120) - 20;
+                if (x === minX) ctx.moveTo(canvasX, canvasY);
+                else ctx.lineTo(canvasX, canvasY);
+            }
+            ctx.stroke();
+        }
+
+        function setCapScenario(type) {
+            if (type === 'centered-narrow') {
+                document.getElementById('sliderLSL').value = 98;
+                document.getElementById('sliderUSL').value = 102;
+                document.getElementById('sliderMean').value = 100;
+                document.getElementById('sliderStd').value = 0.4;
+            } else if (type === 'centered-wide') {
+                document.getElementById('sliderLSL').value = 98;
+                document.getElementById('sliderUSL').value = 102;
+                document.getElementById('sliderMean').value = 100;
+                document.getElementById('sliderStd').value = 1.2;
+            } else if (type === 'shifted') {
+                document.getElementById('sliderLSL').value = 98;
+                document.getElementById('sliderUSL').value = 102;
+                document.getElementById('sliderMean').value = 101.5;
+                document.getElementById('sliderStd').value = 0.5;
+            }
+            drawCapSim();
+        }
+
+        let spcChartInstance = null;
+
+        function generateControlChart(anomalyType = null) {
+            const ctx = document.getElementById('spcCanvas');
+            if (!ctx) return;
+
+            let data = [];
+            let n = 25;
+            let mean = 50;
+            let std = 2;
+
+            for (let i = 0; i < n; i++) {
+                let val = mean + (Math.random() - 0.5) * std * 2;
+                if (anomalyType === 'shift' && i >= 15) val += 4.5; // Mean shift
+                if (anomalyType === 'trend' && i >= 10) val += (i - 10) * 0.6; // Upward trend
+                data.push(parseFloat(val.toFixed(2)));
+            }
+
+            const ucl = mean + 3 * (std / 2);
+            const lcl = mean - 3 * (std / 2);
+
+            if (spcChartInstance) spcChartInstance.destroy();
+
+            spcChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: n}, (_, i) => `Subgroup ${i+1}`),
+                    datasets: [
+                        {
+                            label: 'Measured Values',
+                            data: data,
+                            borderColor: '#38bdf8',
+                            backgroundColor: '#38bdf8',
+                            borderWidth: 2,
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'UCL (Upper Control Limit)',
+                            data: Array(n).fill(ucl),
+                            borderColor: '#f43f5e',
+                            borderDash: [5, 5],
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'CL (Center Line)',
+                            data: Array(n).fill(mean),
+                            borderColor: '#10b981',
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'LCL (Lower Control Limit)',
+                            data: Array(n).fill(lcl),
+                            borderColor: '#f43f5e',
+                            borderDash: [5, 5],
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#94a3b8' } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' } },
+                        y: { ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+
+        function injectSPCAnomaly(type) {
+            generateControlChart(type);
+        }
+
+        function updateGageRR() {
+            const ev = parseFloat(document.getElementById('sliderEV').value);
+            const av = parseFloat(document.getElementById('sliderAV').value);
+            const pv = parseFloat(document.getElementById('sliderPV').value);
+
+            document.getElementById('valEV').innerText = ev + '%';
+            document.getElementById('valAV').innerText = av + '%';
+            document.getElementById('valPV').innerText = pv + '%';
+
+            const grr = Math.sqrt(ev*ev + av*av);
+            document.getElementById('resGRR').innerText = grr.toFixed(1) + '%';
+        }
+
+        function runANOVASim() {
+            const machC = parseFloat(document.getElementById('sliderMachC').value);
+            document.getElementById('valMachC').innerText = machC.toFixed(1) + ' min';
+        }
+
+        function drawRegressionSim() {
+            const slope = parseFloat(document.getElementById('sliderRegSlope').value);
+            document.getElementById('valRegSlope').innerText = slope.toFixed(1);
+            document.getElementById('outRegEq').innerText = `Temp = 25.0 + ${slope.toFixed(2)} × Current`;
+        }
+
+        function updateDOESim() {
+            const temp = parseFloat(document.getElementById('sliderDOETemp').value);
+            const speed = parseFloat(document.getElementById('sliderDOESpeed').value);
+            const defectRate = Math.max(0.1, (260 - temp) * 0.1 + (speed - 1.0) * 1.5).toFixed(1);
+            document.getElementById('outDOEDefects').innerText = defectRate + '%';
+        }
+
+        function findWaste(type) {
+            addXP(15, "Waste Unlocked");
+            alert("🎯 Waste Identified! You earned +15 XP!");
+        }
+
+        function openBuilderTab(bKey) {
+            document.querySelectorAll('.builder-sub-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`builder-${bKey}`).classList.remove('hidden');
+
+            document.querySelectorAll('.builder-tab-btn').forEach(btn => {
+                if (btn.dataset.builder === bKey) {
+                    btn.classList.add('bg-sky-100', 'dark:bg-sky-900/60', 'text-sky-700', 'dark:text-sky-300');
+                } else {
+                    btn.classList.remove('bg-sky-100', 'dark:bg-sky-900/60', 'text-sky-700', 'dark:text-sky-300');
+                }
+            });
+        }
+
+        function initSIPOCTable() {
+            const tbody = document.getElementById('sipocTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td class="p-2"><input value="Copper Wire Co." class="w-full bg-transparent border-b border-slate-300 dark:border-slate-600"></td>
+                    <td class="p-2"><input value="16 AWG Wire Spool" class="w-full bg-transparent border-b border-slate-300 dark:border-slate-600"></td>
+                    <td class="p-2"><input value="Wire Stripping & Crimping" class="w-full bg-transparent border-b border-slate-300 dark:border-slate-600"></td>
+                    <td class="p-2"><input value="Crimp Harness" class="w-full bg-transparent border-b border-slate-300 dark:border-slate-600"></td>
+                    <td class="p-2"><input value="Panel Assembly Dept" class="w-full bg-transparent border-b border-slate-300 dark:border-slate-600"></td>
+                    <td class="p-2"><button onclick="this.closest('tr').remove()" class="text-rose-500 font-bold">×</button></td>
+                </tr>
+            `;
+        }
+
+        function addSIPOCRow() {
+            initSIPOCTable();
+        }
+
+        function initFMEATable() {
+            const tbody = document.getElementById('fmeaTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td class="p-2"><input value="Terminal Screw Tightening" class="w-full bg-transparent border-b border-slate-300 dark:border-slate-600"></td>
+                    <td class="p-2"><input value="Loose Connection" class="w-full bg-transparent border-b border-slate-300 dark:border-slate-600"></td>
+                    <td class="p-2"><input value="Operator Fatigue / No Torque Control" class="w-full bg-transparent border-b border-slate-300 dark:border-slate-600"></td>
+                    <td class="p-2 text-center"><input type="number" value="8" class="w-12 text-center bg-transparent font-bold"></td>
+                    <td class="p-2 text-center"><input type="number" value="6" class="w-12 text-center bg-transparent font-bold"></td>
+                    <td class="p-2 text-center"><input type="number" value="5" class="w-12 text-center bg-transparent font-bold"></td>
+                    <td class="p-2 text-center font-bold text-rose-500">240</td>
+                    <td class="p-2"><input value="Introduce Torque Wrench" class="w-full bg-transparent border-b border-slate-300 dark:border-slate-600"></td>
+                </tr>
+            `;
+        }
+
+        function addFMEARow() {
+            initFMEATable();
+        }
+
+        function runDPMOCalc() {
+            const D = parseFloat(document.getElementById('calcDPMO_D').value);
+            const N = parseFloat(document.getElementById('calcDPMO_U').value);
+            const O = parseFloat(document.getElementById('calcDPMO_O').value);
+            const dpmo = (D / (N * O)) * 1000000;
+            document.getElementById('outCalcDPMO').innerText = `DPMO: ${Math.round(dpmo).toLocaleString()}`;
+        }
+
+        function runCpkCalc() {
+            const USL = parseFloat(document.getElementById('calcCpk_USL').value);
+            const LSL = parseFloat(document.getElementById('calcCpk_LSL').value);
+            const mean = parseFloat(document.getElementById('calcCpk_Mean').value);
+            const std = parseFloat(document.getElementById('calcCpk_Std').value);
+
+            const Cp = (USL - LSL) / (6 * std);
+            const Cpu = (USL - mean) / (3 * std);
+            const Cpl = (mean - LSL) / (3 * std);
+            const Cpk = Math.min(Cpu, Cpl);
+
+            document.getElementById('outCalcCpk').innerText = `Cp: ${Cp.toFixed(2)} | Cpk: ${Cpk.toFixed(2)}`;
+        }
+
+        function runRTYCalc() {
+            const str = document.getElementById('calcRTY_Yields').value;
+            const yields = str.split(',').map(v => parseFloat(v.trim()));
+            let rty = 1;
+            yields.forEach(y => rty *= y);
+            document.getElementById('outCalcRTY').innerText = `RTY: ${(rty * 100).toFixed(2)}%`;
+        }
+
+        const kbItems = [
+            { term: "DPMO", def: "Defects Per Million Opportunities. Standardized metric to evaluate process yield across diverse industries." },
+            { term: "Cpk", def: "Process Capability Index. Measures how centered and narrow process variation is relative to specification limits." },
+            { term: "ANOVA", def: "Analysis of Variance. Statistical test to compare means across 3 or more groups." },
+            { term: "SIPOC", def: "High-level process map showing Suppliers, Inputs, Process, Outputs, and Customers." }
+        ];
+
+        function initKnowledgeBase() {
+            const grid = document.getElementById('kbGrid');
+            grid.innerHTML = kbItems.map(item => `
+                <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 space-y-1">
+                    <h4 class="font-bold text-sm text-sky-600 dark:text-sky-400">${item.term}</h4>
+                    <p class="text-xs text-slate-600 dark:text-slate-300">${item.def}</p>
+                </div>
+            `).join('');
+        }
+
+        function filterKnowledgeBase(query) {
+            const grid = document.getElementById('kbGrid');
+            const filtered = kbItems.filter(i => i.term.toLowerCase().includes(query.toLowerCase()) || i.def.toLowerCase().includes(query.toLowerCase()));
+            grid.innerHTML = filtered.map(item => `
+                <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 space-y-1">
+                    <h4 class="font-bold text-sm text-sky-600 dark:text-sky-400">${item.term}</h4>
+                    <p class="text-xs text-slate-600 dark:text-slate-300">${item.def}</p>
+                </div>
+            `).join('');
+        }
+
+        function startExam(beltLevel) {
+            document.getElementById('examSelectionGrid').classList.add('hidden');
+            const box = document.getElementById('activeQuizBox');
+            box.classList.remove('hidden');
+
+            box.innerHTML = `
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h3 class="font-bold text-base uppercase">${beltLevel} Belt Certification Exam</h3>
+                    <span class="font-mono font-bold text-rose-500 text-sm">⏱️ 10:00</span>
+                </div>
+                <div class="space-y-4">
+                    <p class="text-xs font-bold">Q1. What is the primary purpose of Six Sigma?</p>
+                    <div class="space-y-2 text-xs">
+                        <label class="block p-2 border rounded bg-white dark:bg-slate-800 cursor-pointer">
+                            <input type="radio" name="q1" value="A"> A. Reduce process variation and eliminate defects
+                        </label>
+                        <label class="block p-2 border rounded bg-white dark:bg-slate-800 cursor-pointer">
+                            <input type="radio" name="q1" value="B"> B. Increase inventory levels
+                        </label>
+                    </div>
+                    <button onclick="finishExam('${beltLevel}')" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded text-xs">
+                        Submit Exam
+                    </button>
+                </div>
+            `;
+        }
+
+        function finishExam(beltLevel) {
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            addXP(100, "Passed Belt Exam");
+            state.belt = beltLevel.toUpperCase() + " BELT";
+            saveProgress();
+            alert("🎉 Exam Passed! Congratulations on earning your " + beltLevel.toUpperCase() + " BELT!");
+            location.reload();
+        }
+
+        function resetUserProgress() {
+            if (confirm("Are you sure you want to reset all XP and belt progress?")) {
+                localStorage.removeItem('six_sigma_lab_data');
+                location.reload();
+            }
+        }
+
+        function printProjectReport() {
+            window.print();
+        }
+    </script>
+</body>
+</html>
