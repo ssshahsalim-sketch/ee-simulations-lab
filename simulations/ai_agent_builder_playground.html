@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent Builder & Playground</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Marked.js for Markdown parsing CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            },
+            darkbg: '#0f172a',
+            darkcard: '#1e293b',
+            darkborder: '#334155'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Keyframe Animations for Agent Steps */
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); }
+      50% { box-shadow: 0 0 25px rgba(99, 102, 241, 0.6); }
+    }
+    .agent-active { animation: pulseGlow 2s infinite; }
+
+    /* Markdown styling inside chat bubbles */
+    .prose code { background-color: rgba(15, 23, 42, 0.6); padding: 0.15rem 0.3rem; border-radius: 0.25rem; font-size: 0.875em; color: #a5b4fc; }
+    .prose pre { background-color: #090d16; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin-top: 0.5rem; margin-bottom: 0.5rem; border: 1px solid #1e293b; }
+    .prose pre code { background: none; padding: 0; color: #f1f5f9; }
+    .prose p { margin-bottom: 0.5rem; }
+    .prose p:last-child { margin-bottom: 0; }
+    .prose ul { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+    .prose ol { list-style-type: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body class="bg-darkbg text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="h-16 bg-darkcard/80 backdrop-blur border-b border-darkborder flex items-center justify-between px-4 sticky top-0 z-30">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
+        <i class="fa-solid fa-robot text-xl"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-base md:text-lg text-white leading-tight flex items-center gap-2">
+          AI Agent Builder <span class="text-xs bg-brand-500/20 text-brand-300 border border-brand-500/30 px-2 py-0.5 rounded-full font-mono">Playground v1.0</span>
+        </h1>
+        <p class="text-xs text-slate-400 hidden sm:block">Educational & Interactive LLM Agent Console</p>
+      </div>
+    </div>
+
+    <!-- Center Navigation Tabs -->
+    <nav class="hidden md:flex items-center space-x-1 bg-darkbg/60 p-1 rounded-xl border border-darkborder">
+      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-brand-600 transition">
+        <i class="fa-solid fa-gauge-high mr-1.5"></i> Dashboard
+      </button>
+      <button onclick="switchTab('how-it-works')" id="nav-how-it-works" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+        <i class="fa-solid fa-network-wired mr-1.5"></i> How It Works
+      </button>
+      <button onclick="switchTab('learn')" id="nav-learn" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+        <i class="fa-solid fa-graduation-cap mr-1.5"></i> Learn AI Agents
+      </button>
+    </nav>
+
+    <!-- Header Actions -->
+    <div class="flex items-center space-x-2">
+      <button onclick="runDemoSimulation()" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 shadow-sm">
+        <i class="fa-solid fa-play text-emerald-400"></i>
+        <span class="hidden sm:inline">Run Demo Agent</span>
+        <span class="xs:inline sm:hidden">Demo</span>
+      </button>
+      
+      <button onclick="confirmReset()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-2.5 py-1.5 rounded-lg font-medium transition" title="Reset Agent & Chat">
+        <i class="fa-solid fa-rotate-right"></i>
+      </button>
+
+      <!-- Mobile Sidebar Toggle -->
+      <button onclick="toggleMobileSidebar()" class="lg:hidden p-2 text-slate-400 hover:text-white rounded-lg">
+        <i class="fa-solid fa-bars text-lg"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Security Warning Banner -->
+  <div class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-200/90 flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2 overflow-hidden">
+      <i class="fa-solid fa-triangle-exclamation text-amber-400 shrink-0"></i>
+      <span class="truncate"><strong>Security Notice:</strong> API keys are used directly from your browser. Do not use production keys or share saved files containing secrets.</span>
+    </div>
+    <button onclick="this.parentElement.remove()" class="text-amber-400/70 hover:text-amber-200 shrink-0">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  <!-- Main View Container -->
+  <main class="flex-1 flex overflow-hidden relative">
+
+    <!-- ================================================================= -->
+    <!-- DASHBOARD VIEW -->
+    <!-- ================================================================= -->
+    <div id="view-dashboard" class="flex-1 flex w-full overflow-hidden">
+
+      <!-- LEFT SIDEBAR: Configuration Panel -->
+      <aside id="left-sidebar" class="w-80 bg-darkcard border-r border-darkborder flex flex-col shrink-0 overflow-y-auto hidden lg:flex fixed lg:relative z-20 inset-y-0 left-0">
+        <div class="p-4 space-y-5">
+          
+          <!-- Presets Dropdown -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+              <i class="fa-solid fa-wand-magic-sparkles mr-1 text-brand-400"></i> Agent Presets
+            </label>
+            <select id="preset-selector" onchange="loadPreset(this.value)" class="w-full bg-darkbg border border-darkborder rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+              <option value="general">General Assistant</option>
+              <option value="electrical">Electrical Engineering Agent</option>
+              <option value="business">Business Consultant Agent</option>
+              <option value="coding">Coding & Debugging Agent</option>
+              <option value="teacher">Socratic STEM Tutor</option>
+              <option value="research">Research Assistant</option>
+            </select>
+          </div>
+
+          <hr class="border-darkborder">
+
+          <!-- Provider & API Key Setup -->
+          <div class="space-y-3">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              <span><i class="fa-solid fa-plug mr-1 text-brand-400"></i> AI Provider</span>
+              <span id="connection-status-badge" class="normal-case text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700">Not Tested</span>
+            </h3>
+
+            <div>
+              <label class="block text-xs text-slate-300 mb-1">Select Provider</label>
+              <select id="provider-select" onchange="handleProviderChange()" class="w-full bg-darkbg border border-darkborder rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                <option value="gemini">Google Gemini API</option>
+                <option value="openrouter">OpenRouter API</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs text-slate-300 mb-1 flex justify-between">
+                <span>API Key</span>
+                <span class="text-[10px] text-slate-500">Stored in memory</span>
+              </label>
+              <div class="relative">
+                <input type="password" id="api-key-input" placeholder="Enter API Key..." class="w-full bg-darkbg border border-darkborder rounded-lg pl-3 pr-16 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500 font-mono">
+                <div class="absolute right-1 top-1 flex items-center space-x-0.5">
+                  <button onclick="toggleKeyVisibility()" class="p-1.5 text-slate-400 hover:text-white text-xs" title="Show/Hide Key">
+                    <i id="key-toggle-icon" class="fa-solid fa-eye"></i>
+                  </button>
+                  <button onclick="clearApiKey()" class="p-1.5 text-slate-400 hover:text-red-400 text-xs" title="Clear Key">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- LocalStorage Toggle -->
+            <div class="flex items-center justify-between text-xs bg-darkbg/50 p-2 rounded-lg border border-darkborder">
+              <span class="text-slate-400">Save key in browser storage</span>
+              <input type="checkbox" id="save-key-checkbox" onchange="handleSaveKeyToggle()" class="rounded border-darkborder bg-darkbg text-brand-600 focus:ring-brand-500 h-4 w-4">
+            </div>
+
+            <div>
+              <label class="block text-xs text-slate-300 mb-1">Model Name / ID</label>
+              <div class="flex gap-1.5">
+                <input type="text" id="model-input" placeholder="e.g. gemini-3-flash-preview" class="flex-1 bg-darkbg border border-darkborder rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500 font-mono">
+                <select id="model-presets-dropdown" onchange="selectModelPreset(this.value)" class="w-24 bg-darkbg border border-darkborder rounded-lg px-2 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+            </div>
+
+            <button onclick="testApiConnection()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg py-1.5 text-xs font-medium transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-vial text-brand-400"></i> Test Connection
+            </button>
+          </div>
+
+          <hr class="border-darkborder">
+
+          <!-- Agent Operating Mode -->
+          <div class="space-y-3">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <i class="fa-solid fa-sliders mr-1 text-brand-400"></i> Agent Mode & Settings
+            </h3>
+
+            <div>
+              <label class="block text-xs text-slate-300 mb-1">Operating Mode</label>
+              <select id="agent-mode" onchange="handleAgentModeChange()" class="w-full bg-darkbg border border-darkborder rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500 font-semibold text-brand-300">
+                <option value="chat">Mode 1: Chat (Direct LLM)</option>
+                <option value="reasoning">Mode 2: Reasoning / Planning</option>
+                <option value="agent" selected>Mode 3: Agent (Tools & ReAct Loop)</option>
+              </select>
+              <p id="agent-mode-desc" class="text-[11px] text-slate-400 mt-1 leading-normal">
+                AI uses tools autonomously in a ReAct loop to solve problems step-by-step.
+              </p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Temperature (<span id="temp-val">0.7</span>)</label>
+                <input type="range" id="temp-slider" min="0" max="1" step="0.1" value="0.7" oninput="document.getElementById('temp-val').innerText = this.value" class="w-full accent-brand-500">
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Max Steps (<span id="steps-val">5</span>)</label>
+                <input type="range" id="max-steps-slider" min="1" max="10" step="1" value="5" oninput="document.getElementById('steps-val').innerText = this.value" class="w-full accent-brand-500">
+              </div>
+            </div>
+          </div>
+
+          <hr class="border-darkborder">
+
+          <!-- System Instructions -->
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <i class="fa-solid fa-terminal mr-1 text-brand-400"></i> System Instruction
+            </label>
+            <textarea id="system-instruction" rows="4" class="w-full bg-darkbg border border-darkborder rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-brand-500 font-mono resize-y" placeholder="Set AI system instructions..."></textarea>
+          </div>
+
+          <hr class="border-darkborder">
+
+          <!-- Built-in Tools Selector -->
+          <div class="space-y-2">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex justify-between items-center">
+              <span><i class="fa-solid fa-toolbox mr-1 text-brand-400"></i> Agent Tools</span>
+              <span class="text-[10px] text-slate-500">Enabled for Mode 3</span>
+            </h3>
+
+            <div class="space-y-1.5 text-xs">
+              <label class="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer bg-darkbg/40 p-2 rounded-lg border border-darkborder/50">
+                <input type="checkbox" id="tool-calc" checked class="rounded border-darkborder bg-darkbg text-brand-600 focus:ring-brand-500">
+                <i class="fa-solid fa-calculator text-indigo-400 w-4"></i>
+                <span>Calculator (Math)</span>
+              </label>
+
+              <label class="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer bg-darkbg/40 p-2 rounded-lg border border-darkborder/50">
+                <input type="checkbox" id="tool-unit" checked class="rounded border-darkborder bg-darkbg text-brand-600 focus:ring-brand-500">
+                <i class="fa-solid fa-ruler-combined text-emerald-400 w-4"></i>
+                <span>Unit Converter</span>
+              </label>
+
+              <label class="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer bg-darkbg/40 p-2 rounded-lg border border-darkborder/50">
+                <input type="checkbox" id="tool-datetime" checked class="rounded border-darkborder bg-darkbg text-brand-600 focus:ring-brand-500">
+                <i class="fa-solid fa-clock text-amber-400 w-4"></i>
+                <span>Date & Time</span>
+              </label>
+
+              <label class="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer bg-darkbg/40 p-2 rounded-lg border border-darkborder/50">
+                <input type="checkbox" id="tool-text" checked class="rounded border-darkborder bg-darkbg text-brand-600 focus:ring-brand-500">
+                <i class="fa-solid fa-align-left text-sky-400 w-4"></i>
+                <span>Text Analyzer</span>
+              </label>
+
+              <label class="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer bg-darkbg/40 p-2 rounded-lg border border-darkborder/50">
+                <input type="checkbox" id="tool-json" checked class="rounded border-darkborder bg-darkbg text-brand-600 focus:ring-brand-500">
+                <i class="fa-solid fa-code text-purple-400 w-4"></i>
+                <span>JSON Tool</span>
+              </label>
+
+              <label class="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer bg-darkbg/40 p-2 rounded-lg border border-darkborder/50">
+                <input type="checkbox" id="tool-memory" checked class="rounded border-darkborder bg-darkbg text-brand-600 focus:ring-brand-500">
+                <i class="fa-solid fa-brain text-pink-400 w-4"></i>
+                <span>Short-Term Memory</span>
+              </label>
+            </div>
+          </div>
+
+          <hr class="border-darkborder">
+
+          <!-- Short Term Memory Bank -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <i class="fa-solid fa-memory mr-1 text-brand-400"></i> Active Session Memory
+              </h3>
+              <button onclick="clearMemory()" class="text-[10px] text-red-400 hover:underline">Clear All</button>
+            </div>
+
+            <div id="memory-list" class="space-y-1 text-xs max-h-36 overflow-y-auto pr-1">
+              <!-- Memory items rendered dynamically -->
+            </div>
+
+            <div class="flex gap-1 pt-1">
+              <input type="text" id="new-memory-input" placeholder="Add fact manually..." class="flex-1 bg-darkbg border border-darkborder rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+              <button onclick="addManualMemory()" class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium">Add</button>
+            </div>
+          </div>
+
+        </div>
+      </aside>
+
+      <!-- CENTER: Main Chat Window -->
+      <section class="flex-1 flex flex-col bg-darkbg min-w-0">
+
+        <!-- Quick Sample Prompt Bar -->
+        <div class="bg-darkcard/50 border-b border-darkborder p-2 px-4 flex items-center space-x-2 overflow-x-auto text-xs whitespace-nowrap">
+          <span class="text-slate-400 font-medium shrink-0"><i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i> Sample Prompts:</span>
+          <button onclick="setInputAndSend('Explain how a VFD controls the speed of a motor.')" class="bg-darkbg hover:bg-slate-800 text-slate-300 border border-darkborder px-2.5 py-1 rounded-full text-xs transition">
+            VFD Motor Speed
+          </button>
+          <button onclick="setInputAndSend('What is 1250 * 24 + (15000 / 12)? Use calculator tool.')" class="bg-darkbg hover:bg-slate-800 text-slate-300 border border-darkborder px-2.5 py-1 rounded-full text-xs transition">
+            Calculate Expression
+          </button>
+          <button onclick="setInputAndSend('Convert 15 kW to HP and 25 bar to psi.')" class="bg-darkbg hover:bg-slate-800 text-slate-300 border border-darkborder px-2.5 py-1 rounded-full text-xs transition">
+            Unit Conversions
+          </button>
+          <button onclick="setInputAndSend('Create a simple business plan for a small electrical panel manufacturing business.')" class="bg-darkbg hover:bg-slate-800 text-slate-300 border border-darkborder px-2.5 py-1 rounded-full text-xs transition">
+            Business Plan
+          </button>
+        </div>
+
+        <!-- Chat Messages Container -->
+        <div id="chat-messages-container" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+          <!-- Initial Welcome Card -->
+          <div class="max-w-2xl mx-auto bg-darkcard/60 border border-darkborder rounded-2xl p-6 text-center space-y-4">
+            <div class="w-12 h-12 bg-brand-500/20 text-brand-400 rounded-2xl flex items-center justify-center mx-auto text-2xl border border-brand-500/30">
+              <i class="fa-solid fa-compass-drafting"></i>
+            </div>
+            <h2 class="text-lg font-bold text-white">Welcome to AI Agent Playground</h2>
+            <p class="text-xs text-slate-300 leading-relaxed max-w-lg mx-auto">
+              This interactive environment demonstrates how LLMs act as <strong>Agents</strong>. Enter an API key on the left, choose an operating mode, and watch the step-by-step reasoning and tool execution in real-time.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
+              <div class="bg-darkbg/60 p-3 rounded-xl border border-darkborder/60">
+                <div class="font-semibold text-brand-300 text-xs mb-1"><i class="fa-solid fa-comments mr-1"></i> Mode 1: Chat</div>
+                <div class="text-[11px] text-slate-400">Direct streaming response from the AI model.</div>
+              </div>
+              <div class="bg-darkbg/60 p-3 rounded-xl border border-darkborder/60">
+                <div class="font-semibold text-indigo-300 text-xs mb-1"><i class="fa-solid fa-list-check mr-1"></i> Mode 2: Reasoning</div>
+                <div class="text-[11px] text-slate-400">AI decomposes the task into a structured plan first.</div>
+              </div>
+              <div class="bg-darkbg/60 p-3 rounded-xl border border-darkborder/60">
+                <div class="font-semibold text-emerald-300 text-xs mb-1"><i class="fa-solid fa-robot mr-1"></i> Mode 3: Agent</div>
+                <div class="text-[11px] text-slate-400">AI selects & executes tools autonomously in a loop.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Form & Toolbar -->
+        <div class="p-4 bg-darkcard/80 border-t border-darkborder space-y-2">
+          
+          <!-- Input Actions Toolbar -->
+          <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+            <div class="flex items-center space-x-2">
+              <button onclick="clearChat()" class="hover:text-red-400 transition flex items-center gap-1">
+                <i class="fa-solid fa-trash-can"></i> Clear Chat
+              </button>
+              <span>•</span>
+              <button onclick="exportChat('txt')" class="hover:text-white transition flex items-center gap-1">
+                <i class="fa-solid fa-file-lines"></i> Export TXT
+              </button>
+              <button onclick="exportChat('json')" class="hover:text-white transition flex items-center gap-1">
+                <i class="fa-solid fa-file-code"></i> Export JSON
+              </button>
+            </div>
+
+            <div id="generation-status" class="hidden items-center gap-2 text-brand-300">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              <span id="generation-status-text">Agent thinking...</span>
+              <button onclick="stopGeneration()" class="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 px-2 py-0.5 rounded text-[10px] ml-2">
+                Stop
+              </button>
+            </div>
+          </div>
+
+          <!-- Input Textarea Container -->
+          <div class="relative">
+            <textarea id="user-input" rows="3" onkeydown="handleKeyDown(event)" placeholder="Ask a question or enter a goal for the Agent... (Enter to send, Shift+Enter for new line)" class="w-full bg-darkbg border border-darkborder rounded-xl p-3 pr-24 text-xs md:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500 resize-none font-sans"></textarea>
+            
+            <button id="send-btn" onclick="sendMessage()" class="absolute right-3 bottom-3 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-lg shadow-brand-500/20 transition flex items-center gap-1.5">
+              <span>Send</span>
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- RIGHT PANEL: Agent Visual Execution & API Inspector -->
+      <aside class="w-96 bg-darkcard border-l border-darkborder flex flex-col shrink-0 hidden xl:flex overflow-hidden">
+        
+        <!-- Right Panel Navigation Tabs -->
+        <div class="flex border-b border-darkborder bg-darkbg/50">
+          <button onclick="switchRightTab('execution')" id="right-tab-execution" class="flex-1 py-3 text-xs font-semibold text-brand-400 border-b-2 border-brand-500 text-center">
+            <i class="fa-solid fa-brain mr-1"></i> Agent Pipeline
+          </button>
+          <button onclick="switchRightTab('inspector')" id="right-tab-inspector" class="flex-1 py-3 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent text-center">
+            <i class="fa-solid fa-code mr-1"></i> API Inspector
+          </button>
+        </div>
+
+        <!-- RIGHT PANEL TAB 1: Visual Execution Pipeline -->
+        <div id="right-content-execution" class="flex-1 overflow-y-auto p-4 space-y-4">
+          
+          <div class="bg-darkbg/60 border border-darkborder rounded-xl p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-300">Agent Visual Workflow</span>
+              <span id="agent-state-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">Idle</span>
+            </div>
+            
+            <!-- ReAct Flow Diagram Node Highlights -->
+            <div class="grid grid-cols-1 gap-1.5 text-[11px] pt-1">
+              <div id="flow-node-goal" class="p-2 rounded-lg border border-darkborder bg-darkbg text-slate-400 flex items-center gap-2 transition-all">
+                <i class="fa-solid fa-bullseye text-brand-400"></i> <span>1. User Goal & Task Analysis</span>
+              </div>
+              <div id="flow-node-plan" class="p-2 rounded-lg border border-darkborder bg-darkbg text-slate-400 flex items-center gap-2 transition-all">
+                <i class="fa-solid fa-list-check text-indigo-400"></i> <span>2. Planning & Decomposition</span>
+              </div>
+              <div id="flow-node-tool" class="p-2 rounded-lg border border-darkborder bg-darkbg text-slate-400 flex items-center gap-2 transition-all">
+                <i class="fa-solid fa-wrench text-amber-400"></i> <span>3. Action / Tool Selection</span>
+              </div>
+              <div id="flow-node-observe" class="p-2 rounded-lg border border-darkborder bg-darkbg text-slate-400 flex items-center gap-2 transition-all">
+                <i class="fa-solid fa-eye text-emerald-400"></i> <span>4. Observe Tool Execution</span>
+              </div>
+              <div id="flow-node-response" class="p-2 rounded-lg border border-darkborder bg-darkbg text-slate-400 flex items-center gap-2 transition-all">
+                <i class="fa-solid fa-check-circle text-sky-400"></i> <span>5. Final Synthesis & Answer</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Step Cards Stream -->
+          <div class="space-y-2">
+            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex justify-between items-center">
+              <span>Step-by-Step Activity</span>
+              <span id="step-count-label" class="text-[10px] text-slate-500">0 Steps</span>
+            </h4>
+
+            <div id="agent-steps-timeline" class="space-y-2">
+              <div class="text-center py-8 text-slate-500 text-xs">
+                <i class="fa-solid fa-hourglass-start text-2xl mb-2 block text-slate-600"></i>
+                No active execution. Send a message or click "Run Demo Agent" to observe the agent loop.
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT PANEL TAB 2: API Inspector -->
+        <div id="right-content-inspector" class="flex-1 overflow-y-auto p-4 space-y-4 hidden">
+          <div class="space-y-3">
+            
+            <!-- Inspector Tabs -->
+            <div class="flex gap-1 border-b border-darkborder pb-2 text-[11px]">
+              <button onclick="switchInspectorTab('req')" id="insp-tab-req" class="px-2.5 py-1 rounded bg-brand-600 text-white font-medium">Request</button>
+              <button onclick="switchInspectorTab('res')" id="insp-tab-res" class="px-2.5 py-1 rounded bg-darkbg text-slate-400 hover:text-white">Response</button>
+              <button onclick="switchInspectorTab('prompt')" id="insp-tab-prompt" class="px-2.5 py-1 rounded bg-darkbg text-slate-400 hover:text-white">Prompt Structure</button>
+            </div>
+
+            <!-- Endpoint Metadata -->
+            <div class="bg-darkbg/70 p-2.5 rounded-lg border border-darkborder text-xs space-y-1 font-mono">
+              <div class="flex justify-between">
+                <span class="text-slate-400">Provider:</span>
+                <span id="insp-provider-val" class="text-brand-300 font-semibold">Gemini API</span>
+              </div>
+              <div class="flex justify-between truncate">
+                <span class="text-slate-400">Endpoint:</span>
+                <span id="insp-endpoint-val" class="text-slate-300 truncate max-w-[200px]">https://generativelanguage.googleapis.com/...</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">HTTP Method:</span>
+                <span class="text-emerald-400 font-semibold">POST</span>
+              </div>
+            </div>
+
+            <!-- Inspector Content Display -->
+            <div id="insp-view-req" class="space-y-1">
+              <label class="block text-[11px] font-semibold text-slate-400 uppercase">JSON Payload (API Keys Masked)</label>
+              <pre id="insp-request-json" class="bg-darkbg p-3 rounded-lg border border-darkborder text-[11px] text-slate-300 font-mono overflow-x-auto max-h-96"><code>{ "info": "No request made yet" }</code></pre>
+            </div>
+
+            <div id="insp-view-res" class="space-y-1 hidden">
+              <label class="block text-[11px] font-semibold text-slate-400 uppercase">Raw Response Object</label>
+              <pre id="insp-response-json" class="bg-darkbg p-3 rounded-lg border border-darkborder text-[11px] text-slate-300 font-mono overflow-x-auto max-h-96"><code>{ "info": "No response received yet" }</code></pre>
+            </div>
+
+            <div id="insp-view-prompt" class="space-y-2 hidden">
+              <label class="block text-[11px] font-semibold text-slate-400 uppercase">Compiled System & Context Prompt</label>
+              <div id="insp-compiled-prompt" class="bg-darkbg p-3 rounded-lg border border-darkborder text-[11px] text-slate-300 font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
+                No prompt constructed yet.
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- HOW IT WORKS TAB -->
+    <!-- ================================================================= -->
+    <div id="view-how-it-works" class="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 max-w-5xl mx-auto hidden">
+      <div class="text-center space-y-3">
+        <h2 class="text-2xl font-bold text-white">How an AI Agent Architecture Works</h2>
+        <p class="text-sm text-slate-400 max-w-2xl mx-auto">
+          Unlike a basic chatbot that simply maps text-in to text-out, an <strong>AI Agent</strong> follows an iterative loop: analyzing tasks, choosing external tools, observing results, and synthesizing solutions.
+        </p>
+      </div>
+
+      <!-- Animated Data Flow Architecture Diagram -->
+      <div class="bg-darkcard border border-darkborder rounded-2xl p-6 md:p-8 space-y-6">
+        <h3 class="text-base font-semibold text-brand-300 flex items-center gap-2">
+          <i class="fa-solid fa-diagram-project"></i> ReAct Agent Data Flow Pipeline
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 relative">
+          <!-- Flow Step 1 -->
+          <div class="bg-darkbg p-4 rounded-xl border border-darkborder space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-brand-500/20 text-brand-400 font-bold flex items-center justify-center text-sm border border-brand-500/30">1</div>
+            <h4 class="font-semibold text-white text-sm">User Goal Input</h4>
+            <p class="text-xs text-slate-400">User enters a prompt or goal e.g., "Calculate monthly cost of 10kW motor".</p>
+          </div>
+
+          <!-- Flow Step 2 -->
+          <div class="bg-darkbg p-4 rounded-xl border border-brand-500/40 bg-brand-500/5 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-sm border border-indigo-500/30">2</div>
+            <h4 class="font-semibold text-indigo-300 text-sm">Agent Thought & Decision</h4>
+            <p class="text-xs text-slate-400">LLM evaluates system prompt + tools to decide whether to call a tool or issue final answer.</p>
+          </div>
+
+          <!-- Flow Step 3 -->
+          <div class="bg-darkbg p-4 rounded-xl border border-darkborder space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-sm border border-amber-500/30">3</div>
+            <h4 class="font-semibold text-amber-300 text-sm">Tool Execution</h4>
+            <p class="text-xs text-slate-400">Client-side JS executes selected tool (Calculator, Unit Converter) and captures output.</p>
+          </div>
+        </div>
+
+        <div class="bg-darkbg/80 border border-darkborder rounded-xl p-4 text-xs text-slate-300 flex items-center justify-center gap-4 text-center">
+          <i class="fa-solid fa-arrows-spin text-brand-400 text-xl animate-spin"></i>
+          <span><strong>The Agent Loop:</strong> Observations are fed back to the LLM until the goal is fully achieved!</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- LEARN AI AGENTS TAB -->
+    <!-- ================================================================= -->
+    <div id="view-learn" class="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 max-w-4xl mx-auto hidden">
+      <div class="space-y-2 border-b border-darkborder pb-6">
+        <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-graduation-cap text-brand-400"></i> AI Agent Concepts & Definitions
+        </h2>
+        <p class="text-xs text-slate-400">Comprehensive educational guide for understanding modern agentic systems.</p>
+      </div>
+
+      <div class="space-y-4">
+        
+        <details class="bg-darkcard border border-darkborder rounded-xl p-4 group" open>
+          <summary class="font-semibold text-sm text-white cursor-pointer flex justify-between items-center">
+            <span>1. What is the difference between a Chatbot and an AI Agent?</span>
+            <i class="fa-solid fa-chevron-down group-open:rotate-180 transition"></i>
+          </summary>
+          <div class="pt-3 text-xs text-slate-300 space-y-2 leading-relaxed">
+            <p>A standard <strong>Chatbot</strong> takes user text and generates output in a single direct pass. It cannot interact with the external world or run software functions.</p>
+            <p>An <strong>AI Agent</strong> combines an LLM core with <em>reasoning algorithms, memory, and executable tools</em>. It can take multi-step actions autonomously to accomplish complex goals.</p>
+          </div>
+        </details>
+
+        <details class="bg-darkcard border border-darkborder rounded-xl p-4 group">
+          <summary class="font-semibold text-sm text-white cursor-pointer flex justify-between items-center">
+            <span>2. What is the ReAct Pattern (Reason + Act)?</span>
+            <i class="fa-solid fa-chevron-down group-open:rotate-180 transition"></i>
+          </summary>
+          <div class="pt-3 text-xs text-slate-300 space-y-2 leading-relaxed">
+            <p><strong>ReAct</strong> stands for <em>Reasoning + Acting</em>. It is a prompt architecture where the LLM explicitly generates a <strong>Thought</strong> (reasoning about what to do next), specifies an <strong>Action</strong> (calling a tool with arguments), receives an <strong>Observation</strong> (result of tool execution), and repeats this loop until it arrives at the <strong>Final Answer</strong>.</p>
+          </div>
+        </details>
+
+        <details class="bg-darkcard border border-darkborder rounded-xl p-4 group">
+          <summary class="font-semibold text-sm text-white cursor-pointer flex justify-between items-center">
+            <span>3. How do Function Calling and Client Tools work?</span>
+            <i class="fa-solid fa-chevron-down group-open:rotate-180 transition"></i>
+          </summary>
+          <div class="pt-3 text-xs text-slate-300 space-y-2 leading-relaxed">
+            <p>LLMs themselves cannot do live math or query APIs directly—they only predict text tokens. To evaluate <code>1250 * 24</code> reliably, the LLM outputs a structured request to call an external JavaScript <code>calculator</code> tool. The client application executes the JS function and passes the result back to the LLM context.</p>
+          </div>
+        </details>
+
+        <details class="bg-darkcard border border-darkborder rounded-xl p-4 group">
+          <summary class="font-semibold text-sm text-white cursor-pointer flex justify-between items-center">
+            <span>4. Production Architecture & Security Limitations</span>
+            <i class="fa-solid fa-chevron-down group-open:rotate-180 transition"></i>
+          </summary>
+          <div class="pt-3 text-xs text-slate-300 space-y-2 leading-relaxed">
+            <p>In this playground application, API keys are held in browser memory for direct educational testing. In production systems, you should <strong>never expose API keys in client-side code</strong>.</p>
+            <div class="bg-darkbg p-3 rounded-lg border border-darkborder font-mono text-[11px] text-slate-300 text-center my-2">
+              Browser Client ➔ Your Secure Backend Server (Holds Key) ➔ Provider API
+            </div>
+          </div>
+        </details>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    // Global Application State
+    const state = {
+      provider: 'gemini', // 'gemini' | 'openrouter'
+      apiKey: '',
+      model: 'gemini-3-flash-preview',
+      saveKeyInStorage: false,
+      agentMode: 'agent', // 'chat' | 'reasoning' | 'agent'
+      temperature: 0.7,
+      maxSteps: 5,
+      systemInstruction: 'You are a helpful, precise AI assistant.',
+      messages: [],
+      memory: [
+        'User prefers step-by-step clear explanations.',
+        'Current focus: Educational learning of AI Agents.'
+      ],
+      toolsEnabled: {
+        calc: true,
+        unit: true,
+        datetime: true,
+        text: true,
+        json: true,
+        memory: true
+      },
+      isGenerating: false,
+      abortController: null,
+      lastRequestInspector: null,
+      lastResponseInspector: null,
+      lastCompiledPrompt: ''
+    };
+
+    // Provider Models Catalog
+    const PROVIDER_MODELS = {
+      gemini: [
+        { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Recommended)' },
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' }
+      ],
+      openrouter: [
+        { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash (via OpenRouter)' },
+        { id: 'anthropic/claude-3.5-haiku', name: 'Claude 3.5 Haiku' },
+        { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B' },
+        { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3' }
+      ]
+    };
+
+    // Agent Presets
+    const PRESETS = {
+      general: {
+        mode: 'agent',
+        system: 'You are a helpful, precise AI Assistant capable of logical reasoning and tool execution.',
+        model: 'gemini-3-flash-preview'
+      },
+      electrical: {
+        mode: 'agent',
+        system: 'You are an Electrical Engineering tutor and consultant. Explain concepts like VFDs, motor current, 4-20mA loops, MCCs, and calculations clearly with step-by-step math.',
+        model: 'gemini-3-flash-preview'
+      },
+      business: {
+        mode: 'reasoning',
+        system: 'You are a Business Strategy Consultant. Help structure financial estimates, revenue models, break-even analysis, and operational plans.',
+        model: 'gemini-3-flash-preview'
+      },
+      coding: {
+        mode: 'agent',
+        system: 'You are an expert Software Engineer proficient in JS, Python, HTML/CSS, and system debugging.',
+        model: 'gemini-3-flash-preview'
+      },
+      teacher: {
+        mode: 'reasoning',
+        system: 'You are a Socratic STEM Teacher. Explain complex concepts simply using analogies, structured breakdowns, and verification questions.',
+        model: 'gemini-3-flash-preview'
+      },
+      research: {
+        mode: 'agent',
+        system: 'You are a Research Assistant skilled at analyzing text, structuring facts, and summarizing complex data.',
+        model: 'gemini-3-flash-preview'
+      }
+    };
+
+    // Built-in Tool Implementations
+    const ToolsRegistry = {
+      calculator: {
+        name: 'calculator',
+        description: 'Evaluates basic mathematical expressions (e.g. 1250 * 24 + 50).',
+        parameters: { expression: 'string' },
+        execute: (args) => {
+          try {
+            // Sanitize math string
+            const safeExpr = args.expression.replace(/[^0-9+\-*/().\s]/g, '');
+            const result = Function(`'use strict'; return (${safeExpr})`)();
+            return { success: true, result: result };
+          } catch (err) {
+            return { success: false, error: 'Invalid math expression: ' + err.message };
+          }
+        }
+      },
+
+      unitConverter: {
+        name: 'unitConverter',
+        description: 'Converts units between metric and imperial. Supports power (kW to HP), pressure (bar to psi), length (mm to inch), temp (C to F).',
+        parameters: { value: 'number', from: 'string', to: 'string' },
+        execute: (args) => {
+          const v = parseFloat(args.value);
+          const f = args.from.toLowerCase();
+          const t = args.to.toLowerCase();
+
+          if (isNaN(v)) return { success: false, error: 'Invalid numeric value' };
+
+          let res = null;
+          if (f === 'kw' && t === 'hp') res = v * 1.34102;
+          else if (f === 'hp' && t === 'kw') res = v / 1.34102;
+          else if (f === 'bar' && t === 'psi') res = v * 14.5038;
+          else if (f === 'psi' && t === 'bar') res = v / 14.5038;
+          else if (f === 'mm' && t === 'inch') res = v / 25.4;
+          else if (f === 'inch' && t === 'mm') res = v * 25.4;
+          else if (f === 'c' && t === 'f') res = (v * 9/5) + 32;
+          else if (f === 'f' && t === 'c') res = (v - 32) * 5/9;
+
+          if (res !== null) return { success: true, value: res.toFixed(4), formatted: `${v} ${args.from} = ${res.toFixed(4)} ${args.to}` };
+          return { success: false, error: `Conversion from ${args.from} to ${args.to} not supported.` };
+        }
+      },
+
+      dateTime: {
+        name: 'dateTime',
+        description: 'Obtains current local browser date, time, and timezone.',
+        parameters: {},
+        execute: () => {
+          const now = new Date();
+          return {
+            success: true,
+            iso: now.toISOString(),
+            formatted: now.toLocaleString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          };
+        }
+      },
+
+      textAnalyzer: {
+        name: 'textAnalyzer',
+        description: 'Counts words, characters, sentences, and paragraphs in provided text.',
+        parameters: { text: 'string' },
+        execute: (args) => {
+          const txt = args.text || '';
+          const words = txt.trim() ? txt.trim().split(/\s+/).length : 0;
+          const chars = txt.length;
+          const sentences = txt.split(/[.!?]+/).filter(Boolean).length;
+          const paragraphs = txt.split(/\n+/).filter(Boolean).length;
+          return { success: true, stats: { words, characters: chars, sentences, paragraphs } };
+        }
+      },
+
+      jsonTool: {
+        name: 'jsonTool',
+        description: 'Validates and beautifies JSON strings.',
+        parameters: { jsonString: 'string' },
+        execute: (args) => {
+          try {
+            const parsed = JSON.parse(args.jsonString);
+            return { success: true, valid: true, formatted: JSON.stringify(parsed, null, 2) };
+          } catch (err) {
+            return { success: false, valid: false, error: err.message };
+          }
+        }
+      },
+
+      memoryStore: {
+        name: 'memoryStore',
+        description: 'Saves a key fact to short-term session memory for future recall.',
+        parameters: { fact: 'string' },
+        execute: (args) => {
+          if (args.fact) {
+            state.memory.push(args.fact);
+            renderMemoryList();
+            return { success: true, message: `Fact saved to short-term memory: "${args.fact}"` };
+          }
+          return { success: false, error: 'Empty fact provided' };
+        }
+      }
+    };
+
+    // Provider Base & Concrete Classes
+    class GeminiProvider {
+      async sendMessage({ apiKey, model, messages, systemInstruction, temperature, streamCallback, signal }) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${streamCallback ? 'streamGenerateContent?alt=sse&' : 'generateContent?'}key=${apiKey}`;
+
+        // Format Gemini Payload
+        const contents = messages.map(m => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        }));
+
+        const bodyPayload = {
+          contents: contents,
+          systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+          generationConfig: {
+            temperature: parseFloat(temperature)
+          }
+        };
+
+        // Record for API Inspector
+        state.lastRequestInspector = {
+          provider: 'Google Gemini API',
+          endpoint: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=••••••••`,
+          body: bodyPayload
+        };
+        updateInspectorUI();
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyPayload),
+          signal
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error?.message || `Gemini API error (Status ${response.status})`);
+        }
+
+        if (streamCallback && response.body) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let fullText = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            
+            // Parse SSE data lines
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.substring(6));
+                  const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                  if (candidateText) {
+                    fullText += candidateText;
+                    streamCallback(candidateText, fullText);
+                  }
+                } catch (e) {
+                  // Ignore partial JSON frame errors in stream
+                }
+              }
+            }
+          }
+          return fullText;
+        } else {
+          const data = await response.json();
+          state.lastResponseInspector = data;
+          updateInspectorUI();
+          return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        }
+      }
+    }
+
+    class OpenRouterProvider {
+      async sendMessage({ apiKey, model, messages, systemInstruction, temperature, streamCallback, signal }) {
+        const url = 'https://openrouter.ai/api/v1/chat/completions';
+
+        const openRouterMsgs = [];
+        if (systemInstruction) {
+          openRouterMsgs.push({ role: 'system', content: systemInstruction });
+        }
+        messages.forEach(m => openRouterMsgs.push({ role: m.role, content: m.content }));
+
+        const bodyPayload = {
+          model: model,
+          messages: openRouterMsgs,
+          temperature: parseFloat(temperature),
+          stream: !!streamCallback
+        };
+
+        state.lastRequestInspector = {
+          provider: 'OpenRouter API',
+          endpoint: url,
+          headers: { 'Authorization': 'Bearer ••••••••', 'HTTP-Referer': window.location.href },
+          body: bodyPayload
+        };
+        updateInspectorUI();
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': window.location.href,
+            'X-Title': 'AI Agent Builder'
+          },
+          body: JSON.stringify(bodyPayload),
+          signal
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error?.message || `OpenRouter API error (Status ${response.status})`);
+        }
+
+        if (streamCallback && response.body) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let fullText = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ') && line.substring(6).trim() !== '[DONE]') {
+                try {
+                  const data = JSON.parse(line.substring(6));
+                  const delta = data.choices?.[0]?.delta?.content || '';
+                  if (delta) {
+                    fullText += delta;
+                    streamCallback(delta, fullText);
+                  }
+                } catch (e) {}
+              }
+            }
+          }
+          return fullText;
+        } else {
+          const data = await response.json();
+          state.lastResponseInspector = data;
+          updateInspectorUI();
+          return data.choices?.[0]?.message?.content || '';
+        }
+      }
+    }
+
+    // Provider Factory Manager
+    const ProviderManager = {
+      gemini: new GeminiProvider(),
+      openrouter: new OpenRouterProvider(),
+      getProvider(name) {
+        return this[name] || this.gemini;
+      }
+    };
+
+    // Initialize UI on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      // Load saved API key if available
+      const savedKey = localStorage.getItem('ai_agent_key');
+      if (savedKey) {
+        state.apiKey = savedKey;
+        document.getElementById('api-key-input').value = savedKey;
+        document.getElementById('save-key-checkbox').checked = true;
+        state.saveKeyInStorage = true;
+      }
+
+      handleProviderChange();
+      renderMemoryList();
+      loadPreset('general');
+      
+      // Auto-focus input
+      document.getElementById('user-input').focus();
+    });
+
+    // Provider Selection Handler
+    function handleProviderChange() {
+      state.provider = document.getElementById('provider-select').value;
+      const dropdown = document.getElementById('model-presets-dropdown');
+      dropdown.innerHTML = '';
+
+      const models = PROVIDER_MODELS[state.provider] || [];
+      models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name;
+        dropdown.appendChild(opt);
+      });
+
+      if (models.length > 0) {
+        selectModelPreset(models[0].id);
+      }
+    }
+
+    function selectModelPreset(modelId) {
+      state.model = modelId;
+      document.getElementById('model-input').value = modelId;
+    }
+
+    function loadPreset(presetKey) {
+      const p = PRESETS[presetKey];
+      if (!p) return;
+
+      document.getElementById('agent-mode').value = p.mode;
+      document.getElementById('system-instruction').value = p.system;
+      handleAgentModeChange();
+    }
+
+    function handleAgentModeChange() {
+      state.agentMode = document.getElementById('agent-mode').value;
+      const desc = document.getElementById('agent-mode-desc');
+      if (state.agentMode === 'chat') {
+        desc.innerText = 'Direct AI Chat: Sends prompt directly to model without multi-step planning or tool calls.';
+      } else if (state.agentMode === 'reasoning') {
+        desc.innerText = 'Reasoning / Planning: AI breaks the user task into a structured execution plan first.';
+      } else {
+        desc.innerText = 'Mode 3 Agent: AI uses tools autonomously in a ReAct loop to solve problems step-by-step.';
+      }
+    }
+
+    // API Key Security & Storage Handlers
+    function toggleKeyVisibility() {
+      const input = document.getElementById('api-key-input');
+      const icon = document.getElementById('key-toggle-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'fa-solid fa-eye';
+      }
+    }
+
+    function clearApiKey() {
+      document.getElementById('api-key-input').value = '';
+      state.apiKey = '';
+      localStorage.removeItem('ai_agent_key');
+      showNotification('API Key cleared from memory.', 'info');
+    }
+
+    function handleSaveKeyToggle() {
+      const checked = document.getElementById('save-key-checkbox').checked;
+      state.saveKeyInStorage = checked;
+      if (checked) {
+        if (state.apiKey) localStorage.setItem('ai_agent_key', state.apiKey);
+        showNotification('Key will be saved in browser localStorage.', 'warning');
+      } else {
+        localStorage.removeItem('ai_agent_key');
+        showNotification('Key removed from localStorage.', 'info');
+      }
+    }
+
+    // Main Send Message Function
+    async function sendMessage() {
+      const inputEl = document.getElementById('user-input');
+      const userText = inputEl.value.trim();
+      if (!userText) return;
+
+      // Sync state settings
+      state.apiKey = document.getElementById('api-key-input').value.trim();
+      state.model = document.getElementById('model-input').value.trim();
+      state.systemInstruction = document.getElementById('system-instruction').value.trim();
+      state.temperature = parseFloat(document.getElementById('temp-slider').value);
+      state.maxSteps = parseInt(document.getElementById('max-steps-slider').value);
+
+      if (state.saveKeyInStorage && state.apiKey) {
+        localStorage.setItem('ai_agent_key', state.apiKey);
+      }
+
+      if (!state.apiKey) {
+        showNotification('Please enter an API key or use "Run Demo Agent" for simulation.', 'error');
+        return;
+      }
+
+      // Append User Message to UI
+      appendChatMessage('user', userText);
+      inputEl.value = '';
+      
+      state.messages.push({ role: 'user', content: userText });
+
+      // Clear previous agent pipeline steps UI
+      clearAgentStepsUI();
+      setAgentState('thinking', 'Agent Working');
+
+      state.isGenerating = true;
+      state.abortController = new AbortController();
+      toggleGeneratingUI(true);
+
+      try {
+        if (state.agentMode === 'chat') {
+          // MODE 1: Direct Chat
+          highlightFlowNode('goal');
+          addStepCard('goal', 'User Goal Received', userText);
+
+          const assistantMsgId = appendChatMessage('assistant', '', true);
+          const provider = ProviderManager.getProvider(state.provider);
+
+          await provider.sendMessage({
+            apiKey: state.apiKey,
+            model: state.model,
+            messages: state.messages,
+            systemInstruction: state.systemInstruction,
+            temperature: state.temperature,
+            streamCallback: (chunk, fullText) => {
+              updateChatMessageContent(assistantMsgId, fullText);
+            },
+            signal: state.abortController.signal
+          });
+
+          highlightFlowNode('response');
+
+        } else if (state.agentMode === 'reasoning') {
+          // MODE 2: Planning / Reasoning Mode
+          highlightFlowNode('goal');
+          addStepCard('goal', 'User Goal Received', userText);
+
+          highlightFlowNode('plan');
+          addStepCard('plan', 'Decomposing Task & Creating Plan', 'Formulating step-by-step roadmap...');
+
+          const planningSystemPrompt = `${state.systemInstruction}\n\nIMPORTANT: You are in Planning Mode. Begin your answer with a "### Strategy & Plan" section detailing your steps before providing the final answer.`;
+
+          const assistantMsgId = appendChatMessage('assistant', '', true);
+          const provider = ProviderManager.getProvider(state.provider);
+
+          await provider.sendMessage({
+            apiKey: state.apiKey,
+            model: state.model,
+            messages: state.messages,
+            systemInstruction: planningSystemPrompt,
+            temperature: state.temperature,
+            streamCallback: (chunk, fullText) => {
+              updateChatMessageContent(assistantMsgId, fullText);
+            },
+            signal: state.abortController.signal
+          });
+
+          highlightFlowNode('response');
+
+        } else {
+          // MODE 3: ReAct Agent Tool Loop
+          await executeReActAgentLoop(userText);
+        }
+
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          showNotification('Generation stopped by user.', 'info');
+        } else {
+          console.error(err);
+          appendChatMessage('assistant', `**Error:** ${err.message}\n\n*Check your API key, model string, or provider settings.*`);
+          showNotification(err.message, 'error');
+        }
+      } finally {
+        state.isGenerating = false;
+        toggleGeneratingUI(false);
+        setAgentState('idle', 'Idle');
+      }
+    }
+
+    // ReAct Multi-step Agent Loop Implementation
+    async function executeReActAgentLoop(userGoal) {
+      highlightFlowNode('goal');
+      addStepCard('goal', '1. User Goal Received', userGoal);
+
+      // Build Tool Descriptions
+      const activeTools = getActiveToolsList();
+      const toolsPromptDesc = activeTools.map(t => `- ${t.name}: ${t.description}. Params: ${JSON.stringify(t.parameters)}`).join('\n');
+
+      const memoryPrompt = state.memory.length > 0 ? `\nActive Memory Facts:\n${state.memory.map(m => `- ${m}`).join('\n')}` : '';
+
+      const agentSystemInstruction = `${state.systemInstruction}\n
+You are an autonomous ReAct AI Agent. You must answer questions or solve tasks step-by-step.
+${memoryPrompt}
+
+Available Tools:
+${toolsPromptDesc || 'None enabled.'}
+
+INSTRUCTIONS & FORMAT:
+To use a tool, respond ONLY with a valid JSON object matching this schema:
+\`\`\`json
+{
+  "action": "use_tool",
+  "tool_name": "calculator",
+  "tool_input": { "expression": "1250 * 24" },
+  "thought": "I need to calculate the value."
+}
+\`\`\`
+
+When you have enough information or no tool is needed, respond with a JSON object:
+\`\`\`json
+{
+  "action": "final_answer",
+  "thought": "I have completed the task.",
+  "answer": "Your detailed final answer here..."
+}
+\`\`\`
+DO NOT add conversational text outside the JSON block when selecting tools.`;
+
+      state.lastCompiledPrompt = agentSystemInstruction;
+      updateInspectorUI();
+
+      const conversationHistory = [...state.messages];
+      let step = 0;
+      let isFinalAnswer = false;
+      const assistantMsgId = appendChatMessage('assistant', '🤖 *Agent evaluating task...*', false);
+
+      while (step < state.maxSteps && !isFinalAnswer) {
+        step++;
+        updateStepCountLabel(step);
+
+        highlightFlowNode('plan');
+        addStepCard('plan', `Step ${step}: Reason & Action Selection`, `Evaluating tool necessity...`);
+
+        const provider = ProviderManager.getProvider(state.provider);
+        const rawResponse = await provider.sendMessage({
+          apiKey: state.apiKey,
+          model: state.model,
+          messages: conversationHistory,
+          systemInstruction: agentSystemInstruction,
+          temperature: state.temperature,
+          signal: state.abortController.signal
+        });
+
+        // Parse Response JSON
+        let actionObj = null;
+        try {
+          const jsonMatch = rawResponse.match(/```json\s*([\s\S]*?)\s*```/) || rawResponse.match(/(\{[\s\S]*\})/);
+          const jsonStr = jsonMatch ? jsonMatch[1] : rawResponse;
+          actionObj = JSON.parse(jsonStr.trim());
+        } catch (e) {
+          // Fallback if LLM output formatted response directly without JSON
+          actionObj = { action: 'final_answer', answer: rawResponse, thought: 'Direct answer generated.' };
+        }
+
+        if (actionObj.action === 'use_tool') {
+          highlightFlowNode('tool');
+          const tool = ToolsRegistry[actionObj.tool_name];
+
+          addStepCard('tool', `Tool Action: ${actionObj.tool_name}`, `Input: ${JSON.stringify(actionObj.tool_input)}\nThought: ${actionObj.thought || ''}`);
+
+          let toolOutput = null;
+          if (tool) {
+            highlightFlowNode('observe');
+            toolOutput = tool.execute(actionObj.tool_input);
+            addStepCard('observe', `Observation (${actionObj.tool_name})`, JSON.stringify(toolOutput, null, 2));
+          } else {
+            toolOutput = { success: false, error: `Tool ${actionObj.tool_name} not found.` };
+          }
+
+          // Feed observation back into conversation
+          conversationHistory.push({ role: 'assistant', content: JSON.stringify(actionObj) });
+          conversationHistory.push({ role: 'user', content: `Tool Output Result:\n${JSON.stringify(toolOutput)}` });
+
+        } else if (actionObj.action === 'final_answer' || actionObj.answer) {
+          isFinalAnswer = true;
+          highlightFlowNode('response');
+          addStepCard('response', 'Final Synthesis Complete', actionObj.thought || 'Task completed.');
+
+          const finalResponseText = actionObj.answer || rawResponse;
+          updateChatMessageContent(assistantMsgId, finalResponseText);
+          state.messages.push({ role: 'assistant', content: finalResponseText });
+        }
+      }
+
+      if (!isFinalAnswer) {
+        const timeoutMsg = 'Reached maximum configured step limit without final synthesis.';
+        updateChatMessageContent(assistantMsgId, `⚠️ ${timeoutMsg}`);
+        addStepCard('response', 'Max Steps Reached', timeoutMsg);
+      }
+    }
+
+    // Interactive Simulation Demo Mode (No API key needed)
+    async function runDemoSimulation() {
+      const demoTask = "Calculate the monthly electricity cost of a 10 kW motor running 8 hours/day for 26 days at ₹12/kWh.";
+      
+      clearChat();
+      clearAgentStepsUI();
+      document.getElementById('user-input').value = demoTask;
+      
+      appendChatMessage('user', demoTask);
+      const assistantMsgId = appendChatMessage('assistant', '🤖 *DEMO SIMULATION — Running Agent Pipeline without API...*', false);
+
+      setAgentState('thinking', 'Demo Agent Active');
+
+      // Animated Pipeline Sequence
+      highlightFlowNode('goal');
+      addStepCard('goal', '1. Goal Analysis (DEMO)', demoTask);
+      await delay(1200);
+
+      highlightFlowNode('plan');
+      addStepCard('plan', '2. Creating Strategy', 'Goal: Calculate monthly motor electricity bill.\nFormulas required:\n1. Total kWh = kW * Hours/Day * Days\n2. Cost = Total kWh * Rate');
+      await delay(1500);
+
+      highlightFlowNode('tool');
+      addStepCard('tool', '3. Tool Call: Calculator', 'Input Expression: 10 * 8 * 26 * 12\nThought: Calculate total energy consumption in kWh and multiply by rate per kWh.');
+      await delay(1500);
+
+      highlightFlowNode('observe');
+      const calcResult = { success: true, result: 24960, formatted: "10 kW * 8 hrs * 26 days * ₹12 = ₹24,960" };
+      addStepCard('observe', '4. Tool Result Observed', JSON.stringify(calcResult, null, 2));
+      await delay(1500);
+
+      highlightFlowNode('response');
+      addStepCard('response', '5. Formulating Final Answer', 'Synthesizing calculation result into clear user response...');
+
+      const finalDemoMarkdown = `### Monthly Electricity Cost Breakdown
+
+To calculate the electricity cost for the 10 kW motor:
+
+1. **Daily Energy Consumption:**
+   $$\\text{Daily kWh} = 10\\text{ kW} \\times 8\\text{ hours} = 80\\text{ kWh/day}$$
+
+2. **Monthly Energy Consumption (26 Days):**
+   $$\\text{Monthly kWh} = 80\\text{ kWh/day} \\times 26\\text{ days} = 2,080\\text{ kWh}$$
+
+3. **Total Electricity Cost at ₹12/kWh:**
+   $$\\text{Total Cost} = 2,080\\text{ kWh} \\times ₹12 = \\mathbf{₹24,960}$$
+
+---
+*This step-by-step result was produced by the simulated ReAct Agent pipeline using the Client Calculator tool.*`;
+
+      updateChatMessageContent(assistantMsgId, finalDemoMarkdown);
+      setAgentState('idle', 'Idle');
+      showNotification('Demo Agent simulation complete!', 'success');
+    }
+
+    // Helper UI & Memory Functions
+    function getActiveToolsList() {
+      const active = [];
+      if (document.getElementById('tool-calc').checked) active.push(ToolsRegistry.calculator);
+      if (document.getElementById('tool-unit').checked) active.push(ToolsRegistry.unitConverter);
+      if (document.getElementById('tool-datetime').checked) active.push(ToolsRegistry.dateTime);
+      if (document.getElementById('tool-text').checked) active.push(ToolsRegistry.textAnalyzer);
+      if (document.getElementById('tool-json').checked) active.push(ToolsRegistry.jsonTool);
+      if (document.getElementById('tool-memory').checked) active.push(ToolsRegistry.memoryStore);
+      return active;
+    }
+
+    function renderMemoryList() {
+      const container = document.getElementById('memory-list');
+      container.innerHTML = '';
+      if (state.memory.length === 0) {
+        container.innerHTML = '<div class="text-[11px] text-slate-500 italic">No short-term memories stored.</div>';
+        return;
+      }
+      state.memory.forEach((fact, idx) => {
+        const item = document.createElement('div');
+        item.className = 'bg-darkbg/70 p-1.5 rounded border border-darkborder/60 text-[11px] text-slate-300 flex justify-between items-center group';
+        item.innerHTML = `
+          <span class="truncate mr-1">• ${escapeHtml(fact)}</span>
+          <button onclick="deleteMemory(${idx})" class="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function addManualMemory() {
+      const input = document.getElementById('new-memory-input');
+      const val = input.value.trim();
+      if (val) {
+        state.memory.push(val);
+        input.value = '';
+        renderMemoryList();
+      }
+    }
+
+    function deleteMemory(idx) {
+      state.memory.splice(idx, 1);
+      renderMemoryList();
+    }
+
+    function clearMemory() {
+      state.memory = [];
+      renderMemoryList();
+    }
+
+    // Chat Message Formatting & Rendering
+    function appendChatMessage(role, content, isStreaming = false) {
+      const container = document.getElementById('chat-messages-container');
+      const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+
+      const wrapper = document.createElement('div');
+      wrapper.id = msgId;
+      wrapper.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`;
+
+      const isUser = role === 'user';
+      const parsedContent = isUser ? escapeHtml(content) : (window.marked ? marked.parse(content) : content);
+
+      wrapper.innerHTML = `
+        <div class="max-w-[85%] md:max-w-[75%] space-y-1">
+          <div class="flex items-center gap-2 ${isUser ? 'justify-end' : 'justify-start'} text-[10px] text-slate-400">
+            <span>${isUser ? 'You' : 'AI Agent (' + state.model + ')'}</span>
+            <span>•</span>
+            <span>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+
+          <div class="p-4 rounded-2xl text-xs md:text-sm ${isUser ? 'bg-brand-600 text-white rounded-tr-none' : 'bg-darkcard border border-darkborder text-slate-100 rounded-tl-none prose prose-invert'}">
+            <div class="msg-body">${parsedContent}</div>
+          </div>
+
+          ${!isUser ? `
+            <div class="flex items-center space-x-2 text-[10px] text-slate-500 pt-0.5">
+              <button onclick="copyMessageText('${msgId}')" class="hover:text-slate-300 transition flex items-center gap-1"><i class="fa-solid fa-copy"></i> Copy</button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      container.appendChild(wrapper);
+      container.scrollTop = container.scrollHeight;
+      return msgId;
+    }
+
+    function updateChatMessageContent(msgId, content) {
+      const wrapper = document.getElementById(msgId);
+      if (!wrapper) return;
+      const body = wrapper.querySelector('.msg-body');
+      if (body) {
+        body.innerHTML = window.marked ? marked.parse(content) : content;
+      }
+      const container = document.getElementById('chat-messages-container');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function copyMessageText(msgId) {
+      const wrapper = document.getElementById(msgId);
+      if (wrapper) {
+        const text = wrapper.querySelector('.msg-body').innerText;
+        navigator.clipboard.writeText(text);
+        showNotification('Message copied to clipboard!', 'info');
+      }
+    }
+
+    // Step Timeline UI Handlers
+    function addStepCard(type, title, details) {
+      const timeline = document.getElementById('agent-steps-timeline');
+      if (timeline.querySelector('.text-center')) {
+        timeline.innerHTML = '';
+      }
+
+      const card = document.createElement('div');
+      card.className = 'bg-darkbg p-3 rounded-xl border border-darkborder text-xs space-y-1.5 animate-fade-in shadow-sm';
+
+      let iconClass = 'fa-solid fa-gear text-brand-400';
+      if (type === 'goal') iconClass = 'fa-solid fa-bullseye text-brand-400';
+      if (type === 'plan') iconClass = 'fa-solid fa-list-check text-indigo-400';
+      if (type === 'tool') iconClass = 'fa-solid fa-wrench text-amber-400';
+      if (type === 'observe') iconClass = 'fa-solid fa-eye text-emerald-400';
+      if (type === 'response') iconClass = 'fa-solid fa-check-circle text-sky-400';
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between font-semibold text-slate-200">
+          <span class="flex items-center gap-1.5"><i class="${iconClass}"></i> ${escapeHtml(title)}</span>
+          <span class="text-[10px] text-slate-500">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+        </div>
+        <pre class="bg-darkcard/80 p-2 rounded border border-darkborder/60 text-[11px] text-slate-300 font-mono whitespace-pre-wrap overflow-x-auto max-h-32"><code>${escapeHtml(details)}</code></pre>
+      `;
+
+      timeline.appendChild(card);
+      timeline.scrollTop = timeline.scrollHeight;
+    }
+
+    function clearAgentStepsUI() {
+      document.getElementById('agent-steps-timeline').innerHTML = `
+        <div class="text-center py-8 text-slate-500 text-xs">
+          <i class="fa-solid fa-hourglass-start text-2xl mb-2 block text-slate-600"></i>
+          Active execution pipeline started...
+        </div>
+      `;
+      updateStepCountLabel(0);
+    }
+
+    function highlightFlowNode(nodeKey) {
+      ['goal', 'plan', 'tool', 'observe', 'response'].forEach(k => {
+        const el = document.getElementById(`flow-node-${k}`);
+        if (el) {
+          if (k === nodeKey) {
+            el.className = 'p-2 rounded-lg border border-brand-500 bg-brand-500/10 text-brand-300 flex items-center gap-2 transition-all font-semibold shadow-sm';
+          } else {
+            el.className = 'p-2 rounded-lg border border-darkborder bg-darkbg text-slate-500 flex items-center gap-2 transition-all';
+          }
+        }
+      });
+    }
+
+    function setAgentState(stateKey, labelText) {
+      const badge = document.getElementById('agent-state-badge');
+      if (stateKey === 'thinking') {
+        badge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/40 animate-pulse';
+        badge.innerText = labelText;
+      } else {
+        badge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700';
+        badge.innerText = labelText;
+      }
+    }
+
+    function updateStepCountLabel(count) {
+      document.getElementById('step-count-label').innerText = `${count} Step${count === 1 ? '' : 's'}`;
+    }
+
+    // Connection Testing Function
+    async function testApiConnection() {
+      const key = document.getElementById('api-key-input').value.trim();
+      const model = document.getElementById('model-input').value.trim();
+      const providerName = document.getElementById('provider-select').value;
+      const badge = document.getElementById('connection-status-badge');
+
+      if (!key) {
+        showNotification('Please enter an API key to test.', 'error');
+        return;
+      }
+
+      badge.className = 'normal-case text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30';
+      badge.innerText = 'Testing...';
+
+      const startTime = performance.now();
+      try {
+        const provider = ProviderManager.getProvider(providerName);
+        await provider.sendMessage({
+          apiKey: key,
+          model: model,
+          messages: [{ role: 'user', content: 'Hi' }],
+          systemInstruction: 'Respond with OK',
+          temperature: 0.1
+        });
+
+        const latency = ((performance.now() - startTime) / 1000).toFixed(2);
+        badge.className = 'normal-case text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30';
+        badge.innerText = `Connected (${latency}s)`;
+        showNotification(`Connected successfully! Latency: ${latency}s`, 'success');
+      } catch (err) {
+        badge.className = 'normal-case text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full border border-red-500/30';
+        badge.innerText = 'Failed';
+        showNotification(`Connection test failed: ${err.message}`, 'error');
+      }
+    }
+
+    // API Inspector Tab Handlers
+    function updateInspectorUI() {
+      if (state.lastRequestInspector) {
+        document.getElementById('insp-provider-val').innerText = state.lastRequestInspector.provider;
+        document.getElementById('insp-endpoint-val').innerText = state.lastRequestInspector.endpoint;
+        document.getElementById('insp-request-json').innerText = JSON.stringify(state.lastRequestInspector.body, null, 2);
+      }
+      if (state.lastResponseInspector) {
+        document.getElementById('insp-response-json').innerText = JSON.stringify(state.lastResponseInspector, null, 2);
+      }
+      if (state.lastCompiledPrompt) {
+        document.getElementById('insp-compiled-prompt').innerText = state.lastCompiledPrompt;
+      }
+    }
+
+    function switchInspectorTab(tabKey) {
+      ['req', 'res', 'prompt'].forEach(k => {
+        const btn = document.getElementById(`insp-tab-${k}`);
+        const view = document.getElementById(`insp-view-${k}`);
+        if (k === tabKey) {
+          btn.className = 'px-2.5 py-1 rounded bg-brand-600 text-white font-medium';
+          view.classList.remove('hidden');
+        } else {
+          btn.className = 'px-2.5 py-1 rounded bg-darkbg text-slate-400 hover:text-white';
+          view.classList.add('hidden');
+        }
+      });
+    }
+
+    // Top Level Navigation Tab Switcher
+    function switchTab(tabId) {
+      ['dashboard', 'how-it-works', 'learn'].forEach(id => {
+        const view = document.getElementById(`view-${id}`);
+        const navBtn = document.getElementById(`nav-${id}`);
+        if (id === tabId) {
+          view.classList.remove('hidden');
+          if (navBtn) navBtn.className = 'nav-btn px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-brand-600 transition';
+        } else {
+          view.classList.add('hidden');
+          if (navBtn) navBtn.className = 'nav-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition';
+        }
+      });
+    }
+
+    function switchRightTab(tabId) {
+      const execContent = document.getElementById('right-content-execution');
+      const inspContent = document.getElementById('right-content-inspector');
+      const execTabBtn = document.getElementById('right-tab-execution');
+      const inspTabBtn = document.getElementById('right-tab-inspector');
+
+      if (tabId === 'execution') {
+        execContent.classList.remove('hidden');
+        inspContent.classList.add('hidden');
+        execTabBtn.className = 'flex-1 py-3 text-xs font-semibold text-brand-400 border-b-2 border-brand-500 text-center';
+        inspTabBtn.className = 'flex-1 py-3 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent text-center';
+      } else {
+        execContent.classList.add('hidden');
+        inspContent.classList.remove('hidden');
+        inspTabBtn.className = 'flex-1 py-3 text-xs font-semibold text-brand-400 border-b-2 border-brand-500 text-center';
+        execTabBtn.className = 'flex-1 py-3 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent text-center';
+      }
+    }
+
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('left-sidebar');
+      sidebar.classList.toggle('hidden');
+    }
+
+    function setInputAndSend(promptText) {
+      document.getElementById('user-input').value = promptText;
+      sendMessage();
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function toggleGeneratingUI(isGenerating) {
+      const sendBtn = document.getElementById('send-btn');
+      const statusBox = document.getElementById('generation-status');
+      if (isGenerating) {
+        sendBtn.disabled = true;
+        sendBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        statusBox.classList.remove('hidden');
+        statusBox.classList.add('flex');
+      } else {
+        sendBtn.disabled = false;
+        sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        statusBox.classList.add('hidden');
+        statusBox.classList.remove('flex');
+      }
+    }
+
+    function stopGeneration() {
+      if (state.abortController) {
+        state.abortController.abort();
+      }
+    }
+
+    function clearChat() {
+      state.messages = [];
+      document.getElementById('chat-messages-container').innerHTML = `
+        <div class="max-w-2xl mx-auto bg-darkcard/60 border border-darkborder rounded-2xl p-6 text-center space-y-3">
+          <div class="text-sm font-semibold text-white">Conversation Cleared</div>
+          <p class="text-xs text-slate-400">Enter a prompt or select a sample prompt to start a new Agent session.</p>
+        </div>
+      `;
+      clearAgentStepsUI();
+    }
+
+    function confirmReset() {
+      if (confirm("Reset Agent state, chat messages, and session memory?")) {
+        clearChat();
+        clearMemory();
+        showNotification("Agent environment reset.", "info");
+      }
+    }
+
+    function exportChat(format) {
+      if (state.messages.length === 0) {
+        showNotification("No conversation history to export.", "warning");
+        return;
+      }
+
+      let content = "";
+      let filename = `agent-conversation-${Date.now()}`;
+
+      if (format === 'json') {
+        const exportData = {
+          provider: state.provider,
+          model: state.model,
+          mode: state.agentMode,
+          timestamp: new Date().toISOString(),
+          messages: state.messages
+        };
+        content = JSON.stringify(exportData, null, 2);
+        filename += '.json';
+      } else {
+        content = state.messages.map(m => `[${m.role.toUpperCase()}]\n${m.content}\n`).join('\n---\n\n');
+        filename += '.txt';
+      }
+
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Toast Notification System
+    function showNotification(msg, type = 'info') {
+      const toast = document.createElement('div');
+      let bgColor = 'bg-slate-800 border-slate-700 text-slate-200';
+      if (type === 'success') bgColor = 'bg-emerald-900/90 border-emerald-500/50 text-emerald-100';
+      if (type === 'error') bgColor = 'bg-red-900/90 border-red-500/50 text-red-100';
+      if (type === 'warning') bgColor = 'bg-amber-900/90 border-amber-500/50 text-amber-100';
+
+      toast.className = `fixed bottom-5 right-5 px-4 py-2.5 rounded-xl border text-xs font-medium shadow-2xl z-50 transition-all transform translate-y-2 opacity-0 flex items-center gap-2 ${bgColor}`;
+      toast.innerHTML = `<span>${escapeHtml(msg)}</span>`;
+
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&rawgt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+  </script>
+</body>
+</html>
