@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real Bluetooth Device Scanner</title>
+<style>
+  :root{
+    --bg:#0a0e1a; --bg-panel:#0f1729; --bg-panel2:#0c1322;
+    --grid:rgba(34,211,238,0.055);
+    --cyan:#22d3ee; --cyan-dim:#0e7490;
+    --amber:#f0a94e; --amber-dim:#8a5a1e;
+    --green:#4ade80; --red:#ef5b5b;
+    --text:#d7e2f2; --text-dim:#7b8aa8;
+    --border:rgba(34,211,238,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;}
+  body{background-image:linear-gradient(var(--grid) 1px, transparent 1px),linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:32px 32px;min-height:100vh;}
+  header{padding:26px 20px 14px;text-align:center;border-bottom:1px solid var(--border);}
+  .brand{font-size:11px;letter-spacing:2.5px;color:var(--amber);text-transform:uppercase;margin-bottom:10px;}
+  h1{margin:0;font-size:clamp(19px,3.2vw,28px);color:var(--cyan);letter-spacing:0.5px;text-shadow:0 0 18px rgba(34,211,238,0.25);}
+  .sub{color:var(--text-dim);margin-top:8px;font-size:13px;max-width:720px;margin-left:auto;margin-right:auto;line-height:1.6;}
+  .real-badge{display:inline-block;background:rgba(74,222,128,0.12);border:1px solid var(--green);color:var(--green);
+    font-size:10.5px;letter-spacing:1px;padding:3px 9px;border-radius:3px;margin-top:10px;}
+  main{max-width:960px;margin:0 auto;padding:22px 16px 50px;}
+  h2{color:var(--amber);font-size:15.5px;letter-spacing:0.4px;margin:20px 0 10px;border-left:3px solid var(--amber);padding-left:9px;}
+  .card{background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:15px 17px;margin:12px 0;}
+  p{line-height:1.6;font-size:13.5px;}
+  .dim{color:var(--text-dim);}
+  ul{padding-left:19px;font-size:13px;line-height:1.7;}
+  details{background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;margin:12px 0;overflow:hidden;}
+  summary{padding:12px 16px;cursor:pointer;color:var(--cyan);font-size:13px;letter-spacing:0.3px;list-style:none;}
+  summary::-webkit-details-marker{display:none;}
+  summary:before{content:'▸ ';color:var(--amber);}
+  details[open] summary:before{content:'▾ ';}
+  .details-body{padding:0 16px 16px;}
+  code{color:var(--cyan);}
+
+  button{background:var(--bg-panel2);border:1px solid var(--border);color:var(--text);
+    padding:9px 16px;font-family:inherit;font-size:13px;border-radius:4px;cursor:pointer;}
+  button:hover{border-color:var(--cyan);color:var(--cyan);}
+  button.primary{background:var(--cyan);color:#04222b;border-color:var(--cyan);font-weight:700;}
+  button.primary:hover{filter:brightness(1.08);color:#04222b;}
+  button:disabled{opacity:0.4;cursor:not-allowed;}
+  button.danger{border-color:var(--red);color:var(--red);}
+
+  .capability-note{border-left:3px solid var(--green);}
+  .capability-note.warn{border-left:3px solid var(--amber);}
+  #unsupportedBanner{display:none;}
+  #unsupportedBanner .card{border-color:var(--red);}
+
+  .status-line{font-size:12px;color:var(--cyan);min-height:18px;margin-top:8px;}
+  .status-line.err{color:var(--red);}
+
+  .device-card{background:var(--bg-panel2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;margin:12px 0;}
+  .device-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .device-name{font-size:15px;color:var(--cyan);font-weight:700;}
+  .device-type-badge{display:inline-block;background:var(--bg-panel);border:1px solid var(--amber);color:var(--amber);
+    font-size:10px;letter-spacing:0.5px;padding:2px 8px;border-radius:10px;margin-left:8px;}
+  .conn-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+  .conn-dot.connected{background:var(--green);}
+  .conn-dot.disconnected{background:var(--red);}
+  .device-id{font-size:10.5px;color:var(--text-dim);margin-top:2px;}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px;}
+  th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);}
+  th{color:var(--amber);font-weight:600;font-size:11px;letter-spacing:0.3px;width:38%;}
+  td.val{color:var(--text);}
+  td.missing{color:var(--text-dim);font-style:italic;}
+
+  .ref-note{font-size:11px;color:var(--text-dim);margin-top:10px;border-top:1px dashed var(--border);padding-top:8px;}
+  footer{text-align:center;color:var(--text-dim);font-size:11px;padding:20px 10px 30px;border-top:1px solid var(--border);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Apna Electromechanic Service — Engineering Tools Suite</div>
+  <h1>Real Bluetooth Device Scanner</h1>
+  <p class="sub">Opens your browser's real Bluetooth device picker, attempts a real connection, and reads whatever the device genuinely exposes — manufacturer, model, firmware, battery — using the actual Web Bluetooth API.</p>
+  <span class="real-badge">● REAL DEVICE PICKER — NOT A SIMULATED LIST</span>
+</header>
+
+<main>
+
+  <div id="unsupportedBanner">
+    <div class="card">
+      <h2 style="margin-top:0;">Web Bluetooth isn't available right now</h2>
+      <p id="unsupportedReason"></p>
+      <p class="dim">This works in <b>Chrome, Edge, or Opera</b> on desktop or Android. It does <b>not</b> work in Safari, iOS (any browser — Apple blocks Web Bluetooth platform-wide), or Firefox. It also needs a secure context — if you opened this file directly and see this message, try serving it locally (e.g. <code>python3 -m http.server</code> and open via <code>http://localhost:8000</code>) instead of via a bare <code>file://</code> path.</p>
+    </div>
+  </div>
+
+  <details>
+    <summary>Exactly what's real here, and what a webpage genuinely cannot get (read first)</summary>
+    <div class="details-body">
+      <p><b>Real:</b> the "Scan" button below opens your operating system's actual Bluetooth chooser — the same dialog a native app would trigger — listing real devices your hardware detects nearby. If you pick a device and it supports Bluetooth Low Energy GATT services, this page performs a genuine <code>gatt.connect()</code> and reads real characteristic values: manufacturer name, model number, firmware/hardware/software revision, and battery level, when the device exposes them.</p>
+      <p><b>Not possible from any webpage, on any browser:</b></p>
+      <ul>
+        <li>Most earbuds and speakers stream audio over <b>Bluetooth Classic (A2DP)</b>, not BLE GATT — browsers have no API for Classic Bluetooth at all, so audio devices will usually show a name but fail to connect for data, exactly like the tool will tell you if that happens.</li>
+        <li>There's no browser API that reports a live "connection speed" or "transfer speed" for a Bluetooth link — that number simply isn't exposed to web pages by any browser, so this tool won't invent one. Where useful, it shows the <i>typical published range</i> for that class of radio, clearly labelled as a reference figure, never a live reading.</li>
+        <li>The device "type" (earbuds / speaker / phone / wearable) shown below is a <b>guess based on the device's advertised name</b> — Bluetooth's actual "class of device" field isn't exposed to browsers either.</li>
+      </ul>
+    </div>
+  </details>
+
+  <h2>Scan &amp; connect</h2>
+  <div class="card">
+    <button class="primary" id="scanBtn">Scan for a Bluetooth device</button>
+    <div class="status-line" id="statusLine"></div>
+  </div>
+
+  <h2>Connected / attempted devices</h2>
+  <div id="deviceList"></div>
+
+</main>
+
+<footer>Apna Electromechanic Service — Engineering Tools Suite · Uses the real Web Bluetooth API · No device data leaves your browser</footer>
+
+<script>
+(function(){
+  var statusLine = document.getElementById('statusLine');
+  var deviceList = document.getElementById('deviceList');
+
+  function setStatus(msg, isErr){
+    statusLine.textContent = msg;
+    statusLine.className = 'status-line' + (isErr ? ' err' : '');
+  }
+
+  // ---------- feature detection ----------
+  var bleSupported = !!(navigator.bluetooth);
+  if(!bleSupported){
+    document.getElementById('unsupportedBanner').style.display = 'block';
+    var reason = 'navigator.bluetooth is not present in this browser/context.';
+    if(location.protocol !== 'https:' && location.hostname !== 'localhost' && location.protocol !== 'file:'){
+      reason += ' This page also isn\'t on a secure origin.';
+    }
+    document.getElementById('unsupportedReason').textContent = reason;
+    document.getElementById('scanBtn').disabled = true;
+  }
+
+  // ---------- device type guess (heuristic only, from the advertised name) ----------
+  function guessDeviceType(name){
+    if(!name) return 'Unknown';
+    var n = name.toLowerCase();
+    var rules = [
+      { type:'Earbuds', kws:['buds','airpods','pods','earphone','tws'] },
+      { type:'Headphones', kws:['headphone','headset','wh-','over-ear'] },
+      { type:'Speaker', kws:['speaker','soundlink','boom','charge','flip','megaboom','partybox','stone'] },
+      { type:'Phone', kws:['iphone','galaxy','pixel','redmi','oneplus','moto ','xiaomi'] },
+      { type:'Wearable', kws:['watch','band','fit','mi band','gear '] },
+      { type:'Computer', kws:['macbook','laptop','thinkpad','pc-','desktop'] },
+      { type:'Input device', kws:['mouse','keyboard','trackpad'] },
+      { type:'Printer', kws:['printer'] },
+      { type:'Car / hands-free', kws:['car','hands-free','carplay','sync'] }
+    ];
+    for(var i=0;i<rules.length;i++){
+      for(var j=0;j<rules[i].kws.length;j++){
+        if(n.indexOf(rules[i].kws[j]) > -1) return rules[i].type;
+      }
+    }
+    return 'Unknown (name gives no hint)';
+  }
+
+  // ---------- GATT service/characteristic decode helpers ----------
+  function decodeText(dataview){
+    try{
+      return new TextDecoder('utf-8').decode(dataview.buffer ? dataview : dataview);
+    }catch(e){
+      var s = '';
+      for(var i=0;i<dataview.byteLength;i++) s += String.fromCharCode(dataview.getUint8(i));
+      return s;
+    }
+  }
+
+  function decodePnpId(dv){
+    if(dv.byteLength < 7) return null;
+    var vendorSource = dv.getUint8(0);
+    var vendorId = dv.getUint16(1, true);
+    var productId = dv.getUint16(3, true);
+    var productVersion = dv.getUint16(5, true);
+    var src = vendorSource === 1 ? 'Bluetooth SIG' : (vendorSource === 2 ? 'USB-IF' : 'Unknown source');
+    return src + ' vendor 0x' + vendorId.toString(16).toUpperCase() +
+      ', product 0x' + productId.toString(16).toUpperCase() +
+      ', v' + (productVersion >> 8) + '.' + (productVersion & 0xFF);
+  }
+
+  var DEVICE_INFO_CHARS = [
+    { uuid:'manufacturer_name_string', label:'Manufacturer', decode:decodeText },
+    { uuid:'model_number_string', label:'Model number', decode:decodeText },
+    { uuid:'serial_number_string', label:'Serial number', decode:decodeText },
+    { uuid:'hardware_revision_string', label:'Hardware revision', decode:decodeText },
+    { uuid:'firmware_revision_string', label:'Firmware revision', decode:decodeText },
+    { uuid:'software_revision_string', label:'Software revision', decode:decodeText },
+    { uuid:'pnp_id', label:'PnP ID', decode:decodePnpId }
+  ];
+
+  var OPTIONAL_SERVICES = ['device_information','battery_service','generic_access','heart_rate','human_interface_device'];
+
+  function renderRow(tbody, label, value, isMissing){
+    var tr = document.createElement('tr');
+    var th = document.createElement('th');
+    th.textContent = label;
+    var td = document.createElement('td');
+    td.className = isMissing ? 'val missing' : 'val';
+    td.textContent = value;
+    tr.appendChild(th); tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+
+  function refTable(){
+    return '<div class="ref-note"><b>Typical published ranges</b> (not a live reading — no browser API exposes this): '+
+      'BLE 4.2 ≈100–270 kbps · BLE 5.0 (2M PHY) ≈0.7–1.4 Mbps · Bluetooth Classic EDR ≈1.5–2.6 Mbps · '+
+      'Wi-Fi Direct (what fast-transfer apps switch to) ≈30–150 Mbps.</div>';
+  }
+
+  function makeDeviceCard(name){
+    var card = document.createElement('div');
+    card.className = 'device-card';
+    var type = guessDeviceType(name);
+    card.innerHTML =
+      '<div class="device-head">' +
+        '<div>' +
+          '<span class="conn-dot disconnected" data-role="dot"></span>' +
+          '<span class="device-name">'+ (name || 'Unnamed device') +'</span>' +
+          '<span class="device-type-badge">'+ type +' · guessed from name</span>' +
+          '<div class="device-id" data-role="idline"></div>' +
+        '</div>' +
+        '<button class="danger" data-role="disconnect" style="display:none;">Disconnect</button>' +
+      '</div>' +
+      '<div data-role="status" class="status-line"></div>' +
+      '<table data-role="infoTable"><tbody data-role="infoBody"></tbody></table>' +
+      refTable();
+    deviceList.prepend(card);
+    return card;
+  }
+
+  async function readCharacteristic(service, uuid, decode){
+    try{
+      var ch = await service.getCharacteristic(uuid);
+      var dv = await ch.readValue();
+      return { ok:true, value: decode(dv) };
+    }catch(e){
+      return { ok:false };
+    }
+  }
+
+  async function probeDevice(device, card){
+    var dot = card.querySelector('[data-role="dot"]');
+    var idline = card.querySelector('[data-role="idline"]');
+    var statusEl = card.querySelector('[data-role="status"]');
+    var disconnectBtn = card.querySelector('[data-role="disconnect"]');
+    var infoBody = card.querySelector('[data-role="infoBody"]');
+
+    idline.textContent = 'Browser device ID: ' + (device.id || 'n/a');
+
+    device.addEventListener('gattserverdisconnected', function(){
+      dot.className = 'conn-dot disconnected';
+      statusEl.textContent = 'Disconnected.';
+      disconnectBtn.style.display = 'none';
+    });
+
+    if(!device.gatt){
+      statusEl.textContent = 'This device does not support GATT connections from a browser (likely a Classic-Bluetooth-only audio device).';
+      statusEl.className = 'status-line err';
+      return;
+    }
+
+    statusEl.textContent = 'Connecting...';
+    try{
+      var server = await device.gatt.connect();
+      dot.className = 'conn-dot connected';
+      statusEl.textContent = 'Connected. Reading available services...';
+      disconnectBtn.style.display = 'inline-block';
+      disconnectBtn.onclick = function(){ device.gatt.disconnect(); };
+
+      var anyFound = false;
+
+      // Device Information Service
+      try{
+        var diService = await server.getPrimaryService('device_information');
+        anyFound = true;
+        for(var i=0;i<DEVICE_INFO_CHARS.length;i++){
+          var spec = DEVICE_INFO_CHARS[i];
+          var result = await readCharacteristic(diService, spec.uuid, spec.decode);
+          if(result.ok) renderRow(infoBody, spec.label, result.value, false);
+        }
+      }catch(e){ /* device information service not exposed by this device */ }
+
+      // Battery Service
+      try{
+        var battService = await server.getPrimaryService('battery_service');
+        anyFound = true;
+        var battResult = await readCharacteristic(battService, 'battery_level', function(dv){ return dv.getUint8(0) + '%'; });
+        if(battResult.ok) renderRow(infoBody, 'Battery level', battResult.value, false);
+      }catch(e){ /* battery service not exposed */ }
+
+      if(!anyFound){
+        renderRow(infoBody, 'GATT services', 'Connected, but this device did not expose Device Information or Battery services to the browser.', true);
+      } else if(infoBody.children.length === 0){
+        renderRow(infoBody, 'Characteristics', 'Services were found but their values could not be read (often permission-gated by the device).', true);
+      }
+
+      statusEl.textContent = 'Done reading available data.';
+      statusEl.className = 'status-line';
+    }catch(e){
+      statusEl.textContent = 'Could not establish a GATT connection (' + (e.message || e.name || 'unknown error') + '). This is expected for Classic-Bluetooth-only devices like most audio earbuds and speakers — the browser simply has no API for that transport.';
+      statusEl.className = 'status-line err';
+    }
+  }
+
+  document.getElementById('scanBtn').addEventListener('click', async function(){
+    if(!bleSupported) return;
+    setStatus('Opening your browser\'s Bluetooth device picker...');
+    try{
+      var device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: OPTIONAL_SERVICES
+      });
+      setStatus('Selected: ' + (device.name || 'Unnamed device'));
+      var card = makeDeviceCard(device.name);
+      await probeDevice(device, card);
+    }catch(e){
+      if(e.name === 'NotFoundError'){
+        setStatus('No device selected (you cancelled or none was chosen).');
+      }else{
+        setStatus('Scan failed: ' + (e.message || e.name || 'unknown error'), true);
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>
