@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Railway Signalling & Train Control Simulator</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        rail: {
+                            bg: '#0f172a',
+                            panel: '#1e293b',
+                            border: '#334155',
+                            accent: '#38bdf8',
+                            signalRed: '#ef4444',
+                            signalYellow: '#f59e0b',
+                            signalGreen: '#10b981',
+                            occupied: '#dc2626'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+            user-select: none;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom Glowing Lamps */
+        .lamp-glow-red {
+            box-shadow: 0 0 14px 4px rgba(239, 68, 68, 0.7);
+        }
+        .lamp-glow-yellow {
+            box-shadow: 0 0 14px 4px rgba(245, 158, 11, 0.7);
+        }
+        .lamp-glow-green {
+            box-shadow: 0 0 14px 4px rgba(16, 185, 129, 0.7);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        /* Pulse Animation for active indicators */
+        @keyframes pulse-fast {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .animate-pulse-fast {
+            animation: pulse-fast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-x-hidden text-slate-100">
+
+    <!-- TOP NOTICE BANNER -->
+    <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-b border-slate-800 px-4 py-2 text-xs flex flex-wrap justify-between items-center shadow-md">
+        <div class="flex items-center space-x-3">
+            <span class="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded text-[10px] uppercase tracking-wider">Educational Tool</span>
+            <span class="text-amber-400 font-medium flex items-center gap-1.5">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>SIMULATION ONLY — NOT FOR REAL RAILWAY OPERATION</span>
+            </span>
+        </div>
+        <div class="flex items-center space-x-4 text-slate-400 text-[11px]">
+            <span><i class="fa-solid fa-clock text-slate-500 mr-1"></i> Sim Time: <span id="clock-display" class="mono text-white font-semibold">00:00:00</span></span>
+            <span><i class="fa-solid fa-microchip text-slate-500 mr-1"></i> Mode: <span id="mode-badge" class="font-semibold text-emerald-400">AUTO SIGNALLING</span></span>
+        </div>
+    </header>
+
+    <!-- NAVIGATION BAR & GLOBAL CONTROLS -->
+    <nav class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <i class="fa-solid fa-train-subway text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-base md:text-lg tracking-tight leading-tight text-white flex items-center gap-2">
+                    Railway Signalling & Train Control Simulator
+                </h1>
+                <p class="text-xs text-slate-400">Interactive Block Signalling, Interlocking & Dynamic Speed Model</p>
+            </div>
+        </div>
+
+        <!-- SIMULATION CONTROL BUTTONS -->
+        <div class="flex flex-wrap items-center gap-2 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800">
+            <button id="btn-play-pause" onclick="togglePlayPause()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                <i id="icon-play-pause" class="fa-solid fa-pause"></i> <span id="text-play-pause">Pause</span>
+            </button>
+            <button onclick="resetSimulation()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-rotate-left"></i> Reset
+            </button>
+            <button onclick="triggerEmergencyStop()" class="px-3 py-1.5 bg-rose-700 hover:bg-rose-600 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-lg shadow-rose-900/40 animate-pulse transition">
+                <i class="fa-solid fa-hand"></i> EMERGENCY STOP
+            </button>
+
+            <!-- SPEED SELECTOR -->
+            <div class="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-xs font-mono ml-2">
+                <span class="text-slate-500 px-2 text-[10px] uppercase font-bold">Speed</span>
+                <button onclick="setSpeedMultiplier(0.5)" class="speed-btn px-2 py-1 rounded text-slate-400 hover:text-white" data-speed="0.5">0.5×</button>
+                <button onclick="setSpeedMultiplier(1)" class="speed-btn px-2 py-1 rounded bg-indigo-600 text-white font-bold" data-speed="1">1×</button>
+                <button onclick="setSpeedMultiplier(2)" class="speed-btn px-2 py-1 rounded text-slate-400 hover:text-white" data-speed="2">2×</button>
+                <button onclick="setSpeedMultiplier(5)" class="speed-btn px-2 py-1 rounded text-slate-400 hover:text-white" data-speed="5">5×</button>
+                <button onclick="setSpeedMultiplier(10)" class="speed-btn px-2 py-1 rounded text-slate-400 hover:text-white" data-speed="10">10×</button>
+            </div>
+        </div>
+
+        <!-- MODE & EXPLAIN TOGGLES -->
+        <div class="flex items-center space-x-2">
+            <button id="btn-auto-manual" onclick="toggleAutoManualMode()" class="px-3 py-1.5 bg-slate-800 border border-slate-700 hover:border-slate-500 text-xs font-medium rounded-lg text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-indigo-400"></i> Mode: <span id="label-control-mode" class="text-indigo-300 font-bold">AUTO</span>
+            </button>
+            <button id="btn-explain-toggle" onclick="toggleExplainMode()" class="px-3 py-1.5 bg-slate-800 border border-slate-700 text-xs font-medium rounded-lg text-slate-200 flex items-center gap-2 hover:bg-slate-700">
+                <i class="fa-solid fa-lightbulb text-amber-400"></i> Explain Mode: <span id="label-explain-mode" class="text-emerald-400 font-bold">ON</span>
+            </button>
+            <button onclick="startTutorial()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-graduation-cap"></i> Interactive Tutorial
+            </button>
+        </div>
+    </nav>
+
+    <!-- MAIN INTERACTIVE RAILWAY VISUALIZATION CANVAS -->
+    <main class="flex-1 flex flex-col p-4 space-y-4 max-w-[1800px] w-full mx-auto">
+
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur relative">
+            <div class="flex flex-wrap items-center justify-between mb-3">
+                <div class="flex items-center space-x-3">
+                    <h2 class="font-bold text-sm tracking-wide text-slate-200 uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-route text-emerald-400"></i> Route Line Overview (5 Stations & Blocks)
+                    </h2>
+                    <span class="text-xs text-slate-400">(Click any track block, signal, train, or station to inspect)</span>
+                </div>
+                <!-- Aspect Legend -->
+                <div class="flex items-center space-x-4 text-xs">
+                    <span class="flex items-center gap-1.5 text-emerald-400 font-medium"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block lamp-glow-green"></span> GREEN (Proceed)</span>
+                    <span class="flex items-center gap-1.5 text-amber-400 font-medium"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block lamp-glow-yellow"></span> YELLOW (Caution)</span>
+                    <span class="flex items-center gap-1.5 text-rose-400 font-medium"><span class="w-3 h-3 rounded-full bg-rose-500 inline-block lamp-glow-red"></span> RED (Stop)</span>
+                    <span class="flex items-center gap-1.5 text-slate-400"><span class="w-3 h-3 rounded border border-rose-500 bg-rose-950/40 inline-block"></span> Occupied Block</span>
+                </div>
+            </div>
+
+            <!-- Canvas Container -->
+            <div class="relative w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner h-[280px]">
+                <canvas id="railwayCanvas" class="w-full h-full cursor-pointer"></canvas>
+            </div>
+        </div>
+
+        <!-- EDUCATIONAL EXPLANATION BAR (EXPLAIN MODE) -->
+        <div id="explain-banner" class="bg-indigo-950/60 border border-indigo-800/80 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-200 transition-all">
+            <div class="flex items-start space-x-3">
+                <div class="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500 flex items-center justify-center text-indigo-400 flex-shrink-0 mt-0.5">
+                    <i class="fa-solid fa-graduation-cap text-base"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-white text-xs uppercase tracking-wider">Signalling System Logic Explanation</h4>
+                    <p id="explain-banner-text" class="text-indigo-200 mt-0.5">
+                        Signals maintain safe headway. A GREEN signal means at least 2 blocks ahead are clear. A YELLOW signal warns that the next block is clear but the following block is occupied. A RED signal mandates a complete stop before the block boundary to prevent collisions.
+                    </p>
+                </div>
+            </div>
+            <button onclick="dismissExplainBanner()" class="text-indigo-400 hover:text-white px-2 py-1 rounded text-xs">
+                <i class="fa-solid fa-xmark"></i> Hide
+            </button>
+        </div>
+
+        <!-- CONTROL ROOM TABS & DASHBOARD PANELS -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col space-y-4">
+            
+            <!-- TAB BUTTONS -->
+            <div class="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
+                <button onclick="switchTab('tab-control')" id="btn-tab-control" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 bg-indigo-600 text-white shadow">
+                    <i class="fa-solid fa-gauge-high"></i> Control Room & Trains
+                </button>
+                <button onclick="switchTab('tab-safety')" id="btn-tab-safety" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-shield-halved"></i> Safety & Interlocking
+                </button>
+                <button onclick="switchTab('tab-stations')" id="btn-tab-stations" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-building-user"></i> Station Operations
+                </button>
+                <button onclick="switchTab('tab-signal-demo')" id="btn-tab-signal-demo" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-diagram-project"></i> Signal Chain & Tech
+                </button>
+                <button onclick="switchTab('tab-learning')" id="btn-tab-learning" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-bug"></i> Failure Simulation & Challenge
+                </button>
+                <button onclick="switchTab('tab-logs')" id="btn-tab-logs" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-list-check"></i> Event Logger
+                </button>
+            </div>
+
+            <!-- TAB 1: CONTROL ROOM & TRAIN CONTROL -->
+            <div id="tab-control" class="tab-content space-y-4">
+                
+                <!-- METRIC KPI CARDS -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div class="bg-slate-950/70 border border-slate-800 p-3 rounded-xl flex flex-col justify-between">
+                        <span class="text-[11px] font-medium text-slate-400">Total Active Trains</span>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span id="kpi-total-trains" class="text-xl font-bold text-white mono">3</span>
+                            <span class="text-[10px] text-emerald-400">Active</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950/70 border border-slate-800 p-3 rounded-xl flex flex-col justify-between">
+                        <span class="text-[11px] font-medium text-slate-400">Track Block Usage</span>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span id="kpi-occupied-blocks" class="text-xl font-bold text-amber-400 mono">0 / 16</span>
+                            <span class="text-[10px] text-slate-400">Occupied</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950/70 border border-slate-800 p-3 rounded-xl flex flex-col justify-between">
+                        <span class="text-[11px] font-medium text-slate-400">Red Signals</span>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span id="kpi-red-signals" class="text-xl font-bold text-rose-500 mono">0</span>
+                            <span class="text-[10px] text-rose-400">Hold</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950/70 border border-slate-800 p-3 rounded-xl flex flex-col justify-between">
+                        <span class="text-[11px] font-medium text-slate-400">Yellow Signals</span>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span id="kpi-yellow-signals" class="text-xl font-bold text-amber-400 mono">0</span>
+                            <span class="text-[10px] text-amber-400">Caution</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950/70 border border-slate-800 p-3 rounded-xl flex flex-col justify-between">
+                        <span class="text-[11px] font-medium text-slate-400">Green Signals</span>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span id="kpi-green-signals" class="text-xl font-bold text-emerald-400 mono">16</span>
+                            <span class="text-[10px] text-emerald-400">Clear</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950/70 border border-slate-800 p-3 rounded-xl flex flex-col justify-between">
+                        <span class="text-[11px] font-medium text-slate-400">On-Time Index</span>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span id="kpi-punctuality" class="text-xl font-bold text-indigo-400 mono">100%</span>
+                            <span class="text-[10px] text-emerald-400">Normal</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <!-- LIVE TRAIN MANAGEMENT TABLE -->
+                    <div class="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-list-ol text-indigo-400"></i> Active Train Fleet Dashboard
+                            </h3>
+                            <span class="text-[11px] text-slate-500">Select a train to issue dispatcher orders</span>
+                        </div>
+                        <div class="overflow-x-auto flex-1">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-slate-900 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-2.5">Train ID</th>
+                                        <th class="p-2.5">Type</th>
+                                        <th class="p-2.5">Block / Location</th>
+                                        <th class="p-2.5">Speed</th>
+                                        <th class="p-2.5">Next Signal</th>
+                                        <th class="p-2.5">Next Station & ETA</th>
+                                        <th class="p-2.5">Status</th>
+                                        <th class="p-2.5 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="train-table-body" class="divide-y divide-slate-800/60 font-mono">
+                                    <!-- Dynamic Rows Rendered by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- SELECTED TRAIN DIRECT CONTROL PANEL -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-gamepad text-emerald-400"></i> Selected Train Controls
+                            </h3>
+                            <span id="selected-train-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-900 text-indigo-200">Train 101</span>
+                        </div>
+
+                        <div id="train-control-details" class="space-y-3">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-slate-400">Target Speed Limit:</span>
+                                <span id="ctrl-speed-val" class="font-bold text-white mono">75 km/h</span>
+                            </div>
+                            <input id="ctrl-speed-slider" type="range" min="0" max="120" value="75" oninput="onTrainSpeedSliderChange(this.value)" class="w-full accent-indigo-500 cursor-pointer">
+                            
+                            <div class="grid grid-cols-2 gap-2 pt-1">
+                                <button onclick="setTrainSpeedPreset(0)" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-xs text-rose-400 font-semibold">
+                                    <i class="fa-solid fa-stop text-[10px]"></i> Stop (0 km/h)
+                                </button>
+                                <button onclick="setTrainSpeedPreset(40)" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-xs text-amber-400 font-semibold">
+                                    <i class="fa-solid fa-gauge-simple text-[10px]"></i> Caution (40)
+                                </button>
+                                <button onclick="setTrainSpeedPreset(80)" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-xs text-emerald-400 font-semibold">
+                                    <i class="fa-solid fa-gauge-high text-[10px]"></i> Cruise (80)
+                                </button>
+                                <button onclick="setTrainSpeedPreset(110)" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-xs text-indigo-400 font-semibold">
+                                    <i class="fa-solid fa-bolt text-[10px]"></i> Max (110)
+                                </button>
+                            </div>
+
+                            <div class="pt-2 border-t border-slate-800 flex justify-between gap-2">
+                                <button onclick="toggleTrainHoldStatus()" id="btn-hold-train" class="flex-1 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-bold transition">
+                                    Hold Train
+                                </button>
+                                <button onclick="reverseSelectedTrain()" class="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-medium">
+                                    <i class="fa-solid fa-arrows-left-right"></i> Reverse Direction
+                                </button>
+                            </div>
+
+                            <!-- LIVE TELEMETRY CHART MINI -->
+                            <div class="pt-2">
+                                <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Live Speed Telemetry (km/h)</span>
+                                <div class="h-20 w-full bg-slate-900 rounded border border-slate-800 overflow-hidden">
+                                    <canvas id="speedChartCanvas" class="w-full h-full"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TRAIN JOURNEY TIMELINE VISUALIZER -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-timeline text-indigo-400"></i> Active Journey Route Trackers
+                    </h3>
+                    <div id="journey-timelines-container" class="space-y-4">
+                        <!-- Dynamic Timelines rendered by JS -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB 2: SAFETY & INTERLOCKING PANEL -->
+            <div id="tab-safety" class="tab-content hidden space-y-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    
+                    <!-- INTERLOCKING STATUS & ROUTE LOCKS -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-lock text-emerald-400"></i> Solid-State Interlocking (SSI) Matrix
+                        </h3>
+                        <p class="text-xs text-slate-400 mb-4">
+                            Interlocking prevents set routes from conflicting. A signal cannot turn GREEN if a points switch, track block, or platform is locked by another train.
+                        </p>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-slate-900 uppercase text-[10px] text-slate-400 border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-2">Route Section</th>
+                                        <th class="p-2">Protected Block</th>
+                                        <th class="p-2">Occupancy</th>
+                                        <th class="p-2">Interlocking Lock</th>
+                                        <th class="p-2">Allowed Aspect</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="interlocking-table-body" class="divide-y divide-slate-800 font-mono text-[11px]">
+                                    <!-- Dynamic matrix rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- COLLISION PREVENTION & BRAKING DISTANCE MONITOR -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Collision Prevention & Safe Braking Margin
+                            </h3>
+                            <p class="text-xs text-slate-400 mb-3">
+                                Calculates required stopping distance vs current distance to lead train. Formula: <span class="mono text-indigo-300">d_stop = v² / (2a) + buffer</span>.
+                            </p>
+
+                            <div id="collision-radar-cards" class="space-y-3">
+                                <!-- Dynamic Collision Safety Cards -->
+                            </div>
+                        </div>
+
+                        <div class="mt-4 p-3 bg-indigo-950/40 border border-indigo-900/60 rounded-lg text-xs text-indigo-200">
+                            <span class="font-bold flex items-center gap-1.5 text-indigo-300">
+                                <i class="fa-solid fa-shield-cat"></i> Automatic Train Protection (ATP) System Active
+                            </span>
+                            <p class="mt-1 text-[11px] text-slate-300">
+                                If a train exceeds safe deceleration curve approaching RED, ATP automatically applies full service emergency brakes.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EXPLAIN SIGNAL DECISION LOGIC MATRIX -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-brain text-indigo-400"></i> Signal Aspect Reason Explainer Panel
+                    </h3>
+                    <div id="signal-decisions-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                        <!-- Dynamic Cards per signal showing WHY it's Red/Yellow/Green -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: STATION OPERATIONS & ETA CALCULATOR -->
+            <div id="tab-stations" class="tab-content hidden space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-building text-emerald-400"></i> Station Master Control & Dynamic ETA Calculation
+                    </h3>
+                    <span class="text-xs text-slate-400">Select station to view live platform status & dwell settings</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+                    <!-- STATION SELECTOR BUTTONS -->
+                    <button onclick="selectStation('A')" id="btn-stn-A" class="stn-select-btn p-3 bg-indigo-900 border border-indigo-600 rounded-xl text-left hover:border-indigo-400">
+                        <div class="text-[10px] uppercase text-indigo-300 font-bold">Station A</div>
+                        <div class="font-bold text-white text-sm">Shivaji Nagar</div>
+                        <div class="text-[11px] text-emerald-400 mt-1">Platforms 1 & 2</div>
+                    </button>
+                    <button onclick="selectStation('B')" id="btn-stn-B" class="stn-select-btn p-3 bg-slate-950 border border-slate-800 rounded-xl text-left hover:border-slate-600">
+                        <div class="text-[10px] uppercase text-slate-400 font-bold">Station B</div>
+                        <div class="font-bold text-white text-sm">Central Junction</div>
+                        <div class="text-[11px] text-emerald-400 mt-1">Platforms 1 & 2</div>
+                    </button>
+                    <button onclick="selectStation('C')" id="btn-stn-C" class="stn-select-btn p-3 bg-slate-950 border border-slate-800 rounded-xl text-left hover:border-slate-600">
+                        <div class="text-[10px] uppercase text-slate-400 font-bold">Station C</div>
+                        <div class="font-bold text-white text-sm">Greenfield</div>
+                        <div class="text-[11px] text-emerald-400 mt-1">Platforms 1 & 2</div>
+                    </button>
+                    <button onclick="selectStation('D')" id="btn-stn-D" class="stn-select-btn p-3 bg-slate-950 border border-slate-800 rounded-xl text-left hover:border-slate-600">
+                        <div class="text-[10px] uppercase text-slate-400 font-bold">Station D</div>
+                        <div class="font-bold text-white text-sm">Riverside</div>
+                        <div class="text-[11px] text-emerald-400 mt-1">Platforms 1 & 2</div>
+                    </button>
+                    <button onclick="selectStation('E')" id="btn-stn-E" class="stn-select-btn p-3 bg-slate-950 border border-slate-800 rounded-xl text-left hover:border-slate-600">
+                        <div class="text-[10px] uppercase text-slate-400 font-bold">Station E</div>
+                        <div class="font-bold text-white text-sm">Metro Terminal</div>
+                        <div class="text-[11px] text-emerald-400 mt-1">Platforms 1 & 2</div>
+                    </button>
+                </div>
+
+                <!-- DETAILED STATION DASHBOARD -->
+                <div id="station-detail-panel" class="bg-slate-950 border border-slate-800 rounded-xl p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <!-- Dynamic rendering by JS -->
+                </div>
+            </div>
+
+            <!-- TAB 4: SIGNAL CHAIN & DETECTOR ARCHITECTURE -->
+            <div id="tab-signal-demo" class="tab-content hidden space-y-4">
+                
+                <!-- SIGNAL CHAIN PROPAGATION INTERACTIVE DEMO -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-to-eye text-indigo-400"></i> Automatic Signal Propagation Chain Demonstration
+                    </h3>
+                    <p class="text-xs text-slate-400 mb-4">
+                        Drag the test train below along the 4 blocks to observe how aspect changes automatically flow backwards through the signalling network.
+                    </p>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col space-y-4">
+                        <div class="flex justify-between text-xs font-bold text-slate-300">
+                            <span>Interactive Demo Slider:</span>
+                            <span id="demo-train-pos-label" class="text-indigo-400 mono">Train in Block 3</span>
+                        </div>
+                        <input id="demo-slider" type="range" min="1" max="4" value="3" oninput="updateDemoSignalChain(this.value)" class="w-full accent-indigo-500 cursor-pointer">
+                        
+                        <!-- Visual Chain Blocks -->
+                        <div id="demo-chain-display" class="grid grid-cols-4 gap-3 text-center">
+                            <!-- JS Populated Demo Blocks -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TRACK CIRCUIT / AXLE COUNTER VISUALIZATION -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-bolt text-amber-400"></i> Track Circuit / Axle Counter Mechanism
+                        </h3>
+                        <p class="text-xs text-slate-400 mb-3">
+                            How does the track detect train presence? Steel wheelsets short-circuit low-voltage electrical current across rails or pass wheel sensors (Axle Counters).
+                        </p>
+
+                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3 text-xs">
+                            <div class="flex items-center space-x-2 text-indigo-300 font-bold">
+                                <span>1. Steel Axle Shorts Track Circuit</span>
+                                <i class="fa-solid fa-arrow-right text-slate-600"></i>
+                                <span>2. Relay De-energizes</span>
+                                <i class="fa-solid fa-arrow-right text-slate-600"></i>
+                                <span>3. Signal Turns RED</span>
+                            </div>
+                            <div class="h-24 bg-slate-950 rounded border border-slate-800 flex items-center justify-around relative overflow-hidden">
+                                <div class="absolute inset-x-0 h-1 bg-amber-500/40 top-6"></div>
+                                <div class="absolute inset-x-0 h-1 bg-amber-500/40 bottom-6"></div>
+                                <div class="z-10 bg-indigo-900 border border-indigo-500 px-3 py-1 rounded text-white font-mono text-[11px] animate-pulse">
+                                    <i class="fa-solid fa-train"></i> Train Wheelset
+                                </div>
+                                <div class="z-10 text-rose-400 font-mono font-bold text-[10px] bg-rose-950/80 px-2 py-1 rounded border border-rose-800">
+                                    Relay DROPPED (OCCUPIED)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SYSTEM COMMUNICATION ARCHITECTURE -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-network-wired text-emerald-400"></i> Control & Signalling Data Flow
+                        </h3>
+                        <p class="text-xs text-slate-400 mb-3">
+                            Information flow from physical track sensors to central interlocking and train cabin displays.
+                        </p>
+
+                        <div class="space-y-2 text-xs">
+                            <div class="p-2.5 bg-slate-900 rounded border border-slate-800 flex items-center justify-between">
+                                <span class="font-semibold text-slate-300"><i class="fa-solid fa-microchip text-indigo-400 mr-2"></i> Track Sensors / Axle Counter</span>
+                                <span class="text-[10px] text-emerald-400 mono">PHYSICAL DETECTION</span>
+                            </div>
+                            <div class="text-center text-slate-600 text-xs"><i class="fa-solid fa-arrow-down"></i></div>
+                            <div class="p-2.5 bg-slate-900 rounded border border-slate-800 flex items-center justify-between">
+                                <span class="font-semibold text-slate-300"><i class="fa-solid fa-gears text-amber-400 mr-2"></i> Safety Interlocking Processor</span>
+                                <span class="text-[10px] text-indigo-400 mono">LOGIC VALIDATION</span>
+                            </div>
+                            <div class="text-center text-slate-600 text-xs"><i class="fa-solid fa-arrow-down"></i></div>
+                            <div class="p-2.5 bg-slate-900 rounded border border-slate-800 flex items-center justify-between">
+                                <span class="font-semibold text-slate-300"><i class="fa-solid fa-traffic-light text-rose-400 mr-2"></i> Wayside Signal & In-Cab ATP</span>
+                                <span class="text-[10px] text-amber-400 mono">ASPECT CONTROL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: FAILURE SIMULATION & DISPATCHER CHALLENGES -->
+            <div id="tab-learning" class="tab-content hidden space-y-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    
+                    <!-- MANUAL FAILURE INJECTION PANEL -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                            <i class="fa-solid fa-bug text-rose-400"></i> Manual Failure Injection (Learning Mode)
+                        </h3>
+                        <p class="text-xs text-slate-400">
+                            Inject abnormal events into the network to test how interlocking safety rules respond automatically.
+                        </p>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <button onclick="injectFailure('block_fault')" class="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-left text-amber-300 flex items-center justify-between">
+                                <span><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Track Block A3 Fault</span>
+                                <i class="fa-solid fa-bolt"></i>
+                            </button>
+                            <button onclick="injectFailure('signal_stuck')" class="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-left text-rose-300 flex items-center justify-between">
+                                <span><i class="fa-solid fa-traffic-light mr-1.5"></i> Signal S5 Stuck RED</span>
+                                <i class="fa-solid fa-ban"></i>
+                            </button>
+                            <button onclick="injectFailure('train_breakdown')" class="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-left text-indigo-300 flex items-center justify-between">
+                                <span><i class="fa-solid fa-train text-rose-400 mr-1.5"></i> Train 202 Breakdown</span>
+                                <i class="fa-solid fa-wrench"></i>
+                            </button>
+                            <button onclick="clearAllFailures()" class="p-2.5 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-800 rounded-lg text-left text-emerald-200 flex items-center justify-between font-bold">
+                                <span><i class="fa-solid fa-check-circle mr-1.5"></i> Clear All Faults</span>
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- DISPATCHER CHALLENGE SCENARIO MODE -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                                    <i class="fa-solid fa-trophy text-amber-400"></i> Dispatcher Challenge Mode
+                                </h3>
+                                <span id="challenge-score-badge" class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-900/60 text-amber-200 border border-amber-700">Score: 100 PTS</span>
+                            </div>
+
+                            <div class="mt-3 text-xs space-y-2">
+                                <p class="text-slate-300 font-semibold" id="challenge-title">Scenario 1: Peak Hour Express Regulation</p>
+                                <p class="text-slate-400 text-[11px]" id="challenge-desc">
+                                    Train 101 (Express) must arrive at Station E without encountering a RED signal violation or causing a delay to Train 303 (Local). Adjust speeds in Manual Mode!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-2 pt-2">
+                            <button onclick="startChallengeScenario(1)" class="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-bold">
+                                Start Challenge 1
+                            </button>
+                            <button onclick="startChallengeScenario(2)" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-semibold">
+                                Challenge 2 (Heavy Traffic)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: EVENT LOGGER & AUDIT TRAIL -->
+            <div id="tab-logs" class="tab-content hidden space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-rectangle-list text-indigo-400"></i> Real-time System Event Audit Trail
+                    </h3>
+                    <div class="flex space-x-2">
+                        <button onclick="clearEventLogs()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-medium">
+                            <i class="fa-solid fa-trash mr-1"></i> Clear
+                        </button>
+                        <button onclick="exportEventLogs()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-bold">
+                            <i class="fa-solid fa-download mr-1"></i> Export Log
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden max-h-[350px] overflow-y-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-900 uppercase text-[10px] text-slate-400 sticky top-0 border-b border-slate-800">
+                            <tr>
+                                <th class="p-2.5">Sim Time</th>
+                                <th class="p-2.5">Event Type</th>
+                                <th class="p-2.5">Source Component</th>
+                                <th class="p-2.5">Description & Action Taken</th>
+                            </tr>
+                        </thead>
+                        <tbody id="event-log-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                            <!-- Dynamic log rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- FOOTER & EDUCATIONAL CONCEPT GLOSSARY -->
+        <footer class="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-xs text-slate-400 space-y-3">
+            <h4 class="font-bold text-slate-200 text-xs uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-book-bookmark text-indigo-400"></i> Key Railway Signalling Concepts Quick Reference
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-[11px]">
+                <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                    <span class="font-bold text-indigo-300 block mb-1">Fixed Block Signalling</span>
+                    Tracks are partitioned into static blocks. Only one train is permitted per block to maintain safe braking distance.
+                </div>
+                <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                    <span class="font-bold text-emerald-300 block mb-1">Fail-Safe Interlocking</span>
+                    Arrangement of signal apparatus that prevents conflicting movements through switches and tracks.
+                </div>
+                <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                    <span class="font-bold text-amber-300 block mb-1">ATP (Automatic Train Protection)</span>
+                    Safety system that continuously checks train speed against signal limits and applies brakes automatically if violated.
+                </div>
+                <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                    <span class="font-bold text-rose-300 block mb-1">ETCS / CBTC Systems</span>
+                    Modern wireless moving-block technology where signal aspect data is transmitted continuously directly to driver displays.
+                </div>
+            </div>
+            <div class="text-center text-[10px] text-slate-500 pt-2 border-t border-slate-800">
+                Railway Signalling Educational Simulation • Designed for Engineering Students & Railway Enthusiasts
+            </div>
+        </footer>
+
+    </main>
+
+    <!-- INSPECTION MODAL DRAWER -->
+    <div id="inspect-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 id="modal-title" class="font-bold text-sm text-white uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-indigo-400"></i> Component Inspection
+                </h3>
+                <button onclick="closeInspectModal()" class="text-slate-400 hover:text-white text-base">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="modal-body" class="text-xs space-y-3 text-slate-300">
+                <!-- Dynamic inspection content -->
+            </div>
+            <div class="pt-3 border-t border-slate-800 flex justify-end">
+                <button onclick="closeInspectModal()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TUTORIAL MODAL -->
+    <div id="tutorial-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-indigo-700 rounded-2xl p-6 max-w-xl w-full shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+                        <span id="tut-step-num">1</span>/10
+                    </span>
+                    <h3 id="tut-title" class="font-bold text-base text-white">What is a Railway Signal?</h3>
+                </div>
+                <button onclick="endTutorial()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="tut-body" class="text-xs text-slate-300 space-y-3 leading-relaxed">
+                <!-- Step details populated by JS -->
+            </div>
+            <div class="pt-4 border-t border-slate-800 flex justify-between items-center">
+                <button id="tut-btn-prev" onclick="prevTutorialStep()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> Previous
+                </button>
+                <div class="flex space-x-1" id="tut-dots"></div>
+                <button id="tut-btn-next" onclick="nextTutorialStep()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold">
+                    Next <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           RAILWAY SIGNALLING SYSTEM SIMULATION ENGINE (VANILLA JS)
+           ========================================================================== */
+
+        // --- GLOBAL CONSTANTS & ROUTE DEFINITION ---
+        const ROUTE_STATIONS = [
+            { id: 'A', name: 'Shivaji Nagar', km: 0, platforms: 2 },
+            { id: 'B', name: 'Central Junction', km: 12, platforms: 2 },
+            { id: 'C', name: 'Greenfield', km: 24, platforms: 2 },
+            { id: 'D', name: 'Riverside', km: 36, platforms: 2 },
+            { id: 'E', name: 'Metro Terminal', km: 48, platforms: 2 }
+        ];
+
+        // 16 Track Blocks total (4 blocks between each station pair)
+        const BLOCK_IDS = [
+            'A1', 'A2', 'A3', 'A4',
+            'B1', 'B2', 'B3', 'B4',
+            'C1', 'C2', 'C3', 'C4',
+            'D1', 'D2', 'D3', 'D4'
+        ];
+
+        // State Store
+        let simState = {
+            isRunning: true,
+            simSpeed: 1,
+            mode: 'AUTO', // 'AUTO' or 'MANUAL'
+            explainMode: true,
+            simTimeSeconds: 8 * 3600, // Starts at 08:00:00 AM
+            selectedTrainId: 'T101',
+            selectedStationId: 'A',
+            activeFailures: {
+                blockA3Fault: false,
+                signalS5StuckRed: false,
+                train202Breakdown: false
+            },
+            challengeMode: {
+                active: false,
+                scenario: 1,
+                score: 100
+            }
+        };
+
+        // --- MODEL DEFINITIONS ---
+
+        class TrackBlock {
+            constructor(id, startKm, endKm, stationFrom, stationTo) {
+                this.id = id;
+                this.startKm = startKm;
+                this.endKm = endKm;
+                this.lengthKm = endKm - startKm;
+                this.stationFrom = stationFrom;
+                this.stationTo = stationTo;
+                this.isOccupied = false;
+                this.occupiedByTrainId = null;
+                this.isFaulty = false;
+            }
+        }
+
+        class Signal {
+            constructor(id, km, protectedBlockId) {
+                this.id = id;
+                this.km = km;
+                this.protectedBlockId = protectedBlockId;
+                this.aspect = 'GREEN'; // 'GREEN', 'YELLOW', 'RED'
+                this.reason = 'Route clear ahead';
+                this.isStuckRed = false;
+            }
+        }
+
+        class Train {
+            constructor(id, name, type, maxSpeed, dwellTimeDefault, startKm) {
+                this.id = id;
+                this.name = name;
+                this.type = type; // 'Express', 'Passenger', 'Local'
+                this.maxSpeed = maxSpeed; // km/h
+                this.targetSpeed = maxSpeed;
+                this.currentSpeed = 0; // km/h
+                this.km = startKm;
+                this.direction = 1; // 1: A -> E, -1: E -> A
+                this.currentBlockId = 'A1';
+                this.currentSignalAspect = 'GREEN';
+                this.status = 'DEPARTING'; // 'ARRIVING', 'STOPPED', 'DWELLING', 'READY', 'DEPARTING', 'HOLD'
+                this.dwellTimer = 0;
+                this.dwellTimeDefault = dwellTimeDefault; // seconds
+                this.dwellTimeCustom = dwellTimeDefault;
+                this.destination = 'Metro Terminal';
+                this.historySpeed = [];
+                this.assignedPlatform = 1;
+                this.stoppedByRedSignal = false;
+            }
+        }
+
+        // Initialize Data Collections
+        const blocks = [];
+        const signals = [];
+        const trains = [];
+        const eventLogs = [];
+
+        function initTrackNetwork() {
+            let blockIdx = 0;
+            for (let i = 0; i < ROUTE_STATIONS.length - 1; i++) {
+                const stFrom = ROUTE_STATIONS[i];
+                const stTo = ROUTE_STATIONS[i + 1];
+                const segmentLength = stTo.km - stFrom.km;
+                const blockLen = segmentLength / 4;
+
+                for (let b = 0; b < 4; b++) {
+                    const bId = BLOCK_IDS[blockIdx];
+                    const startKm = stFrom.km + (b * blockLen);
+                    const endKm = startKm + blockLen;
+                    blocks.push(new TrackBlock(bId, startKm, endKm, stFrom.name, stTo.name));
+
+                    // Signal post at start of block
+                    const sId = `S${blockIdx + 1}`;
+                    signals.push(new Signal(sId, startKm, bId));
+                    blockIdx++;
+                }
+            }
+
+            // Create Initial 3 Trains
+            trains.push(new Train('T101', 'Train 101 (Express)', 'Express', 110, 15, 0.2));
+            trains.push(new Train('T202', 'Train 202 (Passenger)', 'Passenger', 85, 30, 11.5));
+            trains.push(new Train('T303', 'Train 303 (Local)', 'Local', 60, 45, 23.5));
+
+            logEvent('SYSTEM', 'Interlocking Processor', 'Railway signalling network & train fleet initialized successfully.');
+        }
+
+        function evaluateSignallingLogic() {
+            // Update Track Block Occupancies
+            blocks.forEach(b => {
+                b.isOccupied = b.isFaulty;
+                b.occupiedByTrainId = b.isFaulty ? 'FAULT' : null;
+            });
+
+            trains.forEach(t => {
+                const b = blocks.find(blk => t.km >= blk.startKm && t.km < blk.endKm);
+                if (b) {
+                    b.isOccupied = true;
+                    b.occupiedByTrainId = t.id;
+                    t.currentBlockId = b.id;
+                } else if (t.km >= 48) {
+                    t.currentBlockId = 'D4 (Terminal)';
+                }
+            });
+
+            // Signal Aspect Calculation Algorithm
+            for (let i = 0; i < signals.length; i++) {
+                const sig = signals[i];
+                const protectedBlock = blocks.find(b => b.id === sig.protectedBlockId);
+                const nextBlockIndex = blocks.findIndex(b => b.id === sig.protectedBlockId) + 1;
+                const nextBlock = blocks[nextBlockIndex];
+
+                if (sig.isStuckRed) {
+                    sig.aspect = 'RED';
+                    sig.reason = 'Signal hardware fault / Manual interlocking hold';
+                    continue;
+                }
+
+                if (!protectedBlock || protectedBlock.isOccupied) {
+                    sig.aspect = 'RED';
+                    sig.reason = `Block ${sig.protectedBlockId} occupied by ${protectedBlock ? protectedBlock.occupiedByTrainId : 'ahead route'}`;
+                } else if (nextBlock && nextBlock.isOccupied) {
+                    sig.aspect = 'YELLOW';
+                    sig.reason = `Block ${sig.protectedBlockId} clear, but downstream Block ${nextBlock.id} is occupied by ${nextBlock.occupiedByTrainId}`;
+                } else {
+                    sig.aspect = 'GREEN';
+                    sig.reason = `Route clear for next 2+ blocks ahead`;
+                }
+            }
+        }
+
+        function updateTrainPhysics(dtSeconds) {
+            trains.forEach(train => {
+                // Find signal directly ahead of train
+                const upcomingSignal = signals.find(s => s.km > train.km);
+                const distanceToSignal = upcomingSignal ? (upcomingSignal.km - train.km) : 999;
+                
+                // Set speed target based on upcoming signal aspect (ATP System)
+                let effectiveMaxSpeed = train.targetSpeed;
+                train.stoppedByRedSignal = false;
+
+                if (upcomingSignal) {
+                    if (upcomingSignal.aspect === 'RED' && distanceToSignal < 1.8) {
+                        // Apply braking curve for RED signal
+                        effectiveMaxSpeed = Math.min(effectiveMaxSpeed, Math.max(0, (distanceToSignal - 0.15) * 45));
+                        if (distanceToSignal < 0.2 && train.currentSpeed <= 2) {
+                            effectiveMaxSpeed = 0;
+                            train.stoppedByRedSignal = true;
+                            train.status = 'STOPPED AT RED';
+                        }
+                    } else if (upcomingSignal.aspect === 'YELLOW' && distanceToSignal < 2.5) {
+                        effectiveMaxSpeed = Math.min(effectiveMaxSpeed, 40); // Caution speed limit
+                    }
+                }
+
+                // Check Station Arrival Dwell Logic
+                const nextStation = ROUTE_STATIONS.find(st => Math.abs(st.km - train.km) < 0.3);
+                if (nextStation && train.currentSpeed < 10 && train.status !== 'HOLD') {
+                    if (train.dwellTimer < train.dwellTimeCustom) {
+                        train.status = 'DWELLING';
+                        train.dwellTimer += dtSeconds;
+                        effectiveMaxSpeed = 0;
+                    } else {
+                        train.status = 'READY';
+                        // Depart station
+                        if (train.dwellTimer >= train.dwellTimeCustom + 2) {
+                            train.status = 'DEPARTING';
+                            train.dwellTimer = 0; // Reset for next station
+                        } else {
+                            train.dwellTimer += dtSeconds;
+                        }
+                    }
+                } else if (train.currentSpeed > 5 && !train.stoppedByRedSignal) {
+                    train.status = 'RUNNING';
+                }
+
+                // Accelerate / Decelerate towards effectiveMaxSpeed
+                const accelRate = 2.5; // km/h per second
+                const decelRate = 4.0;
+
+                if (train.currentSpeed < effectiveMaxSpeed) {
+                    train.currentSpeed = Math.min(effectiveMaxSpeed, train.currentSpeed + accelRate * dtSeconds);
+                } else if (train.currentSpeed > effectiveMaxSpeed) {
+                    train.currentSpeed = Math.max(effectiveMaxSpeed, train.currentSpeed - decelRate * dtSeconds);
+                }
+
+                // Update Position (km)
+                const distanceDeltaKm = (train.currentSpeed / 3600) * dtSeconds * train.direction;
+                train.km += distanceDeltaKm;
+
+                // Loop route at ends
+                if (train.km >= 48.0) {
+                    train.km = 0.1;
+                }
+
+                // Push speed history for chart
+                train.historySpeed.push(train.currentSpeed);
+                if (train.historySpeed.length > 30) train.historySpeed.shift();
+
+                // Update current signal aspect reading for cabin
+                if (upcomingSignal) {
+                    train.currentSignalAspect = upcomingSignal.aspect;
+                }
+            });
+        }
+
+        function calculateETA(train, stationKm) {
+            const distRemaining = stationKm - train.km;
+            if (distRemaining <= 0) return { etaSeconds: 0, text: 'Arrived / Passed' };
+
+            const effSpeed = Math.max(15, train.currentSpeed);
+            const travelTimeSec = (distRemaining / effSpeed) * 3600;
+
+            // Add delay overhead for intermediate stations and red signal waits
+            const redWaitPen = train.stoppedByRedSignal ? 45 : 0;
+            const totalEtaSec = travelTimeSec + train.dwellTimeCustom + redWaitPen;
+
+            const min = Math.floor(totalEtaSec / 60);
+            const sec = Math.floor(totalEtaSec % 60);
+
+            return {
+                etaSeconds: totalEtaSec,
+                text: `${min}m ${sec}s`
+            };
+        }
+
+        function renderRailwayCanvas() {
+            const canvas = document.getElementById('railwayCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            // Responsive resolution fitting
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Clear Background
+            ctx.fillStyle = '#050811';
+            ctx.fillRect(0, 0, width, height);
+
+            const marginX = 70;
+            const trackY = height * 0.55;
+            const usableWidth = width - (marginX * 2);
+
+            function kmToX(km) {
+                return marginX + (km / 48.0) * usableWidth;
+            }
+
+            // Draw Track Bed Base
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(marginX, trackY);
+            ctx.lineTo(width - marginX, trackY);
+            ctx.stroke();
+
+            // Draw Steel Double Rails
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(marginX, trackY - 4);
+            ctx.lineTo(width - marginX, trackY - 4);
+            ctx.moveTo(marginX, trackY + 4);
+            ctx.lineTo(width - marginX, trackY + 4);
+            ctx.stroke();
+
+            // Draw Blocks with Occupancy Highlight
+            blocks.forEach(blk => {
+                const x1 = kmToX(blk.startKm);
+                const x2 = kmToX(blk.endKm);
+
+                if (blk.isOccupied) {
+                    ctx.fillStyle = 'rgba(220, 38, 38, 0.25)';
+                    ctx.fillRect(x1, trackY - 20, x2 - x1, 40);
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x1, trackY - 20, x2 - x1, 40);
+                }
+
+                // Block boundary marker
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(x1, trackY - 25);
+                ctx.lineTo(x1, trackY + 25);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Block Label
+                ctx.fillStyle = '#64748b';
+                ctx.font = '9px JetBrains Mono';
+                ctx.fillText(blk.id, x1 + 4, trackY + 35);
+            });
+
+            // Draw Signals
+            signals.forEach(sig => {
+                const sx = kmToX(sig.km);
+                const sy = trackY - 45;
+
+                // Signal Post Pole
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(sx, trackY - 4);
+                ctx.lineTo(sx, sy);
+                ctx.stroke();
+
+                // Signal Lamp Housing Box
+                ctx.fillStyle = '#0f172a';
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 1;
+                ctx.fillRect(sx - 8, sy - 24, 16, 26);
+                ctx.strokeRect(sx - 8, sy - 24, 16, 26);
+
+                // Lamp Colors
+                let lampColor = '#10b981';
+                if (sig.aspect === 'RED') lampColor = '#ef4444';
+                if (sig.aspect === 'YELLOW') lampColor = '#f59e0b';
+
+                ctx.fillStyle = lampColor;
+                ctx.beginPath();
+                ctx.arc(sx, sy - 11, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Signal Label
+                ctx.fillStyle = '#cbd5e1';
+                ctx.font = '10px Inter';
+                ctx.fillText(sig.id, sx - 8, sy - 28);
+            });
+
+            // Draw Stations & Platforms
+            ROUTE_STATIONS.forEach(st => {
+                const stX = kmToX(st.km);
+
+                // Platform Roof Visual
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 2;
+                ctx.fillRect(stX - 25, trackY - 65, 50, 16);
+                ctx.strokeRect(stX - 25, trackY - 65, 50, 16);
+
+                // Station Building Icon Pillar
+                ctx.fillStyle = '#38bdf8';
+                ctx.font = 'bold 11px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(st.name, stX, trackY - 72);
+
+                // Station Marker Line
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(stX, trackY - 48);
+                ctx.lineTo(stX, trackY + 15);
+                ctx.stroke();
+                ctx.textAlign = 'left';
+            });
+
+            // Draw Animated Trains
+            trains.forEach(t => {
+                const tx = kmToX(t.km);
+                const ty = trackY - 4;
+
+                // Train Engine Body
+                ctx.fillStyle = t.id === 'T101' ? '#6366f1' : (t.id === 'T202' ? '#0ea5e9' : '#10b981');
+                ctx.shadowColor = ctx.fillStyle;
+                ctx.shadowBlur = 8;
+                ctx.fillRect(tx - 18, ty - 10, 36, 18);
+                ctx.shadowBlur = 0;
+
+                // Direction Arrow
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px FontAwesome';
+                ctx.fillText('▶', tx - 4, ty + 3);
+
+                // Train ID Label Badge
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px JetBrains Mono';
+                ctx.fillText(t.id, tx - 14, ty - 14);
+            });
+        }
+
+        function updateUI() {
+            // Update Clock
+            simState.simTimeSeconds += (1 * simState.simSpeed / 60);
+            const hrs = String(Math.floor(simState.simTimeSeconds / 3600) % 24).padStart(2, '0');
+            const mins = String(Math.floor((simState.simTimeSeconds % 3600) / 60)).padStart(2, '0');
+            const secs = String(Math.floor(simState.simTimeSeconds % 60)).padStart(2, '0');
+            document.getElementById('clock-display').innerText = `${hrs}:${mins}:${secs}`;
+
+            // KPI Counts
+            const redCount = signals.filter(s => s.aspect === 'RED').length;
+            const yellowCount = signals.filter(s => s.aspect === 'YELLOW').length;
+            const greenCount = signals.filter(s => s.aspect === 'GREEN').length;
+            const occupiedCount = blocks.filter(b => b.isOccupied).length;
+
+            document.getElementById('kpi-red-signals').innerText = redCount;
+            document.getElementById('kpi-yellow-signals').innerText = yellowCount;
+            document.getElementById('kpi-green-signals').innerText = greenCount;
+            document.getElementById('kpi-occupied-blocks').innerText = `${occupiedCount} / 16`;
+
+            // Update Live Train Table
+            const tbody = document.getElementById('train-table-body');
+            tbody.innerHTML = '';
+            trains.forEach(t => {
+                const nextStn = ROUTE_STATIONS.find(s => s.km > t.km) || ROUTE_STATIONS[4];
+                const etaObj = calculateETA(t, nextStn.km);
+
+                let statusBadgeClass = 'bg-emerald-950 text-emerald-300 border-emerald-800';
+                if (t.status.includes('RED')) statusBadgeClass = 'bg-rose-950 text-rose-300 border-rose-800';
+                if (t.status === 'DWELLING') statusBadgeClass = 'bg-amber-950 text-amber-300 border-amber-800';
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-900 cursor-pointer transition';
+                row.onclick = () => selectTrain(t.id);
+                row.innerHTML = `
+                    <td class="p-2.5 font-bold text-indigo-400">${t.id}</td>
+                    <td class="p-2.5">${t.type}</td>
+                    <td class="p-2.5 text-amber-300">${t.currentBlockId}</td>
+                    <td class="p-2.5 font-bold text-white">${Math.round(t.currentSpeed)} km/h</td>
+                    <td class="p-2.5">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${t.currentSignalAspect === 'GREEN' ? 'bg-emerald-900 text-emerald-200' : (t.currentSignalAspect === 'YELLOW' ? 'bg-amber-900 text-amber-200' : 'bg-rose-900 text-rose-200')}">
+                            ${t.currentSignalAspect}
+                        </span>
+                    </td>
+                    <td class="p-2.5 text-slate-300">${nextStn.name} (${etaObj.text})</td>
+                    <td class="p-2.5">
+                        <span class="px-2 py-0.5 rounded border text-[10px] font-semibold ${statusBadgeClass}">${t.status}</span>
+                    </td>
+                    <td class="p-2.5 text-right">
+                        <button onclick="selectTrain('${t.id}')" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px]">Select</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update Selected Train Panel
+            const selTrain = trains.find(t => t.id === simState.selectedTrainId);
+            if (selTrain) {
+                document.getElementById('selected-train-badge').innerText = selTrain.name;
+                document.getElementById('ctrl-speed-val').innerText = `${Math.round(selTrain.targetSpeed)} km/h`;
+            }
+
+            // Update Journey Timelines
+            renderJourneyTimelines();
+
+            // Update Safety & Interlocking Matrix
+            renderInterlockingTable();
+
+            // Update Collision Safety Radar
+            renderCollisionRadar();
+
+            // Update Signal Decision Explainer
+            renderSignalDecisions();
+
+            // Update Station Detail Panel
+            renderStationDetails();
+
+            // Draw Live Speed Chart
+            renderSpeedChart();
+        }
+
+        function renderInterlockingTable() {
+            const tbody = document.getElementById('interlocking-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            signals.forEach(sig => {
+                const blk = blocks.find(b => b.id === sig.protectedBlockId);
+                const isLocked = blk && blk.isOccupied;
+
+                const row = document.createElement('tr');
+                row.className = 'border-b border-slate-900';
+                row.innerHTML = `
+                    <td class="p-2 font-bold text-slate-300">Route ${sig.id}</td>
+                    <td class="p-2 text-indigo-300">${sig.protectedBlockId}</td>
+                    <td class="p-2">${isLocked ? '<span class="text-rose-400 font-bold">OCCUPIED</span>' : '<span class="text-emerald-400">CLEAR</span>'}</td>
+                    <td class="p-2">${isLocked ? '<span class="text-rose-400"><i class="fa-solid fa-lock"></i> LOCKED</span>' : '<span class="text-emerald-400"><i class="fa-solid fa-lock-open"></i> CLEAR</span>'}</td>
+                    <td class="p-2 font-bold ${sig.aspect === 'GREEN' ? 'text-emerald-400' : (sig.aspect === 'YELLOW' ? 'text-amber-400' : 'text-rose-400')}">${sig.aspect}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderCollisionRadar() {
+            const container = document.getElementById('collision-radar-cards');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const t1 = trains[0];
+            const t2 = trains[1];
+
+            const distBetween = Math.abs(t2.km - t1.km);
+            const reqBrakingDist = Math.pow(t1.currentSpeed / 3.6, 2) / (2 * 1.5) / 1000 + 0.5; // in km
+
+            const safeMargin = distBetween - reqBrakingDist;
+
+            container.innerHTML = `
+                <div class="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-2 text-xs">
+                    <div class="flex justify-between font-bold text-slate-200">
+                        <span>Lead Pair: ${t1.id} & ${t2.id}</span>
+                        <span class="${safeMargin > 1 ? 'text-emerald-400' : 'text-rose-400'}">${safeMargin > 1 ? 'SAFE DISTANCE' : 'MARGIN CRITICAL'}</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center text-[11px] font-mono">
+                        <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                            <span class="text-slate-500 block text-[9px]">Distance</span>
+                            <span class="text-indigo-300 font-bold">${distBetween.toFixed(2)} km</span>
+                        </div>
+                        <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                            <span class="text-slate-500 block text-[9px]">Req. Brake Dist</span>
+                            <span class="text-amber-300 font-bold">${reqBrakingDist.toFixed(2)} km</span>
+                        </div>
+                        <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                            <span class="text-slate-500 block text-[9px]">Safety Margin</span>
+                            <span class="${safeMargin > 1 ? 'text-emerald-400' : 'text-rose-400'} font-bold">${safeMargin.toFixed(2)} km</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSignalDecisions() {
+            const grid = document.getElementById('signal-decisions-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            // Display first 4 key signals
+            signals.slice(0, 4).forEach(sig => {
+                let cardColor = 'border-emerald-800/60 bg-emerald-950/20';
+                if (sig.aspect === 'YELLOW') cardColor = 'border-amber-800/60 bg-amber-950/20';
+                if (sig.aspect === 'RED') cardColor = 'border-rose-800/60 bg-rose-950/20';
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border ${cardColor} space-y-1.5`;
+                card.innerHTML = `
+                    <div class="flex justify-between items-center font-bold">
+                        <span class="text-white">Signal ${sig.id}</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] ${sig.aspect === 'GREEN' ? 'bg-emerald-900 text-emerald-200' : (sig.aspect === 'YELLOW' ? 'bg-amber-900 text-amber-200' : 'bg-rose-900 text-rose-200')}">${sig.aspect}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 leading-snug"><strong class="text-slate-400">Reason:</strong> ${sig.reason}</p>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderJourneyTimelines() {
+            const container = document.getElementById('journey-timelines-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            trains.forEach(t => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'space-y-1 text-xs';
+
+                let stnNodesHTML = '';
+                ROUTE_STATIONS.forEach(st => {
+                    const isPassed = t.km >= st.km;
+                    const isCurrent = Math.abs(t.km - st.km) < 1.0;
+                    let colorClass = isPassed ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-500';
+                    if (isCurrent) colorClass = 'bg-emerald-500 text-slate-950 font-bold animate-pulse';
+
+                    stnNodesHTML += `
+                        <div class="flex flex-col items-center">
+                            <div class="w-6 h-6 rounded-full ${colorClass} flex items-center justify-center text-[10px] font-bold shadow">
+                                ${st.id}
+                            </div>
+                            <span class="text-[9px] text-slate-400 mt-1">${st.name.split(' ')[0]}</span>
+                        </div>
+                    `;
+                });
+
+                wrapper.innerHTML = `
+                    <div class="flex justify-between items-center text-[11px] font-bold text-slate-300 mb-1">
+                        <span>${t.name}</span>
+                        <span class="mono text-indigo-400">${t.currentBlockId} • ${Math.round(t.km)} km</span>
+                    </div>
+                    <div class="flex items-center justify-between relative px-2">
+                        <div class="absolute inset-x-6 h-0.5 bg-slate-800 top-3 -z-10"></div>
+                        ${stnNodesHTML}
+                    </div>
+                `;
+                container.appendChild(wrapper);
+            });
+        }
+
+        function renderStationDetails() {
+            const container = document.getElementById('station-detail-panel');
+            if (!container) return;
+
+            const st = ROUTE_STATIONS.find(s => s.id === simState.selectedStationId) || ROUTE_STATIONS[0];
+
+            container.innerHTML = `
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                        <h4 class="font-bold text-sm text-white">${st.name} Station Dashboard</h4>
+                        <span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800">Station ID: ${st.id}</span>
+                    </div>
+                    <div class="space-y-2 text-xs text-slate-300">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Position Metric:</span>
+                            <span class="mono text-white font-bold">${st.km}.00 km</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Total Platforms:</span>
+                            <span class="text-emerald-400 font-bold">${st.platforms} Available</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Platform 1 Status:</span>
+                            <span class="text-emerald-400 font-bold">🟢 CLEAR</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Platform 2 Status:</span>
+                            <span class="text-emerald-400 font-bold">🟢 CLEAR</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-3 border-l border-slate-800 pl-4">
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400">Passenger Dwell Time Config</h4>
+                    <p class="text-[11px] text-slate-400">Set scheduled stop duration for incoming trains at ${st.name}:</p>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="setStationDwell(15)" class="px-3 py-1 bg-slate-900 border border-slate-800 rounded text-xs hover:border-indigo-500">15s (Express)</button>
+                        <button onclick="setStationDwell(30)" class="px-3 py-1 bg-slate-900 border border-slate-800 rounded text-xs hover:border-indigo-500">30s (Passenger)</button>
+                        <button onclick="setStationDwell(45)" class="px-3 py-1 bg-slate-900 border border-slate-800 rounded text-xs hover:border-indigo-500">45s (Local)</button>
+                    </div>
+                </div>
+
+                <div class="space-y-3 border-l border-slate-800 pl-4">
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400">Upcoming Arrivals</h4>
+                    <div class="space-y-2 text-xs">
+                        ${trains.map(t => {
+                            const etaObj = calculateETA(t, st.km);
+                            return `
+                                <div class="flex justify-between items-center p-2 bg-slate-900 rounded border border-slate-800">
+                                    <span class="font-bold text-indigo-300">${t.id}</span>
+                                    <span class="mono text-slate-300">ETA: ${etaObj.text}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSpeedChart() {
+            const canvas = document.getElementById('speedChartCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+
+            const train = trains.find(t => t.id === simState.selectedTrainId) || trains[0];
+            const data = train.historySpeed;
+
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (data.length < 2) return;
+
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const stepX = canvas.width / (data.length - 1);
+            data.forEach((val, idx) => {
+                const x = idx * stepX;
+                const y = canvas.height - (val / 120) * canvas.height;
+                if (idx === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        function updateDemoSignalChain(val) {
+            const label = document.getElementById('demo-train-pos-label');
+            label.innerText = `Test Train occupying Block ${val}`;
+
+            const container = document.getElementById('demo-chain-display');
+            container.innerHTML = '';
+
+            for (let b = 1; b <= 4; b++) {
+                let aspect = 'GREEN';
+                let reason = 'Route clear';
+
+                if (b == val) {
+                    aspect = 'RED';
+                    reason = 'Block Occupied';
+                } else if (b == val - 1) {
+                    aspect = 'YELLOW';
+                    reason = 'Approach Caution';
+                }
+
+                const card = document.createElement('div');
+                card.className = 'p-3 rounded-xl border border-slate-800 bg-slate-950 space-y-2';
+                card.innerHTML = `
+                    <div class="font-bold text-xs text-slate-300">Block ${b}</div>
+                    <div class="w-8 h-8 rounded-full mx-auto flex items-center justify-center font-bold text-xs ${aspect === 'GREEN' ? 'bg-emerald-500 text-slate-950 lamp-glow-green' : (aspect === 'YELLOW' ? 'bg-amber-500 text-slate-950 lamp-glow-yellow' : 'bg-rose-500 text-white lamp-glow-red')}">
+                        ${aspect[0]}
+                    </div>
+                    <div class="text-[10px] text-slate-400">${reason}</div>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        function logEvent(type, source, description) {
+            const hrs = String(Math.floor(simState.simTimeSeconds / 3600) % 24).padStart(2, '0');
+            const mins = String(Math.floor((simState.simTimeSeconds % 3600) / 60)).padStart(2, '0');
+            const secs = String(Math.floor(simState.simTimeSeconds % 60)).padStart(2, '0');
+            const timeStr = `${hrs}:${mins}:${secs}`;
+
+            eventLogs.unshift({ time: timeStr, type, source, description });
+            if (eventLogs.length > 50) eventLogs.pop();
+
+            const tbody = document.getElementById('event-log-table-body');
+            if (tbody) {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-900 border-b border-slate-800/60';
+                row.innerHTML = `
+                    <td class="p-2.5 text-slate-400">${timeStr}</td>
+                    <td class="p-2.5 font-bold ${type === 'WARNING' ? 'text-amber-400' : (type === 'EMERGENCY' ? 'text-rose-400' : 'text-indigo-400')}">${type}</td>
+                    <td class="p-2.5 text-slate-300">${source}</td>
+                    <td class="p-2.5 text-slate-200">${description}</td>
+                `;
+                tbody.insertBefore(row, tbody.firstChild);
+            }
+        }
+
+        // Controls Logic
+        function togglePlayPause() {
+            simState.isRunning = !simState.isRunning;
+            const btn = document.getElementById('btn-play-pause');
+            const icon = document.getElementById('icon-play-pause');
+            const txt = document.getElementById('text-play-pause');
+
+            if (simState.isRunning) {
+                icon.className = 'fa-solid fa-pause';
+                txt.innerText = 'Pause';
+                btn.className = 'px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition';
+            } else {
+                icon.className = 'fa-solid fa-play';
+                txt.innerText = 'Resume';
+                btn.className = 'px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition';
+            }
+        }
+
+        function resetSimulation() {
+            trains[0].km = 0.2;
+            trains[1].km = 11.5;
+            trains[2].km = 23.5;
+            trains.forEach(t => t.currentSpeed = 0);
+            logEvent('SYSTEM', 'Control Console', 'Simulation reset to default state.');
+        }
+
+        function triggerEmergencyStop() {
+            trains.forEach(t => {
+                t.targetSpeed = 0;
+                t.currentSpeed = 0;
+                t.status = 'EMERGENCY STOPPED';
+            });
+            logEvent('EMERGENCY', 'Safety System', 'EMERGENCY STOP ACTIVATED - All trains braked immediately!');
+        }
+
+        function setSpeedMultiplier(mult) {
+            simState.simSpeed = mult;
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                if (parseFloat(btn.dataset.speed) === mult) {
+                    btn.className = 'speed-btn px-2 py-1 rounded bg-indigo-600 text-white font-bold';
+                } else {
+                    btn.className = 'speed-btn px-2 py-1 rounded text-slate-400 hover:text-white';
+                }
+            });
+        }
+
+        function toggleAutoManualMode() {
+            simState.mode = simState.mode === 'AUTO' ? 'MANUAL' : 'AUTO';
+            document.getElementById('label-control-mode').innerText = simState.mode;
+            document.getElementById('mode-badge').innerText = `${simState.mode} CONTROL`;
+            logEvent('SYSTEM', 'Control Mode Switcher', `Control Mode changed to ${simState.mode}`);
+        }
+
+        function toggleExplainMode() {
+            simState.explainMode = !simState.explainMode;
+            document.getElementById('label-explain-mode').innerText = simState.explainMode ? 'ON' : 'OFF';
+            document.getElementById('explain-banner').style.display = simState.explainMode ? 'flex' : 'none';
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700';
+            });
+            document.getElementById(`btn-${tabId}`).className = 'tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 bg-indigo-600 text-white shadow';
+        }
+
+        function selectTrain(id) {
+            simState.selectedTrainId = id;
+            const train = trains.find(t => t.id === id);
+            if (train) {
+                document.getElementById('ctrl-speed-slider').value = train.targetSpeed;
+                document.getElementById('ctrl-speed-val').innerText = `${Math.round(train.targetSpeed)} km/h`;
+            }
+        }
+
+        function selectStation(stId) {
+            simState.selectedStationId = stId;
+            document.querySelectorAll('.stn-select-btn').forEach(b => {
+                b.className = 'stn-select-btn p-3 bg-slate-950 border border-slate-800 rounded-xl text-left hover:border-slate-600';
+            });
+            document.getElementById(`btn-stn-${stId}`).className = 'stn-select-btn p-3 bg-indigo-900 border border-indigo-600 rounded-xl text-left hover:border-indigo-400';
+            renderStationDetails();
+        }
+
+        function onTrainSpeedSliderChange(val) {
+            const train = trains.find(t => t.id === simState.selectedTrainId);
+            if (train) {
+                if (simState.mode === 'MANUAL' && train.currentSignalAspect === 'RED') {
+                    alert("⚠️ SIGNAL VIOLATION: Train cannot proceed because Signal ahead is RED!");
+                    train.targetSpeed = 0;
+                    document.getElementById('ctrl-speed-slider').value = 0;
+                    return;
+                }
+                train.targetSpeed = parseFloat(val);
+                document.getElementById('ctrl-speed-val').innerText = `${val} km/h`;
+            }
+        }
+
+        function setTrainSpeedPreset(val) {
+            document.getElementById('ctrl-speed-slider').value = val;
+            onTrainSpeedSliderChange(val);
+        }
+
+        function injectFailure(type) {
+            if (type === 'block_fault') {
+                const b = blocks.find(blk => blk.id === 'A3');
+                if (b) b.isFaulty = true;
+                logEvent('WARNING', 'Failure Injector', 'Track Circuit Block A3 Fault Injected!');
+            } else if (type === 'signal_stuck') {
+                const sig = signals.find(s => s.id === 'S5');
+                if (sig) sig.isStuckRed = true;
+                logEvent('WARNING', 'Failure Injector', 'Signal S5 Hardware Failure (Stuck RED) Injected!');
+            }
+        }
+
+        function clearAllFailures() {
+            blocks.forEach(b => b.isFaulty = false);
+            signals.forEach(s => s.isStuckRed = false);
+            logEvent('SYSTEM', 'Failure Injector', 'All injected failures cleared. Signals returned to normal automatic logic.');
+        }
+
+        const TUTORIAL_STEPS = [
+            { title: "1. What is a Railway Signal?", body: "Railway signals are visual indication devices that inform train drivers whether the track ahead is clear and at what speed they may safely proceed." },
+            { title: "2. What is a Track Block?", body: "The railway line is divided into fixed length sections called 'Blocks'. Modern safety rules dictate that only one train may occupy a single block at a time." },
+            { title: "3. How is a Train Detected?", body: "Track circuits pass a low electrical current through the steel rails. When train wheels pass over, they short-circuit the track, dropping the safety relay to indicate OCCUPIED." },
+            { title: "4. Signal Aspects (RED / YELLOW / GREEN)", body: "RED = STOP immediately before the block.\nYELLOW = Proceed with caution (Next block clear, downstream occupied).\nGREEN = Proceed at full authorized speed." },
+            { title: "5. Interlocking Safety System", body: "Interlocking is an arrangement of signal apparatus that prevents conflicting routes from being set simultaneously, ruling out head-on or flank collisions." },
+            { title: "6. Station Approach & Dwell Time", body: "When a train enters a station platform, it stops for a predefined 'Dwell Time' to allow passengers to board and alight before signal clearance is granted for departure." },
+            { title: "7. Dynamic ETA Calculation", body: "Estimated Time of Arrival (ETA) is continuously calculated using remaining distance, effective speed, station dwell times, and red-signal delay buffers." },
+            { title: "8. Automatic Train Protection (ATP)", body: "If a train approaches a RED signal at excessive speed, ATP automatically applies emergency brakes to prevent a Signal Passed At Danger (SPAD) incident." },
+            { title: "9. Failure Modes & Safety Margins", body: "When a track circuit or signal fails, the system defaults to the safest state (RED), enforcing extreme caution across the network." },
+            { title: "10. Control the Railway Yourself!", body: "You are now ready! Use Manual Mode to adjust speeds, inspect blocks, trigger failures, and manage high-density traffic safely." }
+        ];
+
+        let tutStepIdx = 0;
+
+        function startTutorial() {
+            tutStepIdx = 0;
+            renderTutorialStep();
+            document.getElementById('tutorial-modal').classList.remove('hidden');
+        }
+
+        function renderTutorialStep() {
+            const step = TUTORIAL_STEPS[tutStepIdx];
+            document.getElementById('tut-step-num').innerText = tutStepIdx + 1;
+            document.getElementById('tut-title').innerText = step.title;
+            document.getElementById('tut-body').innerText = step.body;
+        }
+
+        function nextTutorialStep() {
+            if (tutStepIdx < TUTORIAL_STEPS.length - 1) {
+                tutStepIdx++;
+                renderTutorialStep();
+            } else {
+                endTutorial();
+            }
+        }
+
+        function prevTutorialStep() {
+            if (tutStepIdx > 0) {
+                tutStepIdx--;
+                renderTutorialStep();
+            }
+        }
+
+        function endTutorial() {
+            document.getElementById('tutorial-modal').classList.add('hidden');
+        }
+
+        function dismissExplainBanner() {
+            document.getElementById('explain-banner').style.display = 'none';
+        }
+
+        let lastTime = performance.now();
+
+        function gameLoop(currentTime) {
+            const dt = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            if (simState.isRunning) {
+                const scaledDt = dt * simState.simSpeed;
+                evaluateSignallingLogic();
+                updateTrainPhysics(scaledDt);
+                updateUI();
+            }
+
+            renderRailwayCanvas();
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function() {
+            initTrackNetwork();
+            updateDemoSignalChain(3);
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
