@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eddy Currents & Core Loss Interactive Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        canvas {
+            touch-action: none;
+        }
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+        }
+        .glow-red {
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.25);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+    <!-- Top Header Navigation -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-cyan-500/20">
+                    ⚡
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-300 bg-clip-text text-transparent">
+                        Eddy Currents & Core Loss Interactive Lab
+                    </h1>
+                    <p class="text-xs text-slate-400">Electromagnetic Induction & Physics Visualization</p>
+                </div>
+            </div>
+
+            <!-- Tab Buttons -->
+            <nav class="hidden md:flex space-x-1 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800" id="tabContainer">
+                <button onclick="switchTab('coreTab')" id="btn-coreTab" class="tab-btn active text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-200 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                    🏢 Solid vs Laminated Core
+                </button>
+                <button onclick="switchTab('pendulumTab')" id="btn-pendulumTab" class="tab-btn text-xs font-semibold px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all duration-200">
+                    🧲 Pendulum Brake (Lenz's Law)
+                </button>
+                <button onclick="switchTab('hysteresisTab')" id="btn-hysteresisTab" class="tab-btn text-xs font-semibold px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all duration-200">
+                    🔄 Hysteresis & B-H Loop
+                </button>
+                <button onclick="switchTab('theoryTab')" id="btn-theoryTab" class="tab-btn text-xs font-semibold px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all duration-200">
+                    📖 Theory & Formulas
+                </button>
+            </nav>
+        </div>
+        <!-- Mobile Navigation Bar -->
+        <div class="md:hidden flex overflow-x-auto p-2 border-t border-slate-800 space-x-2 custom-scrollbar bg-slate-900">
+            <button onclick="switchTab('coreTab')" class="text-xs whitespace-nowrap px-3 py-1.5 rounded-lg bg-slate-800 text-cyan-400">Solid vs Laminated</button>
+            <button onclick="switchTab('pendulumTab')" class="text-xs whitespace-nowrap px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Pendulum Brake</button>
+            <button onclick="switchTab('hysteresisTab')" class="text-xs whitespace-nowrap px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Hysteresis B-H</button>
+            <button onclick="switchTab('theoryTab')" class="text-xs whitespace-nowrap px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Theory</button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+        <!-- TAB 1: SOLID VS LAMINATED CORE SIMULATOR -->
+        <section id="coreTab" class="tab-content block space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Controls Panel -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                                Transformer Core Parameters
+                            </h2>
+                            <span class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-cyan-300 border border-slate-700 font-mono">Real-time Model</span>
+                        </div>
+
+                        <!-- Core Architecture Mode -->
+                        <div class="space-y-2 mb-4">
+                            <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Core Construction</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button id="btnCoreSolid" onclick="setCoreType('solid')" class="px-3 py-2 text-xs font-bold rounded-xl border border-rose-500/50 bg-rose-500/10 text-rose-300 transition-all">
+                                    🔴 Solid Core
+                                </button>
+                                <button id="btnCoreLaminated" onclick="setCoreType('laminated')" class="px-3 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:border-emerald-500/50 transition-all">
+                                    🟢 Laminated Core
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Slider: Number of Laminations -->
+                        <div id="laminationSliderGroup" class="space-y-2 mb-4 opacity-50 pointer-events-none transition-opacity">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Laminations ($N$ sheets):</span>
+                                <span id="valLaminations" class="font-mono text-cyan-400 font-bold">5 sheets</span>
+                            </div>
+                            <input type="range" id="sliderLaminations" min="2" max="12" step="1" value="5" oninput="updateCoreParams()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                            <p class="text-[11px] text-slate-400">Splits the magnetic core into $N$ thin insulated layers of thickness $t/N$.</p>
+                        </div>
+
+                        <!-- Slider: AC Frequency -->
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">AC Frequency ($f$):</span>
+                                <span id="valFrequency" class="font-mono text-cyan-400 font-bold">50 Hz</span>
+                            </div>
+                            <input type="range" id="sliderFrequency" min="10" max="200" step="5" value="50" oninput="updateCoreParams()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                        </div>
+
+                        <!-- Slider: Peak Magnetic Flux Density (Bm) -->
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Peak Flux Density ($B_m$):</span>
+                                <span id="valFluxDensity" class="font-mono text-cyan-400 font-bold">1.2 Tesla</span>
+                            </div>
+                            <input type="range" id="sliderFluxDensity" min="0.2" max="2.0" step="0.1" value="1.2" oninput="updateCoreParams()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                        </div>
+
+                        <!-- Toggle Controls -->
+                        <div class="pt-3 border-t border-slate-800 space-y-2">
+                            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                                <input type="checkbox" id="chkShowVectors" checked onchange="drawCoreCanvas()" class="rounded border-slate-700 text-cyan-500 focus:ring-0">
+                                Show Magnetic Field Lines ($B$) [Green]
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                                <input type="checkbox" id="chkShowCurrents" checked onchange="drawCoreCanvas()" class="rounded border-slate-700 text-cyan-500 focus:ring-0">
+                                Show Eddy Current Loops ($I$) [Red/Orange]
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                                <input type="checkbox" id="chkHeatMap" checked onchange="drawCoreCanvas()" class="rounded border-slate-700 text-cyan-500 focus:ring-0">
+                                Show Heat Thermal Glow Dissipation
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Computed Loss Comparison Metrics -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                        <div class="text-xs font-semibold text-slate-400 uppercase">Calculated Eddy Loss Density</div>
+                        <div class="grid grid-cols-2 gap-2 text-center">
+                            <div class="bg-rose-950/40 border border-rose-800/40 p-2 rounded-lg">
+                                <span class="text-[10px] text-rose-300 block">Solid Core Loss</span>
+                                <span id="metricSolidLoss" class="text-lg font-mono font-bold text-rose-400">48.2 W/kg</span>
+                            </div>
+                            <div class="bg-emerald-950/40 border border-emerald-800/40 p-2 rounded-lg">
+                                <span class="text-[10px] text-emerald-300 block">Laminated Loss</span>
+                                <span id="metricLamLoss" class="text-lg font-mono font-bold text-emerald-400">1.93 W/kg</span>
+                            </div>
+                        </div>
+                        <div class="text-center pt-1">
+                            <span class="text-xs text-emerald-400 font-bold" id="metricReduction">📉 96.0% Loss Reduction!</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Simulation Canvas & Display -->
+                <div class="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="font-bold text-slate-200">Interactive Core Cross-Section Visualization</h3>
+                            <p class="text-xs text-slate-400">Observe how insulation sheets obstruct wide circular eddy current paths</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/50">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Flux B (Green)
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-rose-950/60 text-rose-400 border border-rose-800/50">
+                                <span class="w-2 h-2 rounded-full bg-rose-400"></span> Eddy Current I (Red)
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Container -->
+                    <div class="relative w-full h-[380px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                        <canvas id="coreCanvas" class="w-full h-full cursor-crosshair"></canvas>
+                        
+                        <!-- Realtime Info overlay on canvas -->
+                        <div class="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-lg border border-slate-800 text-[11px] font-mono text-slate-300 space-y-0.5">
+                            <div>Core State: <span id="lblCoreState" class="font-bold text-rose-400">SOLID CORE</span></div>
+                            <div>Lamination Thickness ($t$): <span id="lblThickness" class="text-cyan-400 font-bold">10.0 mm</span></div>
+                            <div>Resistance Path ($R$): <span id="lblResistance" class="text-amber-400 font-bold">Low (High Current)</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Educational Physics Note Footer -->
+                    <div class="mt-4 p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs text-slate-300 leading-relaxed flex items-start gap-3">
+                        <div class="text-xl">💡</div>
+                        <div>
+                            <strong class="text-cyan-300">Why Laminations Reduce Eddy Loss:</strong> Eddy current loss equation is 
+                            <span class="font-mono text-cyan-300">$P_e = \frac{\pi^2 \cdot f^2 \cdot B_m^2 \cdot t^2}{6 \cdot \rho \cdot D}$</span>. 
+                            Because loss is proportional to the <em>square of thickness ($t^2$)</em>, splitting a solid block of thickness $T$ into $N$ insulated laminations of thickness $t = T/N$ reduces total eddy current losses by a factor of <strong class="text-emerald-400">$1/N^2$</strong>!
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 2: EDDY CURRENT PENDULUM BRAKE SIMULATION -->
+        <section id="pendulumTab" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Controls Panel -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-5">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-100 mb-4 flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                            Pendulum & Magnet Setup
+                        </h2>
+
+                        <!-- Plate Material & Geometry Selector -->
+                        <div class="space-y-2 mb-4">
+                            <label class="text-xs font-semibold text-slate-400 uppercase">Plate Type</label>
+                            <div class="grid grid-cols-3 gap-1.5">
+                                <button id="btnPlateSolid" onclick="setPendulumPlate('solid')" class="px-2 py-2 text-xs font-bold rounded-xl border border-cyan-500/50 bg-cyan-500/10 text-cyan-300">
+                                    Solid Copper
+                                </button>
+                                <button id="btnPlateSlotted" onclick="setPendulumPlate('slotted')" class="px-2 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:border-emerald-500/50">
+                                    Slotted Plate
+                                </button>
+                                <button id="btnPlatePlastic" onclick="setPendulumPlate('plastic')" class="px-2 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:border-rose-500/50">
+                                    Non-Conductor
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Magnet Strength Slider -->
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Electromagnet Strength ($B$):</span>
+                                <span id="valMagnetB" class="font-mono text-cyan-400 font-bold">1.5 Tesla</span>
+                            </div>
+                            <input type="range" id="sliderMagnetB" min="0" max="3.0" step="0.1" value="1.5" oninput="updatePendulumParams()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                        </div>
+
+                        <!-- Drop Height Slider -->
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Initial Release Angle ($\theta_0$):</span>
+                                <span id="valReleaseAngle" class="font-mono text-cyan-400 font-bold">45°</span>
+                            </div>
+                            <input type="range" id="sliderReleaseAngle" min="15" max="75" step="5" value="45" oninput="updatePendulumParams()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex gap-2 pt-2">
+                            <button onclick="resetPendulum()" class="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-xl text-xs transition shadow-lg shadow-cyan-600/20">
+                                ▶ Release / Restart Swing
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Physics Metrics -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2 text-xs font-mono">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Angular Velocity ($\omega$):</span>
+                            <span id="metricOmega" class="text-cyan-400 font-bold">0.00 rad/s</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Damping Drag Force ($F_{drag}$):</span>
+                            <span id="metricDragForce" class="text-rose-400 font-bold">0.00 N</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Kinetic Energy Dissipated:</span>
+                            <span id="metricEnergyLoss" class="text-amber-400 font-bold">0.00 Joules</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pendulum Canvas & Kinematics Graph -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col">
+                        <div class="flex justify-between items-center mb-3">
+                            <div>
+                                <h3 class="font-bold text-slate-200">Eddy Current Magnetic Brake Simulation</h3>
+                                <p class="text-xs text-slate-400">Plate passes through concentrated magnetic field gap (N ➔ S)</p>
+                            </div>
+                            <span class="text-xs px-3 py-1 bg-cyan-950 text-cyan-300 border border-cyan-800 rounded-full font-mono" id="lblBrakeStatus">
+                                Rapid Braking Active
+                            </span>
+                        </div>
+
+                        <div class="relative w-full h-[320px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+                            <canvas id="pendulumCanvas" class="w-full h-full"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Damping Chart -->
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+                        <h4 class="text-xs font-bold text-slate-300 mb-2">Oscillation Amplitude Decay over Time ($\theta(t)$)</h4>
+                        <div class="w-full h-24 bg-slate-950 rounded-lg overflow-hidden border border-slate-800 relative">
+                            <canvas id="pendulumChartCanvas" class="w-full h-full"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 3: HYSTERESIS LOSS & B-H LOOP EXPLORER -->
+        <section id="hysteresisTab" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Controls Panel -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-5">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-100 mb-4 flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse"></span>
+                            B-H Magnetization Parameters
+                        </h2>
+
+                        <!-- Ferromagnetic Material Preset -->
+                        <div class="space-y-2 mb-4">
+                            <label class="text-xs font-semibold text-slate-400 uppercase">Core Material Selection</label>
+                            <select id="selectMaterial" onchange="changeMaterialPreset()" class="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-cyan-500 font-medium">
+                                <option value="softIron">Soft Iron (Narrow Loop - Low Hysteresis Loss)</option>
+                                <option value="siliconSteel" selected>CRGO Silicon Steel (Transformer Grade - Minimal Loss)</option>
+                                <option value="hardSteel">Hard Carbon Steel (Wide Loop - High Retentivity & Coercivity)</option>
+                            </select>
+                        </div>
+
+                        <!-- Manual Field Sweep / Auto AC Cycle -->
+                        <div class="space-y-2 mb-4">
+                            <label class="text-xs font-semibold text-slate-400 uppercase">Excitation Control Mode</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button id="btnModeAuto" onclick="setHysteresisMode('auto')" class="px-3 py-2 text-xs font-bold rounded-xl border border-cyan-500/50 bg-cyan-500/10 text-cyan-300">
+                                    🔄 AC Auto Sweep
+                                </button>
+                                <button id="btnModeManual" onclick="setHysteresisMode('manual')" class="px-3 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400">
+                                    🖐️ Manual Slider
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Magnetizing Force (H) Slider for Manual Mode -->
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Applied Field ($H$):</span>
+                                <span id="valFieldH" class="font-mono text-purple-400 font-bold">0 A/m</span>
+                            </div>
+                            <input type="range" id="sliderFieldH" min="-300" max="300" step="5" value="0" oninput="updateManualH()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-400">
+                        </div>
+
+                        <!-- Frequency Slider -->
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">AC Magnetizing Frequency ($f$):</span>
+                                <span id="valHystFreq" class="font-mono text-purple-400 font-bold">50 Hz</span>
+                            </div>
+                            <input type="range" id="sliderHystFreq" min="10" max="120" step="5" value="50" oninput="updateHysteresisParams()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-400">
+                        </div>
+                    </div>
+
+                    <!-- Material Metrics & Steinmetz Loss -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2 text-xs font-mono">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Remanence ($B_r$):</span>
+                            <span id="metricBr" class="text-cyan-400 font-bold">1.15 Tesla</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Coercivity ($H_c$):</span>
+                            <span id="metricHc" class="text-amber-400 font-bold">45 A/m</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Loop Area (Energy Loss/cycle):</span>
+                            <span id="metricArea" class="text-rose-400 font-bold">120 J/m³</span>
+                        </div>
+                        <div class="flex justify-between pt-2 border-t border-slate-800">
+                            <span class="text-slate-300">Steinmetz Power Loss ($P_h$):</span>
+                            <span id="metricPh" class="text-rose-400 font-bold text-sm">6.0 kW/m³</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- B-H Curve Canvas + Magnetic Domain Viz -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        <!-- B-H Plot Canvas -->
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-slate-200 text-xs">B-H Hysteresis Curve</h3>
+                                <span class="text-[10px] text-purple-400 font-mono">B vs H Plot</span>
+                            </div>
+                            <div class="relative w-full h-[280px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+                                <canvas id="bhCanvas" class="w-full h-full"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Atomic Magnetic Domain Simulation -->
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-slate-200 text-xs">Magnetic Domain Dipole Realignment</h3>
+                                <span class="text-[10px] text-cyan-400 font-mono">Weiss Domains</span>
+                            </div>
+                            <div class="relative w-full h-[280px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+                                <canvas id="domainCanvas" class="w-full h-full"></canvas>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Explanatory Banner -->
+                    <div class="p-4 rounded-xl bg-purple-950/30 border border-purple-800/40 text-xs text-slate-300 leading-relaxed">
+                        <strong class="text-purple-300">Understanding Hysteresis Loss:</strong> When ferromagnets are magnetized and demagnetized by AC current, atomic magnetic dipoles flip direction. Internal friction between domain walls dissipates energy as heat. The energy lost per cycle equals the <strong>area inside the B-H loop</strong>. The total hysteresis loss is given by Steinmetz's formula: <span class="font-mono text-purple-300">$P_h = \eta \cdot f \cdot B_m^{1.6} \cdot V$</span>.
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 4: EDUCATIONAL THEORY & FORMULA REFERENCE -->
+        <section id="theoryTab" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-8">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-cyan-400 mb-2">Comprehensive Core Loss Theory & Mathematics</h2>
+                    <p class="text-slate-400 text-sm">Detailed explanation of Electromagnetic Induction, Eddy Currents, Lamination Physics, and Hysteresis Loss.</p>
+                </div>
+
+                <!-- Theory Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Card 1: Eddy Currents -->
+                    <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-3">
+                        <div class="flex items-center gap-2 text-cyan-400 font-bold text-base">
+                            <span>1.</span> What are Eddy Currents?
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            According to <strong>Faraday's Law of Electromagnetic Induction</strong> ($\mathcal{E} = -d\Phi/dt$), an alternating magnetic flux passing through a conducting metallic core induces an electromotive force (EMF) inside the metal body.
+                        </p>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Since bulk metals have low electrical resistance, these induced voltages create circulating loops of current within the body of the conductor, known as <strong>eddy currents</strong> (due to their swirl-like resemblance to water eddies).
+                        </p>
+                        <div class="p-3 bg-slate-900 rounded-lg text-xs font-mono text-cyan-300 border border-slate-800">
+                            P_e = \frac{\pi^2 \cdot f^2 \cdot B_m^2 \cdot t^2}{6 \cdot \rho \cdot D} \quad \text{(W/kg)}
+                        </div>
+                        <ul class="text-xs text-slate-400 list-disc list-inside space-y-1">
+                            <li>$f$: Frequency of alternating magnetic field (Hz)</li>
+                            <li>$B_m$: Peak magnetic flux density (Tesla)</li>
+                            <li>$t$: Lamination thickness (meters)</li>
+                            <li>$\rho$: Material electrical resistivity ($\Omega\cdot\text{m}$)</li>
+                            <li>$D$: Material density ($\text{kg/m}^3$)</li>
+                        </ul>
+                    </div>
+
+                    <!-- Card 2: Lamination Physics -->
+                    <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-3">
+                        <div class="flex items-center gap-2 text-emerald-400 font-bold text-base">
+                            <span>2.</span> How Lamination Reduces Eddy Loss
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            In transformers and electric motors, the core is constructed from thin sheets of <strong>silicon steel</strong> (e.g., CRGO - Cold Rolled Grain Oriented steel), stacked together and insulated from each other by a thin layer of varnish or oxide enamel.
+                        </p>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            The insulation planes are oriented <em>parallel to the magnetic flux lines</em>. This presents a very high electrical resistance to the induced eddy current paths without obstructing the flow of magnetic flux!
+                        </p>
+                        <div class="p-3 bg-slate-900 rounded-lg text-xs font-mono text-emerald-300 border border-slate-800">
+                            \text{Loss Reduction Factor} = \left(\frac{1}{N}\right)^2
+                        </div>
+                        <p class="text-xs text-slate-400">
+                            If a solid core is split into $N=10$ laminations, the loss drops to $1/100^{\text{th}}$ ($1\%$) of the solid core value.
+                        </p>
+                    </div>
+
+                    <!-- Card 3: Hysteresis Loss -->
+                    <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-3">
+                        <div class="flex items-center gap-2 text-purple-400 font-bold text-base">
+                            <span>3.</span> Hysteresis Loss & Steinmetz Law
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Ferromagnetic materials consist of microscopic magnetic domains. When subject to AC magnetic fields, these domains must continually reorient themselves back and forth.
+                        </p>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Domain wall movement experiences internal magnetic friction and lag (hysteresis). The energy lost per unit volume during each cycle equals the area enclosed by the <strong>B-H Hysteresis Loop</strong>.
+                        </p>
+                        <div class="p-3 bg-slate-900 rounded-lg text-xs font-mono text-purple-300 border border-slate-800">
+                            P_h = \eta \cdot f \cdot B_m^{1.6} \cdot V \quad \text{(Steinmetz Formula)}
+                        </div>
+                        <ul class="text-xs text-slate-400 list-disc list-inside space-y-1">
+                            <li>$\eta$: Steinmetz hysteresis coefficient</li>
+                            <li>$B_m^{1.6}$: Empirical magnetic density exponent (typically 1.6 to 2.0)</li>
+                            <li>$V$: Volume of magnetic core ($\text{m}^3$)</li>
+                        </ul>
+                    </div>
+
+                    <!-- Card 4: Applications & Engineering Methods -->
+                    <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-3">
+                        <div class="flex items-center gap-2 text-amber-400 font-bold text-base">
+                            <span>4.</span> Real-World Engineering Applications
+                        </div>
+                        <ul class="text-xs text-slate-300 space-y-2">
+                            <li class="p-2 bg-slate-900 rounded border border-slate-800">
+                                <strong class="text-cyan-300">Induction Heating / Furnaces:</strong> High-frequency eddy currents are deliberately generated in metal workpieces to melt or heat-treat metals rapidly without physical contact.
+                            </li>
+                            <li class="p-2 bg-slate-900 rounded border border-slate-800">
+                                <strong class="text-emerald-300">Eddy Current Braking (Maglev & Trains):</strong> Strong electromagnets induce eddy currents in metal discs/rails, creating smooth, non-wearing braking forces (Lenz's Law).
+                            </li>
+                            <li class="p-2 bg-slate-900 rounded border border-slate-800">
+                                <strong class="text-purple-300">Powdered Iron & Ferrite Cores:</strong> At radio frequencies (MHz), laminations are too thick, so magnetic cores are made of microscopic iron particles suspended in insulating resin.
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        /* ====================================================================
+         * GLOBAL STATE & TAB SWITCHING LOGIC
+         * ==================================================================== */
+        let currentTab = 'coreTab';
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = 'tab-btn text-xs font-semibold px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all duration-200';
+            });
+            const activeBtn = document.getElementById('btn-' + tabId);
+            if (activeBtn) {
+                activeBtn.className = 'tab-btn active text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-200 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+            }
+
+            // Trigger canvas redraws on tab switch
+            if (tabId === 'coreTab') drawCoreCanvas();
+            if (tabId === 'pendulumTab') resetPendulum();
+            if (tabId === 'hysteresisTab') initHysteresis();
+        }
+
+        /* ====================================================================
+         * MODULE 1: SOLID VS LAMINATED TRANSFORMER CORE SIMULATOR
+         * ==================================================================== */
+        let coreParams = {
+            type: 'solid', // 'solid' or 'laminated'
+            laminations: 5,
+            frequency: 50,
+            fluxDensity: 1.2,
+            phase: 0
+        };
+
+        const coreCanvas = document.getElementById('coreCanvas');
+        const coreCtx = coreCanvas.getContext('2d');
+
+        function setCoreType(type) {
+            coreParams.type = type;
+            const btnSolid = document.getElementById('btnCoreSolid');
+            const btnLam = document.getElementById('btnCoreLaminated');
+            const lamGroup = document.getElementById('laminationSliderGroup');
+
+            if (type === 'solid') {
+                btnSolid.className = 'px-3 py-2 text-xs font-bold rounded-xl border border-rose-500/50 bg-rose-500/10 text-rose-300 transition-all';
+                btnLam.className = 'px-3 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:border-emerald-500/50 transition-all';
+                lamGroup.classList.add('opacity-50', 'pointer-events-none');
+            } else {
+                btnLam.className = 'px-3 py-2 text-xs font-bold rounded-xl border border-emerald-500/50 bg-emerald-500/10 text-emerald-300 transition-all';
+                btnSolid.className = 'px-3 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:border-rose-500/50 transition-all';
+                lamGroup.classList.remove('opacity-50', 'pointer-events-none');
+            }
+            updateCoreParams();
+        }
+
+        function updateCoreParams() {
+            coreParams.laminations = parseInt(document.getElementById('sliderLaminations').value);
+            coreParams.frequency = parseInt(document.getElementById('sliderFrequency').value);
+            coreParams.fluxDensity = parseFloat(document.getElementById('sliderFluxDensity').value);
+
+            document.getElementById('valLaminations').innerText = `${coreParams.laminations} sheets`;
+            document.getElementById('valFrequency').innerText = `${coreParams.frequency} Hz`;
+            document.getElementById('valFluxDensity').innerText = `${coreParams.fluxDensity.toFixed(1)} Tesla`;
+
+            // Compute loss density calculations
+            // P_e = K * f^2 * B^2 * t^2
+            const kBase = 0.0002;
+            const f = coreParams.frequency;
+            const B = coreParams.fluxDensity;
+            
+            const solidThickness = 10.0; // mm
+            const lamThickness = solidThickness / coreParams.laminations;
+
+            const solidLoss = kBase * Math.pow(f, 2) * Math.pow(B, 2) * Math.pow(solidThickness, 2);
+            const lamLoss = kBase * Math.pow(f, 2) * Math.pow(B, 2) * Math.pow(lamThickness, 2);
+
+            const reductionPct = ((1 - (lamLoss / solidLoss)) * 100).toFixed(1);
+
+            document.getElementById('metricSolidLoss').innerText = `${solidLoss.toFixed(1)} W/kg`;
+            document.getElementById('metricLamLoss').innerText = `${lamLoss.toFixed(1)} W/kg`;
+            document.getElementById('metricReduction').innerText = `📉 ${reductionPct}% Loss Reduction!`;
+
+            document.getElementById('lblCoreState').innerText = coreParams.type === 'solid' ? 'SOLID CORE' : `LAMINATED CORE (${coreParams.laminations} LAYERS)`;
+            document.getElementById('lblCoreState').className = coreParams.type === 'solid' ? 'font-bold text-rose-400' : 'font-bold text-emerald-400';
+            document.getElementById('lblThickness').innerText = coreParams.type === 'solid' ? '10.0 mm' : `${lamThickness.toFixed(2)} mm / sheet`;
+            document.getElementById('lblResistance').innerText = coreParams.type === 'solid' ? 'Low (Unrestricted Swirls)' : 'High (Insulated Layer Barriers)';
+
+            drawCoreCanvas();
+        }
+
+        function drawCoreCanvas() {
+            if (currentTab !== 'coreTab') return;
+            const width = coreCanvas.parentElement.clientWidth;
+            const height = coreCanvas.parentElement.clientHeight;
+            coreCanvas.width = width;
+            coreCanvas.height = height;
+
+            coreCtx.clearRect(0, 0, width, height);
+
+            const cx = width / 2;
+            const cy = height / 2 + 10;
+            const blockW = Math.min(width * 0.45, 260);
+            const blockH = 180;
+            const depth = 80;
+
+            const showVectors = document.getElementById('chkShowVectors').checked;
+            const showCurrents = document.getElementById('chkShowCurrents').checked;
+            const showHeat = document.getElementById('chkHeatMap').checked;
+
+            // AC magnetic field phase oscillation
+            coreParams.phase += (coreParams.frequency / 50) * 0.05;
+            const currentBScale = Math.sin(coreParams.phase);
+
+            // Draw isometric Core Block
+            const N = coreParams.type === 'solid' ? 1 : coreParams.laminations;
+            const sheetW = blockW / N;
+
+            for (let i = 0; i < N; i++) {
+                const x0 = cx - blockW / 2 + i * sheetW;
+                const x1 = x0 + sheetW - (N > 1 ? 2 : 0); // gap for lamination varnish
+
+                // Thermal heat overlay gradient
+                if (showHeat) {
+                    const heatIntensity = (coreParams.type === 'solid' ? 0.7 : 0.15) * coreParams.fluxDensity;
+                    const heatGrad = coreCtx.createRadialGradient(cx, cy, 10, cx, cy, blockW * 0.6);
+                    heatGrad.addColorStop(0, `rgba(239, 68, 68, ${heatIntensity})`);
+                    heatGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                    coreCtx.fillStyle = heatGrad;
+                    coreCtx.fillRect(0, 0, width, height);
+                }
+
+                // Front Face of Lamination Sheet
+                coreCtx.fillStyle = coreParams.type === 'solid' ? '#334155' : '#1e293b';
+                coreCtx.strokeStyle = '#475569';
+                coreCtx.lineWidth = 1.5;
+
+                coreCtx.beginPath();
+                coreCtx.rect(x0, cy - blockH / 2, sheetW - (N > 1 ? 2 : 0), blockH);
+                coreCtx.fill();
+                coreCtx.stroke();
+
+                // Top Face Isometric Projection
+                coreCtx.fillStyle = coreParams.type === 'solid' ? '#475569' : '#334155';
+                coreCtx.beginPath();
+                coreCtx.moveTo(x0, cy - blockH / 2);
+                coreCtx.lineTo(x0 + depth * 0.6, cy - blockH / 2 - depth * 0.4);
+                coreCtx.lineTo(x0 + sheetW - (N > 1 ? 2 : 0) + depth * 0.6, cy - blockH / 2 - depth * 0.4);
+                coreCtx.lineTo(x0 + sheetW - (N > 1 ? 2 : 0), cy - blockH / 2);
+                coreCtx.closePath();
+                coreCtx.fill();
+                coreCtx.stroke();
+
+                // Side Face Isometric Projection (for last sheet)
+                if (i === N - 1) {
+                    coreCtx.fillStyle = '#1e293b';
+                    coreCtx.beginPath();
+                    coreCtx.moveTo(x1, cy - blockH / 2);
+                    coreCtx.lineTo(x1 + depth * 0.6, cy - blockH / 2 - depth * 0.4);
+                    coreCtx.lineTo(x1 + depth * 0.6, cy + blockH / 2 - depth * 0.4);
+                    coreCtx.lineTo(x1, cy + blockH / 2);
+                    coreCtx.closePath();
+                    coreCtx.fill();
+                    coreCtx.stroke();
+                }
+
+                // Draw Eddy Currents on front face of each lamination/block
+                if (showCurrents) {
+                    const sheetCx = x0 + (sheetW - (N > 1 ? 2 : 0)) / 2;
+                    const sheetCy = cy;
+
+                    const numLoops = coreParams.type === 'solid' ? 4 : 2;
+                    for (let l = 1; l <= numLoops; l++) {
+                        const rw = (sheetW * 0.4) * (l / numLoops);
+                        const rh = (blockH * 0.38) * (l / numLoops);
+
+                        if (rw > 2 && rh > 4) {
+                            coreCtx.strokeStyle = `rgba(244, 63, 94, ${0.4 + 0.6 * Math.abs(currentBScale)})`;
+                            coreCtx.lineWidth = coreParams.type === 'solid' ? 2.5 : 1.2;
+                            coreCtx.setLineDash([6, 4]);
+                            coreCtx.lineDashOffset = -coreParams.phase * 20 * (currentBScale >= 0 ? 1 : -1);
+
+                            coreCtx.beginPath();
+                            coreCtx.ellipse(sheetCx, sheetCy, rw, rh, 0, 0, Math.PI * 2);
+                            coreCtx.stroke();
+                            coreCtx.setLineDash([]);
+                        }
+                    }
+                }
+            }
+
+            // Draw Magnetic Field Lines (Flux B) passing through core center (Green vectors)
+            if (showVectors) {
+                const numVectors = 5;
+                const arrowLen = 50 * currentBScale;
+
+                coreCtx.strokeStyle = '#10b981';
+                coreCtx.fillStyle = '#10b981';
+                coreCtx.lineWidth = 3;
+
+                for (let k = 0; k < numVectors; k++) {
+                    const vx = cx - blockW * 0.35 + (blockW * 0.7) * (k / (numVectors - 1));
+                    const vy = cy;
+
+                    // Draw flux line through depth
+                    coreCtx.beginPath();
+                    coreCtx.moveTo(vx, vy + 40);
+                    coreCtx.lineTo(vx, vy - 40);
+                    coreCtx.stroke();
+
+                    // Arrowhead
+                    if (Math.abs(currentBScale) > 0.1) {
+                        const dir = Math.sign(currentBScale);
+                        coreCtx.beginPath();
+                        coreCtx.moveTo(vx, vy - 40 * dir);
+                        coreCtx.lineTo(vx - 6, vy - (40 - 12) * dir);
+                        coreCtx.lineTo(vx + 6, vy - (40 - 12) * dir);
+                        coreCtx.closePath();
+                        coreCtx.fill();
+                    }
+                }
+
+                // Label for B field
+                coreCtx.fillStyle = '#34d399';
+                coreCtx.font = 'bold 12px Inter, sans-serif';
+                coreCtx.fillText(`Magnetic Flux B(t)`, cx - 50, cy - blockH / 2 - depth * 0.4 - 15);
+            }
+
+            requestAnimationFrame(drawCoreCanvas);
+        }
+
+        /* ====================================================================
+         * MODULE 2: EDDY CURRENT PENDULUM BRAKE SIMULATION (LENZ'S LAW)
+         * ==================================================================== */
+        let pendulum = {
+            plateType: 'solid', // 'solid', 'slotted', 'plastic'
+            magnetB: 1.5,
+            length: 160,
+            angle: Math.PI / 4,
+            omega: 0.0,
+            alpha: 0.0,
+            energyLost: 0,
+            history: []
+        };
+
+        const pendCanvas = document.getElementById('pendulumCanvas');
+        const pendCtx = pendCanvas.getContext('2d');
+        const chartCanvas = document.getElementById('pendulumChartCanvas');
+        const chartCtx = chartCanvas.getContext('2d');
+
+        function setPendulumPlate(type) {
+            pendulum.plateType = type;
+            const bSolid = document.getElementById('btnPlateSolid');
+            const bSlotted = document.getElementById('btnPlateSlotted');
+            const bPlastic = document.getElementById('btnPlatePlastic');
+
+            bSolid.className = 'px-2 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:border-cyan-500/50';
+            bSlotted.className = 'px-2 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:border-emerald-500/50';
+            bPlastic.className = 'px-2 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:border-rose-500/50';
+
+            if (type === 'solid') bSolid.className = 'px-2 py-2 text-xs font-bold rounded-xl border border-cyan-500/50 bg-cyan-500/10 text-cyan-300';
+            if (type === 'slotted') bSlotted.className = 'px-2 py-2 text-xs font-bold rounded-xl border border-emerald-500/50 bg-emerald-500/10 text-emerald-300';
+            if (type === 'plastic') bPlastic.className = 'px-2 py-2 text-xs font-bold rounded-xl border border-rose-500/50 bg-rose-500/10 text-rose-300';
+
+            resetPendulum();
+        }
+
+        function updatePendulumParams() {
+            pendulum.magnetB = parseFloat(document.getElementById('sliderMagnetB').value);
+            const deg = parseInt(document.getElementById('sliderReleaseAngle').value);
+
+            document.getElementById('valMagnetB').innerText = `${pendulum.magnetB.toFixed(1)} Tesla`;
+            document.getElementById('valReleaseAngle').innerText = `${deg}°`;
+
+            let statusText = 'Rapid Eddy Braking';
+            if (pendulum.plateType === 'slotted') statusText = 'Reduced Braking (Slotted)';
+            if (pendulum.plateType === 'plastic') statusText = 'No Magnetic Braking';
+            if (pendulum.magnetB === 0) statusText = 'Magnet OFF';
+
+            document.getElementById('lblBrakeStatus').innerText = statusText;
+        }
+
+        function resetPendulum() {
+            const deg = parseInt(document.getElementById('sliderReleaseAngle').value);
+            pendulum.angle = (deg * Math.PI) / 180;
+            pendulum.omega = 0.0;
+            pendulum.alpha = 0.0;
+            pendulum.energyLost = 0.0;
+            pendulum.history = [];
+            updatePendulumParams();
+        }
+
+        function stepPendulumPhysics() {
+            const g = 9.81;
+            const L = pendulum.length / 100; // meters
+            const dt = 0.016; // time step
+
+            // Gravity torque: alpha_g = -(g/L) * sin(theta)
+            let alpha = -(g / L) * Math.sin(pendulum.angle);
+
+            // Calculate position of copper plate relative to magnet zone
+            const pivotX = pendCanvas.width / 2;
+            const pivotY = 40;
+            const plateX = pivotX + pendulum.length * Math.sin(pendulum.angle);
+
+            // Magnet zone boundaries (centered around bottom center)
+            const inMagnetZone = Math.abs(plateX - pivotX) < 35;
+
+            let magneticDampingForce = 0;
+            if (inMagnetZone && pendulum.magnetB > 0) {
+                let sigma = 0; // conductivity factor
+                if (pendulum.plateType === 'solid') sigma = 4.5;
+                if (pendulum.plateType === 'slotted') sigma = 0.6; // slots restrict loops
+                if (pendulum.plateType === 'plastic') sigma = 0.0;
+
+                // F_eddy = - sigma * B^2 * v
+                const linearVelocity = pendulum.omega * L;
+                magneticDampingForce = sigma * Math.pow(pendulum.magnetB, 2) * linearVelocity;
+                
+                // Damping torque
+                const dampingAlpha = -(magneticDampingForce / L);
+                alpha += dampingAlpha;
+
+                pendulum.energyLost += Math.abs(magneticDampingForce * linearVelocity * dt);
+            }
+
+            // Air resistance damping
+            alpha -= 0.15 * pendulum.omega;
+
+            // Integration (Euler-Cromer)
+            pendulum.omega += alpha * dt;
+            pendulum.angle += pendulum.omega * dt;
+
+            // Update UI metrics
+            document.getElementById('metricOmega').innerText = `${pendulum.omega.toFixed(2)} rad/s`;
+            document.getElementById('metricDragForce').innerText = `${Math.abs(magneticDampingForce).toFixed(2)} N`;
+            document.getElementById('metricEnergyLoss').innerText = `${pendulum.energyLost.toFixed(3)} J`;
+
+            // Append to chart history
+            if (pendulum.history.length > 200) pendulum.history.shift();
+            pendulum.history.push(pendulum.angle * (180 / Math.PI));
+        }
+
+        function drawPendulumCanvas() {
+            if (currentTab !== 'pendulumTab') return;
+
+            stepPendulumPhysics();
+
+            const width = pendCanvas.parentElement.clientWidth;
+            const height = pendCanvas.parentElement.clientHeight;
+            pendCanvas.width = width;
+            pendCanvas.height = height;
+
+            pendCtx.clearRect(0, 0, width, height);
+
+            const pivotX = width / 2;
+            const pivotY = 30;
+
+            // 1. Draw Electromagnet Pole Pieces (N and S) at bottom center
+            const magW = 70;
+            const magH = 60;
+            const magY = pivotY + pendulum.length - magH / 2;
+
+            // Magnet N (Top / Left)
+            pendCtx.fillStyle = '#dc2626';
+            pendCtx.fillRect(pivotX - magW / 2 - 25, magY, 20, magH);
+            pendCtx.fillStyle = '#ffffff';
+            pendCtx.font = 'bold 12px Inter';
+            pendCtx.fillText('N', pivotX - magW / 2 - 20, magY + magH / 2 + 4);
+
+            // Magnet S (Right)
+            pendCtx.fillStyle = '#2563eb';
+            pendCtx.fillRect(pivotX + magW / 2 + 5, magY, 20, magH);
+            pendCtx.fillStyle = '#ffffff';
+            pendCtx.fillText('S', pivotX + magW / 2 + 10, magY + magH / 2 + 4);
+
+            // Magnetic Field Lines in gap (Green dots / vectors)
+            if (pendulum.magnetB > 0) {
+                pendCtx.strokeStyle = 'rgba(52, 211, 153, 0.4)';
+                pendCtx.lineWidth = 1.5;
+                pendCtx.setLineDash([4, 4]);
+                for (let y = magY + 10; y < magY + magH; y += 12) {
+                    pendCtx.beginPath();
+                    pendCtx.moveTo(pivotX - magW / 2 - 5, y);
+                    pendCtx.lineTo(pivotX + magW / 2 + 5, y);
+                    pendCtx.stroke();
+                }
+                pendCtx.setLineDash([]);
+            }
+
+            // 2. Draw Pendulum Rod
+            const plateX = pivotX + pendulum.length * Math.sin(pendulum.angle);
+            const plateY = pivotY + pendulum.length * Math.cos(pendulum.angle);
+
+            pendCtx.strokeStyle = '#94a3b8';
+            pendCtx.lineWidth = 3;
+            pendCtx.beginPath();
+            pendCtx.moveTo(pivotX, pivotY);
+            pendCtx.lineTo(plateX, plateY);
+            pendCtx.stroke();
+
+            // Pivot point dot
+            pendCtx.fillStyle = '#cbd5e1';
+            pendCtx.beginPath();
+            pendCtx.arc(pivotX, pivotY, 6, 0, Math.PI * 2);
+            pendCtx.fill();
+
+            // 3. Draw Pendulum Plate (Solid, Slotted, or Plastic)
+            pendCtx.save();
+            pendCtx.translate(plateX, plateY);
+            pendCtx.rotate(-pendulum.angle);
+
+            const pWidth = 50;
+            const pHeight = 60;
+
+            if (pendulum.plateType === 'plastic') {
+                pendCtx.fillStyle = 'rgba(251, 191, 36, 0.7)';
+                pendCtx.strokeStyle = '#d97706';
+            } else {
+                pendCtx.fillStyle = 'rgba(56, 189, 248, 0.85)';
+                pendCtx.strokeStyle = '#0284c7';
+            }
+            pendCtx.lineWidth = 2;
+
+            if (pendulum.plateType === 'slotted') {
+                // Draw plate with vertical comb slots
+                pendCtx.beginPath();
+                pendCtx.rect(-pWidth / 2, -pHeight / 2, pWidth, 15);
+                const numSlots = 4;
+                const toothW = 6;
+                for (let s = 0; s < numSlots; s++) {
+                    const tx = -pWidth / 2 + 4 + s * 11;
+                    pendCtx.rect(tx, -pHeight / 2 + 15, toothW, pHeight - 15);
+                }
+                pendCtx.fill();
+                pendCtx.stroke();
+            } else {
+                // Solid Plate
+                pendCtx.beginPath();
+                pendCtx.rect(-pWidth / 2, -pHeight / 2, pWidth, pHeight);
+                pendCtx.fill();
+                pendCtx.stroke();
+            }
+
+            // Draw Induced Eddy Current Swirls when passing through field
+            const inMagnetZone = Math.abs(plateX - pivotX) < 35;
+            if (inMagnetZone && pendulum.magnetB > 0 && Math.abs(pendulum.omega) > 0.1) {
+                if (pendulum.plateType === 'solid') {
+                    pendCtx.strokeStyle = '#ef4444';
+                    pendCtx.lineWidth = 2.5;
+                    pendCtx.setLineDash([4, 3]);
+                    pendCtx.beginPath();
+                    pendCtx.ellipse(0, 0, 18, 22, 0, 0, Math.PI * 2);
+                    pendCtx.stroke();
+
+                    // Opposing Force Vector (Lenz's Law Arrow)
+                    const forceDir = -Math.sign(pendulum.omega);
+                    pendCtx.strokeStyle = '#f59e0b';
+                    pendCtx.fillStyle = '#f59e0b';
+                    pendCtx.lineWidth = 3;
+                    pendCtx.setLineDash([]);
+                    pendCtx.beginPath();
+                    pendCtx.moveTo(0, 0);
+                    pendCtx.lineTo(forceDir * 35, 0);
+                    pendCtx.stroke();
+                } else if (pendulum.plateType === 'slotted') {
+                    // Small fragmented loops
+                    pendCtx.strokeStyle = '#f97316';
+                    pendCtx.lineWidth = 1.2;
+                    for (let k = -15; k <= 15; k += 10) {
+                        pendCtx.beginPath();
+                        pendCtx.arc(k, 0, 4, 0, Math.PI * 2);
+                        pendCtx.stroke();
+                    }
+                }
+            }
+
+            pendCtx.restore();
+
+            // Render Chart
+            drawPendulumChart();
+
+            requestAnimationFrame(drawPendulumCanvas);
+        }
+
+        function drawPendulumChart() {
+            const w = chartCanvas.parentElement.clientWidth;
+            const h = chartCanvas.parentElement.clientHeight;
+            chartCanvas.width = w;
+            chartCanvas.height = h;
+
+            chartCtx.clearRect(0, 0, w, h);
+
+            // Draw Center Axis
+            chartCtx.strokeStyle = '#334155';
+            chartCtx.lineWidth = 1;
+            chartCtx.beginPath();
+            chartCtx.moveTo(0, h / 2);
+            chartCtx.lineTo(w, h / 2);
+            chartCtx.stroke();
+
+            if (pendulum.history.length < 2) return;
+
+            chartCtx.strokeStyle = pendulum.plateType === 'solid' ? '#38bdf8' : (pendulum.plateType === 'slotted' ? '#34d399' : '#f59e0b');
+            chartCtx.lineWidth = 2;
+            chartCtx.beginPath();
+
+            const step = w / 200;
+            for (let i = 0; i < pendulum.history.length; i++) {
+                const x = i * step;
+                const y = h / 2 - (pendulum.history[i] / 75) * (h / 2 - 10);
+                if (i === 0) chartCtx.moveTo(x, y);
+                else chartCtx.lineTo(x, y);
+            }
+            chartCtx.stroke();
+        }
+
+        /* ====================================================================
+         * MODULE 3: HYSTERESIS LOSS & B-H LOOP EXPLORER
+         * ==================================================================== */
+        let hystState = {
+            mode: 'auto', // 'auto' or 'manual'
+            material: 'siliconSteel',
+            freq: 50,
+            H: 0,
+            time: 0,
+            historyB: [],
+            historyH: []
+        };
+
+        const materialParams = {
+            softIron: { Br: 0.9, Hc: 30, Bsat: 1.4, Hmax: 200, name: 'Soft Iron' },
+            siliconSteel: { Br: 1.15, Hc: 45, Bsat: 1.6, Hmax: 220, name: 'CRGO Silicon Steel' },
+            hardSteel: { Br: 0.75, Hc: 120, Bsat: 1.2, Hmax: 280, name: 'Hard Carbon Steel' }
+        };
+
+        const bhCanvas = document.getElementById('bhCanvas');
+        const bhCtx = bhCanvas.getContext('2d');
+        const domainCanvas = document.getElementById('domainCanvas');
+        const domainCtx = domainCanvas.getContext('2d');
+
+        function setHysteresisMode(mode) {
+            hystState.mode = mode;
+            document.getElementById('btnModeAuto').className = mode === 'auto' ? 'px-3 py-2 text-xs font-bold rounded-xl border border-cyan-500/50 bg-cyan-500/10 text-cyan-300' : 'px-3 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400';
+            document.getElementById('btnModeManual').className = mode === 'manual' ? 'px-3 py-2 text-xs font-bold rounded-xl border border-purple-500/50 bg-purple-500/10 text-purple-300' : 'px-3 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-800 text-slate-400';
+        }
+
+        function changeMaterialPreset() {
+            hystState.material = document.getElementById('selectMaterial').value;
+            updateHysteresisParams();
+        }
+
+        function updateHysteresisParams() {
+            hystState.freq = parseInt(document.getElementById('sliderHystFreq').value);
+            document.getElementById('valHystFreq').innerText = `${hystState.freq} Hz`;
+
+            const mat = materialParams[hystState.material];
+            document.getElementById('metricBr').innerText = `${mat.Br.toFixed(2)} Tesla`;
+            document.getElementById('metricHc').innerText = `${mat.Hc} A/m`;
+
+            // Compute loop area (Energy loss J/m3)
+            const approxArea = Math.PI * mat.Br * mat.Hc * 1.8;
+            const powerLoss = approxArea * hystState.freq / 1000; // kW/m3
+
+            document.getElementById('metricArea').innerText = `${Math.round(approxArea)} J/m³`;
+            document.getElementById('metricPh').innerText = `${powerLoss.toFixed(1)} kW/m³`;
+        }
+
+        function updateManualH() {
+            if (hystState.mode !== 'manual') return;
+            hystState.H = parseFloat(document.getElementById('sliderFieldH').value);
+            document.getElementById('valFieldH').innerText = `${Math.round(hystState.H)} A/m`;
+        }
+
+        function initHysteresis() {
+            updateHysteresisParams();
+            drawHysteresisLoop();
+        }
+
+        function computeBfromH(H, mat, isAscending) {
+            // Sigmoidal hysteresis model formula
+            const Hnorm = H / mat.Hmax;
+            let Bbase = mat.Bsat * Math.tanh(1.8 * Hnorm);
+            const lag = (isAscending ? -1 : 1) * (mat.Hc / mat.Hmax) * (1 - Math.pow(Hnorm, 2));
+            let B = Bbase + lag * mat.Br;
+            return Math.max(-mat.Bsat, Math.min(mat.Bsat, B));
+        }
+
+        function drawHysteresisLoop() {
+            if (currentTab !== 'hysteresisTab') return;
+
+            const mat = materialParams[hystState.material];
+
+            if (hystState.mode === 'auto') {
+                hystState.time += (hystState.freq / 50) * 0.04;
+                hystState.H = mat.Hmax * Math.sin(hystState.time);
+                document.getElementById('valFieldH').innerText = `${Math.round(hystState.H)} A/m`;
+                document.getElementById('sliderFieldH').value = hystState.H;
+            }
+
+            const isAscending = Math.cos(hystState.time) >= 0;
+            const currentB = computeBfromH(hystState.H, mat, isAscending);
+
+            // 1. Render B-H Plot Canvas
+            const w = bhCanvas.parentElement.clientWidth;
+            const h = bhCanvas.parentElement.clientHeight;
+            bhCanvas.width = w;
+            bhCanvas.height = h;
+
+            bhCtx.clearRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h / 2;
+            const scaleX = (w * 0.4) / mat.Hmax;
+            const scaleY = (h * 0.4) / mat.Bsat;
+
+            // Draw Axes
+            bhCtx.strokeStyle = '#475569';
+            bhCtx.lineWidth = 1.5;
+            bhCtx.beginPath();
+            bhCtx.moveTo(20, cy); bhCtx.lineTo(w - 20, cy); // H axis
+            bhCtx.moveTo(cx, 20); bhCtx.lineTo(cx, h - 20); // B axis
+            bhCtx.stroke();
+
+            // Axis Labels
+            bhCtx.fillStyle = '#94a3b8';
+            bhCtx.font = '11px Inter';
+            bhCtx.fillText('+H (A/m)', w - 55, cy - 8);
+            bhCtx.fillText('+B (Tesla)', cx + 8, 25);
+
+            // Draw Full Hysteresis Loop
+            bhCtx.strokeStyle = '#c084fc';
+            bhCtx.lineWidth = 3;
+            bhCtx.beginPath();
+
+            const steps = 100;
+            // Ascending branch
+            for (let i = 0; i <= steps; i++) {
+                const H = -mat.Hmax + (2 * mat.Hmax * i) / steps;
+                const B = computeBfromH(H, mat, true);
+                const x = cx + H * scaleX;
+                const y = cy - B * scaleY;
+                if (i === 0) bhCtx.moveTo(x, y);
+                else bhCtx.lineTo(x, y);
+            }
+            // Descending branch
+            for (let i = 0; i <= steps; i++) {
+                const H = mat.Hmax - (2 * mat.Hmax * i) / steps;
+                const B = computeBfromH(H, mat, false);
+                const x = cx + H * scaleX;
+                const y = cy - B * scaleY;
+                bhCtx.lineTo(x, y);
+            }
+            bhCtx.closePath();
+            bhCtx.stroke();
+
+            // Highlight current operating point (H, B)
+            const ptX = cx + hystState.H * scaleX;
+            const ptY = cy - currentB * scaleY;
+
+            bhCtx.fillStyle = '#f43f5e';
+            bhCtx.beginPath();
+            bhCtx.arc(ptX, ptY, 6, 0, Math.PI * 2);
+            bhCtx.fill();
+
+            // 2. Render Magnetic Dipoles Domain Canvas
+            const dw = domainCanvas.parentElement.clientWidth;
+            const dh = domainCanvas.parentElement.clientHeight;
+            domainCanvas.width = dw;
+            domainCanvas.height = dh;
+
+            domainCtx.clearRect(0, 0, dw, dh);
+
+            const rows = 6;
+            const cols = 8;
+            const cellW = dw / cols;
+            const cellH = dh / rows;
+
+            // Alignment angle depends on current B
+            const targetAngle = (currentB / mat.Bsat) * (Math.PI / 2);
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const x = c * cellW + cellW / 2;
+                    const y = r * cellH + cellH / 2;
+
+                    // Add small spatial domain randomness
+                    const randomOffset = Math.sin(r * 3 + c * 5) * 0.3 * (1 - Math.abs(currentB / mat.Bsat));
+                    const dipoleAngle = targetAngle + randomOffset;
+
+                    domainCtx.save();
+                    domainCtx.translate(x, y);
+                    domainCtx.rotate(dipoleAngle);
+
+                    // Draw Dipole Arrow
+                    domainCtx.strokeStyle = '#38bdf8';
+                    domainCtx.fillStyle = '#38bdf8';
+                    domainCtx.lineWidth = 2;
+
+                    domainCtx.beginPath();
+                    domainCtx.moveTo(-12, 0);
+                    domainCtx.lineTo(12, 0);
+                    domainCtx.stroke();
+
+                    // Arrowhead
+                    domainCtx.beginPath();
+                    domainCtx.moveTo(12, 0);
+                    domainCtx.lineTo(6, -4);
+                    domainCtx.lineTo(6, 4);
+                    domainCtx.closePath();
+                    domainCtx.fill();
+
+                    domainCtx.restore();
+                }
+            }
+
+            requestAnimationFrame(drawHysteresisLoop);
+        }
+
+        window.onload = function() {
+            updateCoreParams();
+            resetPendulum();
+            initHysteresis();
+        };
+
+        window.onresize = function() {
+            drawCoreCanvas();
+            drawPendulumCanvas();
+            drawHysteresisLoop();
+        };
+    </script>
+</body>
+</html>
