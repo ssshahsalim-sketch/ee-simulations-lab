@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bluetooth & Fast Nearby Transfer Simulator</title>
+<style>
+  :root{
+    --bg:#0a0e1a;
+    --bg-panel:#0f1729;
+    --bg-panel2:#0c1322;
+    --grid:rgba(34,211,238,0.055);
+    --cyan:#22d3ee;
+    --cyan-dim:#0e7490;
+    --amber:#f0a94e;
+    --amber-dim:#8a5a1e;
+    --red:#ef5b5b;
+    --text:#d7e2f2;
+    --text-dim:#7b8aa8;
+    --border:rgba(34,211,238,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;}
+  body{
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:32px 32px;
+    min-height:100vh;
+  }
+  header{padding:28px 20px 14px;text-align:center;border-bottom:1px solid var(--border);}
+  .brand{font-size:11px;letter-spacing:2.5px;color:var(--amber);text-transform:uppercase;margin-bottom:10px;}
+  h1{margin:0;font-size:clamp(20px,3.4vw,32px);color:var(--cyan);letter-spacing:0.5px;
+     text-shadow:0 0 18px rgba(34,211,238,0.25);}
+  .sub{color:var(--text-dim);margin-top:8px;font-size:13.5px;max-width:680px;margin-left:auto;margin-right:auto;}
+  nav.tabs{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:16px 12px;
+     border-bottom:1px solid var(--border);}
+  .tab{background:var(--bg-panel);color:var(--text-dim);border:1px solid var(--border);
+     padding:9px 16px;font-family:inherit;font-size:12.5px;letter-spacing:0.5px;cursor:pointer;
+     border-radius:3px;transition:all .15s;}
+  .tab:hover{color:var(--text);border-color:var(--cyan);}
+  .tab.active{color:var(--bg);background:var(--cyan);border-color:var(--cyan);font-weight:600;}
+  main{max-width:960px;margin:0 auto;padding:24px 18px 60px;}
+  .panel{display:none;animation:fade .25s ease;}
+  .panel.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+  h2{color:var(--amber);font-size:17px;letter-spacing:0.5px;margin:26px 0 10px;
+     border-left:3px solid var(--amber);padding-left:10px;}
+  h2:first-child{margin-top:0;}
+  p{line-height:1.65;color:var(--text);font-size:14px;}
+  .dim{color:var(--text-dim);}
+  .card{background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:16px 18px;margin:14px 0;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0;}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);}
+  th{color:var(--amber);font-weight:600;font-size:12px;letter-spacing:0.4px;}
+  td{color:var(--text);}
+  td.num{color:var(--cyan);}
+  ul{padding-left:20px;line-height:1.75;font-size:14px;}
+  li{margin-bottom:4px;}
+  .flow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin:18px 0;}
+  .step{background:var(--bg-panel2);border:1px solid var(--border);border-radius:5px;padding:10px 12px;
+     font-size:12px;text-align:center;min-width:120px;}
+  .step .n{color:var(--amber);font-size:11px;letter-spacing:1px;}
+  .arrow{color:var(--cyan);font-size:18px;}
+  svg text{font-family:inherit;}
+  .sim-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media(max-width:720px){.sim-grid{grid-template-columns:1fr;}}
+  .radar-wrap{background:var(--bg-panel2);border:1px solid var(--border);border-radius:6px;padding:12px;
+     display:flex;flex-direction:column;align-items:center;}
+  canvas{max-width:100%;}
+  .controls label{display:block;font-size:11.5px;color:var(--text-dim);letter-spacing:0.5px;margin:12px 0 5px;}
+  select,button.action{width:100%;background:var(--bg-panel);border:1px solid var(--border);color:var(--text);
+     padding:9px 10px;font-family:inherit;font-size:13px;border-radius:4px;}
+  button.action{background:var(--cyan);color:#04222b;font-weight:700;cursor:pointer;letter-spacing:0.5px;
+     margin-top:16px;transition:filter .15s;}
+  button.action:hover{filter:brightness(1.1);}
+  button.action:disabled{background:var(--text-dim);cursor:not-allowed;}
+  .device-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;min-height:30px;}
+  .dev{border:1px solid var(--border);border-radius:4px;padding:7px 10px;font-size:12px;
+     display:flex;justify-content:space-between;cursor:pointer;background:var(--bg-panel);}
+  .dev.sel{border-color:var(--cyan);background:rgba(34,211,238,0.08);}
+  .dev .rssi{color:var(--amber);}
+  .progress-wrap{margin-top:16px;}
+  .bar-outer{height:20px;background:var(--bg-panel2);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .bar-inner{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));transition:width .12s linear;}
+  .stats{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-dim);margin-top:6px;flex-wrap:wrap;gap:6px;}
+  .stats span b{color:var(--amber);}
+  .status-line{font-size:12.5px;color:var(--cyan);margin-top:10px;min-height:18px;}
+  .compare-table{margin-top:14px;font-size:12px;}
+  footer{text-align:center;color:var(--text-dim);font-size:11px;padding:22px 10px 30px;border-top:1px solid var(--border);}
+  .badge{display:inline-block;background:var(--bg-panel2);border:1px solid var(--border);border-radius:3px;
+     padding:2px 7px;font-size:10.5px;color:var(--amber);margin-left:6px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Apna Electromechanic Service — Engineering Tools Suite</div>
+  <h1>Bluetooth &amp; Fast Nearby Transfer Simulator</h1>
+  <p class="sub">How Bluetooth actually moves data, why it feels slow, and how apps like Nearby Share / AirDrop / Xender scan for devices and still transfer fast.</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="learn">01 · How Bluetooth Works</button>
+  <button class="tab" data-tab="slow">02 · Why It's Slow</button>
+  <button class="tab" data-tab="fast">03 · How Fast-Transfer Apps Cheat</button>
+  <button class="tab" data-tab="sim">04 · Live Simulator</button>
+</nav>
+
+<main>
+
+<!-- PANEL 1 -->
+<section id="learn" class="panel active">
+  <h2>The radio layer</h2>
+  <p>Bluetooth runs in the unlicensed 2.4 GHz ISM band, the same band as Wi-Fi and microwave ovens. To avoid colliding with other radios in that crowded band, it uses <b>Adaptive Frequency Hopping (AFH)</b>: classic Bluetooth hops across 79 channels (1 MHz apart), Bluetooth Low Energy (BLE) across 40 channels (2 MHz apart), switching channel roughly 1,600 times a second for Classic. This is great for reliability in noisy environments, but every hop, sync, and re-lock costs time that a fixed-channel radio like Wi-Fi doesn't pay.</p>
+
+  <h2>Two flavours, two jobs</h2>
+  <table>
+    <tr><th>Bluetooth Classic (BR/EDR)</th><th>Bluetooth Low Energy (BLE)</th></tr>
+    <tr><td>Built for continuous streams — audio (A2DP), file transfer (OBEX/SPP)</td><td>Built for small, infrequent bursts — sensors, wearables, beacons</td></tr>
+    <tr><td>Always-on connection, higher power draw</td><td>Sleeps between "connection intervals" to save battery</td></tr>
+    <tr><td>Piconet: 1 master + up to 7 active slaves</td><td>GATT client/server: services made of characteristics</td></tr>
+  </table>
+
+  <h2>Protocol stack</h2>
+  <div class="card">
+    <div class="flow">
+      <div class="step"><div class="n">APP</div>Your file-share app</div>
+      <div class="arrow">↓</div>
+      <div class="step"><div class="n">PROFILE</div>OBEX / SPP (Classic)<br>GATT (BLE)</div>
+      <div class="arrow">↓</div>
+      <div class="step"><div class="n">L2CAP</div>Packet segmentation</div>
+      <div class="arrow">↓</div>
+      <div class="step"><div class="n">LINK LAYER</div>Hopping, ACKs, encryption</div>
+      <div class="arrow">↓</div>
+      <div class="step"><div class="n">RADIO</div>2.4 GHz GFSK</div>
+    </div>
+  </div>
+
+  <h2>Pairing, in short</h2>
+  <ul>
+    <li>Devices <b>advertise</b> (BLE) or become <b>discoverable</b> (Classic) so others can find them by scanning.</li>
+    <li>A <b>pairing</b> exchange negotiates a shared link key, often with a PIN, passkey, or "Just Works" for simple accessories.</li>
+    <li>Once <b>bonded</b>, the key is stored so future connections skip re-pairing and jump straight to an encrypted link.</li>
+  </ul>
+</section>
+
+<!-- PANEL 2 -->
+<section id="slow" class="panel">
+  <h2>Real throughput vs. the marketing number</h2>
+  <p>The number printed on a spec sheet is the <i>air data rate</i> — the raw bit rate of the modulation. What you actually get after overhead, retransmits, and sleep intervals is much lower:</p>
+  <table>
+    <tr><th>Radio</th><th>Air data rate</th><th>Typical real throughput</th></tr>
+    <tr><td>BLE 4.2 (1M PHY)</td><td class="num">1 Mbps</td><td class="num">~100–270 kbps</td></tr>
+    <tr><td>BLE 5.0 (2M PHY)</td><td class="num">2 Mbps</td><td class="num">~700 kbps–1.4 Mbps</td></tr>
+    <tr><td>Bluetooth Classic EDR (2/3 Mbps)</td><td class="num">2–3 Mbps</td><td class="num">~1.5–2.6 Mbps</td></tr>
+    <tr><td>Wi-Fi Direct (802.11n/ac)</td><td class="num">150–866 Mbps</td><td class="num">~30–150 Mbps</td></tr>
+  </table>
+
+  <h2>Where the time actually goes</h2>
+  <ul>
+    <li><b>Small packets:</b> pre-4.2 BLE capped payloads at 20 bytes per packet; even BLE 5's "Data Length Extension" only reaches 251 bytes. Every packet still needs a header, CRC, and an acknowledgement.</li>
+    <li><b>Connection intervals:</b> BLE devices agree to talk only every 7.5 ms–4 s and sleep in between to save power. Fewer wake-ups per second directly caps how much data can move — power efficiency and speed are a deliberate trade-off, not a bug.</li>
+    <li><b>Frequency hopping overhead:</b> re-syncing the hop sequence after interference costs airtime that a fixed-channel link never spends.</li>
+    <li><b>Single active link, half-duplex-ish behaviour:</b> no channel bonding or MIMO like Wi-Fi has — one narrow 1–2 MHz channel carries everything, one packet at a time.</li>
+    <li><b>Shared spectrum:</b> Wi-Fi, microwaves, USB3 emissions, and other Bluetooth devices all crowd the same 2.4 GHz band.</li>
+    <li><b>It was never designed for bulk transfer:</b> Bluetooth's original brief was cable replacement for headsets, mice, and sensors — not moving gigabyte video files.</li>
+  </ul>
+</section>
+
+<!-- PANEL 3 -->
+<section id="fast" class="panel">
+  <h2>The trick: Bluetooth only makes the introduction</h2>
+  <p>Apps like <b>Google Nearby Share / Quick Share</b>, <b>Apple AirDrop</b>, <b>Xender</b>, and <b>ShareIt</b> feel instant partly because the actual bulk data almost never travels over Bluetooth. Bluetooth (usually BLE) is only used to find nearby devices and swap a tiny handshake — then the real transfer happens over a direct Wi-Fi link, which is 10–100x faster.</p>
+
+  <div class="card">
+    <div class="flow">
+      <div class="step"><div class="n">STEP 1</div>BLE advertise / scan<br><span class="dim">discover nearby devices</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">STEP 2</div>Tiny handshake over BT<br><span class="dim">exchange Wi-Fi credentials</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">STEP 3</div>Open Wi-Fi Direct / P2P link<br><span class="dim">device-to-device, no router</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">STEP 4</div>Bulk transfer over Wi-Fi<br><span class="dim">tens of Mbps</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">STEP 5</div>Tear down link<br><span class="dim">back to BLE standby</span></div>
+    </div>
+  </div>
+
+  <h2>Who does what, under the hood</h2>
+  <table>
+    <tr><th>App</th><th>Discovery</th><th>Bulk transfer path</th></tr>
+    <tr><td>Google Nearby Share</td><td class="num">BLE</td><td class="num">Wi-Fi Direct / WLAN</td></tr>
+    <tr><td>Apple AirDrop</td><td class="num">BLE</td><td class="num">Apple Wireless Direct Link (peer-to-peer Wi-Fi)</td></tr>
+    <tr><td>Xender / ShareIt</td><td class="num">BLE / local network scan</td><td class="num">Wi-Fi hotspot one phone creates</td></tr>
+  </table>
+
+  <h2>A practical tool you can actually use</h2>
+  <p>A browser can't drive real Bluetooth/Wi-Fi Direct device discovery and file transfer the way a native app can — the Web Bluetooth API is limited to specific accessory types and isn't a general file-transfer channel. For genuinely moving files fast between your own devices, these are the real practical options:</p>
+  <ul>
+    <li><b>LocalSend</b> (free, open-source, Windows/Android/iOS/Linux/Mac) — scans your local Wi-Fi network and transfers files directly, no cloud, no cable.</li>
+    <li><b>Snapdrop</b> (snapdrop.net) — works entirely in the browser over your local Wi-Fi, no install needed, good for a quick PC-to-phone transfer.</li>
+    <li><b>Google Quick Share</b> / <b>Apple AirDrop</b> — built into Android and iOS/macOS respectively, same BLE-discover-then-Wi-Fi-transfer approach described above.</li>
+  </ul>
+  <p class="dim">The simulator on the next tab reproduces the same discover-then-switch-channel behaviour so you can see, step by step, why the switch to Wi-Fi is what makes these apps fast.</p>
+</section>
+
+<!-- PANEL 4 -->
+<section id="sim" class="panel">
+  <h2>Live simulator</h2>
+  <p class="dim">Scan for nearby devices, pick a transfer method and file size, then watch how each protocol's real-world throughput and handshake overhead change the total time.</p>
+
+  <div class="sim-grid">
+    <div class="radar-wrap">
+      <canvas id="radar" width="300" height="300"></canvas>
+      <button class="action" id="scanBtn">Scan for nearby devices</button>
+      <div class="device-list" id="devList"></div>
+    </div>
+
+    <div class="controls">
+      <label>Transfer method</label>
+      <select id="protocol">
+        <option value="ble4">Bluetooth LE 4.2</option>
+        <option value="ble5">Bluetooth LE 5.0 (2M PHY)</option>
+        <option value="btclassic" selected>Bluetooth Classic EDR</option>
+        <option value="wifidirect">Wi-Fi Direct (Nearby Share style)</option>
+      </select>
+
+      <label>File to send</label>
+      <select id="filesize">
+        <option value="5">Photo — 5 MB</option>
+        <option value="50" selected>Short video — 50 MB</option>
+        <option value="500">HD video — 500 MB</option>
+        <option value="2000">Backup folder — 2 GB</option>
+      </select>
+
+      <button class="action" id="sendBtn" disabled>Select a device first</button>
+
+      <div class="progress-wrap">
+        <div class="bar-outer"><div class="bar-inner" id="barInner"></div></div>
+        <div class="stats">
+          <span>Speed: <b id="statSpeed">–</b></span>
+          <span>Elapsed: <b id="statElapsed">–</b></span>
+          <span>ETA: <b id="statEta">–</b></span>
+        </div>
+        <div class="status-line" id="statusLine">Idle. Scan, pick a device, then send.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>How this run compares</h2>
+  <table class="compare-table" id="compareTable">
+    <tr><th>Method</th><th>Effective throughput</th><th>Handshake overhead</th><th>Est. time for selected file</th></tr>
+  </table>
+</section>
+
+</main>
+
+<footer>Apna Electromechanic Service — Engineering Tools Suite · Offline single-file simulator · Figures are representative real-world ranges, not guaranteed for any specific device</footer>
+
+<script>
+(function(){
+  // ---------- tabs ----------
+  var tabs = document.querySelectorAll('.tab');
+  var panels = document.querySelectorAll('.panel');
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){
+      tabs.forEach(function(x){x.classList.remove('active');});
+      panels.forEach(function(x){x.classList.remove('active');});
+      t.classList.add('active');
+      document.getElementById(t.dataset.tab).classList.add('active');
+      if(t.dataset.tab === 'sim') refreshCompareTable();
+    });
+  });
+
+  // ---------- protocol data (kbps = kilobits/sec effective; overhead in seconds) ----------
+  var PROTOCOLS = {
+    ble4:      {name:'Bluetooth LE 4.2',            kbps: 180,   overhead: 1.5, jitter: 0.35, color:'#22d3ee'},
+    ble5:      {name:'Bluetooth LE 5.0 (2M PHY)',   kbps: 1000,  overhead: 1.2, jitter: 0.30, color:'#22d3ee'},
+    btclassic: {name:'Bluetooth Classic EDR',       kbps: 2100,  overhead: 2.5, jitter: 0.25, color:'#22d3ee'},
+    wifidirect:{name:'Wi-Fi Direct (Nearby-Share style)', kbps: 90000, overhead: 4.0, jitter: 0.15, color:'#f0a94e'}
+  };
+
+  function fmtTime(s){
+    if(s < 1) return (s*1000).toFixed(0)+' ms';
+    if(s < 60) return s.toFixed(1)+' s';
+    if(s < 3600) return Math.floor(s/60)+'m '+Math.round(s%60)+'s';
+    return (s/3600).toFixed(1)+' h';
+  }
+  function fmtSpeed(kbps){
+    if(kbps >= 8000) return (kbps/8000).toFixed(1)+' MB/s';
+    return (kbps/8).toFixed(0)+' KB/s';
+  }
+  function estimateSeconds(protoKey, sizeMB){
+    var p = PROTOCOLS[protoKey];
+    var bits = sizeMB * 8 * 1024; // kilobits
+    return p.overhead + (bits / p.kbps);
+  }
+
+  function refreshCompareTable(){
+    var sizeMB = parseFloat(document.getElementById('filesize').value);
+    var table = document.getElementById('compareTable');
+    table.innerHTML = '<tr><th>Method</th><th>Effective throughput</th><th>Handshake overhead</th><th>Est. time for selected file</th></tr>';
+    Object.keys(PROTOCOLS).forEach(function(key){
+      var p = PROTOCOLS[key];
+      var t = estimateSeconds(key, sizeMB);
+      var row = document.createElement('tr');
+      row.innerHTML = '<td>'+p.name+'</td><td class="num">'+fmtSpeed(p.kbps)+'</td>' +
+        '<td class="num">'+p.overhead.toFixed(1)+' s</td><td class="num">'+fmtTime(t)+'</td>';
+      table.appendChild(row);
+    });
+  }
+  document.getElementById('filesize').addEventListener('change', refreshCompareTable);
+  document.getElementById('protocol').addEventListener('change', refreshCompareTable);
+  refreshCompareTable();
+
+  // ---------- radar ----------
+  var canvas = document.getElementById('radar');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height, cx = W/2, cy = H/2, R = W/2 - 12;
+  var sweepAngle = 0;
+  var scanning = false;
+  var blips = []; // {name, angle, dist, rssi, revealed}
+  var animId = null;
+
+  var DEVICE_NAMES = ['Pixel 9','Galaxy Tab','ThinkPad X1','iPhone 15','MacBook Air','Redmi Note','iPad Pro','Desktop-PC'];
+
+  function drawRadar(){
+    ctx.clearRect(0,0,W,H);
+    // rings
+    ctx.strokeStyle = 'rgba(34,211,238,0.18)';
+    ctx.lineWidth = 1;
+    for(var i=1;i<=4;i++){
+      ctx.beginPath();
+      ctx.arc(cx,cy,R*i/4,0,Math.PI*2);
+      ctx.stroke();
+    }
+    // crosshairs
+    ctx.beginPath();
+    ctx.moveTo(cx-R,cy); ctx.lineTo(cx+R,cy);
+    ctx.moveTo(cx,cy-R); ctx.lineTo(cx,cy+R);
+    ctx.stroke();
+
+    // sweep
+    if(scanning){
+      var grad = ctx.createLinearGradient(cx,cy,cx+R*Math.cos(sweepAngle),cy+R*Math.sin(sweepAngle));
+      grad.addColorStop(0,'rgba(34,211,238,0.35)');
+      grad.addColorStop(1,'rgba(34,211,238,0)');
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,R,sweepAngle-0.5,sweepAngle);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.lineTo(cx+R*Math.cos(sweepAngle), cy+R*Math.sin(sweepAngle));
+      ctx.stroke();
+    }
+
+    // blips
+    blips.forEach(function(b){
+      if(!b.revealed) return;
+      var x = cx + b.dist*R*Math.cos(b.angle);
+      var y = cy + b.dist*R*Math.sin(b.angle);
+      ctx.beginPath();
+      ctx.arc(x,y,5,0,Math.PI*2);
+      ctx.fillStyle = '#f0a94e';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x,y,9,0,Math.PI*2);
+      ctx.strokeStyle = 'rgba(240,169,78,0.5)';
+      ctx.stroke();
+    });
+
+    // center dot (you)
+    ctx.beginPath();
+    ctx.arc(cx,cy,4,0,Math.PI*2);
+    ctx.fillStyle = '#d7e2f2';
+    ctx.fill();
+  }
+
+  function animate(){
+    if(scanning){
+      sweepAngle += 0.06;
+      blips.forEach(function(b){
+        if(!b.revealed && sweepAngleNormDiff(sweepAngle, b.angle) < 0.15){
+          b.revealed = true;
+          addDeviceToList(b);
+        }
+      });
+    }
+    drawRadar();
+    animId = requestAnimationFrame(animate);
+  }
+  function sweepAngleNormDiff(a,b){
+    var TWO_PI = Math.PI*2;
+    a = ((a % TWO_PI)+TWO_PI)%TWO_PI;
+    b = ((b % TWO_PI)+TWO_PI)%TWO_PI;
+    var d = Math.abs(a-b);
+    return Math.min(d, TWO_PI-d);
+  }
+
+  var selectedDevice = null;
+  function addDeviceToList(b){
+    var list = document.getElementById('devList');
+    var el = document.createElement('div');
+    el.className = 'dev';
+    el.innerHTML = '<span>'+b.name+'</span><span class="rssi">'+b.rssi+' dBm</span>';
+    el.addEventListener('click', function(){
+      document.querySelectorAll('.dev').forEach(function(d){d.classList.remove('sel');});
+      el.classList.add('sel');
+      selectedDevice = b;
+      var btn = document.getElementById('sendBtn');
+      btn.disabled = false;
+      btn.textContent = 'Send to '+b.name;
+    });
+    list.appendChild(el);
+  }
+
+  document.getElementById('scanBtn').addEventListener('click', function(){
+    document.getElementById('devList').innerHTML = '';
+    document.getElementById('sendBtn').disabled = true;
+    document.getElementById('sendBtn').textContent = 'Select a device first';
+    selectedDevice = null;
+    blips = [];
+    var count = 3 + Math.floor(Math.random()*4);
+    var usedNames = DEVICE_NAMES.slice().sort(function(){return Math.random()-0.5;}).slice(0,count);
+    usedNames.forEach(function(name){
+      blips.push({
+        name: name,
+        angle: Math.random()*Math.PI*2,
+        dist: 0.3 + Math.random()*0.65,
+        rssi: -1*(40+Math.floor(Math.random()*45)),
+        revealed: false
+      });
+    });
+    scanning = true;
+    document.getElementById('statusLine').textContent = 'Scanning 2.4 GHz band for advertising devices...';
+    setTimeout(function(){
+      scanning = false;
+      document.getElementById('statusLine').textContent = blips.length + ' device(s) found. Select one to continue.';
+    }, 3200);
+  });
+
+  if(!animId) animate();
+
+  // ---------- transfer simulation ----------
+  var transferring = false;
+  document.getElementById('sendBtn').addEventListener('click', function(){
+    if(transferring || !selectedDevice) return;
+    transferring = true;
+    var protoKey = document.getElementById('protocol').value;
+    var proto = PROTOCOLS[protoKey];
+    var sizeMB = parseFloat(document.getElementById('filesize').value);
+    var totalKbits = sizeMB * 8 * 1024;
+    var bar = document.getElementById('barInner');
+    var statusLine = document.getElementById('statusLine');
+    var statSpeed = document.getElementById('statSpeed');
+    var statElapsed = document.getElementById('statElapsed');
+    var statEta = document.getElementById('statEta');
+    bar.style.width = '0%';
+    bar.style.background = protoKey === 'wifidirect'
+      ? 'linear-gradient(90deg,#8a5a1e,#f0a94e)'
+      : 'linear-gradient(90deg,#0e7490,#22d3ee)';
+
+    var sendBtn = document.getElementById('sendBtn');
+    sendBtn.disabled = true;
+
+    var startOverhead = performance.now();
+    statusLine.textContent = 'Connecting to '+selectedDevice.name+' via '+proto.name+' — negotiating link...';
+
+    setTimeout(function(){
+      statusLine.textContent = 'Link established. Transferring over '+proto.name+'...';
+      var sentKbits = 0;
+      var startTransfer = performance.now();
+
+      var tick = setInterval(function(){
+        var instKbps = proto.kbps * (1 - proto.jitter/2 + Math.random()*proto.jitter);
+        var deltaKbits = instKbps * 0.1; // per 100ms tick
+        sentKbits += deltaKbits;
+        var pct = Math.min(100, (sentKbits/totalKbits)*100);
+        bar.style.width = pct.toFixed(1)+'%';
+
+        var elapsedS = (performance.now()-startTransfer)/1000;
+        var remainKbits = Math.max(0, totalKbits - sentKbits);
+        var etaS = remainKbits / (proto.kbps);
+
+        statSpeed.textContent = fmtSpeed(instKbps);
+        statElapsed.textContent = fmtTime(elapsedS + proto.overhead);
+        statEta.textContent = pct >= 100 ? '0 s' : fmtTime(etaS);
+
+        if(pct >= 100){
+          clearInterval(tick);
+          transferring = false;
+          sendBtn.disabled = false;
+          var totalS = (performance.now()-startOverhead)/1000;
+          statusLine.textContent = 'Done — '+sizeMB+' MB sent to '+selectedDevice.name+' in '+fmtTime(totalS)+' via '+proto.name+'.';
+        }
+      }, 100);
+    }, proto.overhead*1000);
+  });
+
+})();
+</script>
+</body>
+</html>
