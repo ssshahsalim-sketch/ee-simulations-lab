@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive DC Motor Engineering Simulator & Virtual Lab</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        amber: { 500: '#f59e0b', 600: '#d97706' },
+                        emerald: { 500: '#10b981', 600: '#059669' },
+                        rose: { 500: '#f43f5e', 600: '#e11d48' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        /* Glowing effects for engineering instruments */
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
+        }
+        .glow-amber {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.35);
+        }
+        .glow-rose {
+            box-shadow: 0 0 15px rgba(244, 63, 94, 0.35);
+        }
+        /* Custom knob / slider styles */
+        input[type=range] {
+            accent-color: #0284c7;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden selection:bg-sky-500 selection:text-white">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md px-4 py-2.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20">
+                <i class="fa-solid fa-bolt text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-none tracking-tight text-white flex items-center gap-2">
+                    DC MOTOR LAB <span class="bg-sky-500/20 text-sky-400 text-xs px-2 py-0.5 rounded border border-sky-500/30">v3.5 PRO</span>
+                </h1>
+                <p class="text-xs text-slate-400 mt-0.5">Interactive Electromagnetic & Dynamic Simulator</p>
+            </div>
+        </div>
+
+        <!-- Controls Toolbar -->
+        <div class="flex items-center space-x-2 md:space-x-3">
+            <!-- Global Run / Stop Button -->
+            <button id="btn-toggle-run" onclick="toggleMotorRun()" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition flex items-center space-x-1.5 shadow-md shadow-emerald-600/30">
+                <i class="fa-solid fa-play" id="icon-run-state"></i>
+                <span id="text-run-state">START MOTOR</span>
+            </button>
+
+            <!-- Step Mode / Teach Me -->
+            <button onclick="startStepByStepGuide()" class="px-3 py-1.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-500 text-white font-medium text-xs transition flex items-center space-x-1.5 border border-indigo-400/30">
+                <i class="fa-solid fa-graduation-cap"></i>
+                <span class="hidden sm:inline">Teach Me</span>
+            </button>
+
+            <!-- Mode Selector (Beginner / Engineering) -->
+            <div class="bg-slate-800 p-0.5 rounded-lg border border-slate-700 flex text-xs">
+                <button id="mode-beginner" onclick="setLearningMode('beginner')" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">Beginner</button>
+                <button id="mode-engineering" onclick="setLearningMode('engineering')" class="px-2.5 py-1 rounded-md bg-sky-600 text-white font-medium shadow-sm transition">Engineering</button>
+            </div>
+
+            <!-- Reset Simulation -->
+            <button onclick="resetSimulation()" title="Reset All Parameters" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+
+            <!-- Light/Dark Mode Toggle (Visual switch) -->
+            <button onclick="toggleTheme()" title="Toggle Theme" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition">
+                <i class="fa-solid fa-moon" id="theme-icon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE CONTAINER -->
+    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        
+        <!-- SIDEBAR: MODULE ROADMAP & NAVIGATION -->
+        <aside id="sidebar-roadmap" class="w-full lg:w-72 bg-slate-900/60 border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto max-h-[30vh] lg:max-h-none">
+            <div class="p-3 border-b border-slate-800 flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-list-check text-sky-400"></i> Learning Roadmap
+                </span>
+                <span id="module-progress-badge" class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700 font-mono">1 / 25</span>
+            </div>
+            
+            <nav class="p-2 space-y-1 text-xs" id="module-nav-list">
+                <!-- Navigation modules populated dynamically by JS -->
+            </nav>
+        </aside>
+
+        <!-- CENTER & RIGHT CONTENT AREA -->
+        <main class="flex-1 flex flex-col overflow-y-auto bg-slate-950 p-3 lg:p-4 space-y-4">
+            
+            <!-- TOP VIEWPORT & CONTROLS SECTION -->
+            <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+                
+                <!-- MAIN CANVAS / VISUALIZER WINDOW (xl:col-span-7) -->
+                <div class="xl:col-span-7 bg-slate-900 rounded-xl border border-slate-800 p-3 flex flex-col space-y-3 shadow-xl relative">
+                    
+                    <!-- Visualizer View Tabs -->
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 overflow-x-auto gap-1">
+                        <div class="flex items-center space-x-1" id="visualizer-tabs">
+                            <button onclick="setActiveView('cross-section')" id="tab-cross-section" class="px-3 py-1 rounded-lg text-xs font-semibold bg-sky-600 text-white transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-notch"></i> Cross-Section
+                            </button>
+                            <button onclick="setActiveView('commutator')" id="tab-commutator" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrows-spin"></i> Commutator
+                            </button>
+                            <button onclick="setActiveView('fleming')" id="tab-fleming" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-hand-back-fist"></i> Fleming's Rule
+                            </button>
+                            <button onclick="setActiveView('circuit')" id="tab-circuit" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-diagram-project"></i> Circuit Schematic
+                            </button>
+                            <button onclick="setActiveView('power-flow')" id="tab-power-flow" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-chart-pie"></i> Energy Flow
+                            </button>
+                        </div>
+
+                        <!-- Canvas overlays controls -->
+                        <div class="flex items-center space-x-2 text-xs">
+                            <label class="flex items-center gap-1 cursor-pointer text-slate-400 hover:text-slate-200">
+                                <input type="checkbox" id="chk-show-vectors" checked onchange="requestRender()" class="rounded bg-slate-800 border-slate-700 text-sky-500">
+                                Vectors
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer text-slate-400 hover:text-slate-200">
+                                <input type="checkbox" id="chk-show-flux" checked onchange="requestRender()" class="rounded bg-slate-800 border-slate-700 text-sky-500">
+                                Flux Lines
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Container -->
+                    <div class="relative w-full aspect-[4/3] sm:aspect-[16/10] bg-slate-950 rounded-lg overflow-hidden border border-slate-800/80 flex items-center justify-center">
+                        <canvas id="motor-canvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+                        
+                        <!-- Floating Speed & Direction Indicator Overlay -->
+                        <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/80 text-xs font-mono space-y-0.5 pointer-events-none">
+                            <div class="text-sky-400 font-bold flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                                <span id="overlay-rpm">0.0 RPM</span>
+                            </div>
+                            <div class="text-slate-400 text-[10px]" id="overlay-dir">Direction: Clockwise (CW)</div>
+                        </div>
+
+                        <!-- Rotor Angle Slider overlay (manual step inspection) -->
+                        <div class="absolute bottom-3 left-3 right-3 bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-lg border border-slate-700 flex items-center gap-3 text-xs">
+                            <span class="text-slate-400 font-medium shrink-0">Manual Position:</span>
+                            <input type="range" id="slider-manual-angle" min="0" max="360" value="0" step="1" oninput="onManualAngleInput(this.value)" class="flex-1">
+                            <span id="label-angle-deg" class="font-mono text-sky-400 w-12 text-right">0°</span>
+                        </div>
+                    </div>
+
+                    <!-- Visualizer Legend Bar -->
+                    <div class="flex flex-wrap items-center justify-between text-[11px] text-slate-400 px-1 gap-2">
+                        <div class="flex items-center gap-3">
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block"></span> Magnetic Flux (Φ)</span>
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Armature Current (Ia)</span>
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Developed Force (F)</span>
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span> Rotation (ω)</span>
+                        </div>
+                        <div class="text-slate-500 italic">Drag rotor angle when motor is paused</div>
+                    </div>
+                </div>
+
+                <!-- INSTRUMENTS & CONTROL PANEL (xl:col-span-5) -->
+                <div class="xl:col-span-5 flex flex-col space-y-4">
+                    
+                    <!-- DIGITAL METER DASHBOARD -->
+                    <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 space-y-2.5 shadow-xl">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-gauge-high text-amber-400"></i> Virtual Instrument Panel
+                            </h2>
+                            <span class="text-[10px] text-slate-400 font-mono">SI UNITS REAL-TIME</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono">
+                            <!-- Voltage Meter -->
+                            <div class="bg-slate-950 p-2 rounded-lg border border-slate-800 text-center">
+                                <div class="text-[10px] text-slate-400 font-sans">Terminal Voltage (V)</div>
+                                <div id="meter-v" class="text-lg font-bold text-sky-400 mt-0.5">220.0 V</div>
+                            </div>
+                            <!-- Armature Current -->
+                            <div class="bg-slate-950 p-2 rounded-lg border border-slate-800 text-center">
+                                <div class="text-[10px] text-slate-400 font-sans">Armature Current (Ia)</div>
+                                <div id="meter-ia" class="text-lg font-bold text-rose-400 mt-0.5">0.00 A</div>
+                            </div>
+                            <!-- Back EMF -->
+                            <div class="bg-slate-950 p-2 rounded-lg border border-slate-800 text-center">
+                                <div class="text-[10px] text-slate-400 font-sans">Back EMF (Eb)</div>
+                                <div id="meter-eb" class="text-lg font-bold text-emerald-400 mt-0.5">0.00 V</div>
+                            </div>
+                            <!-- Speed Tachometer -->
+                            <div class="bg-slate-950 p-2 rounded-lg border border-slate-800 text-center">
+                                <div class="text-[10px] text-slate-400 font-sans">Rotor Speed (N)</div>
+                                <div id="meter-rpm" class="text-lg font-bold text-amber-400 mt-0.5">0 RPM</div>
+                            </div>
+                            <!-- Shaft Torque -->
+                            <div class="bg-slate-950 p-2 rounded-lg border border-slate-800 text-center">
+                                <div class="text-[10px] text-slate-400 font-sans">Torque (Te)</div>
+                                <div id="meter-torque" class="text-lg font-bold text-indigo-400 mt-0.5">0.0 N·m</div>
+                            </div>
+                            <!-- Efficiency -->
+                            <div class="bg-slate-950 p-2 rounded-lg border border-slate-800 text-center">
+                                <div class="text-[10px] text-slate-400 font-sans">Efficiency (η)</div>
+                                <div id="meter-eff" class="text-lg font-bold text-teal-400 mt-0.5">0.0 %</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- OPERATIONAL CONTROLS & SLIDERS -->
+                    <div class="bg-slate-900 rounded-xl border border-slate-800 p-3.5 space-y-3 shadow-xl flex-1 flex flex-col justify-between">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-sliders text-sky-400"></i> Motor Control Parameters
+                            </h2>
+                            <!-- Motor Connection Type Selector -->
+                            <select id="select-motor-type" onchange="updateMotorType(this.value)" class="bg-slate-950 text-sky-400 border border-slate-700 rounded px-2 py-0.5 text-xs font-semibold focus:outline-none focus:border-sky-500">
+                                <option value="shunt">DC Shunt Motor</option>
+                                <option value="series">DC Series Motor</option>
+                                <option value="compound">Compound Motor</option>
+                            </select>
+                        </div>
+
+                        <!-- Sliders Container -->
+                        <div class="space-y-3 text-xs">
+                            <!-- Terminal Voltage Slider -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between font-medium">
+                                    <span class="text-slate-300 flex items-center gap-1">
+                                        <i class="fa-solid fa-plug text-sky-400"></i> Applied Voltage (V):
+                                    </span>
+                                    <span id="val-v" class="font-mono text-sky-400">220 V</span>
+                                </div>
+                                <input type="range" id="ctrl-v" min="0" max="300" value="220" step="5" oninput="updatePhysicsFromControls()" class="w-full">
+                            </div>
+
+                            <!-- Field Flux / Field Rheostat Control -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between font-medium">
+                                    <span class="text-slate-300 flex items-center gap-1">
+                                        <i class="fa-solid fa-magnet text-indigo-400"></i> Field Flux (Φ / Field Current):
+                                    </span>
+                                    <span id="val-flux" class="font-mono text-indigo-400">100 % (1.0 Wb)</span>
+                                </div>
+                                <input type="range" id="ctrl-flux" min="20" max="150" value="100" step="1" oninput="updatePhysicsFromControls()" class="w-full">
+                            </div>
+
+                            <!-- External Armature Resistance (Speed Control / Starter) -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between font-medium">
+                                    <span class="text-slate-300 flex items-center gap-1">
+                                        <i class="fa-solid fa-resistor text-rose-400"></i> Series Control Rheostat (Radj):
+                                    </span>
+                                    <span id="val-radj" class="font-mono text-rose-400">0.0 Ω</span>
+                                </div>
+                                <input type="range" id="ctrl-radj" min="0" max="25" value="0" step="0.5" oninput="updatePhysicsFromControls()" class="w-full">
+                            </div>
+
+                            <!-- Mechanical Shaft Load Torque -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between font-medium">
+                                    <span class="text-slate-300 flex items-center gap-1">
+                                        <i class="fa-solid fa-weight-hanging text-amber-400"></i> Shaft Load Torque (TL):
+                                    </span>
+                                    <span id="val-load" class="font-mono text-amber-400">15.0 N·m</span>
+                                </div>
+                                <input type="range" id="ctrl-load" min="0" max="100" value="15" step="1" oninput="updatePhysicsFromControls()" class="w-full">
+                            </div>
+                        </div>
+
+                        <!-- Quick Scenario Buttons -->
+                        <div class="pt-2 border-t border-slate-800 grid grid-cols-3 gap-2 text-[11px]">
+                            <button onclick="setScenario('start')" class="px-2 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition text-center">
+                                Direct Start
+                            </button>
+                            <button onclick="setScenario('overload')" class="px-2 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition text-center">
+                                Heavy Load
+                            </button>
+                            <button onclick="setScenario('weakening')" class="px-2 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition text-center">
+                                Field Weakening
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECOND ROW: LIVE OSCILLOSCOPE GRAPHS & REAL-TIME "WHAT IS HAPPENING?" EXPLANATION -->
+            <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+                
+                <!-- OSCILLOSCOPE & DYNAMIC GRAPHS (xl:col-span-7) -->
+                <div class="xl:col-span-7 bg-slate-900 rounded-xl border border-slate-800 p-3.5 space-y-3 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-wave-square text-sky-400"></i>
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Real-Time Oscilloscope & Dynamic Curves</h2>
+                        </div>
+                        <div class="flex items-center space-x-1" id="graph-tabs">
+                            <button onclick="setGraphMode('time')" id="gtab-time" class="px-2.5 py-0.5 rounded text-xs font-semibold bg-sky-600 text-white transition">Transient vs Time</button>
+                            <button onclick="setGraphMode('n-t')" id="gtab-n-t" class="px-2.5 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition">Speed vs Torque</button>
+                            <button onclick="setGraphMode('t-i')" id="gtab-t-i" class="px-2.5 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition">Torque vs Ia</button>
+                            <button onclick="setGraphMode('eff')" id="gtab-eff" class="px-2.5 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition">Efficiency vs Load</button>
+                        </div>
+                    </div>
+
+                    <div class="relative w-full h-56 bg-slate-950 rounded-lg overflow-hidden border border-slate-800 p-1">
+                        <canvas id="graph-canvas" class="w-full h-full block"></canvas>
+                    </div>
+
+                    <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                        <div class="flex items-center gap-3">
+                            <span class="text-sky-400">─ Speed (RPM)</span>
+                            <span class="text-rose-400">─ Armature Current (A)</span>
+                            <span class="text-emerald-400">─ Back EMF (V)</span>
+                            <span class="text-amber-400">─ Torque (N·m)</span>
+                        </div>
+                        <button onclick="clearGraphHistory()" class="text-slate-500 hover:text-slate-300 underline">Clear Graph</button>
+                    </div>
+                </div>
+
+                <!-- DYNAMIC "WHAT IS HAPPENING RIGHT NOW?" EXPLANATION PANEL (xl:col-span-5) -->
+                <div class="xl:col-span-5 bg-slate-900 rounded-xl border border-slate-800 p-4 space-y-3 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Live Physics Diagnostic
+                            </h2>
+                            <span id="physics-state-tag" class="text-[10px] bg-sky-500/20 text-sky-400 px-2 py-0.5 rounded font-mono border border-sky-500/30">STEADY STATE</span>
+                        </div>
+
+                        <!-- Main Physics Explanation Box -->
+                        <div id="live-explanation-box" class="space-y-2 text-xs text-slate-300 leading-relaxed">
+                            <p class="font-semibold text-white" id="live-exp-title">Motor operating normally in steady-state.</p>
+                            <p id="live-exp-body">
+                                The generated back EMF <span class="font-mono text-emerald-400">(Eb = k·Φ·ω)</span> almost balances the terminal voltage <span class="font-mono text-sky-400">(V)</span>. The armature draws just enough current <span class="font-mono text-rose-400">Ia = (V - Eb)/Ra</span> to produce electromagnetic torque that matches the mechanical load and friction losses.
+                            </p>
+                            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 font-mono text-[11px] space-y-1 text-slate-400">
+                                <div>Applied Voltage (V): <span id="exp-v" class="text-sky-400">220.0 V</span></div>
+                                <div>Back EMF (Eb): <span id="exp-eb" class="text-emerald-400">205.2 V</span></div>
+                                <div>Net Armature Voltage Drop (V - Eb): <span id="exp-vdrop" class="text-rose-400">14.8 V</span></div>
+                                <div>Equilibrium Current (Ia): <span id="exp-ia" class="text-rose-400">29.6 A</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Common Misconception / Key Takeaway Card -->
+                    <div class="bg-sky-950/40 border border-sky-800/40 p-2.5 rounded-lg text-[11px] text-sky-200 flex items-start space-x-2">
+                        <i class="fa-solid fa-lightbulb text-amber-400 text-sm mt-0.5 shrink-0"></i>
+                        <div>
+                            <span class="font-bold text-amber-300">Remember This:</span>
+                            <span id="live-exp-tip">Back EMF acts as a natural self-regulating governor. As motor speed drops under load, Eb decreases, forcing armature current to increase to match the required torque.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- THIRD ROW: DETAILED MODULE THEORY, FAULTS, MINI-EXPERIMENTS & QUIZ -->
+            <div class="bg-slate-900 rounded-xl border border-slate-800 p-4 shadow-xl">
+                <!-- Bottom Tab Navigation -->
+                <div class="flex flex-wrap items-center justify-between border-b border-slate-800 pb-3 gap-2">
+                    <div class="flex items-center space-x-1 overflow-x-auto text-xs font-semibold" id="bottom-tabs">
+                        <button onclick="setBottomTab('theory')" id="btab-theory" class="px-3 py-1.5 rounded-lg bg-sky-600 text-white transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-book-open"></i> Module Theory
+                        </button>
+                        <button onclick="setBottomTab('faults')" id="btab-faults" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Fault Simulator
+                        </button>
+                        <button onclick="setBottomTab('experiments')" id="btab-experiments" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-vial"></i> Interactive Experiments
+                        </button>
+                        <button onclick="setBottomTab('formulas')" id="btab-formulas" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-square-root-variable"></i> Formula Reference
+                        </button>
+                        <button onclick="setBottomTab('quiz')" id="btab-quiz" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-question"></i> Quiz & Assessment
+                        </button>
+                        <button onclick="setBottomTab('applications')" id="btab-applications" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-industry"></i> Practical Applications
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bottom Tab Contents -->
+                <div class="pt-4 text-xs" id="bottom-tab-content">
+                    
+                    <!-- TAB 1: MODULE THEORY (Populated based on selected sidebar module) -->
+                    <div id="content-theory" class="space-y-4">
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <!-- Left: Module Content Breakdown -->
+                            <div class="flex-1 space-y-3">
+                                <h3 id="module-title" class="text-base font-bold text-sky-400 flex items-center gap-2">
+                                    1. DC Motor Fundamentals
+                                </h3>
+                                
+                                <!-- Three Explanation Levels Tabs -->
+                                <div class="space-y-2">
+                                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                        <h4 class="font-bold text-emerald-400 mb-1 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-seedling"></i> Simple Explanation
+                                        </h4>
+                                        <p id="theory-simple" class="text-slate-300 leading-relaxed">
+                                            A DC motor is an electrical machine that converts direct current (DC) electrical energy into rotating mechanical power. Think of it like a magnet pushing against an electromagnet—by continuously switching the electric current, we keep the rotor spinning forever!
+                                        </p>
+                                    </div>
+
+                                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                        <h4 class="font-bold text-sky-400 mb-1 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-microchip"></i> Technical Engineering Explanation
+                                        </h4>
+                                        <p id="theory-tech" class="text-slate-300 leading-relaxed">
+                                            When a current-carrying conductor is immersed in a stationary magnetic field produced by the stator, Lorentz electromagnetic force (F = B·I·L·sinθ) acts on the conductor. Due to the armature symmetry, these forces form an electromagnetic torque pair (Te = k·Φ·Ia). As the rotor turns, the mechanical commutator flips the armature current polarity every half-cycle to maintain unidirectional torque.
+                                        </p>
+                                    </div>
+
+                                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                        <h4 class="font-bold text-amber-400 mb-1 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-square-root-variable"></i> Mathematical Derivation
+                                        </h4>
+                                        <div id="theory-math" class="font-mono text-slate-300 space-y-1">
+                                            <div>Electromagnetic Force: F = B · I · L · sin(θ)</div>
+                                            <div>Electromagnetic Torque: Te = k · Φ · Ia</div>
+                                            <div>Back EMF Equation: Eb = (P · Z · Φ · N) / (60 · A) = k · Φ · ω</div>
+                                            <div>Armature Voltage Balance: V = Eb + Ia · Ra</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right: Key Misconceptions & Summary Cards -->
+                            <div class="w-full md:w-80 space-y-3 shrink-0">
+                                <div class="bg-rose-950/30 border border-rose-900/40 p-3 rounded-lg">
+                                    <h4 class="font-bold text-rose-400 mb-1 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> Common Misconception
+                                    </h4>
+                                    <p id="theory-misconception" class="text-rose-200 text-[11px] leading-relaxed">
+                                        "Back EMF is a loss of energy." FALSE! Back EMF is actually the electrical reflection of mechanical power output (Pmech = Eb · Ia). Without Back EMF, a motor would draw infinite current and burn out!
+                                    </p>
+                                </div>
+
+                                <div class="bg-indigo-950/30 border border-indigo-900/40 p-3 rounded-lg">
+                                    <h4 class="font-bold text-indigo-400 mb-1 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-bookmark"></i> Key Engineering Rule
+                                    </h4>
+                                    <p id="theory-rule" class="text-indigo-200 text-[11px] leading-relaxed">
+                                        NEVER start a large DC motor directly across full line voltage without starting resistance or a soft starter, because at speed N=0, back EMF Eb=0, resulting in a dangerous starting current spike Ia = V / Ra (up to 10-20x rated current)!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: FAULT SIMULATION PANEL -->
+                    <div id="content-faults" class="hidden space-y-3">
+                        <div class="text-slate-300 mb-2">
+                            Select a simulated electrical or mechanical fault below to observe real-time symptoms, meter changes, and diagnostic steps:
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                            <button onclick="injectFault('none')" class="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-left transition">
+                                <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-check-circle"></i> Normal Operation
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-1">Clear all active faults.</div>
+                            </button>
+
+                            <button onclick="injectFault('open_field')" class="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-left transition">
+                                <div class="font-bold text-rose-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-bolt-lightning"></i> Open Field Winding
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-1">Φ → 0 Wb (Dangerous runaway speed / over-current).</div>
+                            </button>
+
+                            <button onclick="injectFault('high_ra')" class="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-left transition">
+                                <div class="font-bold text-amber-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-fire"></i> High Brush Resistance
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-1">Worn carbon brushes increase Ra significantly.</div>
+                            </button>
+
+                            <button onclick="injectFault('locked_rotor')" class="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-left transition">
+                                <div class="font-bold text-rose-500 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-lock"></i> Mechanical Rotor Stall
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-1">Excessive load prevents rotation (N=0, Eb=0).</div>
+                            </button>
+                        </div>
+
+                        <!-- Active Fault Diagnostic Card -->
+                        <div id="fault-diagnostic-card" class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2 mt-3">
+                            <div class="font-bold text-sky-400 flex items-center gap-2" id="fault-name">
+                                Active State: Normal Operation
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                                <div>
+                                    <span class="font-semibold text-slate-300">Electrical Symptoms:</span>
+                                    <p id="fault-elec" class="text-slate-400 mt-0.5">Normal current and voltage balance across armature.</p>
+                                </div>
+                                <div>
+                                    <span class="font-semibold text-slate-300">Mechanical Symptoms:</span>
+                                    <p id="fault-mech" class="text-slate-400 mt-0.5">Smooth rotor rotation matching shaft load.</p>
+                                </div>
+                                <div>
+                                    <span class="font-semibold text-emerald-400">Corrective Action:</span>
+                                    <p id="fault-action" class="text-slate-400 mt-0.5">No maintenance required.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: INTERACTIVE EXPERIMENTS & "WHAT IF?" -->
+                    <div id="content-experiments" class="hidden space-y-3">
+                        <div class="text-slate-300 mb-2">
+                            Test your engineering intuition! Select an experiment scenario, predict the outcome, and press "Execute Experiment".
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="experiment-list">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: FORMULA REFERENCE LIBRARY -->
+                    <div id="content-formulas" class="hidden space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 font-mono text-[11px]">
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                                <div class="font-bold text-sky-400 font-sans">1. Lorentz Conductor Force</div>
+                                <div class="text-slate-200">F = B · I · L · sin(θ)</div>
+                                <div class="text-slate-400 text-[10px]">B: Flux density (T), I: Current (A), L: Length (m)</div>
+                            </div>
+
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                                <div class="font-bold text-indigo-400 font-sans">2. Electromagnetic Torque</div>
+                                <div class="text-slate-200">Te = k · Φ · Ia</div>
+                                <div class="text-slate-400 text-[10px]">k = (P·Z)/(2π·A), Φ: Flux (Wb), Ia: Armature Current</div>
+                            </div>
+
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                                <div class="font-bold text-emerald-400 font-sans">3. Back EMF Equation</div>
+                                <div class="text-slate-200">Eb = k · Φ · ω</div>
+                                <div class="text-slate-400 text-[10px]">ω = 2π·N/60 (rad/s), N: Speed (RPM)</div>
+                            </div>
+
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                                <div class="font-bold text-amber-400 font-sans">4. Voltage Balance Equation</div>
+                                <div class="text-slate-200">V = Eb + Ia · (Ra + Radj)</div>
+                                <div class="text-slate-400 text-[10px]">V: Supply, Eb: Back EMF, Ra: Armature Resistance</div>
+                            </div>
+
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                                <div class="font-bold text-rose-400 font-sans">5. Speed Equation</div>
+                                <div class="text-slate-200">N ∝ (V - Ia·Ra) / Φ</div>
+                                <div class="text-slate-400 text-[10px]">Speed is directly proportional to Eb and inversely to Φ</div>
+                            </div>
+
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                                <div class="font-bold text-teal-400 font-sans">6. Power & Efficiency</div>
+                                <div class="text-slate-200">Pout = Te · ω | Pin = V · I_total</div>
+                                <div class="text-slate-400 text-[10px]">η = (Pout / Pin) × 100%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 5: QUIZ & ASSESSMENT SYSTEM -->
+                    <div id="content-quiz" class="hidden space-y-4">
+                        <div class="flex items-center justify-between bg-slate-950 p-3 rounded-lg border border-slate-800">
+                            <div>
+                                <h3 class="font-bold text-sky-400 text-sm">DC Motor Knowledge Assessment</h3>
+                                <p class="text-[11px] text-slate-400">Answer the following questions to verify your understanding of DC motors.</p>
+                            </div>
+                            <div class="text-right font-mono">
+                                <div class="text-xs text-slate-400">Score</div>
+                                <div id="quiz-score-display" class="text-base font-bold text-emerald-400">0 / 0</div>
+                            </div>
+                        </div>
+
+                        <!-- Active Quiz Question Container -->
+                        <div id="quiz-question-box" class="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-3">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- TAB 6: PRACTICAL APPLICATIONS MATRIX -->
+                    <div id="content-applications" class="hidden space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1.5">
+                                <div class="font-bold text-sky-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-elevator"></i> Electric Elevators & Hoists
+                                </div>
+                                <div class="text-xs text-slate-300 font-semibold">Motor Type: Cumulative Compound / Series</div>
+                                <p class="text-[11px] text-slate-400">High starting torque is needed to lift heavy stationary loads from rest, combined with stable speed regulation during travel.</p>
+                            </div>
+
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1.5">
+                                <div class="font-bold text-indigo-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-fan"></i> Industrial Blowers & Lathes
+                                </div>
+                                <div class="text-xs text-slate-300 font-semibold">Motor Type: DC Shunt Motor</div>
+                                <p class="text-[11px] text-slate-400">Requires nearly constant rotational speed despite fluctuating mechanical cut loads or airflow variations.</p>
+                            </div>
+
+                            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1.5">
+                                <div class="font-bold text-amber-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-train"></i> Electric Locomotives & Cranes
+                                </div>
+                                <div class="text-xs text-slate-300 font-semibold">Motor Type: DC Series Motor</div>
+                                <p class="text-[11px] text-slate-400">Provides massive starting torque (Te ∝ Ia²). Note: Must always be connected directly to a mechanical load to prevent overspeed runaway.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- JAVASCRIPT SIMULATION ENGINE -->
+    <script>
+        // Global State & Motor Physics Parameters
+        const state = {
+            isRunning: true,
+            isPaused: false,
+            learningMode: 'engineering', // 'beginner' | 'engineering'
+            activeModuleId: 1,
+            activeView: 'cross-section', // 'cross-section' | 'commutator' | 'fleming' | 'circuit' | 'power-flow'
+            graphMode: 'time', // 'time' | 'n-t' | 't-i' | 'eff'
+            bottomTab: 'theory',
+            
+            // Physical Parameters
+            motorType: 'shunt', // 'shunt' | 'series' | 'compound'
+            V: 220.0,       // Applied Voltage (V)
+            fluxPct: 100,   // Flux percentage (100% = 1.0 Wb)
+            Radj: 0.0,      // Series control resistance (Ohms)
+            TL: 15.0,       // Load torque (N.m)
+            
+            // Internal Motor Constants (2kW Machine)
+            k: 1.25,        // Torque / Back EMF constant
+            Ra: 0.5,        // Armature winding resistance (Ohms)
+            Rf: 220.0,      // Field winding resistance (Ohms)
+            J: 0.08,        // Rotor moment of inertia (kg.m^2)
+            B_friction: 0.02, // Friction coefficient
+            
+            // Dynamic State Variables
+            angle: 0,       // Rotor mechanical angle (radians)
+            omega: 0,       // Angular velocity (rad/s)
+            rpm: 0,         // Rotational speed (RPM)
+            Ia: 0,          // Armature current (A)
+            If: 1.0,        // Field current (A)
+            Eb: 0,          // Back EMF (V)
+            Te: 0,          // Electromagnetic torque (N.m)
+            Pin: 0,         // Input power (W)
+            Pout: 0,        // Mechanical output power (W)
+            eff: 0,         // Efficiency (%)
+            
+            // Fault State
+            activeFault: 'none',
+            
+            // Time History for Graphs
+            historyTime: [],
+            historyRPM: [],
+            historyIa: [],
+            historyEb: [],
+            historyTe: [],
+            maxHistoryLength: 150,
+            
+            // Step Guide State
+            isGuidedTour: false,
+            tourStep: 0
+        };
+
+        // Module definitions list
+        const modulesData = [
+            { id: 1, title: 'DC Motor Fundamentals', icon: 'fa-cube' },
+            { id: 2, title: 'Construction of DC Motor', icon: 'fa-layer-group' },
+            { id: 3, title: 'Magnetic Field & Stator', icon: 'fa-magnet' },
+            { id: 4, title: 'Armature & Rotor Structure', icon: 'fa-circle-notch' },
+            { id: 5, title: 'Commutator & Carbon Brushes', icon: 'fa-arrows-spin' },
+            { id: 6, title: 'Basic DC Motor Circuit', icon: 'fa-diagram-project' },
+            { id: 7, title: 'Working Principle', icon: 'fa-gears' },
+            { id: 8, title: 'Force on Current Conductor', icon: 'fa-hand-back-fist' },
+            { id: 9, title: 'Torque Production (Te = kΦIa)', icon: 'fa-gauge' },
+            { id: 10, title: 'Back EMF Dynamics', icon: 'fa-shield-halved' },
+            { id: 11, title: 'Armature Current Response', icon: 'fa-wave-square' },
+            { id: 12, title: 'Speed-Torque Relationship', icon: 'fa-chart-line' },
+            { id: 13, title: 'Speed Control Methods', icon: 'fa-sliders' },
+            { id: 14, title: 'Starting Current & Starters', icon: 'fa-bolt' },
+            { id: 15, title: 'Motor Characteristic Curves', icon: 'fa-chart-area' },
+            { id: 16, title: 'Types of DC Motors', icon: 'fa-network-wired' },
+            { id: 17, title: 'Losses & Efficiency Flow', icon: 'fa-chart-pie' },
+            { id: 18, title: 'Load Variation Simulation', icon: 'fa-weight-hanging' },
+            { id: 19, title: 'Regenerative Braking', icon: 'fa-rotate-left' },
+            { id: 20, title: 'Dynamic Electric Braking', icon: 'fa-circle-stop' },
+            { id: 21, title: 'Fault Diagnosis & Troubleshoot', icon: 'fa-triangle-exclamation' },
+            { id: 22, title: 'Practical Applications', icon: 'fa-industry' },
+            { id: 23, title: 'Interactive Experiments', icon: 'fa-vial' },
+            { id: 24, title: 'Quiz & Mastery Assessment', icon: 'fa-graduation-cap' }
+        ];
+
+        // Physics Solver Engine (Runs every frame)
+        let lastTimestamp = performance.now();
+        
+        function updatePhysics(dt) {
+            if (!state.isRunning || state.isPaused) {
+                // When motor is stopped/paused, compute static state
+                if (!state.isRunning) {
+                    state.omega = 0;
+                    state.rpm = 0;
+                    state.Eb = 0;
+                    state.Ia = 0;
+                    state.Te = 0;
+                    state.Pout = 0;
+                    state.Pin = 0;
+                    state.eff = 0;
+                }
+                return;
+            }
+
+            // Clamping time step to prevent numerical instability
+            dt = Math.min(dt, 0.05);
+
+            // Effective Field Flux calculation based on Motor Type and Faults
+            let effectiveFlux = (state.fluxPct / 100.0) * 1.0;
+            
+            if (state.activeFault === 'open_field') {
+                effectiveFlux = 0.05; // Residual magnetism only
+            }
+
+            if (state.motorType === 'series') {
+                // In Series Motor, Flux is proportional to Armature Current (Ia)
+                effectiveFlux = Math.min(1.5, 0.08 * state.Ia);
+                if (effectiveFlux < 0.1) effectiveFlux = 0.1; // Residual flux
+            }
+
+            // Calculate Effective Armature Resistance
+            let totalRa = state.Ra + state.Radj;
+            if (state.activeFault === 'high_ra') {
+                totalRa += 4.5; // Additional brush resistance fault
+            }
+
+            // Calculate Back EMF: Eb = k * Φ * ω
+            state.Eb = state.k * effectiveFlux * state.omega;
+
+            // Calculate Armature Current: Ia = (V - Eb) / Total_Ra
+            let netVoltage = state.V - state.Eb;
+            
+            // Electrical circuit current solver
+            state.Ia = netVoltage / totalRa;
+
+            // Locked Rotor Fault
+            if (state.activeFault === 'locked_rotor') {
+                state.omega = 0;
+                state.Eb = 0;
+                state.Ia = state.V / totalRa;
+            }
+
+            // Prevent reverse rotation unless intended
+            if (state.Ia < 0 && state.omega <= 0) {
+                state.Ia = 0;
+            }
+
+            // Calculate Developed Electromagnetic Torque: Te = k * Φ * Ia
+            state.Te = state.k * effectiveFlux * state.Ia;
+
+            // Net Mechanical Torque acting on Rotor Inertia: Tnet = Te - TL - Friction
+            let frictionTorque = state.B_friction * state.omega;
+            let Tnet = state.Te - state.TL - frictionTorque;
+
+            // Accelerate / Decelerate Rotor: d(omega)/dt = Tnet / J
+            if (state.activeFault !== 'locked_rotor') {
+                let dOmega = (Tnet / state.J) * dt;
+                state.omega += dOmega;
+                if (state.omega < 0) state.omega = 0; // Prevent physical negative speed
+            }
+
+            // Convert to Mechanical Angular Angle and RPM
+            state.angle += state.omega * dt;
+            state.angle = state.angle % (2 * Math.PI);
+            state.rpm = state.omega * (60.0 / (2 * Math.PI));
+
+            // Power & Efficiency Calculations
+            state.Pout = state.TL * state.omega; // Mechanical shaft output power (W)
+            
+            // Input Electrical Power
+            let Pfield = (state.V * state.V) / state.Rf;
+            state.Pin = (state.V * state.Ia) + Pfield;
+
+            if (state.Pin > 0 && state.Pout >= 0) {
+                state.eff = Math.min(98.5, (state.Pout / state.Pin) * 100.0);
+            } else {
+                state.eff = 0;
+            }
+
+            // Update Time History for Oscilloscope Graphs
+            updateGraphHistory();
+        }
+
+        function updateGraphHistory() {
+            state.historyTime.push(performance.now() / 1000.0);
+            state.historyRPM.push(state.rpm);
+            state.historyIa.push(state.Ia);
+            state.historyEb.push(state.Eb);
+            state.historyTe.push(state.Te);
+
+            if (state.historyTime.length > state.maxHistoryLength) {
+                state.historyTime.shift();
+                state.historyRPM.shift();
+                state.historyIa.shift();
+                state.historyEb.shift();
+                state.historyTe.shift();
+            }
+        }
+
+        // Main Animation & Visualizer Render Engine
+        let motorCanvas, ctx;
+        let graphCanvas, gctx;
+
+        function initCanvas() {
+            motorCanvas = document.getElementById('motor-canvas');
+            ctx = motorCanvas.getContext('2d');
+            
+            graphCanvas = document.getElementById('graph-canvas');
+            gctx = graphCanvas.getContext('2d');
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        function resizeCanvas() {
+            if (!motorCanvas) return;
+            const rect = motorCanvas.parentElement.getBoundingClientRect();
+            motorCanvas.width = rect.width * window.devicePixelRatio;
+            motorCanvas.height = rect.height * window.devicePixelRatio;
+
+            const grect = graphCanvas.parentElement.getBoundingClientRect();
+            graphCanvas.width = grect.width * window.devicePixelRatio;
+            graphCanvas.height = grect.height * window.devicePixelRatio;
+
+            requestRender();
+        }
+
+        function requestRender() {
+            renderMotorVisualizer();
+            renderGraph();
+            updateMetersUI();
+            updateLivePhysicsDiagnostics();
+        }
+
+        // Draw Cross Section Motor View
+        function renderMotorVisualizer() {
+            if (!ctx) return;
+            const w = motorCanvas.width;
+            const h = motorCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const radius = Math.min(w, h) * 0.38;
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (state.activeView === 'cross-section') {
+                drawMotorCrossSection(cx, cy, radius);
+            } else if (state.activeView === 'commutator') {
+                drawCommutatorDetail(cx, cy, radius);
+            } else if (state.activeView === 'fleming') {
+                drawFlemingVisualizer(cx, cy, radius);
+            } else if (state.activeView === 'circuit') {
+                drawCircuitSchematic(cx, cy, radius);
+            } else if (state.activeView === 'power-flow') {
+                drawPowerFlowSankey(cx, cy, radius);
+            }
+        }
+
+        function drawMotorCrossSection(cx, cy, r) {
+            // 1. Draw Stator Frame (Outer Ring)
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+            ctx.fillStyle = '#1e293b';
+            ctx.fill();
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#334155';
+            ctx.stroke();
+
+            // 2. Draw Stator Main Poles (North - Left, South - Right)
+            const poleWidth = r * 0.45;
+            const poleHeight = r * 0.65;
+
+            // North Pole (Left)
+            ctx.fillStyle = '#0284c7'; // Blue North Pole
+            ctx.beginPath();
+            ctx.rect(cx - r, cy - poleHeight / 2, poleWidth, poleHeight);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('N', cx - r + poleWidth / 2, cy);
+
+            // South Pole (Right)
+            ctx.fillStyle = '#e11d48'; // Red South Pole
+            ctx.beginPath();
+            ctx.rect(cx + r - poleWidth, cy - poleHeight / 2, poleWidth, poleHeight);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('S', cx + r - poleWidth / 2, cy);
+
+            // 3. Draw Animated Magnetic Flux Lines (from N to S)
+            const showFlux = document.getElementById('chk-show-flux')?.checked;
+            if (showFlux && state.V > 0 && state.fluxPct > 0) {
+                const fluxCount = 7;
+                const time = performance.now() / 1000.0;
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 6]);
+                
+                for (let i = 0; i < fluxCount; i++) {
+                    let y = cy - (poleHeight / 2) + (i + 1) * (poleHeight / (fluxCount + 1));
+                    ctx.beginPath();
+                    ctx.moveTo(cx - r + poleWidth, y);
+                    ctx.lineTo(cx + r - poleWidth, y);
+                    ctx.stroke();
+
+                    // Moving Flux Particles
+                    let px = (cx - r + poleWidth) + ((time * 150 + i * 40) % (2 * r - 2 * poleWidth));
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.beginPath();
+                    ctx.arc(px, y, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+                ctx.setLineDash([]);
+            }
+
+            // 4. Draw Rotor / Armature Core (Rotating Center)
+            const rotorR = r * 0.55;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(state.angle);
+
+            // Rotor Steel Core
+            ctx.beginPath();
+            ctx.arc(0, 0, rotorR, 0, 2 * Math.PI);
+            ctx.fillStyle = '#475569';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#64748b';
+            ctx.stroke();
+
+            // Draw Rotor Slots & Armature Conductors (8 Slots)
+            const slots = 8;
+            for (let i = 0; i < slots; i++) {
+                let slotAngle = (i * 2 * Math.PI) / slots;
+                let sx = (rotorR - 12) * Math.cos(slotAngle);
+                let sy = (rotorR - 12) * Math.sin(slotAngle);
+
+                // Determine Current Direction based on spatial position relative to poles
+                // Top half conductors carry current into page (Cross x), bottom out of page (Dot •)
+                let worldAngle = (state.angle + slotAngle) % (2 * Math.PI);
+                let isTop = Math.sin(worldAngle) < 0;
+
+                ctx.beginPath();
+                ctx.arc(sx, sy, 10, 0, 2 * Math.PI);
+                ctx.fillStyle = isTop ? '#f43f5e' : '#38bdf8';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Draw Dot or Cross symbol inside conductor
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(isTop ? '✕' : '•', sx, sy);
+            }
+
+            // Central Shaft
+            ctx.beginPath();
+            ctx.arc(0, 0, rotorR * 0.25, 0, 2 * Math.PI);
+            ctx.fillStyle = '#0f172a';
+            ctx.fill();
+            ctx.strokeStyle = '#94a3b8';
+            ctx.stroke();
+
+            ctx.restore();
+
+            // 5. Draw Carbon Brushes & Commutator Overlay
+            const commR = rotorR * 0.35;
+            ctx.fillStyle = '#334155';
+            // Top Brush
+            ctx.fillRect(cx - 10, cy - commR - 18, 20, 16);
+            // Bottom Brush
+            ctx.fillRect(cx - 10, cy + commR + 2, 20, 16);
+
+            // 6. Force & Rotation Direction Vector Arrows
+            const showVectors = document.getElementById('chk-show-vectors')?.checked;
+            if (showVectors && state.rpm > 0) {
+                // Curved Torque Arrow
+                ctx.beginPath();
+                ctx.arc(cx, cy, rotorR + 20, -Math.PI / 4, Math.PI / 3);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+                
+                // Arrow Head
+                let arrowX = cx + (rotorR + 20) * Math.cos(Math.PI / 3);
+                let arrowY = cy + (rotorR + 20) * Math.sin(Math.PI / 3);
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.arc(arrowX, arrowY, 6, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+
+        function drawCommutatorDetail(cx, cy, r) {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, motorCanvas.width, motorCanvas.height);
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Detailed Commutator & Brush Action', cx, 30);
+
+            const commR = r * 0.7;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(state.angle);
+
+            // Copper Segments
+            const segments = 6;
+            for (let i = 0; i < segments; i++) {
+                let a1 = (i * 2 * Math.PI) / segments + 0.05;
+                let a2 = ((i + 1) * 2 * Math.PI) / segments - 0.05;
+
+                ctx.beginPath();
+                ctx.arc(0, 0, commR, a1, a2);
+                ctx.arc(0, 0, commR - 25, a2, a1, true);
+                ctx.closePath();
+                ctx.fillStyle = (i % 2 === 0) ? '#d97706' : '#b45309'; // Copper tone
+                ctx.fill();
+                ctx.strokeStyle = '#78350f';
+                ctx.stroke();
+            }
+
+            ctx.restore();
+
+            // Stationary Carbon Brushes
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            
+            // Left Brush (-)
+            ctx.fillRect(cx - commR - 30, cy - 20, 30, 40);
+            ctx.strokeRect(cx - commR - 30, cy - 20, 30, 40);
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 16px Inter';
+            ctx.fillText('-', cx - commR - 15, cy + 5);
+
+            // Right Brush (+)
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(cx + commR, cy - 20, 30, 40);
+            ctx.strokeRect(cx + commR, cy - 20, 30, 40);
+            ctx.fillStyle = '#f43f5e';
+            ctx.fillText('+', cx + commR + 15, cy + 5);
+
+            // Explanatory note below canvas
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px Inter';
+            ctx.fillText('Commutator reverses coil current polarity every half rotation to maintain unidirectional torque.', cx, cy + commR + 60);
+        }
+
+        function drawFlemingVisualizer(cx, cy, r) {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, motorCanvas.width, motorCanvas.height);
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("Fleming's Left-Hand Rule for Motors", cx, 30);
+
+            // Vector origin
+            const ox = cx;
+            const oy = cy + 30;
+
+            // 1. Magnetic Field Vector B (Index Finger - Right)
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(ox, oy);
+            ctx.lineTo(ox + 120, oy);
+            ctx.stroke();
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 14px Inter';
+            ctx.fillText('Magnetic Field (B)', ox + 130, oy + 5);
+
+            // 2. Current Vector I (Middle Finger - Into page/down)
+            ctx.strokeStyle = '#f43f5e';
+            ctx.beginPath();
+            ctx.moveTo(ox, oy);
+            ctx.lineTo(ox - 70, oy + 70);
+            ctx.stroke();
+            ctx.fillStyle = '#f43f5e';
+            ctx.fillText('Current (I)', ox - 80, oy + 85);
+
+            // 3. Resultant Force Vector F (Thumb - Upwards)
+            ctx.strokeStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.moveTo(ox, oy);
+            ctx.lineTo(ox, oy - 120);
+            ctx.stroke();
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillText('Thrust Force (F = BIL)', ox, oy - 130);
+        }
+
+        function drawCircuitSchematic(cx, cy, r) {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, motorCanvas.width, motorCanvas.height);
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Equivalent Electrical Circuit Diagram', cx, 30);
+
+            // Circuit wires
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+
+            // DC Source
+            ctx.strokeRect(cx - 180, cy - 60, 40, 80);
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 14px Inter';
+            ctx.fillText('DC Supply', cx - 160, cy + 40);
+            ctx.fillText(`${state.V} V`, cx - 160, cy - 70);
+
+            // Armature Circuit Loop
+            ctx.beginPath();
+            ctx.moveTo(cx - 140, cy - 60);
+            ctx.lineTo(cx + 80, cy - 60);
+            ctx.lineTo(cx + 80, cy - 20);
+            ctx.stroke();
+
+            // Armature Motor Symbol
+            ctx.beginPath();
+            ctx.arc(cx + 80, cy, 30, 0, 2 * Math.PI);
+            ctx.fillStyle = '#1e293b';
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 16px Inter';
+            ctx.fillText('M', cx + 80, cy + 5);
+
+            // Return path
+            ctx.beginPath();
+            ctx.moveTo(cx + 80, cy + 30);
+            ctx.lineTo(cx + 80, cy + 60);
+            ctx.lineTo(cx - 140, cy + 60);
+            ctx.stroke();
+        }
+
+        function drawPowerFlowSankey(cx, cy, r) {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, motorCanvas.width, motorCanvas.height);
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Power Loss & Efficiency Energy Flow', cx, 30);
+
+            // Energy Bar Streams
+            const inW = Math.max(20, Math.min(260, state.Pin / 15));
+            const outW = Math.max(5, Math.min(260, state.Pout / 15));
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(cx - 180, cy - 30, 100, 60);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Inter';
+            ctx.fillText(`Input Power`, cx - 130, cy - 5);
+            ctx.fillText(`${state.Pin.toFixed(1)} W`, cx - 130, cy + 15);
+
+            // Mechanical Output
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(cx + 80, cy - 30, 100, 60);
+            ctx.fillText(`Output Mechanical`, cx + 130, cy - 5);
+            ctx.fillText(`${state.Pout.toFixed(1)} W`, cx + 130, cy + 15);
+        }
+
+        function renderGraph() {
+            if (!gctx) return;
+            const w = graphCanvas.width;
+            const h = graphCanvas.height;
+            gctx.clearRect(0, 0, w, h);
+
+            // Draw Background Grid Lines
+            gctx.strokeStyle = '#1e293b';
+            gctx.lineWidth = 1;
+            for (let x = 0; x < w; x += 40) {
+                gctx.beginPath();
+                gctx.moveTo(x, 0);
+                gctx.lineTo(x, h);
+                gctx.stroke();
+            }
+            for (let y = 0; y < h; y += 30) {
+                gctx.beginPath();
+                gctx.moveTo(0, y);
+                gctx.lineTo(w, y);
+                gctx.stroke();
+            }
+
+            if (state.graphMode === 'time') {
+                drawTimeGraph(w, h);
+            } else if (state.graphMode === 'n-t') {
+                drawSpeedTorqueCurve(w, h);
+            }
+        }
+
+        function drawTimeGraph(w, h) {
+            if (state.historyTime.length < 2) return;
+
+            // Normalize and plot speed trace (Sky Blue)
+            plotTrace(state.historyRPM, 0, 3000, '#38bdf8', w, h);
+            // Armature Current trace (Rose)
+            plotTrace(state.historyIa, 0, 200, '#f43f5e', w, h);
+            // Back EMF trace (Emerald)
+            plotTrace(state.historyEb, 0, 300, '#10b981', w, h);
+        }
+
+        function plotTrace(dataArray, minVal, maxVal, color, w, h) {
+            gctx.strokeStyle = color;
+            gctx.lineWidth = 2;
+            gctx.beginPath();
+
+            const step = w / (state.maxHistoryLength - 1);
+            for (let i = 0; i < dataArray.length; i++) {
+                let norm = (dataArray[i] - minVal) / (maxVal - minVal);
+                norm = Math.max(0, Math.min(1, norm));
+                let y = h - norm * (h - 20) - 10;
+                let x = i * step;
+
+                if (i === 0) gctx.moveTo(x, y);
+                else gctx.lineTo(x, y);
+            }
+            gctx.stroke();
+        }
+
+        function drawSpeedTorqueCurve(w, h) {
+            gctx.strokeStyle = '#f59e0b';
+            gctx.lineWidth = 3;
+            gctx.beginPath();
+            
+            // Draw theoretical Speed-Torque characteristic curve for current motor type
+            for (let t = 0; t <= 100; t += 2) {
+                let rpm;
+                if (state.motorType === 'shunt') {
+                    rpm = 2000 - (t * 12); // Nearly linear droop
+                } else if (state.motorType === 'series') {
+                    rpm = 5000 / (1 + t * 0.1); // Hyperbolic curve
+                } else {
+                    rpm = 2200 - (t * 6); // Compound
+                }
+
+                let x = (t / 100) * (w - 40) + 20;
+                let y = h - (rpm / 3500) * (h - 40) - 20;
+
+                if (t === 0) gctx.moveTo(x, y);
+                else gctx.lineTo(x, y);
+            }
+            gctx.stroke();
+
+            // Current Operating Point (Glowing Dot)
+            let curX = (state.TL / 100) * (w - 40) + 20;
+            let curY = h - (state.rpm / 3500) * (h - 40) - 20;
+
+            gctx.fillStyle = '#38bdf8';
+            gctx.beginPath();
+            gctx.arc(curX, curY, 6, 0, 2 * Math.PI);
+            gctx.fill();
+        }
+
+        function updateMetersUI() {
+            document.getElementById('meter-v').innerText = `${state.V.toFixed(1)} V`;
+            document.getElementById('meter-ia').innerText = `${state.Ia.toFixed(2)} A`;
+            document.getElementById('meter-eb').innerText = `${state.Eb.toFixed(1)} V`;
+            document.getElementById('meter-rpm').innerText = `${Math.round(state.rpm)} RPM`;
+            document.getElementById('meter-torque').innerText = `${state.Te.toFixed(1)} N·m`;
+            document.getElementById('meter-eff').innerText = `${state.eff.toFixed(1)} %`;
+
+            // Floating canvas overlays
+            document.getElementById('overlay-rpm').innerText = `${Math.round(state.rpm)} RPM`;
+            document.getElementById('label-angle-deg').innerText = `${Math.round(state.angle * (180 / Math.PI))}°`;
+        }
+
+        function updateLivePhysicsDiagnostics() {
+            const title = document.getElementById('live-exp-title');
+            const body = document.getElementById('live-exp-body');
+            const tag = document.getElementById('physics-state-tag');
+
+            document.getElementById('exp-v').innerText = `${state.V.toFixed(1)} V`;
+            document.getElementById('exp-eb').innerText = `${state.Eb.toFixed(1)} V`;
+            document.getElementById('exp-vdrop').innerText = `${(state.V - state.Eb).toFixed(1)} V`;
+            document.getElementById('exp-ia').innerText = `${state.Ia.toFixed(2)} A`;
+
+            if (state.rpm < 50 && state.isRunning) {
+                tag.innerText = "STARTUP TRANSIENT";
+                tag.className = "text-[10px] bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded font-mono border border-rose-500/30";
+                title.innerText = "Motor Starting: High Armature Current Spike!";
+                body.innerText = "At motor start (N = 0 RPM), Back EMF is zero (Eb = 0 V). Consequently, the entire supply voltage drops across the tiny armature resistance, causing a huge starting current spike Ia = V / Ra!";
+            } else if (state.activeFault !== 'none') {
+                tag.innerText = "FAULT DETECTED";
+                tag.className = "text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded font-mono border border-amber-500/30";
+                title.innerText = "Abnormal Machine Operation!";
+                body.innerText = "An injected electrical/mechanical fault is disrupting equilibrium. Observe meter readings and diagnostic symptoms below.";
+            } else {
+                tag.innerText = "STEADY STATE";
+                tag.className = "text-[10px] bg-sky-500/20 text-sky-400 px-2 py-0.5 rounded font-mono border border-sky-500/30";
+                title.innerText = "Motor operating in steady-state equilibrium.";
+                body.innerText = "Generated Back EMF balances terminal voltage. Armature current matches the mechanical shaft load requirement.";
+            }
+        }
+
+        function toggleMotorRun() {
+            state.isRunning = !state.isRunning;
+            const btn = document.getElementById('btn-toggle-run');
+            const icon = document.getElementById('icon-run-state');
+            const text = document.getElementById('text-run-state');
+
+            if (state.isRunning) {
+                btn.className = "px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition flex items-center space-x-1.5 shadow-md shadow-rose-600/30";
+                icon.className = "fa-solid fa-stop";
+                text.innerText = "STOP MOTOR";
+            } else {
+                btn.className = "px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition flex items-center space-x-1.5 shadow-md shadow-emerald-600/30";
+                icon.className = "fa-solid fa-play";
+                text.innerText = "START MOTOR";
+            }
+        }
+
+        function updatePhysicsFromControls() {
+            state.V = parseFloat(document.getElementById('ctrl-v').value);
+            state.fluxPct = parseFloat(document.getElementById('ctrl-flux').value);
+            state.Radj = parseFloat(document.getElementById('ctrl-radj').value);
+            state.TL = parseFloat(document.getElementById('ctrl-load').value);
+
+            document.getElementById('val-v').innerText = `${state.V} V`;
+            document.getElementById('val-flux').innerText = `${state.fluxPct}% (${(state.fluxPct/100).toFixed(2)} Wb)`;
+            document.getElementById('val-radj').innerText = `${state.Radj.toFixed(1)} Ω`;
+            document.getElementById('val-load').innerText = `${state.TL.toFixed(1)} N·m`;
+
+            requestRender();
+        }
+
+        function updateMotorType(type) {
+            state.motorType = type;
+            requestRender();
+        }
+
+        function onManualAngleInput(val) {
+            state.angle = (parseFloat(val) * Math.PI) / 180.0;
+            state.isPaused = true;
+            requestRender();
+        }
+
+        function setActiveView(view) {
+            state.activeView = view;
+            ['cross-section', 'commutator', 'fleming', 'circuit', 'power-flow'].forEach(v => {
+                const btn = document.getElementById(`tab-${v}`);
+                if (btn) {
+                    if (v === view) {
+                        btn.className = "px-3 py-1 rounded-lg text-xs font-semibold bg-sky-600 text-white transition flex items-center gap-1.5";
+                    } else {
+                        btn.className = "px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5";
+                    }
+                }
+            });
+            requestRender();
+        }
+
+        function setGraphMode(mode) {
+            state.graphMode = mode;
+            ['time', 'n-t', 't-i', 'eff'].forEach(m => {
+                const btn = document.getElementById(`gtab-${m}`);
+                if (btn) {
+                    if (m === mode) {
+                        btn.className = "px-2.5 py-0.5 rounded text-xs font-semibold bg-sky-600 text-white transition";
+                    } else {
+                        btn.className = "px-2.5 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition";
+                    }
+                }
+            });
+            requestRender();
+        }
+
+        function setBottomTab(tab) {
+            state.bottomTab = tab;
+            ['theory', 'faults', 'experiments', 'formulas', 'quiz', 'applications'].forEach(t => {
+                const btn = document.getElementById(`btab-${t}`);
+                const content = document.getElementById(`content-${t}`);
+                if (btn && content) {
+                    if (t === tab) {
+                        btn.className = "px-3 py-1.5 rounded-lg bg-sky-600 text-white transition flex items-center gap-1.5";
+                        content.classList.remove('hidden');
+                    } else {
+                        btn.className = "px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1.5";
+                        content.classList.add('hidden');
+                    }
+                }
+            });
+        }
+
+        function setScenario(type) {
+            if (type === 'start') {
+                state.omega = 0;
+                state.V = 220;
+                state.Radj = 0;
+                state.TL = 10;
+            } else if (type === 'overload') {
+                state.TL = 80;
+            } else if (type === 'weakening') {
+                state.fluxPct = 40;
+            }
+            // Sync slider UI
+            document.getElementById('ctrl-v').value = state.V;
+            document.getElementById('ctrl-flux').value = state.fluxPct;
+            document.getElementById('ctrl-radj').value = state.Radj;
+            document.getElementById('ctrl-load').value = state.TL;
+            updatePhysicsFromControls();
+        }
+
+        function injectFault(faultType) {
+            state.activeFault = faultType;
+            const cardName = document.getElementById('fault-name');
+            const elec = document.getElementById('fault-elec');
+            const mech = document.getElementById('fault-mech');
+            const action = document.getElementById('fault-action');
+
+            if (faultType === 'none') {
+                cardName.innerText = "Active State: Normal Operation";
+                elec.innerText = "Normal current and voltage balance across armature.";
+                mech.innerText = "Smooth rotor rotation matching shaft load.";
+                action.innerText = "No maintenance required.";
+            } else if (faultType === 'open_field') {
+                cardName.innerText = "Active Fault: Open Field Circuit";
+                elec.innerText = "Field flux drops to near zero (residual magnetism only). Armature current surges dramatically!";
+                mech.innerText = "Motor experiences dangerous speed runaway if lightly loaded (N ∝ 1/Φ).";
+                action.innerText = "Inspect field coils and field rheostat for open-circuit breaks.";
+            } else if (faultType === 'high_ra') {
+                cardName.innerText = "Active Fault: Excessive Brush Resistance";
+                elec.innerText = "High voltage drop across carbon brush contacts. Armature current reduced.";
+                mech.innerText = "Rotor speed drops significantly under load. Poor speed regulation.";
+                action.innerText = "Replace worn carbon brushes and resurface commutator segments.";
+            } else if (faultType === 'locked_rotor') {
+                cardName.innerText = "Active Fault: Mechanical Rotor Lock / Stall";
+                elec.innerText = "Back EMF drops to 0V. Armature current spikes to maximum short-circuit level (Ia = V / Ra).";
+                mech.innerText = "Rotor completely stationary (0 RPM). Severe risk of winding burnout!";
+                action.innerText = "Clear mechanical jam and trip protective circuit breaker immediately.";
+            }
+            requestRender();
+        }
+
+        function clearGraphHistory() {
+            state.historyTime = [];
+            state.historyRPM = [];
+            state.historyIa = [];
+            state.historyEb = [];
+            state.historyTe = [];
+            requestRender();
+        }
+
+        function resetSimulation() {
+            state.V = 220.0;
+            state.fluxPct = 100;
+            state.Radj = 0.0;
+            state.TL = 15.0;
+            state.activeFault = 'none';
+            state.omega = 0;
+            state.angle = 0;
+            state.isRunning = true;
+            
+            document.getElementById('ctrl-v').value = 220;
+            document.getElementById('ctrl-flux').value = 100;
+            document.getElementById('ctrl-radj').value = 0;
+            document.getElementById('ctrl-load').value = 15;
+            
+            updatePhysicsFromControls();
+            injectFault('none');
+            clearGraphHistory();
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        function setLearningMode(mode) {
+            state.learningMode = mode;
+            document.getElementById('mode-beginner').className = mode === 'beginner' 
+                ? "px-2.5 py-1 rounded-md bg-sky-600 text-white font-medium shadow-sm transition"
+                : "px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition";
+            document.getElementById('mode-engineering').className = mode === 'engineering'
+                ? "px-2.5 py-1 rounded-md bg-sky-600 text-white font-medium shadow-sm transition"
+                : "px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition";
+        }
+
+        function initSidebarModules() {
+            const list = document.getElementById('module-nav-list');
+            list.innerHTML = '';
+            
+            modulesData.forEach((m, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition ${idx === 0 ? 'bg-sky-600/20 text-sky-400 border border-sky-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`;
+                btn.onclick = () => selectModule(m.id);
+                btn.innerHTML = `
+                    <span class="flex items-center gap-2 truncate">
+                        <i class="fa-solid ${m.icon} w-4 text-center"></i>
+                        <span class="truncate">${m.title}</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-right text-[10px] opacity-60"></i>
+                `;
+                list.appendChild(btn);
+            });
+        }
+
+        function selectModule(id) {
+            state.activeModuleId = id;
+            document.getElementById('module-progress-badge').innerText = `${id} / ${modulesData.length}`;
+            
+            const mod = modulesData.find(m => m.id === id);
+            if (mod) {
+                document.getElementById('module-title').innerText = `${mod.id}. ${mod.title}`;
+            }
+
+            // Switch view automatically for certain modules
+            if (id === 5) setActiveView('commutator');
+            else if (id === 8) setActiveView('fleming');
+            else if (id === 6) setActiveView('circuit');
+            else if (id === 17) setActiveView('power-flow');
+            else setActiveView('cross-section');
+
+            setBottomTab('theory');
+        }
+
+        function startStepByStepGuide() {
+            state.isGuidedTour = true;
+            state.tourStep = 1;
+            selectModule(1);
+            alert("Interactive Step-by-Step Guided Tour started! Follow the highlighted module steps in the sidebar.");
+        }
+
+        function animationLoop(timestamp) {
+            let dt = (timestamp - lastTimestamp) / 1000.0;
+            lastTimestamp = timestamp;
+
+            updatePhysics(dt);
+            requestRender();
+
+            requestAnimationFrame(animationLoop);
+        }
+
+        // Window load initialization
+        window.onload = function() {
+            initSidebarModules();
+            initCanvas();
+            requestAnimationFrame(animationLoop);
+        };
+    </script>
+</body>
+</html>
