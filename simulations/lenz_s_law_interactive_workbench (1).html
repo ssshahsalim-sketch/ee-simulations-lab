@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lenz's Law Interactive Workbench</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        canvas { touch-action: none; }
+        .tab-btn.active {
+            border-bottom-color: #38bdf8;
+            color: #38bdf8;
+            background-color: rgba(56, 189, 248, 0.1);
+        }
+    </style>
+</head>
+<body class="h-full font-sans flex flex-col overflow-x-hidden antialiased selection:bg-sky-500 selection:text-white">
+
+    <!-- Top Header -->
+    <header class="bg-slate-950 border-b border-slate-800 px-4 py-3 flex-none flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+                <i class="fa-solid fa-magnet text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                    Lenz's Law Interactive Workbench
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">Physics Lab</span>
+                </h1>
+                <p class="text-xs text-slate-400">Electromagnetic Induction & Conservation of Energy Visualizer</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <button id="btnAudioToggle" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-2">
+                <i id="iconAudio" class="fa-solid fa-volume-xmark"></i>
+                <span id="lblAudio">Sound Off</span>
+            </button>
+            <button id="btnReset" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-2">
+                <i class="fa-solid fa-rotate-left text-sky-400"></i>
+                Reset Position
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-y-auto">
+
+        <!-- Left & Center Column: Canvas & Oscilloscope (8 cols) -->
+        <section class="lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
+            
+            <!-- Canvas Container -->
+            <div class="relative bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col flex-1 min-h-[420px]">
+                
+                <!-- Overlay Header Controls -->
+                <div class="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+                    <div class="flex items-center gap-2 bg-slate-900/90 backdrop-blur border border-slate-800 p-1.5 rounded-xl pointer-events-auto shadow-lg">
+                        <button id="btnAutoOsc" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold transition flex items-center gap-2 shadow-md">
+                            <i id="iconAutoOsc" class="fa-solid fa-play"></i>
+                            <span id="lblAutoOsc">Auto Move Magnet</span>
+                        </button>
+                        <button id="btnFlipMagnet" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrows-up-down text-amber-400"></i>
+                            Flip Poles (<span id="lblPoles">N Down</span>)
+                        </button>
+                    </div>
+
+                    <!-- Vector Toggles -->
+                    <div class="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur border border-slate-800 p-1.5 rounded-xl pointer-events-auto text-xs">
+                        <label class="flex items-center gap-1 px-2 py-1 rounded cursor-pointer hover:bg-slate-800 text-blue-400 font-mono">
+                            <input type="checkbox" id="chkB1" checked class="rounded border-slate-700 text-blue-500 focus:ring-0">
+                            $\vec{B}_1$ (Inducing)
+                        </label>
+                        <label class="flex items-center gap-1 px-2 py-1 rounded cursor-pointer hover:bg-slate-800 text-orange-400 font-mono">
+                            <input type="checkbox" id="chkB2" checked class="rounded border-slate-700 text-orange-500 focus:ring-0">
+                            $\vec{B}_2$ (Induced)
+                        </label>
+                        <label class="flex items-center gap-1 px-2 py-1 rounded cursor-pointer hover:bg-slate-800 text-emerald-400 font-mono">
+                            <input type="checkbox" id="chkVel" checked class="rounded border-slate-700 text-emerald-500 focus:ring-0">
+                            $\vec{v}$ Velocity
+                        </label>
+                        <label class="flex items-center gap-1 px-2 py-1 rounded cursor-pointer hover:bg-slate-800 text-rose-400 font-mono">
+                            <input type="checkbox" id="chkForce" checked class="rounded border-slate-700 text-rose-500 focus:ring-0">
+                            $\vec{F}$ Force
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Simulation Canvas -->
+                <div class="relative flex-1 w-full h-full min-h-[360px] cursor-grab active:cursor-grabbing">
+                    <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                    
+                    <!-- Drag Instruction Hint -->
+                    <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-400 pointer-events-none flex items-center gap-2">
+                        <i class="fa-solid fa-hand-pointer text-sky-400 animate-bounce"></i>
+                        <span>Drag magnet up & down or use Case Presets below</span>
+                    </div>
+
+                    <!-- Live Physics State Indicator Badge -->
+                    <div id="badgePhysicsState" class="absolute bottom-3 right-3 bg-slate-900/90 backdrop-blur px-3 py-1.5 rounded-xl border border-slate-800 text-xs font-mono flex items-center gap-2 shadow-lg">
+                        <span class="w-2 h-2 rounded-full bg-slate-500" id="dotPhysics"></span>
+                        <span id="txtPhysicsState" class="text-slate-300">Stationary ($I = 0$)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oscilloscope Graph Panel -->
+            <div class="bg-slate-950 rounded-2xl border border-slate-800 p-4 shadow-xl flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-sky-400"></i>
+                        <h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider">Real-Time Waveform Oscilloscope</h2>
+                    </div>
+                    <div class="flex items-center gap-4 text-[11px] font-mono">
+                        <span class="flex items-center gap-1.5 text-sky-400"><span class="w-2.5 h-0.5 bg-sky-400 rounded"></span> Magnetic Flux ($\Phi$)</span>
+                        <span class="flex items-center gap-1.5 text-amber-400"><span class="w-2.5 h-0.5 bg-amber-400 rounded"></span> Induced Current ($I$)</span>
+                        <span class="flex items-center gap-1.5 text-rose-400"><span class="w-2.5 h-0.5 bg-rose-400 rounded"></span> Magnetic Force ($F_{mag}$)</span>
+                    </div>
+                </div>
+                <div class="h-28 w-full relative bg-slate-900/50 rounded-xl border border-slate-800/80 overflow-hidden">
+                    <canvas id="scopeCanvas" class="w-full h-full block"></canvas>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Column: Case Controls, Physics Breakdown & Theory (4-5 cols) -->
+        <section class="lg:col-span-5 xl:col-span-4 flex flex-col gap-4">
+            
+            <!-- Case Presets Selector (Matching diagram cases a to f) -->
+            <div class="bg-slate-950 rounded-2xl border border-slate-800 p-4 shadow-xl flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                    <h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-flask text-emerald-400"></i>
+                        Lenz's Law Cases (Diagram Scenarios)
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <button class="case-btn text-left p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition group active" data-case="a">
+                        <div class="text-[10px] font-bold text-emerald-400 mb-0.5 flex items-center justify-between">
+                            <span>Case A</span>
+                            <i class="fa-solid fa-check text-[9px]"></i>
+                        </div>
+                        <div class="text-[11px] font-semibold text-slate-200">Stationary</div>
+                        <div class="text-[10px] text-slate-400">$\vec{v}=0, I=0$</div>
+                    </button>
+
+                    <button class="case-btn text-left p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition group" data-case="b">
+                        <div class="text-[10px] font-bold text-emerald-400 mb-0.5 flex items-center justify-between">
+                            <span>Case B</span>
+                            <i class="fa-solid fa-arrow-down text-[9px]"></i>
+                        </div>
+                        <div class="text-[11px] font-semibold text-slate-200">N Approaching</div>
+                        <div class="text-[10px] text-slate-400">Flux $\uparrow$, $I$ CCW</div>
+                    </button>
+
+                    <button class="case-btn text-left p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition group" data-case="c">
+                        <div class="text-[10px] font-bold text-emerald-400 mb-0.5 flex items-center justify-between">
+                            <span>Case C</span>
+                            <i class="fa-solid fa-arrow-up text-[9px]"></i>
+                        </div>
+                        <div class="text-[11px] font-semibold text-slate-200">N Receding</div>
+                        <div class="text-[10px] text-slate-400">Flux $\downarrow$, $I$ CW</div>
+                    </button>
+
+                    <button class="case-btn text-left p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition group" data-case="d">
+                        <div class="text-[10px] font-bold text-emerald-400 mb-0.5 flex items-center justify-between">
+                            <span>Case D</span>
+                            <i class="fa-solid fa-arrow-down text-[9px]"></i>
+                        </div>
+                        <div class="text-[11px] font-semibold text-slate-200">S Approaching</div>
+                        <div class="text-[10px] text-slate-400">Flux $\uparrow$, $I$ CW</div>
+                    </button>
+
+                    <button class="case-btn text-left p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition group" data-case="e">
+                        <div class="text-[10px] font-bold text-emerald-400 mb-0.5 flex items-center justify-between">
+                            <span>Case E</span>
+                            <i class="fa-solid fa-arrow-up text-[9px]"></i>
+                        </div>
+                        <div class="text-[11px] font-semibold text-slate-200">S Receding</div>
+                        <div class="text-[10px] text-slate-400">Flux $\downarrow$, $I$ CCW</div>
+                    </button>
+
+                    <!-- Energy Conservation Violation Case F -->
+                    <button class="case-btn text-left p-2 rounded-xl border border-rose-900/60 bg-rose-950/30 hover:bg-rose-900/40 transition group" data-case="f">
+                        <div class="text-[10px] font-bold text-rose-400 mb-0.5 flex items-center justify-between">
+                            <span>Case F</span>
+                            <i class="fa-solid fa-xmark text-[9px]"></i>
+                        </div>
+                        <div class="text-[11px] font-semibold text-rose-200">Lenz Law Broken</div>
+                        <div class="text-[10px] text-rose-400/80">Energy Creation!</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Physics Breakdown Explanation Box -->
+            <div class="bg-slate-950 rounded-2xl border border-slate-800 p-4 shadow-xl flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                    <h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-sky-400"></i>
+                        4-Step Lenz's Law Analysis
+                    </h2>
+                    <span id="caseTitleBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800/60">Case A: Rest</span>
+                </div>
+
+                <div class="space-y-2 text-xs font-mono">
+                    <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[11px] font-bold shrink-0">1</span>
+                        <div>
+                            <div class="text-slate-400 text-[10px] uppercase font-sans font-semibold">Inducing Flux ($\Phi$)</div>
+                            <div id="expStep1" class="text-slate-200 text-xs font-medium mt-0.5">No change in magnetic flux through loop.</div>
+                        </div>
+                    </div>
+
+                    <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[11px] font-bold shrink-0">2</span>
+                        <div>
+                            <div class="text-slate-400 text-[10px] uppercase font-sans font-semibold">Induced Current ($I$)</div>
+                            <div id="expStep2" class="text-slate-200 text-xs font-medium mt-0.5">No induced current ($I = 0$).</div>
+                        </div>
+                    </div>
+
+                    <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[11px] font-bold shrink-0">3</span>
+                        <div>
+                            <div class="text-slate-400 text-[10px] uppercase font-sans font-semibold">Induced Magnetic Field ($\vec{B}_2$)</div>
+                            <div id="expStep3" class="text-slate-200 text-xs font-medium mt-0.5">No induced field produced.</div>
+                        </div>
+                    </div>
+
+                    <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-[11px] font-bold shrink-0">4</span>
+                        <div>
+                            <div class="text-slate-400 text-[10px] uppercase font-sans font-semibold">Magnetic Force ($\vec{F}$) & Energy</div>
+                            <div id="expStep4" class="text-slate-200 text-xs font-medium mt-0.5">No electromagnetic force generated.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parameters & Material Selector -->
+            <div class="bg-slate-950 rounded-2xl border border-slate-800 p-4 shadow-xl flex flex-col gap-3">
+                <h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-indigo-400"></i>
+                    Physical Parameters
+                </h2>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[11px] font-medium text-slate-400 block mb-1">Ring Material</label>
+                        <select id="selMaterial" class="w-full bg-slate-900 border border-slate-800 rounded-lg text-xs p-2 text-slate-200 focus:outline-none focus:border-sky-500">
+                            <option value="copper">Copper Ring (Normal R)</option>
+                            <option value="super">Superconductor (R = 0)</option>
+                            <option value="high">High Resistance Ring</option>
+                            <option value="cut">Broken Ring (Slot cut, R=∞)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-[11px] font-medium text-slate-400 block mb-1">Magnet Speed</label>
+                        <input type="range" id="sliderSpeed" min="0.2" max="2.5" step="0.1" value="1.0" class="w-full accent-sky-500 cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-0.5">
+                            <span>Slow</span>
+                            <span id="txtSpeedVal">1.0x</span>
+                            <span>Fast</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formula Reference Card -->
+            <div class="bg-slate-950 rounded-2xl border border-slate-800 p-4 shadow-xl flex flex-col gap-2">
+                <h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-square-root-variable text-amber-400"></i>
+                    Governing Equations
+                </h2>
+                <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 text-xs font-mono space-y-2 text-slate-300">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                        <span class="text-slate-400">Faraday-Lenz Law:</span>
+                        <span class="text-sky-300 font-bold">$\mathcal{E} = -\frac{d\Phi_B}{dt}$</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                        <span class="text-slate-400">Induced Current:</span>
+                        <span class="text-amber-300 font-bold">$I = \frac{\mathcal{E}}{R}$</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Lenz's Law Principle:</span>
+                        <span class="text-rose-300 font-bold text-[11px] font-sans">The negative sign ($-$) ensures $\vec{B}_2$ opposes $\Delta\Phi_B$.</span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <script>
+        /**
+         * LENZ'S LAW INTERACTIVE PHYSICS WORKBENCH
+         * Complete, self-contained single file simulation script
+         */
+
+        // Global Simulation State
+        const state = {
+            magnet: {
+                x: 0,
+                y: 0,
+                prevY: 0,
+                vy: 0,
+                width: 44,
+                height: 120,
+                poleDown: 'N', // 'N' or 'S'
+                isDragging: false,
+                dragOffsetY: 0
+            },
+            loop: {
+                x: 0,
+                y: 0,
+                radiusX: 95,
+                radiusY: 32,
+                resistance: 1.0, // relative
+                material: 'copper'
+            },
+            autoOscillating: false,
+            oscTime: 0,
+            oscSpeed: 1.0,
+            caseMode: 'a', // 'a','b','c','d','e','f'
+            violationMode: false, // Case F
+            showB1: true,
+            showB2: true,
+            showVel: true,
+            showForce: true,
+            audioEnabled: false,
+            
+            // Physics calculated outputs
+            flux: 0,
+            prevFlux: 0,
+            dFluxDt: 0,
+            emf: 0,
+            current: 0,
+            magneticForce: 0,
+            
+            // Animation / History
+            history: [],
+            maxHistory: 180,
+            particles: []
+        };
+
+        // DOM Element Cache
+        let canvas, ctx;
+        let scopeCanvas, scopeCtx;
+        let audioCtx = null;
+        let oscillator = null;
+        let gainNode = null;
+
+        // UI Element References
+        let btnAutoOsc, iconAutoOsc, lblAutoOsc;
+        let btnFlipMagnet, lblPoles;
+        let btnAudioToggle, iconAudio, lblAudio;
+        let btnReset;
+        let chkB1, chkB2, chkVel, chkForce;
+        let selMaterial, sliderSpeed, txtSpeedVal;
+        let txtPhysicsState, dotPhysics;
+        let expStep1, expStep2, expStep3, expStep4, caseTitleBadge;
+
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            initDOM();
+            initCanvas();
+            initParticles();
+            setupEventListeners();
+            resetMagnet();
+            setCase('a');
+            
+            // Start Game Loop
+            requestAnimationFrame(gameLoop);
+        });
+
+        // Cache DOM elements safely
+        function initDOM() {
+            canvas = document.getElementById('simCanvas');
+            ctx = canvas.getContext('2d');
+            scopeCanvas = document.getElementById('scopeCanvas');
+            scopeCtx = scopeCanvas.getContext('2d');
+
+            btnAutoOsc = document.getElementById('btnAutoOsc');
+            iconAutoOsc = document.getElementById('iconAutoOsc');
+            lblAutoOsc = document.getElementById('lblAutoOsc');
+
+            btnFlipMagnet = document.getElementById('btnFlipMagnet');
+            lblPoles = document.getElementById('lblPoles');
+
+            btnAudioToggle = document.getElementById('btnAudioToggle');
+            iconAudio = document.getElementById('iconAudio');
+            lblAudio = document.getElementById('lblAudio');
+            btnReset = document.getElementById('btnReset');
+
+            chkB1 = document.getElementById('chkB1');
+            chkB2 = document.getElementById('chkB2');
+            chkVel = document.getElementById('chkVel');
+            chkForce = document.getElementById('chkForce');
+
+            selMaterial = document.getElementById('selMaterial');
+            sliderSpeed = document.getElementById('sliderSpeed');
+            txtSpeedVal = document.getElementById('txtSpeedVal');
+
+            txtPhysicsState = document.getElementById('txtPhysicsState');
+            dotPhysics = document.getElementById('dotPhysics');
+
+            expStep1 = document.getElementById('expStep1');
+            expStep2 = document.getElementById('expStep2');
+            expStep3 = document.getElementById('expStep3');
+            expStep4 = document.getElementById('expStep4');
+            caseTitleBadge = document.getElementById('caseTitleBadge');
+        }
+
+        // Initialize Canvas Sizes
+        function initCanvas() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        function resizeCanvas() {
+            if (!canvas) return;
+            const container = canvas.parentElement;
+            const rect = container.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+
+            if (scopeCanvas) {
+                const sRect = scopeCanvas.parentElement.getBoundingClientRect();
+                scopeCanvas.width = sRect.width * dpr;
+                scopeCanvas.height = sRect.height * dpr;
+                scopeCtx.scale(dpr, dpr);
+            }
+
+            const w = rect.width;
+            const h = rect.height;
+
+            state.loop.x = w * 0.5;
+            state.loop.y = h * 0.65;
+
+            if (!state.magnet.isDragging && !state.autoOscillating) {
+                state.magnet.x = w * 0.5;
+                state.magnet.y = h * 0.22;
+            }
+        }
+
+        function resetMagnet() {
+            const container = canvas.parentElement;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            state.magnet.x = w * 0.5;
+            state.magnet.y = h * 0.22;
+            state.magnet.vy = 0;
+            state.magnet.prevY = state.magnet.y;
+            state.autoOscillating = false;
+            updateAutoButtonUI();
+        }
+
+        function updateAutoButtonUI() {
+            if (!iconAutoOsc || !lblAutoOsc) return;
+            if (state.autoOscillating) {
+                iconAutoOsc.className = 'fa-solid fa-pause';
+                lblAutoOsc.textContent = 'Pause Auto Motion';
+            } else {
+                iconAutoOsc.className = 'fa-solid fa-play';
+                lblAutoOsc.textContent = 'Auto Move Magnet';
+            }
+        }
+
+        // Initialize Electrons for Loop
+        function initParticles() {
+            state.particles = [];
+            const count = 28;
+            for (let i = 0; i < count; i++) {
+                state.particles.push({
+                    angle: (i / count) * Math.PI * 2,
+                    speed: 0
+                });
+            }
+        }
+
+        // Event Listeners Setup
+        function setupEventListeners() {
+            // Auto oscillation toggle
+            btnAutoOsc.addEventListener('click', () => {
+                state.autoOscillating = !state.autoOscillating;
+                if (state.autoOscillating) {
+                    state.caseMode = 'free';
+                    state.violationMode = false;
+                    highlightCaseButton('free');
+                }
+                updateAutoButtonUI();
+            });
+
+            // Flip Magnet
+            btnFlipMagnet.addEventListener('click', () => {
+                state.magnet.poleDown = (state.magnet.poleDown === 'N') ? 'S' : 'N';
+                lblPoles.textContent = state.magnet.poleDown === 'N' ? 'N Down' : 'S Down';
+            });
+
+            // Audio Toggle
+            btnAudioToggle.addEventListener('click', toggleAudio);
+
+            // Reset
+            btnReset.addEventListener('click', () => {
+                resetMagnet();
+                setCase('a');
+            });
+
+            // Vector Checkboxes
+            chkB1.addEventListener('change', (e) => state.showB1 = e.target.checked);
+            chkB2.addEventListener('change', (e) => state.showB2 = e.target.checked);
+            chkVel.addEventListener('change', (e) => state.showVel = e.target.checked);
+            chkForce.addEventListener('change', (e) => state.showForce = e.target.checked);
+
+            // Ring Material Selector
+            selMaterial.addEventListener('change', (e) => {
+                state.loop.material = e.target.value;
+                if (e.target.value === 'copper') state.loop.resistance = 1.0;
+                else if (e.target.value === 'super') state.loop.resistance = 0.05;
+                else if (e.target.value === 'high') state.loop.resistance = 4.0;
+                else if (e.target.value === 'cut') state.loop.resistance = 9999;
+            });
+
+            // Speed Slider
+            sliderSpeed.addEventListener('input', (e) => {
+                state.oscSpeed = parseFloat(e.target.value);
+                txtSpeedVal.textContent = state.oscSpeed.toFixed(1) + 'x';
+            });
+
+            // Case Buttons
+            document.querySelectorAll('.case-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const c = btn.getAttribute('data-case');
+                    setCase(c);
+                });
+            });
+
+            // Canvas Mouse/Touch Drag Interactions
+            setupCanvasInteractions();
+        }
+
+        // Canvas Dragging Setup
+        function setupCanvasInteractions() {
+            function getCanvasPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
+            }
+
+            function onPointerDown(e) {
+                const pos = getCanvasPos(e);
+                const mx = state.magnet.x;
+                const my = state.magnet.y;
+                const hw = state.magnet.width / 2;
+                const hh = state.magnet.height / 2;
+
+                if (pos.x >= mx - hw && pos.x <= mx + hw && pos.y >= my - hh && pos.y <= my + hh) {
+                    state.magnet.isDragging = true;
+                    state.magnet.dragOffsetY = pos.y - my;
+                    state.autoOscillating = false;
+                    state.caseMode = 'free';
+                    updateAutoButtonUI();
+                    highlightCaseButton('free');
+                }
+            }
+
+            function onPointerMove(e) {
+                if (!state.magnet.isDragging) return;
+                const pos = getCanvasPos(e);
+                const container = canvas.parentElement;
+                const h = container.clientHeight;
+
+                let newY = pos.y - state.magnet.dragOffsetY;
+                // Clamp within bounds
+                newY = Math.max(state.magnet.height * 0.6, Math.min(h - state.magnet.height * 0.6, newY));
+                
+                state.magnet.prevY = state.magnet.y;
+                state.magnet.y = newY;
+                state.magnet.vy = (state.magnet.y - state.magnet.prevY);
+            }
+
+            function onPointerUp() {
+                if (state.magnet.isDragging) {
+                    state.magnet.isDragging = false;
+                }
+            }
+
+            canvas.addEventListener('mousedown', onPointerDown);
+            window.addEventListener('mousemove', onPointerMove);
+            window.addEventListener('mouseup', onPointerUp);
+
+            canvas.addEventListener('touchstart', onPointerDown, { passive: true });
+            window.addEventListener('touchmove', onPointerMove, { passive: true });
+            window.addEventListener('touchend', onPointerUp);
+        }
+
+        // Case Presets setup
+        function setCase(c) {
+            state.caseMode = c;
+            state.violationMode = (c === 'f');
+            highlightCaseButton(c);
+
+            const container = canvas.parentElement;
+            const h = container.clientHeight;
+            const loopY = state.loop.y;
+
+            if (c === 'a') { // Stationary
+                state.autoOscillating = false;
+                state.magnet.poleDown = 'N';
+                state.magnet.y = loopY - 140;
+                state.magnet.vy = 0;
+            } else if (c === 'b') { // N approaching
+                state.autoOscillating = false;
+                state.magnet.poleDown = 'N';
+                state.magnet.y = loopY - 170;
+                state.magnet.vy = 4.5 * state.oscSpeed;
+            } else if (c === 'c') { // N receding
+                state.autoOscillating = false;
+                state.magnet.poleDown = 'N';
+                state.magnet.y = loopY - 70;
+                state.magnet.vy = -4.5 * state.oscSpeed;
+            } else if (c === 'd') { // S approaching
+                state.autoOscillating = false;
+                state.magnet.poleDown = 'S';
+                state.magnet.y = loopY - 170;
+                state.magnet.vy = 4.5 * state.oscSpeed;
+            } else if (c === 'e') { // S receding
+                state.autoOscillating = false;
+                state.magnet.poleDown = 'S';
+                state.magnet.y = loopY - 70;
+                state.magnet.vy = -4.5 * state.oscSpeed;
+            } else if (c === 'f') { // Lenz's Law broken
+                state.autoOscillating = false;
+                state.magnet.poleDown = 'N';
+                state.magnet.y = loopY - 160;
+                state.magnet.vy = 2.0;
+            }
+
+            lblPoles.textContent = state.magnet.poleDown === 'N' ? 'N Down' : 'S Down';
+            updateAutoButtonUI();
+        }
+
+        function highlightCaseButton(c) {
+            document.querySelectorAll('.case-btn').forEach(btn => {
+                if (btn.getAttribute('data-case') === c) {
+                    btn.classList.add('border-sky-500', 'bg-sky-950/40');
+                    btn.classList.remove('border-slate-800', 'bg-slate-900');
+                } else {
+                    btn.classList.remove('border-sky-500', 'bg-sky-950/40');
+                    btn.classList.add('border-slate-800', 'bg-slate-900');
+                }
+            });
+        }
+
+        /**
+         * Calculates Magnetic Flux Phi passing down through the loop
+         */
+        function calculatePhysics() {
+            const dy = state.loop.y - state.magnet.y; // distance from magnet center to loop
+            const sign = (state.magnet.poleDown === 'N') ? 1 : -1;
+            
+            // Dipole magnetic field model passing through the ring axis
+            const dist = Math.sqrt(dy * dy + 100);
+            const B_axis = (200000 / (dist * dist * dist)) * sign;
+            
+            // Magnetic flux Phi
+            state.prevFlux = state.flux;
+            state.flux = B_axis;
+
+            // Rate of change of flux (dPhi/dt)
+            state.dFluxDt = state.flux - state.prevFlux;
+
+            // Faraday's Law EMF: E = - dPhi/dt
+            // In case f (violation mode), the sign is inverted!
+            if (state.violationMode) {
+                state.emf = state.dFluxDt * 12; // POSITIVE FEEDBACK (Violation)
+            } else {
+                state.emf = -state.dFluxDt * 12; // LENZ'S LAW (Opposes change)
+            }
+
+            // Current I = E / R
+            if (state.loop.material === 'cut') {
+                state.current = 0;
+            } else {
+                state.current = state.emf / state.loop.resistance;
+            }
+
+            // Magnetic Force F = - I * dB/dz
+            state.magneticForce = -state.current * (state.dFluxDt) * 0.15;
+
+            // Case F (Violation Mode) continuous physics acceleration
+            if (state.violationMode && !state.magnet.isDragging) {
+                // Magnet accelerates faster and faster into coil!
+                const accel = (state.current * 0.08) + 0.1;
+                state.magnet.vy += accel;
+                state.magnet.y += state.magnet.vy;
+
+                // Bounce off canvas boundaries
+                const h = canvas.parentElement.clientHeight;
+                if (state.magnet.y > h - 70 || state.magnet.y < 70) {
+                    state.magnet.vy *= -0.8;
+                }
+            } else if (state.autoOscillating) {
+                // Smooth sine wave auto motion
+                state.oscTime += 0.04 * state.oscSpeed;
+                const amp = 110;
+                const center = state.loop.y - 100;
+                const targetY = center + Math.sin(state.oscTime) * amp;
+                state.magnet.prevY = state.magnet.y;
+                state.magnet.y = targetY;
+                state.magnet.vy = state.magnet.y - state.magnet.prevY;
+            } else if (!state.magnet.isDragging && (state.caseMode === 'b' || state.caseMode === 'c' || state.caseMode === 'd' || state.caseMode === 'e')) {
+                // Step motion for preset cases
+                state.magnet.prevY = state.magnet.y;
+                state.magnet.y += state.magnet.vy;
+                
+                // Slow down preset motion near bounds
+                if (Math.abs(state.magnet.y - state.loop.y) < 20 || Math.abs(state.magnet.y - state.loop.y) > 220) {
+                    state.magnet.vy *= 0.95;
+                }
+            } else if (!state.magnet.isDragging) {
+                // Damping to stationary
+                state.magnet.vy *= 0.8;
+            }
+
+            // Update electron speeds
+            const electronSpeed = state.current * 0.003;
+            state.particles.forEach(p => {
+                p.angle += electronSpeed;
+            });
+
+            // Record Oscilloscope History
+            state.history.push({
+                flux: state.flux,
+                current: state.current,
+                force: state.magneticForce
+            });
+            if (state.history.length > state.maxHistory) {
+                state.history.shift();
+            }
+
+            // Audio synthesis update
+            if (state.audioEnabled) {
+                updateAudio();
+            }
+
+            // Update UI Text explanations
+            updateExplanations();
+        }
+
+        function updateExplanations() {
+            const fluxChange = state.dFluxDt;
+            const cur = state.current;
+            const isN = state.magnet.poleDown === 'N';
+
+            if (state.violationMode) {
+                caseTitleBadge.textContent = "Case F: Violation Mode";
+                caseTitleBadge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800/60";
+                
+                txtPhysicsState.textContent = "Lenz's Law Inverted! Infinite Acceleration";
+                txtPhysicsState.className = "text-rose-400 font-bold";
+                dotPhysics.className = "w-2 h-2 rounded-full bg-rose-500 animate-ping";
+
+                expStep1.textContent = "Magnet approaches ring, increasing flux downwards.";
+                expStep2.textContent = "Current flows CLOCKWISE (opposite of Lenz's Law).";
+                expStep3.textContent = "Induced field B2 points DOWNWARDS (Reinforces flux!).";
+                expStep4.textContent = "ATTRACTIVE force pulls magnet in faster → Endless energy creation!";
+                return;
+            }
+
+            if (Math.abs(fluxChange) < 0.1) {
+                caseTitleBadge.textContent = "Case A: Stationary";
+                caseTitleBadge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/60";
+
+                txtPhysicsState.textContent = "Stationary (dΦ/dt = 0, I = 0)";
+                txtPhysicsState.className = "text-slate-300 font-medium";
+                dotPhysics.className = "w-2 h-2 rounded-full bg-slate-500";
+
+                expStep1.textContent = "No change in magnetic flux through conducting loop.";
+                expStep2.textContent = "No electromotive force induced (I = 0).";
+                expStep3.textContent = "No induced magnetic field created.";
+                expStep4.textContent = "No magnetic opposing force generated.";
+            } else {
+                let dirText = cur > 0 ? "Counter-Clockwise (CCW)" : "Clockwise (CW)";
+                let b2Dir = (cur > 0) ? "UPWARDS" : "DOWNWARDS";
+                let fDir = state.magnet.vy > 0 ? "UPWARDS (Repulsive Opposing Force)" : "DOWNWARDS (Attractive Opposing Force)";
+
+                if (state.caseMode === 'b') caseTitleBadge.textContent = "Case B: N Approaching";
+                else if (state.caseMode === 'c') caseTitleBadge.textContent = "Case C: N Receding";
+                else if (state.caseMode === 'd') caseTitleBadge.textContent = "Case D: S Approaching";
+                else if (state.caseMode === 'e') caseTitleBadge.textContent = "Case E: S Receding";
+                else caseTitleBadge.textContent = "Free Motion Lab";
+
+                caseTitleBadge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800/60";
+
+                txtPhysicsState.textContent = `Inducing EMF! Current = ${cur.toFixed(1)} A`;
+                txtPhysicsState.className = "text-sky-400 font-bold";
+                dotPhysics.className = "w-2 h-2 rounded-full bg-sky-400 animate-pulse";
+
+                expStep1.textContent = `Magnetic flux is ${fluxChange > 0 ? 'INCREASING' : 'DECREASING'} (${isN ? 'N-pole' : 'S-pole'}).`;
+                expStep2.textContent = `Induced current flows ${dirText}.`;
+                expStep3.textContent = `Induced field B2 points ${b2Dir} to oppose the change in flux.`;
+                expStep4.textContent = `Generates ${fDir} slowing mechanical motion.`;
+            }
+        }
+
+        function drawCanvas() {
+            const container = canvas.parentElement;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            // Clear Background
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Background Grid Lines
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let x = 0; x < w; x += 40) {
+                ctx.moveTo(x, 0); ctx.lineTo(x, h);
+            }
+            for (let y = 0; y < h; y += 40) {
+                ctx.moveTo(0, y); ctx.lineTo(w, y);
+            }
+            ctx.stroke();
+
+            // Render Back Half of Loop (Depth perspective)
+            drawLoopHalf(ctx, false);
+
+            // Render Inducer Magnetic Field Lines (B1)
+            if (state.showB1) {
+                drawFieldLinesB1(ctx);
+            }
+
+            // Render Magnet
+            drawMagnet(ctx);
+
+            // Render Front Half of Loop
+            drawLoopHalf(ctx, true);
+
+            // Render Electrons
+            drawElectrons(ctx);
+
+            // Render Induced Magnetic Field (B2)
+            if (state.showB2 && Math.abs(state.current) > 0.2) {
+                drawFieldLinesB2(ctx);
+            }
+
+            // Render Physics Vectors (v, F_mag)
+            drawVectors(ctx);
+        }
+
+        // Render Bar Magnet
+        function drawMagnet(ctx) {
+            const mx = state.magnet.x;
+            const my = state.magnet.y;
+            const w = state.magnet.width;
+            const h = state.magnet.height;
+
+            ctx.save();
+            ctx.translate(mx, my);
+
+            // Drop Shadow
+            ctx.shadowColor = 'rgba(0,0,0,0.6)';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetY = 8;
+
+            const isNdown = state.magnet.poleDown === 'N';
+            const topPoleColor = isNdown ? '#3b82f6' : '#ef4444'; // Blue S, Red N
+            const bottomPoleColor = isNdown ? '#ef4444' : '#3b82f6';
+            const topPoleLabel = isNdown ? 'S' : 'N';
+            const bottomPoleLabel = isNdown ? 'N' : 'S';
+
+            // Top Pole Half
+            ctx.fillStyle = topPoleColor;
+            ctx.beginPath();
+            ctx.roundRect(-w / 2, -h / 2, w, h / 2, [6, 6, 0, 0]);
+            ctx.fill();
+
+            // Bottom Pole Half
+            ctx.fillStyle = bottomPoleColor;
+            ctx.beginPath();
+            ctx.roundRect(-w / 2, 0, w, h / 2, [0, 0, 6, 6]);
+            ctx.fill();
+
+            // Shiny Gloss Overlay
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx.fillRect(-w / 2, -h / 2, w / 2, h);
+
+            // Metallic Center Line
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-w / 2, 0); ctx.lineTo(w / 2, 0);
+            ctx.stroke();
+
+            // Pole Labels Text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(topPoleLabel, 0, -h / 4);
+            ctx.fillText(bottomPoleLabel, 0, h / 4);
+
+            ctx.restore();
+        }
+
+        // Render Loop Half (Depth Sorting)
+        function drawLoopHalf(ctx, isFront) {
+            const lx = state.loop.x;
+            const ly = state.loop.y;
+            const rx = state.loop.radiusX;
+            const ry = state.loop.radiusY;
+
+            ctx.save();
+            ctx.lineWidth = 10;
+            
+            // Copper / Material colors
+            if (state.loop.material === 'super') {
+                ctx.strokeStyle = state.current !== 0 ? '#38bdf8' : '#0284c7';
+            } else if (state.loop.material === 'high') {
+                ctx.strokeStyle = '#a855f7';
+            } else if (state.loop.material === 'cut') {
+                ctx.strokeStyle = '#64748b';
+            } else { // Copper
+                ctx.strokeStyle = '#f97316'; // Copper orange
+            }
+
+            ctx.beginPath();
+            if (isFront) {
+                // Front half arc (0 to PI)
+                ctx.ellipse(lx, ly, rx, ry, 0, 0, Math.PI, false);
+            } else {
+                // Back half arc (PI to 2*PI)
+                ctx.ellipse(lx, ly, rx, ry, 0, Math.PI, Math.PI * 2, false);
+            }
+
+            // Cut ring gap if broken ring
+            if (state.loop.material === 'cut') {
+                ctx.setLineDash([20, 15]);
+            }
+
+            ctx.stroke();
+
+            // Inner Metallic Highlight Line
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Render Electron Particles circulating in the loop
+        function drawElectrons(ctx) {
+            if (state.loop.material === 'cut' || Math.abs(state.current) < 0.1) return;
+
+            const lx = state.loop.x;
+            const ly = state.loop.y;
+            const rx = state.loop.radiusX;
+            const ry = state.loop.radiusY;
+
+            ctx.save();
+            state.particles.forEach(p => {
+                const px = lx + Math.cos(p.angle) * rx;
+                const py = ly + Math.sin(p.angle) * ry;
+
+                // Glowing Electron
+                ctx.fillStyle = '#38bdf8';
+                ctx.shadowColor = '#0284c7';
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        // Render Inducing Field Lines B1 from Bar Magnet
+        function drawFieldLinesB1(ctx) {
+            const mx = state.magnet.x;
+            const my = state.magnet.y;
+            const isNdown = state.magnet.poleDown === 'N';
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.35)'; // Blue lines
+            ctx.lineWidth = 1.5;
+
+            const numLines = 7;
+            for (let i = -numLines; i <= numLines; i++) {
+                if (i === 0) continue;
+                const offset = i * 12;
+                
+                ctx.beginPath();
+                ctx.moveTo(mx + offset * 0.3, my + (isNdown ? 60 : -60));
+                
+                // Curve outwards
+                const cpX = mx + offset * 3.5;
+                const cpY = my + (isNdown ? 180 : -180);
+                const endX = mx + offset * 1.5;
+                const endY = my + (isNdown ? 280 : -280);
+
+                ctx.quadraticCurveTo(cpX, cpY, endX, endY);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // Render Induced Magnetic Field Lines B2 from Ring Current
+        function drawFieldLinesB2(ctx) {
+            const lx = state.loop.x;
+            const ly = state.loop.y;
+            const cur = state.current;
+            const isUp = cur > 0; // CCW current produces UP induced B field
+
+            ctx.save();
+            ctx.strokeStyle = isUp ? 'rgba(249, 115, 22, 0.75)' : 'rgba(239, 68, 68, 0.75)';
+            ctx.lineWidth = 2.5;
+
+            // Upward or Downward Arrows passing through ring axis
+            const arrowYStart = ly + (isUp ? 80 : -80);
+            const arrowYEnd = ly - (isUp ? 100 : -100);
+
+            drawArrow(ctx, lx, arrowYStart, lx, arrowYEnd, isUp ? '#f97316' : '#ef4444', 3.5, 'B₂ (Induced)');
+            drawArrow(ctx, lx - 45, arrowYStart * 0.9, lx - 45, arrowYEnd * 0.9, isUp ? '#f97316' : '#ef4444', 2, '');
+            drawArrow(ctx, lx + 45, arrowYStart * 0.9, lx + 45, arrowYEnd * 0.9, isUp ? '#f97316' : '#ef4444', 2, '');
+
+            ctx.restore();
+        }
+
+        // Render Motion Velocity and Magnetic Force Vectors
+        function drawVectors(ctx) {
+            const mx = state.magnet.x;
+            const my = state.magnet.y;
+
+            // Velocity Vector (Green)
+            if (state.showVel && Math.abs(state.magnet.vy) > 0.2) {
+                const velY = my + state.magnet.vy * 12;
+                drawArrow(ctx, mx - 50, my, mx - 50, velY, '#10b981', 3, 'v');
+            }
+
+            // Magnetic Force Vector (Rose/Red)
+            if (state.showForce && Math.abs(state.magneticForce) > 0.2) {
+                const forceLen = Math.max(-80, Math.min(80, state.magneticForce * 2.5));
+                drawArrow(ctx, mx + 50, my, mx + 50, my - forceLen, '#f43f5e', 3, 'F_mag');
+            }
+        }
+
+        // Helper Arrow Renderer
+        function drawArrow(ctx, fromx, fromy, tox, toy, color, lineWidth = 3, label = '') {
+            const headlen = 10;
+            const dx = tox - fromx;
+            const dy = toy - fromy;
+            const angle = Math.atan2(dy, dx);
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lineWidth;
+
+            ctx.beginPath();
+            ctx.moveTo(fromx, fromy);
+            ctx.lineTo(tox, toy);
+            ctx.stroke();
+
+            // Arrow Head
+            ctx.beginPath();
+            ctx.moveTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+
+            // Text Label
+            if (label) {
+                ctx.font = 'bold 12px JetBrains Mono, monospace';
+                ctx.fillText(label, tox + 12, toy);
+            }
+            ctx.restore();
+        }
+
+        function drawOscilloscope() {
+            if (!scopeCtx) return;
+            const container = scopeCanvas.parentElement;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            scopeCtx.clearRect(0, 0, w, h);
+
+            // Center zero line
+            scopeCtx.strokeStyle = '#334155';
+            scopeCtx.lineWidth = 1;
+            scopeCtx.beginPath();
+            scopeCtx.moveTo(0, h / 2); scopeCtx.lineTo(w, h / 2);
+            scopeCtx.stroke();
+
+            if (state.history.length < 2) return;
+
+            const step = w / state.maxHistory;
+
+            // Plot Flux (Sky Blue)
+            scopeCtx.strokeStyle = '#38bdf8';
+            scopeCtx.lineWidth = 2;
+            scopeCtx.beginPath();
+            state.history.forEach((pt, i) => {
+                const x = i * step;
+                const y = h / 2 - (pt.flux * 0.12);
+                if (i === 0) scopeCtx.moveTo(x, y);
+                else scopeCtx.lineTo(x, y);
+            });
+            scopeCtx.stroke();
+
+            // Plot Current (Amber)
+            scopeCtx.strokeStyle = '#fbbf24';
+            scopeCtx.lineWidth = 2;
+            scopeCtx.beginPath();
+            state.history.forEach((pt, i) => {
+                const x = i * step;
+                const y = h / 2 - (pt.current * 1.5);
+                if (i === 0) scopeCtx.moveTo(x, y);
+                else scopeCtx.lineTo(x, y);
+            });
+            scopeCtx.stroke();
+
+            // Plot Force (Rose)
+            scopeCtx.strokeStyle = '#f43f5e';
+            scopeCtx.lineWidth = 1.5;
+            scopeCtx.beginPath();
+            state.history.forEach((pt, i) => {
+                const x = i * step;
+                const y = h / 2 - (pt.force * 1.2);
+                if (i === 0) scopeCtx.moveTo(x, y);
+                else scopeCtx.lineTo(x, y);
+            });
+            scopeCtx.stroke();
+        }
+
+        // Audio Feedback Synthesizer
+        function toggleAudio() {
+            state.audioEnabled = !state.audioEnabled;
+            if (state.audioEnabled) {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    oscillator = audioCtx.createOscillator();
+                    gainNode = audioCtx.createGain();
+
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(220, audioCtx.currentTime);
+                    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    oscillator.start();
+                }
+                iconAudio.className = 'fa-solid fa-volume-high text-emerald-400';
+                lblAudio.textContent = 'Sound On';
+            } else {
+                if (gainNode) gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                iconAudio.className = 'fa-solid fa-volume-xmark';
+                lblAudio.textContent = 'Sound Off';
+            }
+        }
+
+        function updateAudio() {
+            if (!gainNode || !oscillator || !audioCtx) return;
+            const curAbs = Math.abs(state.current);
+            if (curAbs > 0.1) {
+                const targetFreq = 180 + curAbs * 12;
+                const targetGain = Math.min(0.25, curAbs * 0.02);
+                oscillator.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.05);
+                gainNode.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.05);
+            } else {
+                gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+            }
+        }
+
+        // Main Animation Loop
+        function gameLoop() {
+            calculatePhysics();
+            drawCanvas();
+            drawOscilloscope();
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
