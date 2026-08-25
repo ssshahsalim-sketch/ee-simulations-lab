@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faraday's Law Interactive Physics Simulation</title>
+    <!-- Tailwind CSS for modern UI design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for clean UI icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* Custom scrollbars for control panels */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 3px;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Canvas cursor state */
+        canvas.draggable-active {
+            cursor: grabbing !important;
+        }
+        canvas.draggable-hover {
+            cursor: grab !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between shadow-lg sticky top-0 z-30">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-amber-500 to-yellow-400 p-2.5 rounded-xl text-slate-950 font-black text-xl shadow-md flex items-center justify-center">
+                <i class="fa-solid fa-bolt text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                    Faraday's Law <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">Interactive Lab</span>
+                </h1>
+                <p class="text-xs text-slate-400">Electromagnetic Induction & Flux Dynamics Simulation</p>
+            </div>
+        </div>
+
+        <!-- Presets and Global Actions -->
+        <div class="flex items-center space-x-2 mt-2 sm:mt-0">
+            <button id="btnReset" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-rotate-left"></i> Reset Lab
+            </button>
+            <button id="btnAudioToggle" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-volume-high text-indigo-400" id="audioIcon"></i> <span id="audioLabel">Sound On</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workbench Area -->
+    <div class="flex-1 flex flex-col lg:flex-row p-3 md:p-4 gap-4 max-w-[1800px] mx-auto w-full">
+
+        <!-- Left Column: Interactive Simulation Canvas -->
+        <div class="flex-1 flex flex-col gap-3 min-w-0">
+            <!-- Canvas Container Card -->
+            <div class="relative bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl flex-1 flex flex-col min-h-[420px] md:min-h-[500px]">
+                
+                <!-- Floating Info Overlay / HUD -->
+                <div class="absolute top-3 left-3 z-10 flex flex-wrap gap-2 pointer-events-none">
+                    <div class="glass-panel px-3 py-1.5 rounded-xl text-xs font-medium text-slate-200 shadow-md flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Induced EMF (<span class="font-mono text-emerald-300" id="hudVoltage">0.00 V</span>)
+                    </div>
+                    <div class="glass-panel px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-magnet text-rose-400"></i>
+                        Flux $\Phi$: <span class="font-mono text-amber-300" id="hudFlux">0.00 mWb</span>
+                    </div>
+                    <div class="glass-panel px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-gauge text-cyan-400"></i>
+                        Speed: <span class="font-mono text-cyan-300" id="hudSpeed">0 cm/s</span>
+                    </div>
+                </div>
+
+                <!-- Canvas Control Quick Bar (Top Right) -->
+                <div class="absolute top-3 right-3 z-10 flex items-center gap-1.5 glass-panel p-1 rounded-xl shadow-md">
+                    <button id="btnFlipPolarity" title="Flip Magnet Polarity (N/S)" class="p-2 bg-slate-800/80 hover:bg-slate-700 text-rose-400 hover:text-rose-300 rounded-lg text-xs font-bold transition flex items-center gap-1 px-2.5">
+                        <i class="fa-solid fa-arrows-rotate"></i> Flip N/S
+                    </button>
+                    <button id="btnMagnetCenter" title="Center Magnet" class="p-2 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-lg text-xs transition">
+                        <i class="fa-solid fa-crosshairs"></i>
+                    </button>
+                </div>
+
+                <!-- Main Physics 2D Canvas -->
+                <div class="relative w-full flex-1 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center min-h-[360px]">
+                    <canvas id="simCanvas" class="w-full h-full block rounded-2xl"></canvas>
+                </div>
+
+                <!-- Bottom Canvas Legend & Quick Controls -->
+                <div class="bg-slate-900/90 border-t border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-rose-600 inline-block"></span> Magnet North (N)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-600 inline-block"></span> Magnet South (S)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-cyan-400 inline-block"></span> Electron Flow</span>
+                    </div>
+                    <div class="text-slate-400 italic">
+                        Tip: Drag magnet with mouse or touch, or enable Auto-Motion below.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time Oscilloscope / Waveform Graph Panel -->
+            <div class="bg-slate-900 rounded-2xl border border-slate-800 p-3 shadow-xl flex flex-col gap-2">
+                <div class="flex items-center justify-between px-1">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-wave-square text-emerald-400 text-sm"></i>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Induced EMF Oscilloscope ($V$ vs $t$)</h2>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="text-slate-400">Time scale:</span>
+                        <button id="btnGraphClear" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] transition">Clear Plot</button>
+                    </div>
+                </div>
+                <div class="w-full h-28 bg-slate-950 rounded-xl border border-slate-800 overflow-hidden relative">
+                    <canvas id="graphCanvas" class="w-full h-full block"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Control Panels and Parameters -->
+        <div class="w-full lg:w-96 flex flex-col gap-4">
+            
+            <!-- Motion Mode Panel (Manual vs Auto) -->
+            <div class="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-xl flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-400"></i> Motion Control
+                    </h2>
+                    <span class="text-xs text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20" id="motionStatusBadge">Manual Drag</span>
+                </div>
+
+                <!-- Mode Switch Tabs -->
+                <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                    <button id="btnModeManual" class="py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow">
+                        <i class="fa-solid fa-hand text-xs mr-1"></i> Manual
+                    </button>
+                    <button id="btnModeAuto" class="py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">
+                        <i class="fa-solid fa-arrows-left-right text-xs mr-1"></i> Automatic
+                    </button>
+                </div>
+
+                <!-- Automatic Controls Sub-panel (Visible in Auto Mode) -->
+                <div id="autoControls" class="space-y-3 pt-1 hidden">
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-300 mb-1">
+                            <span>Oscillation Speed / Freq</span>
+                            <span id="lblAutoSpeed" class="font-mono text-indigo-400">1.0 Hz</span>
+                        </div>
+                        <input id="sliderAutoSpeed" type="range" min="0.2" max="3.0" step="0.1" value="1.0" class="w-full accent-indigo-500 bg-slate-800 rounded-lg h-1.5 cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-300 mb-1">
+                            <span>Motion Stroke Amplitude</span>
+                            <span id="lblAutoAmp" class="font-mono text-indigo-400">140 px</span>
+                        </div>
+                        <input id="sliderAutoAmp" type="range" min="50" max="220" step="10" value="140" class="w-full accent-indigo-500 bg-slate-800 rounded-lg h-1.5 cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-300 mb-1">
+                            <span>Motion Wave Pattern</span>
+                        </div>
+                        <select id="selectWaveform" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                            <option value="sin">Sinusoidal (AC Generator Harmonic)</option>
+                            <option value="triangle">Linear Back & Forth</option>
+                            <option value="pulse">Pulse In-Out</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <button id="btnAutoPlayPause" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-pause" id="iconAutoPlay"></i> <span id="lblAutoPlay">Pause Auto-Motion</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coil & Apparatus Parameters -->
+            <div class="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-xl flex flex-col gap-3">
+                <div class="border-b border-slate-800 pb-2">
+                    <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-circle-nodes text-amber-400"></i> Coil Setup & Geometry
+                    </h2>
+                </div>
+
+                <!-- Number of Turns Control -->
+                <div>
+                    <div class="flex justify-between text-xs text-slate-300 mb-1.5">
+                        <span class="font-medium">Primary Coil Turns ($N$)</span>
+                        <span id="lblTurns" class="font-bold font-mono text-amber-400 text-sm">3 Turns</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input id="sliderTurns" type="range" min="1" max="20" value="3" class="w-full accent-amber-500 bg-slate-800 rounded-lg h-1.5 cursor-pointer">
+                        <input id="numTurns" type="number" min="1" max="100" value="3" class="w-20 bg-slate-950 border border-slate-700 text-amber-400 font-mono font-bold text-center rounded-lg py-1 text-xs focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <button data-turns="1" class="btnTurnOpt py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 transition">1 Turn</button>
+                        <button data-turns="3" class="btnTurnOpt py-1 bg-indigo-600 text-white rounded-lg text-xs font-semibold border border-indigo-500 shadow transition">3 Turns</button>
+                        <button data-turns="5" class="btnTurnOpt py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 transition">5 Turns</button>
+                        <button data-turns="10" class="btnTurnOpt py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 transition">10 Turns</button>
+                    </div>
+                </div>
+
+                <!-- Magnet Strength Slider -->
+                <div>
+                    <div class="flex justify-between text-xs text-slate-300 mb-1">
+                        <span>Bar Magnet Field Strength ($B_0$)</span>
+                        <span id="lblStrength" class="font-mono text-amber-400">100%</span>
+                    </div>
+                    <input id="sliderStrength" type="range" min="20" max="200" step="10" value="100" class="w-full accent-amber-500 bg-slate-800 rounded-lg h-1.5 cursor-pointer">
+                </div>
+
+                <!-- Dual Coil Comparison Mode -->
+                <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <div>
+                        <div class="text-xs font-semibold text-white">Dual Coil Mode</div>
+                        <div class="text-[11px] text-slate-400" id="lblDualCoilSub">Show 2 coils side-by-side (Main turns vs Half turns)</div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="chkDualCoil" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Display Toggles & Visual Tools -->
+            <div class="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-xl flex flex-col gap-3">
+                <div class="border-b border-slate-800 pb-2">
+                    <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-eye text-cyan-400"></i> Visual Display Options
+                    </h2>
+                </div>
+
+                <div class="space-y-2.5 text-xs">
+                    <!-- Show Field Lines -->
+                    <label class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/50 cursor-pointer transition">
+                        <span class="flex items-center gap-2 text-slate-200">
+                            <i class="fa-solid fa-stream text-indigo-400 w-4"></i> Magnetic Field Lines
+                        </span>
+                        <input type="checkbox" id="chkFieldLines" checked class="w-4 h-4 accent-indigo-500 rounded bg-slate-950 border-slate-700">
+                    </label>
+
+                    <!-- Show Compass Field Grid -->
+                    <label class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/50 cursor-pointer transition">
+                        <span class="flex items-center gap-2 text-slate-200">
+                            <i class="fa-solid fa-compass text-amber-400 w-4"></i> Magnetic Compass Grid
+                        </span>
+                        <input type="checkbox" id="chkCompassGrid" class="w-4 h-4 accent-amber-500 rounded bg-slate-950 border-slate-700">
+                    </label>
+
+                    <!-- Show Electron Motion -->
+                    <label class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/50 cursor-pointer transition">
+                        <span class="flex items-center gap-2 text-slate-200">
+                            <i class="fa-solid fa-circle-dot text-cyan-400 w-4"></i> Wire Electrons Flow
+                        </span>
+                        <input type="checkbox" id="chkElectrons" checked class="w-4 h-4 accent-cyan-500 rounded bg-slate-950 border-slate-700">
+                    </label>
+
+                    <!-- Show Voltmeter -->
+                    <label class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/50 cursor-pointer transition">
+                        <span class="flex items-center gap-2 text-slate-200">
+                            <i class="fa-solid fa-gauge-high text-emerald-400 w-4"></i> Analog Voltmeter Meter
+                        </span>
+                        <input type="checkbox" id="chkVoltmeter" checked class="w-4 h-4 accent-emerald-500 rounded bg-slate-950 border-slate-700">
+                    </label>
+
+                    <!-- Show Light Bulb -->
+                    <label class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/50 cursor-pointer transition">
+                        <span class="flex items-center gap-2 text-slate-200">
+                            <i class="fa-regular fa-lightbulb text-yellow-400 w-4"></i> Light Bulb Indicator
+                        </span>
+                        <input type="checkbox" id="chkLightBulb" checked class="w-4 h-4 accent-yellow-500 rounded bg-slate-950 border-slate-700">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Physics Summary Card -->
+            <div class="bg-gradient-to-br from-indigo-950/60 to-slate-900 rounded-2xl border border-indigo-500/20 p-4 shadow-xl text-xs space-y-2">
+                <div class="font-bold text-indigo-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-graduation-cap"></i> Faraday's Law Equation
+                </div>
+                <div class="p-2.5 bg-slate-950/80 rounded-xl border border-indigo-500/20 text-center font-mono text-sm text-emerald-300 font-bold">
+                    $\mathcal{E} = - N \frac{d\Phi_B}{dt}$
+                </div>
+                <p class="text-slate-300 text-[11px] leading-relaxed">
+                    The induced electromotive force ($\mathcal{E}$) is directly proportional to the number of wire loops ($N$) and the rate of change of magnetic flux ($d\Phi_B / dt$). Moving the magnet faster or adding turns creates a stronger EMF.
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Global Simulation State & Physics Parameters
+        const state = {
+            // Magnet properties
+            magnet: {
+                x: 0,
+                y: 0,
+                vx: 0,
+                vy: 0,
+                prevX: 0,
+                prevY: 0,
+                width: 140,
+                height: 48,
+                polarity: 1, // +1: N on right, -1: N on left
+                strength: 1.0, // multiplier
+                isDragging: false,
+                dragOffsetX: 0,
+                dragOffsetY: 0
+            },
+            
+            // Motion Mode
+            motionMode: 'manual', // 'manual' or 'auto'
+            autoPlaying: true,
+            autoSpeed: 1.0, // Hz
+            autoAmplitude: 140, // px
+            autoWaveform: 'sin',
+            autoTime: 0,
+
+            // Coil parameters
+            coil: {
+                turns: 3,
+                radiusY: 65,
+                radiusX: 22,
+                dualMode: false
+            },
+
+            // Display Flags
+            showFieldLines: true,
+            showCompassGrid: false,
+            showElectrons: true,
+            showVoltmeter: true,
+            showLightBulb: true,
+            audioEnabled: true,
+
+            // Calculated physics outputs
+            flux: 0,
+            prevFlux: 0,
+            dFluxDt: 0,
+            inducedEMF: 0,
+            bulbGlow: 0,
+            voltmeterNeedleAngle: 0, // radians
+            
+            // Electron particles animation array
+            electrons: [],
+            electronOffset: 0,
+
+            // Oscilloscope history buffer
+            voltageHistory: new Array(200).fill(0),
+            historyIndex: 0
+        };
+
+        // DOM Elements setup
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const graphCanvas = document.getElementById('graphCanvas');
+        const graphCtx = graphCanvas.getContext('2d');
+
+        // UI Controls
+        const btnReset = document.getElementById('btnReset');
+        const btnAudioToggle = document.getElementById('btnAudioToggle');
+        const audioIcon = document.getElementById('audioIcon');
+        const audioLabel = document.getElementById('audioLabel');
+        const btnFlipPolarity = document.getElementById('btnFlipPolarity');
+        const btnMagnetCenter = document.getElementById('btnMagnetCenter');
+        
+        // HUD
+        const hudVoltage = document.getElementById('hudVoltage');
+        const hudFlux = document.getElementById('hudFlux');
+        const hudSpeed = document.getElementById('hudSpeed');
+
+        // Mode Switchers
+        const btnModeManual = document.getElementById('btnModeManual');
+        const btnModeAuto = document.getElementById('btnModeAuto');
+        const motionStatusBadge = document.getElementById('motionStatusBadge');
+        const autoControls = document.getElementById('autoControls');
+        const sliderAutoSpeed = document.getElementById('sliderAutoSpeed');
+        const lblAutoSpeed = document.getElementById('lblAutoSpeed');
+        const sliderAutoAmp = document.getElementById('sliderAutoAmp');
+        const lblAutoAmp = document.getElementById('lblAutoAmp');
+        const selectWaveform = document.getElementById('selectWaveform');
+        const btnAutoPlayPause = document.getElementById('btnAutoPlayPause');
+        const iconAutoPlay = document.getElementById('iconAutoPlay');
+        const lblAutoPlay = document.getElementById('lblAutoPlay');
+
+        // Coil Params
+        const lblTurns = document.getElementById('lblTurns');
+        const sliderTurns = document.getElementById('sliderTurns');
+        const numTurns = document.getElementById('numTurns');
+        const turnButtons = document.querySelectorAll('.btnTurnOpt');
+        const sliderStrength = document.getElementById('sliderStrength');
+        const lblStrength = document.getElementById('lblStrength');
+        const chkDualCoil = document.getElementById('chkDualCoil');
+        const lblDualCoilSub = document.getElementById('lblDualCoilSub');
+
+        // Display Toggles
+        const chkFieldLines = document.getElementById('chkFieldLines');
+        const chkCompassGrid = document.getElementById('chkCompassGrid');
+        const chkElectrons = document.getElementById('chkElectrons');
+        const chkVoltmeter = document.getElementById('chkVoltmeter');
+        const chkLightBulb = document.getElementById('chkLightBulb');
+        const btnGraphClear = document.getElementById('btnGraphClear');
+
+        // Web Audio API Sound Generation for Electromagnetic Induction Hum
+        let audioCtx = null;
+        let oscNode = null;
+        let gainNode = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    audioCtx = new AudioContext();
+                    oscNode = audioCtx.createOscillator();
+                    gainNode = audioCtx.createGain();
+                    
+                    oscNode.type = 'sine';
+                    oscNode.frequency.setValueAtTime(120, audioCtx.currentTime);
+                    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                    
+                    oscNode.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    oscNode.start();
+                }
+            }
+        }
+
+        function updateAudioTone(voltage) {
+            if (!state.audioEnabled || !audioCtx) return;
+            const absV = Math.min(Math.abs(voltage), 25);
+            if (absV > 0.1) {
+                const freq = 100 + absV * 25; // pitch scales with voltage
+                const gain = Math.min(absV / 20 * 0.15, 0.2); // volume scales with voltage
+                oscNode.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.05);
+                gainNode.gain.setTargetAtTime(gain, audioCtx.currentTime, 0.05);
+            } else {
+                gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+            }
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+            const graphRect = graphCanvas.parentElement.getBoundingClientRect();
+            graphCanvas.width = graphRect.width * window.devicePixelRatio;
+            graphCanvas.height = graphRect.height * window.devicePixelRatio;
+            graphCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+            // Center magnet initially if zero
+            if (state.magnet.x === 0 && state.magnet.y === 0) {
+                centerMagnet();
+            }
+        }
+
+        function centerMagnet() {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            state.magnet.x = w * 0.25;
+            state.magnet.y = h * 0.5;
+            state.magnet.vx = 0;
+            state.magnet.vy = 0;
+            state.magnet.prevX = state.magnet.x;
+            state.magnet.prevY = state.magnet.y;
+        }
+
+        /**
+         * Calculate magnetic field vector B(r) produced by dipole magnet
+         */
+        function calculateBField(px, py, magnetX, magnetY, polarity, strength) {
+            const dx = px - magnetX;
+            const dy = py - magnetY;
+            const r2 = dx * dx + dy * dy + 400; // smoothing constant
+            const r = Math.sqrt(r2);
+            const r5 = r2 * r2 * r;
+            
+            // Dipole moment vector M along x-axis
+            const mx = polarity * strength * 80000;
+            const my = 0;
+
+            const dot = dx * mx + dy * my;
+
+            const Bx = (3 * dot * dx / r5) - (mx / (r2 * r));
+            const By = (3 * dot * dy / r5) - (my / (r2 * r));
+
+            return { Bx, By, mag: Math.sqrt(Bx * Bx + By * By) };
+        }
+
+        /**
+         * Calculates Magnetic Flux Phi passing through a coil centered at (coilX, coilY)
+         */
+        function calculateCoilFlux(coilX, coilY, coilRadius, turns) {
+            // Sample flux over coil disk height
+            let totalFlux = 0;
+            const samples = 7;
+            const step = (coilRadius * 2) / (samples - 1);
+            
+            for (let i = 0; i < samples; i++) {
+                const sampleY = coilY - coilRadius + i * step;
+                const field = calculateBField(coilX, sampleY, state.magnet.x, state.magnet.y, state.magnet.polarity, state.magnet.strength);
+                totalFlux += field.Bx;
+            }
+
+            // Magnetic flux Phi = B_avg * Area * Turns
+            const avgBx = totalFlux / samples;
+            return avgBx * turns * 0.15;
+        }
+
+        let lastTime = performance.now();
+
+        function updatePhysics(timestamp) {
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.05); // cap dt
+            lastTime = timestamp;
+
+            const width = canvas.width / window.devicePixelRatio;
+            const height = canvas.height / window.devicePixelRatio;
+
+            // Primary coil X position
+            const primaryCoilX = width * 0.72;
+            const primaryCoilY = height * 0.5;
+
+            // Handle Automatic Motion Mode (Oscillates directly into and out of the coil)
+            if (state.motionMode === 'auto' && state.autoPlaying) {
+                state.autoTime += dt * state.autoSpeed * Math.PI * 2;
+                const centerX = primaryCoilX; // Target magnet directly through coil center
+                const amp = state.autoAmplitude;
+
+                let targetX = centerX;
+                if (state.autoWaveform === 'sin') {
+                    targetX = centerX + Math.sin(state.autoTime) * amp;
+                } else if (state.autoWaveform === 'triangle') {
+                    const normTime = (state.autoTime / (Math.PI * 2)) % 1;
+                    const tri = normTime < 0.5 ? (normTime * 4 - 1) : (3 - normTime * 4);
+                    targetX = centerX + tri * amp;
+                } else if (state.autoWaveform === 'pulse') {
+                    const pulse = Math.sin(state.autoTime);
+                    targetX = centerX + (pulse > 0 ? Math.pow(pulse, 0.5) : -Math.pow(Math.abs(pulse), 0.5)) * amp;
+                }
+
+                state.magnet.vx = (targetX - state.magnet.x) / (dt || 0.016);
+                state.magnet.vy = 0;
+                state.magnet.x = targetX;
+                state.magnet.y = height * 0.5;
+            } else if (state.motionMode === 'manual' && !state.magnet.isDragging) {
+                // Smooth deceleration when let go
+                state.magnet.x += state.magnet.vx * dt;
+                state.magnet.y += state.magnet.vy * dt;
+                state.magnet.vx *= 0.85;
+                state.magnet.vy *= 0.85;
+
+                // Keep inside canvas bounds
+                state.magnet.x = Math.max(60, Math.min(width - 60, state.magnet.x));
+                state.magnet.y = Math.max(60, Math.min(height - 60, state.magnet.y));
+            } else if (state.magnet.isDragging) {
+                // Velocity computed during drag
+                state.magnet.vx = (state.magnet.x - state.magnet.prevX) / (dt || 0.016);
+                state.magnet.vy = (state.magnet.y - state.magnet.prevY) / (dt || 0.016);
+                state.magnet.prevX = state.magnet.x;
+                state.magnet.prevY = state.magnet.y;
+            }
+
+            // Compute Magnetic Flux
+            let currentFlux = calculateCoilFlux(primaryCoilX, primaryCoilY, state.coil.radiusY, state.coil.turns);
+            
+            // Secondary coil if dual mode (has half turns of main coil)
+            if (state.coil.dualMode) {
+                const secCoilX = width * 0.72;
+                const secCoilY = height * 0.25;
+                const secTurns = Math.max(1, Math.floor(state.coil.turns / 2));
+                const secFlux = calculateCoilFlux(secCoilX, secCoilY, state.coil.radiusY, secTurns);
+                currentFlux += secFlux;
+            }
+
+            // Rate of change of Flux dPhi / dt
+            state.dFluxDt = (currentFlux - state.prevFlux) / (dt || 0.016);
+            state.prevFlux = currentFlux;
+            state.flux = currentFlux;
+
+            // Faraday's Law: E = - dPhi / dt
+            // Low-pass filter for smooth gauge needle animation
+            const rawEMF = -state.dFluxDt * 0.8;
+            state.inducedEMF += (rawEMF - state.inducedEMF) * 0.2;
+
+            // Bulb brightness proportional to square of induced voltage
+            state.bulbGlow = Math.min(Math.pow(Math.abs(state.inducedEMF) / 12, 1.8), 1.0);
+
+            // Magnet speed HUD calculation
+            const speed = Math.sqrt(state.magnet.vx * state.magnet.vx + state.magnet.vy * state.magnet.vy);
+
+            // Update UI HUD Text
+            hudVoltage.textContent = `${state.inducedEMF >= 0 ? '+' : ''}${state.inducedEMF.toFixed(2)} V`;
+            hudFlux.textContent = `${state.flux.toFixed(2)} mWb`;
+            hudSpeed.textContent = `${Math.round(speed / 10)} cm/s`;
+
+            // Update Audio
+            updateAudioTone(state.inducedEMF);
+
+            // Update Oscilloscope buffer
+            state.voltageHistory[state.historyIndex] = state.inducedEMF;
+            state.historyIndex = (state.historyIndex + 1) % state.voltageHistory.length;
+
+            // Update Electron Flow Offset inside wires
+            state.electronOffset += state.inducedEMF * dt * 40;
+        }
+
+
+        /**
+         * Sets active motion mode (manual or auto) and updates UI tab buttons
+         */
+        function setMotionMode(mode) {
+            state.motionMode = mode;
+            if (mode === 'manual') {
+                btnModeManual.className = 'py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow';
+                btnModeAuto.className = 'py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition';
+                motionStatusBadge.textContent = 'Manual Drag';
+                autoControls.classList.add('hidden');
+            } else {
+                btnModeAuto.className = 'py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow';
+                btnModeManual.className = 'py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition';
+                motionStatusBadge.textContent = 'Auto Oscillating';
+                autoControls.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Draws the Bar Magnet with North (Red) and South (Blue) poles
+         */
+        function drawMagnet(x, y, w, h, polarity) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            const halfW = w / 2;
+            const halfH = h / 2;
+
+            // Outer shadow
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+            ctx.shadowBlur = 12;
+            ctx.shadowOffsetY = 4;
+
+            // Left pole half
+            ctx.beginPath();
+            ctx.roundRect(-halfW, -halfH, halfW, h, [8, 0, 0, 8]);
+            ctx.fillStyle = polarity === 1 ? '#2563eb' : '#dc2626'; // Blue (S) or Red (N)
+            ctx.fill();
+
+            // Right pole half
+            ctx.beginPath();
+            ctx.roundRect(0, -halfH, halfW, h, [0, 8, 8, 0]);
+            ctx.fillStyle = polarity === 1 ? '#dc2626' : '#2563eb'; // Red (N) or Blue (S)
+            ctx.fill();
+
+            ctx.shadowColor = 'transparent';
+
+            // Glossy gradient overlay
+            const glossGrad = ctx.createLinearGradient(0, -halfH, 0, halfH);
+            glossGrad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+            glossGrad.addColorStop(0.4, 'rgba(255, 255, 255, 0.05)');
+            glossGrad.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
+
+            ctx.beginPath();
+            ctx.roundRect(-halfW, -halfH, w, h, 8);
+            ctx.fillStyle = glossGrad;
+            ctx.fill();
+
+            // Metallic border outline
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Pole Labels 'N' and 'S'
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const leftText = polarity === 1 ? 'S' : 'N';
+            const rightText = polarity === 1 ? 'N' : 'S';
+
+            ctx.fillText(leftText, -halfW / 2, 0);
+            ctx.fillText(rightText, halfW / 2, 0);
+
+            ctx.restore();
+        }
+
+        /**
+         * Main Render Function
+         */
+        function render() {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+
+            // Clear Background
+            ctx.clearRect(0, 0, w, h);
+
+            // 1. Draw Field Compass Grid if enabled
+            if (state.showCompassGrid) {
+                drawCompassGrid(w, h);
+            }
+
+            // 2. Draw Magnetic Field Lines if enabled
+            if (state.showFieldLines) {
+                drawFieldLines(w, h);
+            }
+
+            // Coil parameters
+            const coilX = w * 0.72;
+            const coilY = h * 0.5;
+
+            // 3. Draw Back loops of Primary Coil (Depth Sorting)
+            drawCoilBack(coilX, coilY, state.coil.radiusX, state.coil.radiusY, state.coil.turns);
+
+            if (state.coil.dualMode) {
+                const secTurns = Math.max(1, Math.floor(state.coil.turns / 2));
+                drawCoilBack(coilX, h * 0.25, state.coil.radiusX, state.coil.radiusY, secTurns);
+            }
+
+            // 4. Draw Circuit Wires, Light Bulb, and Voltmeter
+            drawCircuitAndComponents(coilX, coilY, w, h);
+
+            // 5. Draw Bar Magnet
+            drawMagnet(state.magnet.x, state.magnet.y, state.magnet.width, state.magnet.height, state.magnet.polarity);
+
+            // 6. Draw Front loops of Coil (So magnet passes INSIDE coil)
+            drawCoilFront(coilX, coilY, state.coil.radiusX, state.coil.radiusY, state.coil.turns);
+
+            if (state.coil.dualMode) {
+                const secTurns = Math.max(1, Math.floor(state.coil.turns / 2));
+                drawCoilFront(coilX, h * 0.25, state.coil.radiusX, state.coil.radiusY, secTurns);
+            }
+
+            // 7. Draw Wire Electrons Flow if enabled
+            if (state.showElectrons) {
+                drawElectrons(coilX, coilY, w, h);
+            }
+
+            // 8. Render Oscilloscope Graph
+            renderOscilloscope();
+        }
+
+
+        /**
+         * Draws Curved Magnetic Field Lines around the Bar Magnet (Scales with strength)
+         */
+        function drawFieldLines(w, h) {
+            ctx.save();
+
+            const magX = state.magnet.x;
+            const magY = state.magnet.y;
+            const pol = state.magnet.polarity;
+            const str = state.magnet.strength;
+
+            // Field line count, thickness, and brightness scale dynamically with magnet strength
+            const lines = Math.round(6 + str * 12); // From 8 to 30 field lines
+            ctx.lineWidth = 0.8 + str * 0.9;
+
+            // Generate field line seeds from North pole to South pole
+            for (let i = 0; i < lines; i++) {
+                const angle = ((i + 0.5) / lines) * Math.PI * 2;
+                if (Math.abs(Math.sin(angle)) < 0.08) continue; // skip inline along axis
+
+                let px = magX + (pol * 60 * Math.cos(angle));
+                let py = magY + (40 * Math.sin(angle));
+
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+
+                const baseAlpha = Math.min(0.85, (0.2 + 0.45 * str) * Math.abs(Math.sin(angle)));
+                ctx.strokeStyle = `rgba(147, 197, 253, ${baseAlpha})`;
+
+                // Euler integration tracing field vectors
+                const maxSteps = Math.round(70 + str * 40);
+                for (let step = 0; step < maxSteps; step++) {
+                    const field = calculateBField(px, py, magX, magY, pol, str);
+                    if (field.mag === 0) break;
+
+                    const stepSize = 7;
+                    const dir = pol; // follow vector direction
+                    px += (field.Bx / field.mag) * stepSize * dir;
+                    py += (field.By / field.mag) * stepSize * dir;
+
+                    ctx.lineTo(px, py);
+
+                    // Stop if out of bounds or re-entered magnet
+                    if (px < 0 || px > w || py < 0 || py > h) break;
+                    if (Math.hypot(px - magX, py - magY) < 30 && step > 5) break;
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        /**
+         * Draws Grid of Tiny Magnetic Needles/Compasses
+         */
+        function drawCompassGrid(w, h) {
+            ctx.save();
+            const cols = 14;
+            const rows = 9;
+            const stepX = w / cols;
+            const stepY = h / rows;
+
+            for (let i = 1; i < cols; i++) {
+                for (let j = 1; j < rows; j++) {
+                    const cx = i * stepX;
+                    const cy = j * stepY;
+
+                    const field = calculateBField(cx, cy, state.magnet.x, state.magnet.y, state.magnet.polarity, state.magnet.strength);
+                    const angle = Math.atan2(field.By, field.Bx);
+
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.rotate(angle);
+
+                    // Compass needle
+                    ctx.lineWidth = 1.5;
+
+                    // North tip (Red)
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(10, 0);
+                    ctx.stroke();
+
+                    // South tip (White/Blue)
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-10, 0);
+                    ctx.stroke();
+
+                    // Center dot
+                    ctx.fillStyle = '#f8fafc';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 1.8, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                }
+            }
+            ctx.restore();
+        }
+
+
+        /**
+         * Draws Back loops of Solenoid Coil (Rendered behind magnet)
+         */
+        function drawCoilBack(cx, cy, rx, ry, turns) {
+            ctx.save();
+            // Adapt spacing based on turns so any number of turns fits nicely
+            const maxCoilWidth = 120;
+            const turnSpacing = turns > 1 ? Math.min(28, maxCoilWidth / (turns - 1)) : 0;
+            const startX = cx - ((turns - 1) * turnSpacing) / 2;
+
+            for (let i = 0; i < turns; i++) {
+                const x = startX + i * turnSpacing;
+
+                // Copper Gradient for Wire
+                const grad = ctx.createLinearGradient(x - rx, cy - ry, x + rx, cy + ry);
+                grad.addColorStop(0, '#b45309');
+                grad.addColorStop(0.5, '#f59e0b');
+                grad.addColorStop(1, '#78350f');
+
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = Math.max(3, Math.min(7, 24 / Math.sqrt(turns)));
+                ctx.lineCap = 'round';
+
+                // Back semi-ellipse (top/back arc)
+                ctx.beginPath();
+                ctx.ellipse(x, cy, rx, ry, 0, Math.PI * 0.5, Math.PI * 1.5);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        /**
+         * Draws Front loops of Solenoid Coil (Rendered in front of magnet for depth occlusion)
+         */
+        function drawCoilFront(cx, cy, rx, ry, turns) {
+            ctx.save();
+            const maxCoilWidth = 120;
+            const turnSpacing = turns > 1 ? Math.min(28, maxCoilWidth / (turns - 1)) : 0;
+            const startX = cx - ((turns - 1) * turnSpacing) / 2;
+
+            for (let i = 0; i < turns; i++) {
+                const x = startX + i * turnSpacing;
+
+                const grad = ctx.createLinearGradient(x - rx, cy - ry, x + rx, cy + ry);
+                grad.addColorStop(0, '#d97706');
+                grad.addColorStop(0.5, '#fde047');
+                grad.addColorStop(1, '#92400e');
+
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = Math.max(3, Math.min(7, 24 / Math.sqrt(turns)));
+                ctx.lineCap = 'round';
+
+                // Front semi-ellipse (bottom/front arc)
+                ctx.beginPath();
+                ctx.ellipse(x, cy, rx, ry, 0, -Math.PI * 0.5, Math.PI * 0.5);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        /**
+         * Draws Wires, Light Bulb, and Voltmeter Apparatus
+         */
+        function drawCircuitAndComponents(coilX, coilY, w, h) {
+            ctx.save();
+
+            const meterX = w * 0.72;
+            const meterY = h * 0.82;
+            const bulbX = w * 0.88;
+            const bulbY = h * 0.5;
+
+            // Wire Path Setup
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'round';
+
+            // Top Lead Wire from Coil to Bulb/Voltmeter
+            ctx.beginPath();
+            ctx.moveTo(coilX + 40, coilY - 50);
+            ctx.lineTo(bulbX, coilY - 50);
+            ctx.lineTo(bulbX, bulbY - 35);
+            ctx.stroke();
+
+            // Bottom Lead Wire from Coil to Voltmeter
+            ctx.beginPath();
+            ctx.moveTo(coilX + 40, coilY + 50);
+            ctx.lineTo(bulbX, coilY + 50);
+            ctx.lineTo(bulbX, bulbY + 35);
+            ctx.stroke();
+
+            // T-junction to Voltmeter
+            if (state.showVoltmeter) {
+                ctx.beginPath();
+                ctx.moveTo(bulbX - 40, coilY - 50);
+                ctx.lineTo(meterX, coilY - 50);
+                ctx.lineTo(meterX, meterY - 60);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(bulbX - 40, coilY + 50);
+                ctx.lineTo(meterX + 40, coilY + 50);
+                ctx.lineTo(meterX + 40, meterY - 40);
+                ctx.stroke();
+            }
+
+            // Draw Light Bulb Component with dynamic Voltage and Polarity color
+            if (state.showLightBulb) {
+                drawLightBulb(bulbX, bulbY, state.bulbGlow, state.inducedEMF);
+            }
+
+            // Draw Voltmeter Gauge Component
+            if (state.showVoltmeter) {
+                drawVoltmeter(meterX, meterY, state.inducedEMF);
+            }
+
+            ctx.restore();
+        }
+
+
+        /**
+         * Renders Glowing Light Bulb with dynamic voltage level & polarity colors
+         */
+        function drawLightBulb(x, y, glow, voltage) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Determine light color according to voltage magnitude and polarity
+            // Positive EMF: Cyan/Electric White-Blue -> Gold
+            // Negative EMF: Orange/Red Flame -> Hot White
+            let primaryHue, haloColor, rayColor;
+            
+            if (voltage >= 0) {
+                // Positive polarity voltage
+                const normV = Math.min(1.0, voltage / 15);
+                primaryHue = 180 - (normV * 120); // 180 (Cyan) down to 60 (Yellow)
+                haloColor = `hsla(${primaryHue}, 100%, 65%, ${glow * 0.85})`;
+                rayColor = `hsla(${primaryHue}, 100%, 75%, ${Math.min(glow * 0.95, 0.95)})`;
+            } else {
+                // Negative polarity voltage
+                const normV = Math.min(1.0, Math.abs(voltage) / 15);
+                primaryHue = 0 + (normV * 40); // 0 (Red) up to 40 (Amber/Orange)
+                haloColor = `hsla(${primaryHue}, 100%, 60%, ${glow * 0.85})`;
+                rayColor = `hsla(${primaryHue}, 100%, 70%, ${Math.min(glow * 0.95, 0.95)})`;
+            }
+
+            // Light Rays Radial Glow Effect
+            if (glow > 0.02) {
+                const rayCount = 12;
+                const rayLength = 20 + glow * 60;
+
+                ctx.strokeStyle = rayColor;
+                ctx.lineWidth = 2 + glow * 3.5;
+
+                for (let i = 0; i < rayCount; i++) {
+                    const angle = (i / rayCount) * Math.PI * 2;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(angle) * 28, Math.sin(angle) * 28);
+                    ctx.lineTo(Math.cos(angle) * rayLength, Math.sin(angle) * rayLength);
+                    ctx.stroke();
+                }
+
+                // Outer Halo Glow
+                const haloGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, 90 * glow);
+                haloGrad.addColorStop(0, haloColor);
+                haloGrad.addColorStop(0.5, `hsla(${primaryHue}, 100%, 50%, ${glow * 0.35})`);
+                haloGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                ctx.fillStyle = haloGrad;
+                ctx.beginPath();
+                ctx.arc(0, 0, 90 * glow, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Glass Bulb Body Gradient
+            const bulbGrad = ctx.createRadialGradient(-5, -8, 2, 0, 0, 26);
+            if (glow > 0.05) {
+                bulbGrad.addColorStop(0, '#ffffff');
+                bulbGrad.addColorStop(0.5, `hsl(${primaryHue}, 100%, 70%)`);
+                bulbGrad.addColorStop(1, `hsl(${primaryHue}, 90%, 45%)`);
+            } else {
+                bulbGrad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                bulbGrad.addColorStop(0.6, 'rgba(203, 213, 225, 0.4)');
+                bulbGrad.addColorStop(1, 'rgba(148, 163, 184, 0.2)');
+            }
+
+            ctx.fillStyle = bulbGrad;
+            ctx.strokeStyle = glow > 0.05 ? `hsl(${primaryHue}, 100%, 80%)` : 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1.5;
+
+            ctx.beginPath();
+            ctx.arc(0, -6, 22, 0.6, Math.PI - 0.6);
+            ctx.lineTo(-12, 18);
+            ctx.lineTo(12, 18);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Metallic Base Socket
+            ctx.fillStyle = '#64748b';
+            ctx.fillRect(-10, 18, 20, 12);
+
+            ctx.fillStyle = '#334155';
+            ctx.beginPath();
+            ctx.arc(0, 30, 8, 0, Math.PI);
+            ctx.fill();
+
+            // Filament Wire Glow
+            ctx.strokeStyle = glow > 0.05 ? '#ffffff' : '#f59e0b';
+            ctx.lineWidth = glow > 0.05 ? 2.5 : 1.8;
+            ctx.beginPath();
+            ctx.moveTo(-7, 10);
+            ctx.lineTo(-4, -4);
+            ctx.lineTo(0, -8);
+            ctx.lineTo(4, -4);
+            ctx.lineTo(7, 10);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        /**
+         * Renders Analog Voltmeter with Gauge Arc and Needle Deflection
+         */
+        function drawVoltmeter(x, y, voltage) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Casing
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(-65, -55, 130, 90, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            // Dial Background
+            ctx.fillStyle = '#f8fafc';
+            ctx.beginPath();
+            ctx.roundRect(-58, -48, 116, 65, 8);
+            ctx.fill();
+
+            // Dial Scale Arc
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(0, 10, 42, Math.PI * 1.25, Math.PI * 1.75);
+            ctx.stroke();
+
+            // Zero Center Markings (- V 0 + V)
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+
+            ctx.fillText('-', -32, -18);
+            ctx.fillText('0', 0, -32);
+            ctx.fillText('+', 32, -18);
+
+            ctx.font = 'bold 10px Inter, sans-serif';
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillText('VOLTMETER', 0, 4);
+
+            // Needle Deflection Angle (-45 deg to +45 deg)
+            const maxV = 15; // volts scale
+            const clampedV = Math.max(-maxV, Math.min(maxV, voltage));
+            const angle = (clampedV / maxV) * (Math.PI * 0.25);
+
+            // Draw Needle
+            ctx.save();
+            ctx.translate(0, 10);
+            ctx.rotate(angle);
+
+            ctx.strokeStyle = '#dc2626'; // Red needle
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, 4);
+            ctx.lineTo(0, -42);
+            ctx.stroke();
+
+            // Pivot Center Knob
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(0, 0, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        /**
+         * Animates Moving Electrons along Wires
+         */
+        function drawElectrons(coilX, coilY, w, h) {
+            ctx.save();
+            ctx.fillStyle = '#22d3ee'; // Cyan electron dots
+            ctx.shadowColor = '#06b6d4';
+            ctx.shadowBlur = 6;
+
+            const speed = state.electronOffset;
+            const dotCount = 28;
+
+            for (let i = 0; i < dotCount; i++) {
+                const progress = ((i / dotCount) + (speed % 1 + 1)) % 1;
+
+                // Wire loop parametric path
+                let ex = coilX + 40 + progress * (w * 0.88 - (coilX + 40));
+                let ey = coilY - 50;
+
+                ctx.beginPath();
+                ctx.arc(ex, ey, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Return wire
+                let ex2 = coilX + 40 + (1 - progress) * (w * 0.88 - (coilX + 40));
+                let ey2 = coilY + 50;
+
+                ctx.beginPath();
+                ctx.arc(ex2, ey2, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+
+        /**
+         * Draws Real-time Scrolling Voltage Graph
+         */
+        function renderOscilloscope() {
+            const w = graphCanvas.width / window.devicePixelRatio;
+            const h = graphCanvas.height / window.devicePixelRatio;
+
+            graphCtx.clearRect(0, 0, w, h);
+
+            // Grid Lines
+            graphCtx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
+            graphCtx.lineWidth = 1;
+
+            // Horizontal zero line
+            const zeroY = h / 2;
+            graphCtx.beginPath();
+            graphCtx.moveTo(0, zeroY);
+            graphCtx.lineTo(w, zeroY);
+            graphCtx.stroke();
+
+            // Vertical grid dividers
+            for (let x = 0; x < w; x += 40) {
+                graphCtx.beginPath();
+                graphCtx.moveTo(x, 0);
+                graphCtx.lineTo(x, h);
+                graphCtx.stroke();
+            }
+
+            // Draw Scrolling Waveform
+            graphCtx.strokeStyle = '#10b981'; // Emerald Green Trace
+            graphCtx.lineWidth = 2;
+            graphCtx.beginPath();
+
+            const bufLen = state.voltageHistory.length;
+            const stepX = w / (bufLen - 1);
+
+            for (let i = 0; i < bufLen; i++) {
+                const idx = (state.historyIndex + i) % bufLen;
+                const v = state.voltageHistory[idx];
+
+                // Scale voltage to canvas height
+                const y = zeroY - (v / 20) * (h * 0.42);
+                const x = i * stepX;
+
+                if (i === 0) graphCtx.moveTo(x, y);
+                else graphCtx.lineTo(x, y);
+            }
+            graphCtx.stroke();
+
+            // Glow effect on graph trace
+            graphCtx.strokeStyle = 'rgba(16, 185, 129, 0.3)';
+            graphCtx.lineWidth = 6;
+            graphCtx.stroke();
+        }
+
+
+        /**
+         * Setup Event Listeners for Drag and Controls
+         */
+        function setupInteraction() {
+            window.addEventListener('resize', resizeCanvas);
+
+            // Dragging mechanics for magnet
+            function getCanvasCoords(e) {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
+            }
+
+            function isOverMagnet(pos) {
+                const m = state.magnet;
+                return (
+                    pos.x >= m.x - m.width / 2 &&
+                    pos.x <= m.x + m.width / 2 &&
+                    pos.y >= m.y - m.height / 2 &&
+                    pos.y <= m.y + m.height / 2
+                );
+            }
+
+            function onPointerDown(e) {
+                initAudio();
+                const pos = getCanvasCoords(e);
+                if (isOverMagnet(pos)) {
+                    state.magnet.isDragging = true;
+                    state.magnet.dragOffsetX = pos.x - state.magnet.x;
+                    state.magnet.dragOffsetY = pos.y - state.magnet.y;
+                    canvas.classList.add('draggable-active');
+
+                    // If in auto mode, switch to manual automatically on drag
+                    if (state.motionMode === 'auto') {
+                        setMotionMode('manual');
+                    }
+                }
+            }
+
+            function onPointerMove(e) {
+                const pos = getCanvasCoords(e);
+
+                if (state.magnet.isDragging) {
+                    state.magnet.x = pos.x - state.magnet.dragOffsetX;
+                    state.magnet.y = pos.y - state.magnet.dragOffsetY;
+                } else {
+                    if (isOverMagnet(pos)) {
+                        canvas.classList.add('draggable-hover');
+                    } else {
+                        canvas.classList.remove('draggable-hover');
+                    }
+                }
+            }
+
+            function onPointerUp() {
+                state.magnet.isDragging = false;
+                canvas.classList.remove('draggable-active');
+            }
+
+            canvas.addEventListener('mousedown', onPointerDown);
+            window.addEventListener('mousemove', onPointerMove);
+            window.addEventListener('mouseup', onPointerUp);
+
+            canvas.addEventListener('touchstart', onPointerDown, { passive: true });
+            window.addEventListener('touchmove', onPointerMove, { passive: true });
+            window.addEventListener('touchend', onPointerUp);
+
+
+            // Motion Mode Buttons
+            btnModeManual.addEventListener('click', () => setMotionMode('manual'));
+            btnModeAuto.addEventListener('click', () => setMotionMode('auto'));
+
+            // Automatic Motion Controls
+            sliderAutoSpeed.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                state.autoSpeed = val;
+                lblAutoSpeed.textContent = `${val.toFixed(1)} Hz`;
+            });
+
+            sliderAutoAmp.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                state.autoAmplitude = val;
+                lblAutoAmp.textContent = `${val} px`;
+            });
+
+            selectWaveform.addEventListener('change', (e) => {
+                state.autoWaveform = e.target.value;
+            });
+
+            btnAutoPlayPause.addEventListener('click', () => {
+                state.autoPlaying = !state.autoPlaying;
+                if (state.autoPlaying) {
+                    iconAutoPlay.className = 'fa-solid fa-pause';
+                    lblAutoPlay.textContent = 'Pause Auto-Motion';
+                } else {
+                    iconAutoPlay.className = 'fa-solid fa-play';
+                    lblAutoPlay.textContent = 'Start Auto-Motion';
+                }
+            });
+
+            // Audio Toggle Listener
+            btnAudioToggle.addEventListener('click', () => {
+                state.audioEnabled = !state.audioEnabled;
+                if (state.audioEnabled) {
+                    audioIcon.className = 'fa-solid fa-volume-high text-indigo-400';
+                    audioLabel.textContent = 'Sound On';
+                    initAudio();
+                } else {
+                    audioIcon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                    audioLabel.textContent = 'Sound Off';
+                    if (gainNode && audioCtx) {
+                        gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+                    }
+                }
+            });
+
+            // UI Control Handlers
+            btnFlipPolarity.addEventListener('click', () => {
+                state.magnet.polarity *= -1;
+            });
+
+            btnMagnetCenter.addEventListener('click', centerMagnet);
+
+            btnReset.addEventListener('click', () => {
+                centerMagnet();
+                updateTurns(3);
+                state.magnet.polarity = 1;
+                state.magnet.strength = 1.0;
+                state.coil.dualMode = false;
+                chkDualCoil.checked = false;
+                sliderStrength.value = 100;
+                lblStrength.textContent = '100%';
+                setMotionMode('manual');
+                state.voltageHistory.fill(0);
+            });
+
+            // Turn selection helper & handlers
+            function updateTurns(turns) {
+                const numVal = Math.max(1, Math.min(100, parseInt(turns) || 1));
+                state.coil.turns = numVal;
+                lblTurns.textContent = `${numVal} Turn${numVal > 1 ? 's' : ''}`;
+                
+                sliderTurns.value = Math.min(20, numVal);
+                numTurns.value = numVal;
+
+                // Update subtext for dual coil
+                const halfTurns = Math.max(1, Math.floor(numVal / 2));
+                lblDualCoilSub.textContent = `Show 2 coils side-by-side (${numVal} turns vs ${halfTurns} turns)`;
+
+                turnButtons.forEach(btn => {
+                    const t = parseInt(btn.dataset.turns);
+                    if (t === numVal) {
+                        btn.className = 'btnTurnOpt py-1 bg-indigo-600 text-white rounded-lg text-xs font-semibold border border-indigo-500 shadow transition';
+                    } else {
+                        btn.className = 'btnTurnOpt py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 transition';
+                    }
+                });
+            }
+
+            sliderTurns.addEventListener('input', (e) => {
+                updateTurns(e.target.value);
+            });
+
+            numTurns.addEventListener('input', (e) => {
+                updateTurns(e.target.value);
+            });
+
+            turnButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    updateTurns(btn.dataset.turns);
+                });
+            });
+
+            sliderStrength.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                state.magnet.strength = val / 100;
+                lblStrength.textContent = `${val}%`;
+            });
+
+            chkDualCoil.addEventListener('change', (e) => {
+                state.coil.dualMode = e.target.checked;
+            });
+
+            // Display options toggles
+            chkFieldLines.addEventListener('change', e => state.showFieldLines = e.target.checked);
+            chkCompassGrid.addEventListener('change', e => state.showCompassGrid = e.target.checked);
+            chkElectrons.addEventListener('change', e => state.showElectrons = e.target.checked);
+            chkVoltmeter.addEventListener('change', e => state.showVoltmeter = e.target.checked);
+            chkLightBulb.addEventListener('change', e => state.showLightBulb = e.target.checked);
+
+            btnGraphClear.addEventListener('click', () => {
+                state.voltageHistory.fill(0);
+            });
+        }
+
+
+        /**
+         * Main Physics and Animation Loop
+         */
+        function animate(timestamp) {
+            updatePhysics(timestamp);
+            render();
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize Application on Window Load
+        window.onload = function () {
+            resizeCanvas();
+            setupInteraction();
+            requestAnimationFrame(animate);
+        };
+    </script>
+</body>
+</html>
