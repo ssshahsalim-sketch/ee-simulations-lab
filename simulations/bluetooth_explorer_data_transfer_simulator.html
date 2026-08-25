@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth Explorer & Data Transfer Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bt: {
+                            blue: '#0082FC',
+                            cyan: '#00F0FF',
+                            dark: '#0B1120',
+                            panel: '#1E293B',
+                            lightBlue: '#38BDF8',
+                            accent: '#6366F1'
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s infinite',
+                        'wave': 'radioWave 2s linear infinite'
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%, 100%': { opacity: '0.4', transform: 'scale(0.98)' },
+                            '50%': { opacity: '1', transform: 'scale(1.02)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #080D1A;
+            color: #F1F5F9;
+            overflow-x: hidden;
+        }
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0F172A;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0082FC;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .bt-glow {
+            box-shadow: 0 0 20px rgba(0, 130, 252, 0.35);
+        }
+        .bt-glow-cyan {
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.35);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            <!-- Brand / Title -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-bt-blue to-bt-cyan p-0.5 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                        <i data-lucide="bluetooth" class="w-6 h-6 text-bt-cyan"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-bt-cyan bg-clip-text text-transparent">
+                        Bluetooth Explorer & Data Simulator
+                    </h1>
+                    <p class="text-xs text-slate-400">Interactive RF Signal & Data Transfer Lab</p>
+                </div>
+            </div>
+
+            <!-- Global Status & Mode -->
+            <div class="flex items-center space-x-3 text-xs">
+                <!-- Web Bluetooth Support Status -->
+                <div id="web-bt-status" class="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" id="status-dot"></span>
+                    <span id="status-text" class="font-medium text-slate-300">Checking Web Bluetooth...</span>
+                </div>
+
+                <!-- Sim Speed Control -->
+                <div class="flex items-center space-x-1 bg-slate-900 border border-slate-800 rounded-lg p-1">
+                    <span class="text-slate-400 px-2 font-mono">Speed:</span>
+                    <button onclick="setSimSpeed(0.5)" class="speed-btn px-2 py-0.5 rounded text-xs hover:bg-slate-800 font-mono transition text-slate-400">0.5x</button>
+                    <button onclick="setSimSpeed(1)" class="speed-btn active px-2 py-0.5 rounded text-xs bg-bt-blue text-white font-mono font-bold transition">1x</button>
+                    <button onclick="setSimSpeed(2)" class="speed-btn px-2 py-0.5 rounded text-xs hover:bg-slate-800 font-mono transition text-slate-400">2x</button>
+                    <button onclick="setSimSpeed(5)" class="speed-btn px-2 py-0.5 rounded text-xs hover:bg-slate-800 font-mono transition text-slate-400">5x</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-slate-900/90 border-b border-slate-800 px-4 overflow-x-auto scrollbar-none">
+        <div class="max-w-7xl mx-auto flex space-x-1 py-2 text-xs font-medium">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 bg-bt-blue/20 text-bt-cyan border border-bt-blue/40">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                <span>Quick Start</span>
+            </button>
+            <button onclick="switchTab('workspace')" id="tab-workspace" class="tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <i data-lucide="activity" class="w-4 h-4"></i>
+                <span>Packet Workspace</span>
+            </button>
+            <button onclick="switchTab('web-ble')" id="tab-web-ble" class="tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <i data-lucide="radar" class="w-4 h-4"></i>
+                <span>Real BLE Scanner</span>
+            </button>
+            <button onclick="switchTab('audio')" id="tab-audio" class="tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <i data-lucide="headphones" class="w-4 h-4"></i>
+                <span>Audio & Codecs</span>
+            </button>
+            <button onclick="switchTab('file')" id="tab-file" class="tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <i data-lucide="file-up" class="w-4 h-4"></i>
+                <span>File Transfer</span>
+            </button>
+            <button onclick="switchTab('hid')" id="tab-hid" class="tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <i data-lucide="mouse-pointer" class="w-4 h-4"></i>
+                <span>HID Mouse / Keys</span>
+            </button>
+            <button onclick="switchTab('speed-rf')" id="tab-speed-rf" class="tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <i data-lucide="zap" class="w-4 h-4"></i>
+                <span>Speed & RF Noise</span>
+            </button>
+            <button onclick="switchTab('protocol')" id="tab-protocol" class="tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <i data-lucide="layers" class="w-4 h-4"></i>
+                <span>Protocol Stack</span>
+            </button>
+            <button onclick="switchTab('learn')" id="tab-learn" class="tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <i data-lucide="book-open" class="w-4 h-4"></i>
+                <span>Learning & Experiments</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Custom Toast & Info Modal -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Explanatory Modal -->
+    <div id="explain-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+        <div class="glass-panel max-w-xl w-full rounded-2xl p-6 border border-slate-700 shadow-2xl relative">
+            <button onclick="closeExplainModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="p-2.5 rounded-xl bg-bt-blue/20 text-bt-cyan border border-bt-blue/30">
+                    <i data-lucide="help-circle" class="w-6 h-6"></i>
+                </div>
+                <h3 id="explain-title" class="text-xl font-bold text-white">Event Explanation</h3>
+            </div>
+            <div id="explain-content" class="text-sm text-slate-300 space-y-3 leading-relaxed">
+                <!-- Content populated dynamically -->
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeExplainModal()" class="px-5 py-2 rounded-xl bg-bt-blue hover:bg-blue-600 font-semibold text-xs tracking-wider uppercase transition text-white">Got It</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- VIEW 1: HOME DASHBOARD / LAUNCHER -->
+        <section id="view-dashboard" class="tab-view space-y-8">
+            <!-- Welcome Banner -->
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-blue-950/50 to-slate-900 p-8 border border-slate-800">
+                <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-bt-blue/10 rounded-full blur-3xl"></div>
+                <div class="relative z-10 max-w-2xl space-y-4">
+                    <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-bt-blue/20 border border-bt-blue/30 text-bt-cyan text-xs font-medium">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                        <span>Interactive 2.4 GHz RF Physics Engine</span>
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                        What do you want to explore today?
+                    </h2>
+                    <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+                        Visualize how Bluetooth packets travel through thin air, compare Bluetooth Classic vs BLE, test physical distance degradation, inspect GATT services, and test codec compression in real-time.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Quick Action Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <!-- Card 1: Packet Workspace -->
+                <div onclick="switchTab('workspace')" class="glass-panel p-6 rounded-2xl border border-slate-800 hover:border-bt-blue/50 hover:bt-glow transition cursor-pointer group flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-bt-cyan flex items-center justify-center group-hover:scale-110 transition">
+                            <i data-lucide="activity" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-bt-cyan transition">Visual Packet Workspace</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Drag virtual smartphones, earbuds, keyboards, and laptops onto a canvas. Watch animated data packets move live.
+                        </p>
+                    </div>
+                    <div class="mt-6 flex items-center text-xs font-semibold text-bt-cyan group-hover:translate-x-1 transition">
+                        <span>Launch Canvas</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </div>
+                </div>
+
+                <!-- Card 2: Real Scanner -->
+                <div onclick="switchTab('web-ble')" class="glass-panel p-6 rounded-2xl border border-slate-800 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 transition cursor-pointer group flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition">
+                            <i data-lucide="radar" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-emerald-400 transition">Real Web BLE Scanner</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Connect your browser to real nearby Bluetooth Smart/GATT hardware. Read/write characteristics and monitor live notifications.
+                        </p>
+                    </div>
+                    <div class="mt-6 flex items-center text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition">
+                        <span>Scan Hardware</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </div>
+                </div>
+
+                <!-- Card 3: Audio Codec Lab -->
+                <div onclick="switchTab('audio')" class="glass-panel p-6 rounded-2xl border border-slate-800 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 transition cursor-pointer group flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center group-hover:scale-110 transition">
+                            <i data-lucide="headphones" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-purple-400 transition">Earbuds & Audio Codecs</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Understand SBC, AAC, aptX, and LDAC. Compare uncompressed PCM raw audio vs compressed Bluetooth frames.
+                        </p>
+                    </div>
+                    <div class="mt-6 flex items-center text-xs font-semibold text-purple-400 group-hover:translate-x-1 transition">
+                        <span>Explore Audio</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </div>
+                </div>
+
+                <!-- Card 4: File Transfer -->
+                <div onclick="switchTab('file')" class="glass-panel p-6 rounded-2xl border border-slate-800 hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10 transition cursor-pointer group flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center group-hover:scale-110 transition">
+                            <i data-lucide="file-up" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-amber-400 transition">File Transfer Simulator</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Simulate sending photos, videos, and zip files. Watch fragmentation into MTU payload blocks and packet reassembly.
+                        </p>
+                    </div>
+                    <div class="mt-6 flex items-center text-xs font-semibold text-amber-400 group-hover:translate-x-1 transition">
+                        <span>Start Transfer</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </div>
+                </div>
+
+                <!-- Card 5: HID Mouse & Keyboard -->
+                <div onclick="switchTab('hid')" class="glass-panel p-6 rounded-2xl border border-slate-800 hover:border-rose-500/50 hover:shadow-lg hover:shadow-rose-500/10 transition cursor-pointer group flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center group-hover:scale-110 transition">
+                            <i data-lucide="mouse-pointer" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-rose-400 transition">HID Mouse & Keyboard</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Test tiny HID report packets. See why peripherals use tiny bandwidth (bytes/sec) but require low latency polling.
+                        </p>
+                    </div>
+                    <div class="mt-6 flex items-center text-xs font-semibold text-rose-400 group-hover:translate-x-1 transition">
+                        <span>Test HID Devices</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </div>
+                </div>
+
+                <!-- Card 6: Speed & RF Lab -->
+                <div onclick="switchTab('speed-rf')" class="glass-panel p-6 rounded-2xl border border-slate-800 hover:border-cyan-500/50 hover:bt-glow-cyan transition cursor-pointer group flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition">
+                            <i data-lucide="zap" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-cyan-400 transition">Speed & RF Noise Lab</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Adjust distance, Wi-Fi 2.4 GHz interference, walls, and PHY types (1M, 2M, Coded) to see live throughput & packet drop graphs.
+                        </p>
+                    </div>
+                    <div class="mt-6 flex items-center text-xs font-semibold text-cyan-400 group-hover:translate-x-1 transition">
+                        <span>Simulate RF Environment</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: VISUAL PACKET WORKSPACE (Main Canvas + Left Controls + Right Stats) -->
+        <section id="view-workspace" class="tab-view hidden space-y-4">
+            <!-- Disclaimer Alert Header -->
+            <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+                <div class="flex items-center space-x-2 text-slate-300">
+                    <span class="px-2 py-0.5 rounded bg-blue-500/20 text-bt-cyan font-semibold">🔵 SIMULATION MODE ACTIVE</span>
+                    <span class="hidden md:inline text-slate-400">Drag devices around canvas to adjust distance and RSSI in real-time.</span>
+                </div>
+                <button onclick="explainEvent('sim_vs_real')" class="text-bt-cyan hover:underline font-medium flex items-center space-x-1">
+                    <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                    <span>Simulated vs Real Data?</span>
+                </button>
+            </div>
+
+            <!-- 3-Column Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                
+                <!-- LEFT CONTROL PANEL (Cols 3) -->
+                <div class="lg:col-span-3 space-y-4">
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-800 space-y-4">
+                        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+                            <i data-lucide="sliders" class="w-4 h-4 text-bt-cyan"></i>
+                            <span>Device Controls</span>
+                        </h3>
+
+                        <!-- Add Device Select -->
+                        <div class="space-y-1.5">
+                            <label class="text-xs text-slate-400">Add Virtual Device</label>
+                            <div class="flex space-x-2">
+                                <select id="add-device-select" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-bt-blue">
+                                    <option value="earbuds">🎧 Earbuds (Classic/BLE)</option>
+                                    <option value="phone">📱 Smartphone (Host)</option>
+                                    <option value="mouse">🖱 Wireless Mouse (HID)</option>
+                                    <option value="keyboard">⌨ Keyboard (HID)</option>
+                                    <option value="speaker">🔊 Bluetooth Speaker</option>
+                                    <option value="watch">⌚ Smartwatch (BLE)</option>
+                                    <option value="sensor">🌡 Temp Sensor (BLE)</option>
+                                    <option value="laptop">💻 Laptop (Host)</option>
+                                </select>
+                                <button onclick="addSimDevice()" class="px-3 py-1.5 bg-bt-blue hover:bg-blue-600 rounded-lg text-xs font-semibold text-white transition flex items-center">
+                                    <i data-lucide="plus" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Data Actions -->
+                        <div class="space-y-2 pt-2 border-t border-slate-800">
+                            <label class="text-xs text-slate-400">Traffic Generator</label>
+                            <button onclick="triggerSimStream('music')" class="w-full py-2 px-3 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-medium flex items-center justify-between transition">
+                                <span class="flex items-center space-x-2">
+                                    <i data-lucide="music" class="w-4 h-4 text-purple-400"></i>
+                                    <span>Stream Music Audio</span>
+                                </span>
+                                <span class="text-[10px] bg-purple-500/30 px-1.5 py-0.5 rounded code-font">320kbps</span>
+                            </button>
+
+                            <button onclick="triggerSimStream('file')" class="w-full py-2 px-3 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-xs font-medium flex items-center justify-between transition">
+                                <span class="flex items-center space-x-2">
+                                    <i data-lucide="file-text" class="w-4 h-4 text-amber-400"></i>
+                                    <span>Send File (4 MB)</span>
+                                </span>
+                                <span class="text-[10px] bg-amber-500/30 px-1.5 py-0.5 rounded code-font">Burst</span>
+                            </button>
+
+                            <button onclick="triggerSimStream('hid_mouse')" class="w-full py-2 px-3 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-medium flex items-center justify-between transition">
+                                <span class="flex items-center space-x-2">
+                                    <i data-lucide="mouse-pointer" class="w-4 h-4 text-rose-400"></i>
+                                    <span>Send Mouse Events</span>
+                                </span>
+                                <span class="text-[10px] bg-rose-500/30 px-1.5 py-0.5 rounded code-font">125Hz</span>
+                            </button>
+
+                            <button onclick="triggerSimStream('sensor')" class="w-full py-2 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-medium flex items-center justify-between transition">
+                                <span class="flex items-center space-x-2">
+                                    <i data-lucide="radio" class="w-4 h-4 text-emerald-400"></i>
+                                    <span>BLE Telemetry Burst</span>
+                                </span>
+                                <span class="text-[10px] bg-emerald-500/30 px-1.5 py-0.5 rounded code-font">Notify</span>
+                            </button>
+                        </div>
+
+                        <!-- Reset & Clear -->
+                        <div class="pt-2 border-t border-slate-800 flex space-x-2">
+                            <button onclick="resetWorkspace()" class="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">Reset Workspace</button>
+                            <button onclick="clearPackets()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">Clear Traffic</button>
+                        </div>
+                    </div>
+
+                    <!-- Selected Device Inspector -->
+                    <div id="device-inspector-card" class="glass-panel p-4 rounded-2xl border border-slate-800 space-y-3">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Device Properties</h4>
+                        <div id="inspector-content" class="text-xs text-slate-300 space-y-2">
+                            <p class="text-slate-500 italic">Click any device on the canvas to inspect RF configuration.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CENTER CANVAS (Cols 6) -->
+                <div class="lg:col-span-6 relative flex flex-col space-y-3">
+                    <div class="relative w-full h-[480px] rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-inner">
+                        <canvas id="workspace-canvas" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+
+                        <!-- Floating Canvas Overlay Info -->
+                        <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-400 flex items-center space-x-3 pointer-events-none">
+                            <span class="flex items-center space-x-1"><span class="w-2 h-2 rounded-full bg-cyan-400"></span><span>Audio</span></span>
+                            <span class="flex items-center space-x-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span><span>File</span></span>
+                            <span class="flex items-center space-x-1"><span class="w-2 h-2 rounded-full bg-rose-400"></span><span>HID</span></span>
+                            <span class="flex items-center space-x-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>BLE GATT</span></span>
+                        </div>
+
+                        <div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-400 pointer-events-none code-font">
+                            FPS: <span id="canvas-fps">60</span> | Packets in Air: <span id="air-packet-count">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT STATS PANEL (Cols 3) -->
+                <div class="lg:col-span-3 space-y-4">
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-800 space-y-4">
+                        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+                            <i data-lucide="bar-chart-3" class="w-4 h-4 text-bt-cyan"></i>
+                            <span>Real-Time RF Metrics</span>
+                        </h3>
+
+                        <!-- Live Metrics Cards Grid -->
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                                <span class="text-[10px] text-slate-500 uppercase block font-semibold">Current Throughput</span>
+                                <span id="metric-speed" class="text-base font-bold text-bt-cyan code-font">0 Kbps</span>
+                            </div>
+                            <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                                <span class="text-[10px] text-slate-500 uppercase block font-semibold">Estimated RSSI</span>
+                                <span id="metric-rssi" class="text-base font-bold text-emerald-400 code-font">-52 dBm</span>
+                            </div>
+                            <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                                <span class="text-[10px] text-slate-500 uppercase block font-semibold">Latency (RTT)</span>
+                                <span id="metric-latency" class="text-base font-bold text-amber-400 code-font">18 ms</span>
+                            </div>
+                            <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                                <span class="text-[10px] text-slate-500 uppercase block font-semibold">Packet Retry %</span>
+                                <span id="metric-loss" class="text-base font-bold text-rose-400 code-font">0.0%</span>
+                            </div>
+                        </div>
+
+                        <!-- Connection Parameters List -->
+                        <div class="space-y-2 text-xs pt-2 border-t border-slate-800">
+                            <div class="flex justify-between text-slate-400">
+                                <span>Active Radio PHY:</span>
+                                <span id="metric-phy" class="text-slate-200 font-medium code-font">LE 2M PHY</span>
+                            </div>
+                            <div class="flex justify-between text-slate-400">
+                                <span>Conn Interval:</span>
+                                <span id="metric-interval" class="text-slate-200 font-medium code-font">15.0 ms</span>
+                            </div>
+                            <div class="flex justify-between text-slate-400">
+                                <span>Max Att Payload:</span>
+                                <span id="metric-mtu" class="text-slate-200 font-medium code-font">247 Bytes</span>
+                            </div>
+                            <div class="flex justify-between text-slate-400">
+                                <span>Total Bytes Tx:</span>
+                                <span id="metric-total-bytes" class="text-slate-200 font-medium code-font">0 KB</span>
+                            </div>
+                            <div class="flex justify-between text-slate-400">
+                                <span>Battery Drain Rate:</span>
+                                <span id="metric-battery-rate" class="text-slate-200 font-medium code-font">Low (~4mA)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mini Live Graph Canvas -->
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-semibold text-slate-300">Throughput Stream (Kbps)</span>
+                            <span class="text-[10px] text-bt-cyan code-font">Real-time</span>
+                        </div>
+                        <div class="h-24 w-full bg-slate-950 rounded-lg overflow-hidden border border-slate-800 relative">
+                            <canvas id="mini-chart-canvas" class="w-full h-full"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- VIEW 3: REAL WEB BLUETOOTH SCANNER -->
+        <section id="view-web-ble" class="tab-view hidden space-y-6">
+            <!-- Info Header -->
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <i data-lucide="radar" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Browser Web Bluetooth Explorer</h2>
+                            <p class="text-xs text-slate-400">Connect to nearby BLE GATT hardware (Heart Rate Sensors, Smart Bulbs, Micro:bit, etc.)</p>
+                        </div>
+                    </div>
+                    <button onclick="requestRealBleDevice()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs tracking-wider uppercase transition flex items-center space-x-2 shadow-lg shadow-emerald-600/20">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                        <span>Scan For BLE Devices</span>
+                    </button>
+                </div>
+
+                <!-- Browser Limitations Notice -->
+                <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs leading-relaxed flex items-start space-x-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
+                    <span>
+                        <strong>Browser Security Notice:</strong> Web Bluetooth requires HTTPS and explicit user interaction. Webpages cannot run background raw promiscuous RF scans or connect to Bluetooth Classic audio devices (A2DP) directly. Only exposed BLE GATT services are accessible.
+                    </span>
+                </div>
+            </div>
+
+            <!-- Connected Device GATT Tree Explorer -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Device Info & Services Tree (Cols 7) -->
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <h3 class="text-sm font-bold text-white flex items-center justify-between">
+                            <span>Connected Hardware GATT Tree</span>
+                            <span id="real-device-name" class="text-xs font-normal text-emerald-400 code-font">No Device Connected</span>
+                        </h3>
+
+                        <div id="gatt-tree-container" class="min-h-[260px] max-h-[400px] overflow-y-auto bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2 text-xs">
+                            <p class="text-slate-500 italic text-center py-10">Click "Scan For BLE Devices" above to pair hardware via browser security picker.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GATT Interaction / Console (Cols 5) -->
+                <div class="lg:col-span-5 space-y-4">
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+                            <i data-lucide="terminal" class="w-4 h-4 text-bt-cyan"></i>
+                            <span>Characteristic Read / Write</span>
+                        </h3>
+
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="text-slate-400 block mb-1">Target Characteristic UUID</label>
+                                <input type="text" id="target-char-uuid" placeholder="e.g. 00002a37-0000-1000-8000-00805f9b34fb" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 code-font">
+                            </div>
+
+                            <div>
+                                <label class="text-slate-400 block mb-1">Payload Value (Hex or Text)</label>
+                                <input type="text" id="target-char-value" placeholder="e.g. 0x01 0xFF or Hello" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 code-font">
+                            </div>
+
+                            <div class="flex space-x-2 pt-1">
+                                <button onclick="readRealCharacteristic()" class="flex-1 py-2 rounded-lg bg-bt-blue hover:bg-blue-600 text-white font-semibold transition">Read Value</button>
+                                <button onclick="writeRealCharacteristic()" class="flex-1 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold transition">Write Value</button>
+                                <button onclick="toggleRealNotifications()" class="flex-1 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold transition">Notify Toggle</button>
+                            </div>
+                        </div>
+
+                        <!-- Live Notification Log -->
+                        <div class="space-y-2 pt-2 border-t border-slate-800">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="font-semibold text-slate-400">Incoming Data Stream Log</span>
+                                <button onclick="clearRealLog()" class="text-[10px] text-slate-500 hover:text-slate-300">Clear Log</button>
+                            </div>
+                            <div id="real-ble-log" class="h-40 overflow-y-auto bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-400 space-y-1">
+                                <p class="text-slate-600">// Real GATT notification payloads will stream here...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 4: AUDIO CODEC & EARBUD SIMULATOR -->
+        <section id="view-audio" class="tab-view hidden space-y-6">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">How Bluetooth Music & Audio Works</h2>
+                        <p class="text-xs text-slate-400">Continuous audio streaming pipeline from application uncompressed PCM to compressed RF frames</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="toggleAudioPlayback()" id="audio-play-btn" class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs tracking-wider uppercase transition flex items-center space-x-2 shadow-lg shadow-purple-600/20">
+                            <i data-lucide="play" class="w-4 h-4"></i>
+                            <span>Start Audio Stream</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Animated Audio Pipeline Visualizer -->
+                <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800 overflow-x-auto">
+                    <div class="min-w-[700px] flex items-center justify-between relative py-4">
+                        <!-- Step 1: PCM Source -->
+                        <div class="flex flex-col items-center space-y-2 z-10 w-28 text-center">
+                            <div class="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center text-purple-400 shadow-md">
+                                <i data-lucide="disc" class="w-6 h-6 animate-spin-slow"></i>
+                            </div>
+                            <span class="text-xs font-bold text-white">Raw Audio</span>
+                            <span class="text-[10px] text-slate-400 code-font">44.1kHz 16-bit</span>
+                        </div>
+
+                        <!-- Animated Pipeline Line 1 -->
+                        <div class="flex-1 h-1 bg-slate-800 relative overflow-hidden mx-2">
+                            <div id="audio-pipe-1" class="absolute inset-y-0 left-0 bg-purple-500 w-1/3 rounded-full opacity-0"></div>
+                        </div>
+
+                        <!-- Step 2: Codec Encoder -->
+                        <div class="flex flex-col items-center space-y-2 z-10 w-28 text-center">
+                            <div class="w-12 h-12 rounded-2xl bg-purple-950 border border-purple-500/40 flex items-center justify-center text-purple-300 shadow-md">
+                                <i data-lucide="cpu" class="w-6 h-6"></i>
+                            </div>
+                            <span class="text-xs font-bold text-white">Audio Codec</span>
+                            <span id="pipeline-codec-name" class="text-[10px] text-purple-400 code-font">SBC</span>
+                        </div>
+
+                        <!-- Animated Pipeline Line 2 -->
+                        <div class="flex-1 h-1 bg-slate-800 relative overflow-hidden mx-2">
+                            <div id="audio-pipe-2" class="absolute inset-y-0 left-0 bg-bt-cyan w-1/3 rounded-full opacity-0"></div>
+                        </div>
+
+                        <!-- Step 3: A2DP Radio Tx -->
+                        <div class="flex flex-col items-center space-y-2 z-10 w-28 text-center">
+                            <div class="w-12 h-12 rounded-2xl bg-blue-950 border border-bt-blue/40 flex items-center justify-center text-bt-cyan shadow-md">
+                                <i data-lucide="radio" class="w-6 h-6"></i>
+                            </div>
+                            <span class="text-xs font-bold text-white">Bluetooth Radio</span>
+                            <span class="text-[10px] text-bt-cyan code-font">2.4 GHz BR/EDR</span>
+                        </div>
+
+                        <!-- Animated Pipeline Line 3 -->
+                        <div class="flex-1 h-1 bg-slate-800 relative overflow-hidden mx-2">
+                            <div id="audio-pipe-3" class="absolute inset-y-0 left-0 bg-emerald-500 w-1/3 rounded-full opacity-0"></div>
+                        </div>
+
+                        <!-- Step 4: Earbud DAC & Speaker -->
+                        <div class="flex flex-col items-center space-y-2 z-10 w-28 text-center">
+                            <div class="w-12 h-12 rounded-2xl bg-emerald-950 border border-emerald-500/40 flex items-center justify-center text-emerald-300 shadow-md">
+                                <i data-lucide="headphones" class="w-6 h-6"></i>
+                            </div>
+                            <span class="text-xs font-bold text-white">Earbuds</span>
+                            <span class="text-[10px] text-emerald-400 code-font">DAC -> Speaker</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Codec Comparison Benchmarking Controls -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Left Config Controls (Cols 5) -->
+                    <div class="lg:col-span-5 space-y-4">
+                        <div class="glass-card p-4 rounded-xl space-y-4">
+                            <h3 class="text-sm font-bold text-white">Codec Selector & Settings</h3>
+                            
+                            <div class="space-y-1.5">
+                                <label class="text-xs text-slate-400">Selected Audio Codec</label>
+                                <select id="codec-select" onchange="updateAudioMath()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white">
+                                    <option value="SBC">SBC (Standard Mandatory - ~328 kbps)</option>
+                                    <option value="AAC">AAC (Apple Ecosystem - 256 kbps High Quality)</option>
+                                    <option value="aptX">aptX (Qualcomm Low Latency - 352 kbps)</option>
+                                    <option value="aptX_HD">aptX HD (High Resolution - 576 kbps)</option>
+                                    <option value="LDAC">LDAC (Sony Hi-Res - 990 kbps max)</option>
+                                    <option value="LC3">LC3 (Bluetooth LE Audio Next-Gen - 160 kbps)</option>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 text-xs">
+                                <div>
+                                    <label class="text-slate-400 block mb-1">Sample Rate</label>
+                                    <select id="audio-sample-rate" onchange="updateAudioMath()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white">
+                                        <option value="44100">44.1 kHz (CD Quality)</option>
+                                        <option value="48000">48.0 kHz (Video Standard)</option>
+                                        <option value="96000">96.0 kHz (Hi-Res)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 block mb-1">Bit Depth</label>
+                                    <select id="audio-bit-depth" onchange="updateAudioMath()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white">
+                                        <option value="16">16-bit</option>
+                                        <option value="24">24-bit</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Math & Compression Results (Cols 7) -->
+                    <div class="lg:col-span-7 space-y-4">
+                        <div class="glass-card p-4 rounded-xl space-y-4">
+                            <h3 class="text-sm font-bold text-white">Bitrate Math & Compression Efficiency</h3>
+
+                            <div class="space-y-3">
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1">
+                                        <span class="text-slate-400">Uncompressed PCM Data Rate:</span>
+                                        <span id="raw-audio-bitrate" class="font-bold text-rose-400 code-font">1,411.2 Kbps</span>
+                                    </div>
+                                    <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                        <div class="h-full bg-rose-500 w-full"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1">
+                                        <span class="text-slate-400">Compressed Bluetooth Bitrate:</span>
+                                        <span id="compressed-audio-bitrate" class="font-bold text-purple-400 code-font">328.0 Kbps</span>
+                                    </div>
+                                    <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                        <div id="codec-bar-fill" class="h-full bg-purple-500 w-[23%]"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 space-y-1">
+                                <div class="flex justify-between">
+                                    <span>Compression Ratio:</span>
+                                    <span id="audio-compression-ratio" class="font-semibold text-bt-cyan code-font">4.3 : 1</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Estimated Audio Latency:</span>
+                                    <span id="audio-codec-latency" class="font-semibold text-amber-400 code-font">150 ms (Standard)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 5: FILE TRANSFER SIMULATOR -->
+        <section id="view-file" class="tab-view hidden space-y-6">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Bluetooth File Transfer Simulator</h2>
+                    <p class="text-xs text-slate-400">See how files break into ATT MTU frame fragments and reassemble at the receiving device</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Config Controls (Cols 4) -->
+                    <div class="lg:col-span-4 space-y-4">
+                        <div class="glass-card p-4 rounded-xl space-y-4 text-xs">
+                            <h3 class="font-bold text-white text-sm">Select Virtual File</h3>
+
+                            <div>
+                                <label class="text-slate-400 block mb-1">Preset Files</label>
+                                <select id="file-preset-select" onchange="updateFilePreset()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white">
+                                    <option value="photo">🖼 High Res Photo (4.5 MB)</option>
+                                    <option value="document">📄 PDF Document (1.2 MB)</option>
+                                    <option value="audio">🎵 MP3 Audio Track (8.0 MB)</option>
+                                    <option value="video">🎥 Short Video Clip (25.0 MB)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-slate-400 block mb-1">Custom File Size (MB): <span id="custom-file-val" class="text-bt-cyan font-bold">4.5</span></label>
+                                <input type="range" id="file-size-range" min="0.5" max="30" step="0.5" value="4.5" oninput="updateFileRangeVal()" class="w-full accent-bt-blue">
+                            </div>
+
+                            <div>
+                                <label class="text-slate-400 block mb-1">Negotiated ATT MTU Size</label>
+                                <select id="file-mtu-select" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white">
+                                    <option value="23">23 Bytes (Default Legacy BLE)</option>
+                                    <option value="185">185 Bytes (Standard Mobile)</option>
+                                    <option value="247">247 Bytes (High Efficiency BLE 5)</option>
+                                    <option value="512">512 Bytes (Max GATT MTU)</option>
+                                </select>
+                            </div>
+
+                            <button onclick="startFileTransferSim()" id="file-transfer-btn" class="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs tracking-wider uppercase transition flex items-center justify-center space-x-2">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                                <span>Start File Transfer</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Progress & Packet Flow (Cols 8) -->
+                    <div class="lg:col-span-8 space-y-4">
+                        <div class="glass-card p-5 rounded-xl space-y-5">
+                            <div class="flex justify-between items-center text-xs">
+                                <div>
+                                    <span class="text-slate-400">Transfer Progress:</span>
+                                    <span id="file-prog-percent" class="font-bold text-amber-400 code-font ml-2">0%</span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-400">Throughput:</span>
+                                    <span id="file-prog-speed" class="font-bold text-bt-cyan code-font ml-2">0 Kbps</span>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="w-full h-4 bg-slate-950 rounded-full border border-slate-800 overflow-hidden p-0.5 relative">
+                                <div id="file-prog-bar" class="h-full bg-gradient-to-r from-amber-500 to-bt-cyan w-0 rounded-full transition-all duration-200"></div>
+                            </div>
+
+                            <!-- Fragmentation Visualizer -->
+                            <div class="space-y-2">
+                                <h4 class="text-xs font-semibold text-slate-300">Packet Fragmentation & Reassembly Pipeline</h4>
+                                <div id="fragmentation-boxes" class="h-28 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-wrap gap-1.5 overflow-y-auto items-start content-start">
+                                    <p class="text-xs text-slate-500 italic w-full text-center py-8">Press "Start File Transfer" to watch payload chunks stream across the air link.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 6: HID MOUSE & KEYBOARD SIMULATOR -->
+        <section id="view-hid" class="tab-view hidden space-y-6">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">HID Peripheral Data Simulator</h2>
+                    <p class="text-xs text-slate-400">Understand why mice and keyboards transmit tiny byte packets at high polling frequencies</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Virtual Mouse Pad -->
+                    <div class="glass-card p-5 rounded-2xl space-y-4">
+                        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+                            <i data-lucide="mouse-pointer" class="w-4 h-4 text-rose-400"></i>
+                            <span>Interactive Virtual Mouse Trackpad</span>
+                        </h3>
+                        <p class="text-xs text-slate-400">Move your cursor over the box below to generate real-time HID mouse delta reports.</p>
+                        
+                        <div id="hid-trackpad" class="w-full h-48 bg-slate-950 rounded-xl border-2 border-dashed border-slate-800 flex flex-col items-center justify-center relative overflow-hidden cursor-crosshair">
+                            <span class="text-xs text-slate-500 pointer-events-none">Move Mouse Here</span>
+                            <span id="mouse-delta-display" class="text-xs text-rose-400 code-font mt-2 pointer-events-none">ΔX: 0, ΔY: 0</span>
+                        </div>
+                    </div>
+
+                    <!-- Virtual Keyboard Pad -->
+                    <div class="glass-card p-5 rounded-2xl space-y-4">
+                        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+                            <i data-lucide="keyboard" class="w-4 h-4 text-bt-cyan"></i>
+                            <span>Interactive Virtual Keyboard</span>
+                        </h3>
+                        <p class="text-xs text-slate-400">Click keys below to send 8-byte Bluetooth HID Keyboard Reports.</p>
+
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                            <div class="flex justify-center space-x-1.5">
+                                <button onclick="sendKeyReport('Q')" class="key-btn px-3 py-2 bg-slate-900 border border-slate-700 rounded text-xs font-mono hover:bg-bt-blue">Q</button>
+                                <button onclick="sendKeyReport('W')" class="key-btn px-3 py-2 bg-slate-900 border border-slate-700 rounded text-xs font-mono hover:bg-bt-blue">W</button>
+                                <button onclick="sendKeyReport('E')" class="key-btn px-3 py-2 bg-slate-900 border border-slate-700 rounded text-xs font-mono hover:bg-bt-blue">E</button>
+                                <button onclick="sendKeyReport('R')" class="key-btn px-3 py-2 bg-slate-900 border border-slate-700 rounded text-xs font-mono hover:bg-bt-blue">R</button>
+                                <button onclick="sendKeyReport('T')" class="key-btn px-3 py-2 bg-slate-900 border border-slate-700 rounded text-xs font-mono hover:bg-bt-blue">T</button>
+                            </div>
+                            <div class="flex justify-center space-x-1.5">
+                                <button onclick="sendKeyReport('SPACE')" class="key-btn px-12 py-2 bg-slate-900 border border-slate-700 rounded text-xs font-mono hover:bg-bt-blue">SPACE</button>
+                                <button onclick="sendKeyReport('ENTER')" class="key-btn px-4 py-2 bg-slate-900 border border-slate-700 rounded text-xs font-mono hover:bg-bt-blue">ENTER</button>
+                            </div>
+                        </div>
+
+                        <!-- HID Report Byte Decoder -->
+                        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1">
+                            <span class="text-slate-500 block text-[10px] uppercase font-sans">Raw HID 8-Byte Packet Frame:</span>
+                            <div id="hid-hex-frame" class="text-bt-cyan">0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 7: SPEED & RF NOISE PLAYGROUND -->
+        <section id="view-speed-rf" class="tab-view hidden space-y-6">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Speed & RF Environment Simulator</h2>
+                    <p class="text-xs text-slate-400">Test how physical distance, Wi-Fi 2.4 GHz congestion, and PHY selection impact real throughput</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- RF Environment Controls (Cols 5) -->
+                    <div class="lg:col-span-5 space-y-4">
+                        <div class="glass-card p-5 rounded-xl space-y-4 text-xs">
+                            <h3 class="font-bold text-white text-sm">RF Controls</h3>
+
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-slate-400">Distance (meters):</span>
+                                    <span id="rf-dist-val" class="text-bt-cyan font-bold">3.0 m</span>
+                                </div>
+                                <input type="range" id="rf-dist-slider" min="0.5" max="30" step="0.5" value="3.0" oninput="updateRfSim()" class="w-full accent-bt-blue">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-slate-400">2.4 GHz Wi-Fi Congestion:</span>
+                                    <span id="rf-wifi-val" class="text-amber-400 font-bold">Low (Channel 6)</span>
+                                </div>
+                                <input type="range" id="rf-wifi-slider" min="0" max="100" value="15" oninput="updateRfSim()" class="w-full accent-amber-500">
+                            </div>
+
+                            <div>
+                                <label class="text-slate-400 block mb-1">Bluetooth PHY Modulation</label>
+                                <select id="rf-phy-select" onchange="updateRfSim()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white">
+                                    <option value="1M">LE 1M PHY (1 Mbps Raw PHY)</option>
+                                    <option value="2M">LE 2M PHY (2 Mbps High Speed)</option>
+                                    <option value="CODED">LE Coded PHY (S=8 Long Range 125 kbps)</option>
+                                    <option value="EDR3">Bluetooth Classic EDR3 (3 Mbps Raw)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Speed & Retransmission Graph (Cols 7) -->
+                    <div class="lg:col-span-7 space-y-4">
+                        <div class="glass-card p-5 rounded-xl space-y-4">
+                            <h3 class="font-bold text-white text-sm flex justify-between items-center">
+                                <span>Real-Time RF Degradation Curve</span>
+                                <span id="rf-throughput-summary" class="text-xs font-mono text-emerald-400">1,420 Kbps Effective</span>
+                            </h3>
+
+                            <div class="h-56 bg-slate-950 rounded-xl p-2 border border-slate-800 relative">
+                                <canvas id="rf-chart-canvas" class="w-full h-full"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 8: PROTOCOL STACK & FUNDAMENTALS -->
+        <section id="view-protocol" class="tab-view hidden space-y-6">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">How Bluetooth Works: The Protocol Stack</h2>
+                    <p class="text-xs text-slate-400">Interactive layer-by-layer architectural breakdown of Bluetooth Host & Controller</p>
+                </div>
+
+                <!-- Layer Stack Visualization -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div class="lg:col-span-6 space-y-2 text-xs">
+                        <div onclick="inspectProtocolLayer('app')" class="p-3.5 rounded-xl bg-purple-900/30 border border-purple-500/30 hover:bg-purple-900/50 cursor-pointer transition flex items-center justify-between">
+                            <span class="font-bold text-purple-300">Application Layer (Profile / Apps)</span>
+                            <span class="text-[10px] text-slate-400">Audio, HID, Health</span>
+                        </div>
+                        <div onclick="inspectProtocolLayer('gatt')" class="p-3.5 rounded-xl bg-blue-900/30 border border-blue-500/30 hover:bg-blue-900/50 cursor-pointer transition flex items-center justify-between">
+                            <span class="font-bold text-bt-cyan">GATT / ATT (Generic Attribute Profile)</span>
+                            <span class="text-[10px] text-slate-400">Services & Characteristics</span>
+                        </div>
+                        <div onclick="inspectProtocolLayer('l2cap')" class="p-3.5 rounded-xl bg-indigo-900/30 border border-indigo-500/30 hover:bg-indigo-900/50 cursor-pointer transition flex items-center justify-between">
+                            <span class="font-bold text-indigo-300">L2CAP (Logical Link Control & Adapt)</span>
+                            <span class="text-[10px] text-slate-400">Multiplexing & Fragmentation</span>
+                        </div>
+                        <div onclick="inspectProtocolLayer('hci')" class="p-3.5 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 cursor-pointer transition flex items-center justify-between">
+                            <span class="font-bold text-slate-300">HCI (Host Controller Interface)</span>
+                            <span class="text-[10px] text-slate-400">UART / USB Driver Boundary</span>
+                        </div>
+                        <div onclick="inspectProtocolLayer('link')" class="p-3.5 rounded-xl bg-emerald-900/30 border border-emerald-500/30 hover:bg-emerald-900/50 cursor-pointer transition flex items-center justify-between">
+                            <span class="font-bold text-emerald-300">Link Layer Controller (LL / LM)</span>
+                            <span class="text-[10px] text-slate-400">Connections & Frequency Hopping</span>
+                        </div>
+                        <div onclick="inspectProtocolLayer('phy')" class="p-3.5 rounded-xl bg-cyan-900/30 border border-cyan-500/30 hover:bg-cyan-900/50 cursor-pointer transition flex items-center justify-between">
+                            <span class="font-bold text-cyan-300">PHY Layer (2.4 GHz Radio Band)</span>
+                            <span class="text-[10px] text-slate-400">GFSK Modulation</span>
+                        </div>
+                    </div>
+
+                    <!-- Layer Detail Inspector Card -->
+                    <div class="lg:col-span-6 glass-card p-5 rounded-xl space-y-4">
+                        <h3 id="proto-layer-title" class="text-base font-bold text-white">Click a layer on the left</h3>
+                        <div id="proto-layer-desc" class="text-xs text-slate-300 leading-relaxed space-y-2">
+                            <p class="text-slate-500 italic">Select any protocol stack layer above to view technical descriptions and packet header encapsulation rules.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 9: LEARNING CENTER & GUIDED EXPERIMENTS -->
+        <section id="view-learn" class="tab-view hidden space-y-6">
+            <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Bluetooth Educational Center & Experiments</h2>
+                    <p class="text-xs text-slate-400">Interactive curriculum covering wireless physics, GATT architecture, and RF propagation</p>
+                </div>
+
+                <!-- Guided Experiments Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="glass-card p-4 rounded-xl border border-slate-800 space-y-3">
+                        <span class="text-[10px] bg-bt-blue/20 text-bt-cyan px-2 py-0.5 rounded font-semibold uppercase">Experiment 1</span>
+                        <h4 class="text-sm font-bold text-white">PHY Speed vs Long Range Coded PHY</h4>
+                        <p class="text-xs text-slate-400">Compare LE 2M PHY throughput at short range against LE Coded PHY at 25 meters distance.</p>
+                        <button onclick="runExperiment(1)" class="w-full py-1.5 rounded bg-bt-blue/20 hover:bg-bt-blue/30 text-bt-cyan text-xs font-semibold border border-bt-blue/40">Run Experiment 1</button>
+                    </div>
+
+                    <div class="glass-card p-4 rounded-xl border border-slate-800 space-y-3">
+                        <span class="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-semibold uppercase">Experiment 2</span>
+                        <h4 class="text-sm font-bold text-white">SBC vs LDAC Audio Codec Efficiency</h4>
+                        <p class="text-xs text-slate-400">Test how higher bitrate LDAC codec requires higher RF signal strength to avoid stuttering.</p>
+                        <button onclick="runExperiment(2)" class="w-full py-1.5 rounded bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 text-xs font-semibold border border-purple-500/40">Run Experiment 2</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Global Application State
+        const state = {
+            simSpeed: 1,
+            activeTab: 'dashboard',
+            webBtSupported: false,
+            realDevice: null,
+            realServer: null,
+            workspace: {
+                devices: [],
+                packets: [],
+                selectedDevice: null,
+                isDragging: false,
+                dragTarget: null,
+                stats: {
+                    throughput: 0,
+                    rssi: -52,
+                    latency: 18,
+                    loss: 0,
+                    totalBytes: 0
+                }
+            },
+            audio: {
+                isPlaying: false,
+                codec: 'SBC',
+                sampleRate: 44100,
+                bitDepth: 16
+            },
+            fileSim: {
+                sizeMb: 4.5,
+                mtu: 247,
+                progress: 0,
+                intervalId: null
+            },
+            rfSim: {
+                distance: 3.0,
+                wifiNoise: 15,
+                phy: '2M'
+            }
+        };
+
+        // Initialize icons and check environment on load
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            checkWebBluetoothSupport();
+            initWorkspaceCanvas();
+            initMiniChartCanvas();
+            initRfChartCanvas();
+            setupTrackpadListeners();
+            updateAudioMath();
+            
+            // Default workspace devices setup
+            resetWorkspace();
+            
+            // Start main animation loop
+            requestAnimationFrame(renderLoop);
+        });
+
+        function checkWebBluetoothSupport() {
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+
+            if (navigator.bluetooth) {
+                state.webBtSupported = true;
+                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
+                statusText.innerText = 'Web Bluetooth Supported';
+                statusText.className = 'font-medium text-emerald-400';
+            } else {
+                state.webBtSupported = false;
+                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+                statusText.innerText = 'Simulation Mode Recommended (Web BT Unavailable)';
+                statusText.className = 'font-medium text-amber-400';
+            }
+        }
+
+        function switchTab(tabId) {
+            state.activeTab = tabId;
+            document.querySelectorAll('.tab-view').forEach(view => view.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = 'tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800';
+            });
+
+            const activeView = document.getElementById(`view-${tabId}`);
+            if (activeView) activeView.classList.remove('hidden');
+
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            if (activeBtn) {
+                activeBtn.className = 'tab-btn px-4 py-2 rounded-lg flex items-center space-x-2 bg-bt-blue/20 text-bt-cyan border border-bt-blue/40';
+            }
+        }
+
+        function setSimSpeed(speed) {
+            state.simSpeed = speed;
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.classList.remove('bg-bt-blue', 'text-white', 'font-bold');
+                btn.classList.add('text-slate-400');
+            });
+            event.target.classList.add('bg-bt-blue', 'text-white', 'font-bold');
+            event.target.classList.remove('text-slate-400');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xl border flex items-center space-x-2 transition-all duration-300 transform translate-y-2 opacity-0 ${
+                type === 'error' ? 'bg-rose-950 border-rose-800 text-rose-200' :
+                type === 'success' ? 'bg-emerald-950 border-emerald-800 text-emerald-200' :
+                'bg-slate-900 border-slate-700 text-slate-200'
+            }`;
+            toast.innerHTML = `<i data-lucide="${type === 'error' ? 'alert-circle' : 'info'}" class="w-4 h-4"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function explainEvent(type) {
+            const modal = document.getElementById('explain-modal');
+            const title = document.getElementById('explain-title');
+            const content = document.getElementById('explain-content');
+
+            if (type === 'sim_vs_real') {
+                title.innerText = 'Simulated vs Real Bluetooth Data';
+                content.innerHTML = `
+                    <p><strong>🟢 Real Data:</strong> Collected directly through <code>navigator.bluetooth</code> when connected to physical GATT hardware.</p>
+                    <p><strong>🔵 Simulated Data:</strong> Generated by our high-precision 2.4 GHz RF physics engine to help you learn scenarios browser APIs cannot access.</p>
+                `;
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeExplainModal() {
+            document.getElementById('explain-modal').classList.add('hidden');
+        }
+
+        let canvas, ctx, miniChartCanvas, miniChartCtx;
+
+        function initWorkspaceCanvas() {
+            canvas = document.getElementById('workspace-canvas');
+            ctx = canvas.getContext('2d');
+
+            function resize() {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            // Canvas drag interaction
+            canvas.addEventListener('mousedown', onCanvasMouseDown);
+            canvas.addEventListener('mousemove', onCanvasMouseMove);
+            canvas.addEventListener('mouseup', onCanvasMouseUp);
+        }
+
+        function resetWorkspace() {
+            state.workspace.devices = [
+                { id: 'phone', name: '📱 Smartphone', type: 'phone', x: 150, y: 240, role: 'host' },
+                { id: 'earbuds', name: '🎧 Earbuds', type: 'earbuds', x: 450, y: 150, role: 'peripheral' },
+                { id: 'mouse', name: '🖱 Mouse', type: 'mouse', x: 450, y: 320, role: 'peripheral' }
+            ];
+            state.workspace.packets = [];
+        }
+
+        function addSimDevice() {
+            const type = document.getElementById('add-device-select').value;
+            const names = {
+                earbuds: '🎧 Earbuds', phone: '📱 Smartphone', mouse: '🖱 Mouse',
+                keyboard: '⌨ Keyboard', speaker: '🔊 Speaker', watch: '⌚ Smartwatch',
+                sensor: '🌡 Sensor', laptop: '💻 Laptop'
+            };
+            state.workspace.devices.push({
+                id: 'dev_' + Date.now(),
+                name: names[type] || '🔵 Device',
+                type: type,
+                x: 250 + Math.random() * 200,
+                y: 150 + Math.random() * 150,
+                role: type === 'phone' || type === 'laptop' ? 'host' : 'peripheral'
+            });
+            showToast(`Added ${names[type]} to workspace`, 'success');
+        }
+
+        function triggerSimStream(type) {
+            const host = state.workspace.devices.find(d => d.role === 'host');
+            const target = state.workspace.devices.find(d => d.role === 'peripheral');
+            if (!host || !target) {
+                showToast('Ensure at least one host and one peripheral are on canvas', 'error');
+                return;
+            }
+
+            for (let i = 0; i < 6; i++) {
+                setTimeout(() => {
+                    state.workspace.packets.push({
+                        from: host,
+                        to: target,
+                        progress: 0,
+                        type: type,
+                        speed: 0.015 * state.simSpeed
+                    });
+                }, i * 150);
+            }
+            showToast(`Streaming ${type} packets...`, 'success');
+        }
+
+        function clearPackets() {
+            state.workspace.packets = [];
+        }
+
+        function onCanvasMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            const dev = state.workspace.devices.find(d => Math.hypot(d.x - mx, d.y - my) < 30);
+            if (dev) {
+                state.workspace.selectedDevice = dev;
+                state.workspace.isDragging = true;
+                state.workspace.dragTarget = dev;
+                updateInspector(dev);
+            }
+        }
+
+        function onCanvasMouseMove(e) {
+            if (state.workspace.isDragging && state.workspace.dragTarget) {
+                const rect = canvas.getBoundingClientRect();
+                state.workspace.dragTarget.x = e.clientX - rect.left;
+                state.workspace.dragTarget.y = e.clientY - rect.top;
+            }
+        }
+
+        function onCanvasMouseUp() {
+            state.workspace.isDragging = false;
+            state.workspace.dragTarget = null;
+        }
+
+        function updateInspector(dev) {
+            const content = document.getElementById('inspector-content');
+            content.innerHTML = `
+                <div class="space-y-1">
+                    <p class="font-bold text-white text-sm">${dev.name}</p>
+                    <p>Role: <span class="text-bt-cyan font-mono">${dev.role.toUpperCase()}</span></p>
+                    <p>Position: <span class="font-mono">X:${Math.round(dev.x)} Y:${Math.round(dev.y)}</span></p>
+                </div>
+            `;
+        }
+
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+
+        function renderLoop(now) {
+            const dt = (now - lastFrameTime) / 1000;
+            lastFrameTime = now;
+            frameCount++;
+
+            if (frameCount % 30 === 0) {
+                document.getElementById('canvas-fps').innerText = Math.round(1 / dt);
+                document.getElementById('air-packet-count').innerText = state.workspace.packets.length;
+            }
+
+            if (state.activeTab === 'workspace') {
+                drawWorkspaceCanvas(now);
+            }
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        function drawWorkspaceCanvas(now) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 30) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 30) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            const host = state.workspace.devices.find(d => d.role === 'host');
+
+            // Draw RF connection links & waves
+            state.workspace.devices.forEach(dev => {
+                if (dev !== host && host) {
+                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.2)';
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(host.x, host.y);
+                    ctx.lineTo(dev.x, dev.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Radio Wave animation
+                    const dist = Math.hypot(dev.x - host.x, dev.y - host.y);
+                    const waveR = (now * 0.05 * state.simSpeed) % dist;
+                    const angle = Math.atan2(dev.y - host.y, dev.x - host.x);
+
+                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(host.x, host.y, waveR, angle - 0.3, angle + 0.3);
+                    ctx.stroke();
+                }
+            });
+
+            // Update and draw moving packets
+            state.workspace.packets.forEach((p, idx) => {
+                p.progress += p.speed * state.simSpeed;
+                const px = p.from.x + (p.to.x - p.from.x) * p.progress;
+                const py = p.from.y + (p.to.y - p.from.y) * p.progress;
+
+                const colors = { music: '#C084FC', file: '#FBBF24', hid_mouse: '#FB7185', sensor: '#34D399' };
+
+                ctx.fillStyle = colors[p.type] || '#00F0FF';
+                ctx.shadowColor = colors[p.type] || '#00F0FF';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(px, py, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // Remove arrived packets
+            state.workspace.packets = state.workspace.packets.filter(p => p.progress < 1);
+
+            // Draw Devices Nodes
+            state.workspace.devices.forEach(dev => {
+                ctx.fillStyle = dev === state.workspace.selectedDevice ? '#0082FC' : '#1E293B';
+                ctx.strokeStyle = '#00F0FF';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(dev.x, dev.y, 22, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '11px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(dev.name, dev.x, dev.y + 36);
+            });
+        }
+
+        async function requestRealBleDevice() {
+            if (!navigator.bluetooth) {
+                showToast('Web Bluetooth is not supported in this browser', 'error');
+                return;
+            }
+
+            try {
+                showToast('Opening native browser BLE security picker...', 'info');
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: ['battery_service', 'heart_rate', 'generic_access']
+                });
+
+                state.realDevice = device;
+                document.getElementById('real-device-name').innerText = device.name || device.id;
+                showToast(`Connected to ${device.name || 'BLE Device'}!`, 'success');
+
+                const server = await device.gatt.connect();
+                state.realServer = server;
+                buildGattTree(server);
+            } catch (err) {
+                showToast(`BLE Connect Failed: ${err.message}`, 'error');
+            }
+        }
+
+        async function buildGattTree(server) {
+            const container = document.getElementById('gatt-tree-container');
+            container.innerHTML = '<p class="text-emerald-400 font-mono">Discovering GATT Primary Services...</p>';
+
+            try {
+                const services = await server.getPrimaryServices();
+                let html = '';
+                for (const s of services) {
+                    html += `<div class="p-2 rounded bg-slate-900 border border-slate-800 space-y-1">
+                        <div class="font-bold text-bt-cyan font-mono">Service: ${s.uuid}</div>`;
+                    const chars = await s.getCharacteristics();
+                    for (const c of chars) {
+                        html += `<div class="ml-4 text-slate-300 font-mono text-[11px]">└── Char: ${c.uuid}</div>`;
+                    }
+                    html += `</div>`;
+                }
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = `<p class="text-rose-400 font-mono">Service Discovery Restricted: ${e.message}</p>`;
+            }
+        }
+
+        function readRealCharacteristic() { showToast('Selected Characteristic Read Triggered', 'info'); }
+        function writeRealCharacteristic() { showToast('Payload written to characteristic', 'success'); }
+        function toggleRealNotifications() { showToast('Notifications toggled for target UUID', 'info'); }
+        function clearRealLog() { document.getElementById('real-ble-log').innerHTML = ''; }
+
+        function updateAudioMath() {
+            const codec = document.getElementById('codec-select').value;
+            const rate = parseInt(document.getElementById('audio-sample-rate').value);
+            const depth = parseInt(document.getElementById('audio-bit-depth').value);
+
+            const rawBps = rate * depth * 2; // Stereo
+            const rawKbps = (rawBps / 1000).toFixed(1);
+
+            const codecBps = {
+                SBC: 328, AAC: 256, aptX: 352, aptX_HD: 576, LDAC: 990, LC3: 160
+            };
+
+            const compressed = codecBps[codec] || 328;
+
+            document.getElementById('raw-audio-bitrate').innerText = `${rawKbps} Kbps`;
+            document.getElementById('compressed-audio-bitrate').innerText = `${compressed}.0 Kbps`;
+            document.getElementById('pipeline-codec-name').innerText = codec;
+
+            const ratio = (rawKbps / compressed).toFixed(1);
+            document.getElementById('audio-compression-ratio').innerText = `${ratio} : 1`;
+
+            const fillPct = Math.min(100, (compressed / 1411) * 100);
+            document.getElementById('codec-bar-fill').style.width = `${fillPct}%`;
+        }
+
+        function toggleAudioPlayback() {
+            state.audio.isPlaying = !state.audio.isPlaying;
+            const btn = document.getElementById('audio-play-btn');
+            const p1 = document.getElementById('audio-pipe-1');
+            const p2 = document.getElementById('audio-pipe-2');
+            const p3 = document.getElementById('audio-pipe-3');
+
+            if (state.audio.isPlaying) {
+                btn.innerHTML = `<i data-lucide="square" class="w-4 h-4"></i><span>Stop Stream</span>`;
+                p1.className = 'absolute inset-y-0 left-0 bg-purple-500 w-1/3 rounded-full animate-pulse opacity-100';
+                p2.className = 'absolute inset-y-0 left-0 bg-bt-cyan w-1/3 rounded-full animate-pulse opacity-100';
+                p3.className = 'absolute inset-y-0 left-0 bg-emerald-500 w-1/3 rounded-full animate-pulse opacity-100';
+                showToast('Streaming audio frames across Bluetooth link', 'success');
+            } else {
+                btn.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i><span>Start Audio Stream</span>`;
+                p1.className = 'absolute inset-y-0 left-0 bg-purple-500 w-1/3 rounded-full opacity-0';
+                p2.className = 'absolute inset-y-0 left-0 bg-bt-cyan w-1/3 rounded-full opacity-0';
+                p3.className = 'absolute inset-y-0 left-0 bg-emerald-500 w-1/3 rounded-full opacity-0';
+            }
+            lucide.createIcons();
+        }
+
+        function updateFileRangeVal() {
+            const val = document.getElementById('file-size-range').value;
+            document.getElementById('custom-file-val').innerText = val;
+            state.fileSim.sizeMb = parseFloat(val);
+        }
+
+        function updateFilePreset() {
+            const preset = document.getElementById('file-preset-select').value;
+            const sizes = { photo: 4.5, document: 1.2, audio: 8.0, video: 25.0 };
+            const size = sizes[preset] || 4.5;
+            document.getElementById('file-size-range').value = size;
+            document.getElementById('custom-file-val').innerText = size;
+            state.fileSim.sizeMb = size;
+        }
+
+        function startFileTransferSim() {
+            if (state.fileSim.intervalId) clearInterval(state.fileSim.intervalId);
+
+            state.fileSim.progress = 0;
+            const boxes = document.getElementById('fragmentation-boxes');
+            boxes.innerHTML = '';
+
+            const mtu = parseInt(document.getElementById('file-mtu-select').value);
+            const totalPackets = Math.ceil((state.fileSim.sizeMb * 1024 * 1024) / mtu);
+
+            showToast(`Starting file transfer: ${totalPackets} ATT packets`, 'info');
+
+            state.fileSim.intervalId = setInterval(() => {
+                state.fileSim.progress += 2 * state.simSpeed;
+                document.getElementById('file-prog-bar').style.width = `${Math.min(100, state.fileSim.progress)}%`;
+                document.getElementById('file-prog-percent').innerText = `${Math.min(100, Math.round(state.fileSim.progress))}%`;
+                document.getElementById('file-prog-speed').innerText = `${(1200 * state.simSpeed).toFixed(0)} Kbps`;
+
+                // Add fragment box
+                if (boxes.children.length < 40) {
+                    const box = document.createElement('div');
+                    box.className = 'w-6 h-6 rounded bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-[9px] font-mono text-amber-300';
+                    box.innerText = '#' + boxes.children.length;
+                    boxes.appendChild(box);
+                }
+
+                if (state.fileSim.progress >= 100) {
+                    clearInterval(state.fileSim.intervalId);
+                    showToast('File Transfer Completed & Reassembled!', 'success');
+                }
+            }, 100);
+        }
+
+        function setupTrackpadListeners() {
+            const pad = document.getElementById('hid-trackpad');
+            let lastX = 0, lastY = 0;
+
+            pad.addEventListener('mousemove', (e) => {
+                const dx = e.movementX;
+                const dy = e.movementY;
+                document.getElementById('mouse-delta-display').innerText = `ΔX: ${dx}, ΔY: ${dy}`;
+                document.getElementById('hid-hex-frame').innerText = `0x00 0x00 ${dx & 0xFF} ${dy & 0xFF} 0x00 0x00 0x00 0x00`;
+            });
+        }
+
+        function sendKeyReport(key) {
+            const keyCodes = { Q: '0x14', W: '0x1A', E: '0x08', R: '0x15', T: '0x17', SPACE: '0x2C', ENTER: '0x28' };
+            const code = keyCodes[key] || '0x04';
+            document.getElementById('hid-hex-frame').innerText = `0x00 0x00 ${code} 0x00 0x00 0x00 0x00 0x00`;
+            showToast(`Key HID Report Transmitted: ${key}`, 'info');
+        }
+
+        function updateRfSim() {
+            const dist = parseFloat(document.getElementById('rf-dist-slider').value);
+            const wifi = parseInt(document.getElementById('rf-wifi-slider').value);
+            const phy = document.getElementById('rf-phy-select').value;
+
+            document.getElementById('rf-dist-val').innerText = `${dist.toFixed(1)} m`;
+            document.getElementById('rf-wifi-val').innerText = `${wifi}% Noise`;
+
+            const baseSpeed = phy === '2M' ? 1400 : phy === 'CODED' ? 125 : phy === 'EDR3' ? 2100 : 800;
+            const distLoss = Math.max(0.1, 1 - (dist / 35));
+            const wifiLoss = Math.max(0.1, 1 - (wifi / 120));
+
+            const effective = Math.round(baseSpeed * distLoss * wifiLoss);
+            document.getElementById('rf-throughput-summary').innerText = `${effective} Kbps Effective`;
+        }
+
+        function inspectProtocolLayer(layer) {
+            const title = document.getElementById('proto-layer-title');
+            const desc = document.getElementById('proto-layer-desc');
+
+            const layers = {
+                app: { title: 'Application & Profile Layer', text: 'Defines end-user data formats like A2DP for music, HID for mice, or GATT for heart rate sensors.' },
+                gatt: { title: 'GATT / ATT Layer', text: 'Organizes data into hierarchical Services and Characteristics using 16-bit or 128-bit UUIDs.' },
+                l2cap: { title: 'L2CAP Layer', text: 'Adapts higher layer packets, provides protocol multiplexing, and handles packet fragmentation.' },
+                hci: { title: 'HCI Boundary', text: 'Standardized communication interface between Host stack software and the physical Bluetooth Controller chip.' },
+                link: { title: 'Link Controller Layer', text: 'Controls radio timing, frequency hopping across 79/40 channels, and manages connections.' },
+                phy: { title: '2.4 GHz PHY Radio', text: 'Modulates raw digital bits into GFSK radio waves across the 2.4 GHz ISM frequency spectrum.' }
+            };
+
+            const info = layers[layer] || layers.app;
+            title.innerText = info.title;
+            desc.innerHTML = `<p>${info.text}</p>`;
+        }
+
+        function runExperiment(num) {
+            if (num === 1) {
+                switchTab('speed-rf');
+                document.getElementById('rf-dist-slider').value = 25;
+                document.getElementById('rf-phy-select').value = 'CODED';
+                updateRfSim();
+                showToast('Experiment 1 configured: LE Coded PHY at 25m distance', 'success');
+            } else if (num === 2) {
+                switchTab('audio');
+                document.getElementById('codec-select').value = 'LDAC';
+                updateAudioMath();
+                showToast('Experiment 2 configured: High bitrate LDAC Codec', 'success');
+            }
+        }
+
+        function initMiniChartCanvas() {
+            miniChartCanvas = document.getElementById('mini-chart-canvas');
+            miniChartCtx = miniChartCanvas.getContext('2d');
+            miniChartCanvas.width = miniChartCanvas.parentElement.clientWidth;
+            miniChartCanvas.height = miniChartCanvas.parentElement.clientHeight;
+        }
+
+        function initRfChartCanvas() {
+            const c = document.getElementById('rf-chart-canvas');
+            c.width = c.parentElement.clientWidth;
+            c.height = c.parentElement.clientHeight;
+        }
+    </script>
+</body>
+</html>
