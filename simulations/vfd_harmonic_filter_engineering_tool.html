@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VFD Harmonic Filter Learning & Engineering Simulation Tool</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#0a0f1d',
+                            card: '#121929',
+                            border: '#1e293b',
+                            accent: '#38bdf8',
+                            warning: '#f59e0b',
+                            danger: '#ef4444',
+                            success: '#10b981',
+                            purple: '#8b5cf6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #060913;
+            color: #e2e8f0;
+        }
+        
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d1322;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3b82f6;
+        }
+
+        /* Glowing effects */
+        .glow-accent {
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
+        }
+        .glow-danger {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+        .glow-success {
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Tab transition */
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Range slider styling */
+        input[type=range] {
+            accent-color: #38bdf8;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#060913] text-slate-200">
+
+    <!-- TOP HEADER -->
+    <header class="bg-[#0b101d] border-b border-slate-800 sticky top-0 z-50 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-sky-500/10 border border-sky-500/30 rounded-lg text-sky-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white tracking-wide">VFD Harmonic Filter Lab <span class="text-xs px-2 py-0.5 bg-sky-500/20 text-sky-400 rounded-full border border-sky-500/30 font-normal">v3.5 Industrial Eng</span></h1>
+                    <p class="text-xs text-slate-400">Interactive Simulation & Harmonic Mitigation Simulator</p>
+                </div>
+            </div>
+
+            <!-- Mode Switcher & Quick Stats -->
+            <div class="flex items-center space-x-4">
+                <div class="hidden lg:flex items-center space-x-3 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 text-xs font-mono">
+                    <div><span class="text-slate-500">PCC THD-I:</span> <span id="header-thdi" class="font-bold text-amber-400">32.4%</span></div>
+                    <div class="h-3 w-px bg-slate-700"></div>
+                    <div><span class="text-slate-500">PCC THD-V:</span> <span id="header-thdv" class="font-bold text-sky-400">5.8%</span></div>
+                    <div class="h-3 w-px bg-slate-700"></div>
+                    <div><span class="text-slate-500">True PF:</span> <span id="header-pf" class="font-bold text-emerald-400">0.82</span></div>
+                </div>
+
+                <!-- Beginner / Engineer Toggle -->
+                <div class="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-800">
+                    <button id="mode-beginner" onclick="setAppMode('beginner')" class="px-3 py-1 rounded text-xs font-medium transition-all bg-sky-600 text-white shadow">Beginner Mode</button>
+                    <button id="mode-engineer" onclick="setAppMode('engineer')" class="px-3 py-1 rounded text-xs font-medium transition-all text-slate-400 hover:text-white">Engineer Mode</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN TAB NAVIGATION -->
+    <nav class="bg-[#0e1626] border-b border-slate-800/80 overflow-x-auto scrollbar-none">
+        <div class="max-w-7xl mx-auto flex space-x-1 px-4 text-xs font-medium whitespace-nowrap">
+            <button onclick="switchTab('tab-sld')" class="nav-tab py-3 px-4 text-sky-400 border-b-2 border-sky-400 flex items-center space-x-2">
+                <span>⚡ Topology & SLD</span>
+            </button>
+            <button onclick="switchTab('tab-rectifier')" class="nav-tab py-3 px-4 text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center space-x-2">
+                <span>🔌 6-Pulse Physics</span>
+            </button>
+            <button onclick="switchTab('tab-fft')" class="nav-tab py-3 px-4 text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center space-x-2">
+                <span>📊 FFT & Spectrum</span>
+            </button>
+            <button onclick="switchTab('tab-filters')" class="nav-tab py-3 px-4 text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center space-x-2">
+                <span>🛡️ Passive & Active Filters</span>
+            </button>
+            <button onclick="switchTab('tab-effects')" class="nav-tab py-3 px-4 text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center space-x-2">
+                <span>🔥 Transformer/Motor Losses</span>
+            </button>
+            <button onclick="switchTab('tab-ieee')" class="nav-tab py-3 px-4 text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center space-x-2">
+                <span>📐 IEEE 519 & PCC</span>
+            </button>
+            <button onclick="switchTab('tab-wizard')" class="nav-tab py-3 px-4 text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center space-x-2">
+                <span>🧭 Decision Wizard</span>
+            </button>
+            <button onclick="switchTab('tab-experiments')" class="nav-tab py-3 px-4 text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center space-x-2">
+                <span>🧪 Experiments & Faults</span>
+            </button>
+            <button onclick="switchTab('tab-analyzer')" class="nav-tab py-3 px-4 text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center space-x-2">
+                <span>📟 Virtual Scope</span>
+            </button>
+            <button onclick="switchTab('tab-lessons')" class="nav-tab py-3 px-4 text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center space-x-2">
+                <span>🎓 Lessons & Quiz</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 space-y-6">
+
+        <!-- ================================================================================= -->
+        <!-- TAB 1: TOPOLOGY & SINGLE LINE DIAGRAM (SLD) -->
+        <!-- ================================================================================= -->
+        <div id="tab-sld" class="tab-content active space-y-6">
+            
+            <!-- Top Controls & System Parameter Strip -->
+            <div class="bg-[#111827] border border-slate-800 rounded-xl p-4 shadow-xl">
+                <div class="flex flex-col lg:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
+                    <!-- Filter Topology Selection Buttons -->
+                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-2">Topologies:</span>
+                        <button onclick="setCaseTopology('none')" id="topo-none" class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all bg-red-500/20 text-red-400 border-red-500/50 shadow-lg glow-danger">
+                            Case A: No Filter
+                        </button>
+                        <button onclick="setCaseTopology('passive')" id="topo-passive" class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700">
+                            Case B: Passive Filter
+                        </button>
+                        <button onclick="setCaseTopology('active')" id="topo-active" class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700">
+                            Case C: Active Filter (AHF)
+                        </button>
+                        <button onclick="setCaseTopology('compare')" id="topo-compare" class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700">
+                            📊 Compare All
+                        </button>
+                    </div>
+
+                    <!-- Quick Sliders -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full lg:w-auto text-xs">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Motor Load: <span id="val-load" class="text-sky-400 font-mono font-bold">85%</span></label>
+                            <input type="range" id="input-load" min="10" max="100" value="85" class="w-full h-1.5 bg-slate-800 rounded" oninput="updateGlobalParameters()">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">VFD Type:</label>
+                            <select id="input-vfd-type" onchange="updateGlobalParameters()" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs w-full focus:outline-none focus:border-sky-500">
+                                <option value="6pulse" selected>6-Pulse Rectifier</option>
+                                <option value="12pulse">12-Pulse Converter</option>
+                                <option value="afe">Active Front End (AFE)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Trans. %Z: <span id="val-z" class="text-sky-400 font-mono font-bold">5.75%</span></label>
+                            <input type="range" id="input-z" min="2" max="10" step="0.25" value="5.75" class="w-full h-1.5 bg-slate-800 rounded" oninput="updateGlobalParameters()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Animated SLD Canvas -->
+                <div class="relative bg-[#090d16] border border-slate-800 rounded-lg overflow-hidden">
+                    <div class="absolute top-3 left-3 bg-slate-900/90 border border-slate-700/80 rounded px-3 py-1.5 text-xs font-mono text-slate-300 z-10 flex items-center space-x-2">
+                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span>Single-Line Diagram (SLD) - Live Particle Vector Stream</span>
+                    </div>
+                    <canvas id="canvas-sld" class="w-full h-72 block"></canvas>
+                </div>
+            </div>
+
+            <!-- Live Waveform & Spectrum Pair -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Time-Domain Oscilloscope -->
+                <div class="bg-[#111827] border border-slate-800 rounded-xl p-4 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-sky-400"></span> Current & Voltage Waveforms (Time Domain)
+                        </h3>
+                        <div class="flex items-center space-x-3 text-xs font-mono">
+                            <span class="text-sky-400">― Voltage</span>
+                            <span class="text-amber-400">― Current</span>
+                        </div>
+                    </div>
+                    <div class="bg-[#080c14] border border-slate-800 rounded-lg p-2">
+                        <canvas id="canvas-sld-scope" class="w-full h-56 block"></canvas>
+                    </div>
+                </div>
+
+                <!-- Frequency-Domain Spectrum -->
+                <div class="bg-[#111827] border border-slate-800 rounded-xl p-4 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-purple-400"></span> Harmonic Spectrum (FFT Analysis)
+                        </h3>
+                        <span class="text-xs text-slate-400 font-mono" id="sld-thd-badge">THD-I: 32.4%</span>
+                    </div>
+                    <div class="bg-[#080c14] border border-slate-800 rounded-lg p-2">
+                        <canvas id="canvas-sld-fft" class="w-full h-56 block"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Metrics Comparison Dashboard -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="bg-[#111827] border border-slate-800 rounded-lg p-3">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">Source RMS Current</span>
+                    <p id="metric-rms" class="text-lg font-bold font-mono text-amber-400 mt-1">182.4 A</p>
+                    <span class="text-[10px] text-slate-400">Fundamental: 150 A</span>
+                </div>
+                <div class="bg-[#111827] border border-slate-800 rounded-lg p-3">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">Current THD (THD-I)</span>
+                    <p id="metric-thdi" class="text-lg font-bold font-mono text-red-400 mt-1">38.2%</p>
+                    <span id="metric-thdi-status" class="text-[10px] text-red-400">⚠️ Exceeds IEEE 519</span>
+                </div>
+                <div class="bg-[#111827] border border-slate-800 rounded-lg p-3">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">Voltage THD (THD-V)</span>
+                    <p id="metric-thdv" class="text-lg font-bold font-mono text-sky-400 mt-1">6.2%</p>
+                    <span class="text-[10px] text-slate-400">Bus Distortion</span>
+                </div>
+                <div class="bg-[#111827] border border-slate-800 rounded-lg p-3">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">True Power Factor</span>
+                    <p id="metric-tpf" class="text-lg font-bold font-mono text-emerald-400 mt-1">0.83</p>
+                    <span class="text-[10px] text-slate-400">DPF: 0.95</span>
+                </div>
+                <div class="bg-[#111827] border border-slate-800 rounded-lg p-3">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">System Losses</span>
+                    <p id="metric-losses" class="text-lg font-bold font-mono text-purple-400 mt-1">4.82 kW</p>
+                    <span class="text-[10px] text-slate-400">Cable + Trans Heat</span>
+                </div>
+                <div class="bg-[#111827] border border-slate-800 rounded-lg p-3">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">Trans Derating</span>
+                    <p id="metric-kfactor" class="text-lg font-bold font-mono text-orange-400 mt-1">K-7.2</p>
+                    <span class="text-[10px] text-slate-400">K-Factor Loading</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 2: WHY DOES VFD CREATE HARMONICS (6-PULSE PHYSICS) -->
+        <!-- ================================================================================= -->
+        <div id="tab-rectifier" class="tab-content space-y-6">
+            <div class="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span>🔌 Physics of Non-Linear Diode Conduction</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">
+                        A standard 6-pulse VFD utilizes a 3-phase diode bridge rectifier feeding a DC-link capacitor. The diodes only conduct when line voltage exceeds the DC bus capacitor voltage, creating non-sinusoidal pulsating currents.
+                    </p>
+                </div>
+
+                <!-- 6-Pulse Interactive Animation Canvas -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-[#080c14] border border-slate-800 rounded-xl p-4">
+                        <canvas id="canvas-rectifier" class="w-full h-80 block"></canvas>
+                    </div>
+
+                    <!-- Interactive Controls & Conduction Explanation -->
+                    <div class="space-y-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                        <h3 class="text-sm font-semibold text-sky-400 border-b border-slate-800 pb-2">DC Bus & Diode Parameters</h3>
+                        
+                        <div>
+                            <label class="text-xs text-slate-300 block mb-1">DC Link Capacitance (µF): <span id="val-cap" class="font-mono text-sky-400 font-bold">1200 µF</span></label>
+                            <input type="range" id="input-cap" min="200" max="3000" step="100" value="1200" class="w-full h-1.5 bg-slate-800 rounded" oninput="updateRectifierPhysics()">
+                            <span class="text-[10px] text-slate-500 block mt-1">Higher capacitance = narrower, sharper current pulses = higher THD!</span>
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-slate-300 block mb-1">AC Line Impedance / Inductance: <span id="val-line-l" class="font-mono text-sky-400 font-bold">2.0 %</span></label>
+                            <input type="range" id="input-line-l" min="0.5" max="8.0" step="0.5" value="2.0" class="w-full h-1.5 bg-slate-800 rounded" oninput="updateRectifierPhysics()">
+                            <span class="text-[10px] text-slate-500 block mt-1">Line reactors widen the conduction angle and reduce current spikes.</span>
+                        </div>
+
+                        <div class="bg-slate-800/80 p-3 rounded-lg border border-slate-700/50 text-xs space-y-2">
+                            <span class="font-semibold text-white block">Characteristic Harmonic Equation:</span>
+                            <div class="font-mono text-amber-300 bg-slate-900 p-2 rounded text-center">
+                                h = 6k ± 1 &nbsp;&nbsp;(where k = 1, 2, 3...)
+                            </div>
+                            <p class="text-[11px] text-slate-400">
+                                Characteristic orders for 6-pulse: <br>
+                                <strong class="text-slate-200">5th, 7th, 11th, 13th, 17th, 19th, 23rd, 25th...</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Harmonic Decomposition Interactive Visualizer -->
+                <div class="bg-[#090d16] border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                        <h3 class="text-sm font-semibold text-white">Waveform Decomposition (Fundamental + Fourier Harmonics)</h3>
+                        <p class="text-xs text-slate-400">Toggle harmonics ON/OFF to see how they synthesize the pulsating current:</p>
+                    </div>
+
+                    <!-- Harmonic Toggle Switches -->
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <button onclick="toggleHarmonicDecomp(1)" id="decomp-h1" class="px-3 py-1 rounded bg-sky-600 text-white font-bold">Fundamental (50/60Hz)</button>
+                        <button onclick="toggleHarmonicDecomp(5)" id="decomp-h5" class="px-3 py-1 rounded bg-amber-500 text-slate-950 font-bold">5th (35%)</button>
+                        <button onclick="toggleHarmonicDecomp(7)" id="decomp-h7" class="px-3 py-1 rounded bg-purple-500 text-white font-bold">7th (20%)</button>
+                        <button onclick="toggleHarmonicDecomp(11)" id="decomp-h11" class="px-3 py-1 rounded bg-emerald-500 text-slate-950 font-bold">11th (10%)</button>
+                        <button onclick="toggleHarmonicDecomp(13)" id="decomp-h13" class="px-3 py-1 rounded bg-rose-500 text-white font-bold">13th (7%)</button>
+                    </div>
+
+                    <div class="bg-[#050810] border border-slate-800 rounded-lg p-2">
+                        <canvas id="canvas-decomp" class="w-full h-56 block"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 3: FFT SPECTRUM & LIVE THD CALCULATOR -->
+        <!-- ================================================================================= -->
+        <div id="tab-fft" class="tab-content space-y-6">
+            <div class="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white">📊 Interactive FFT & THD Math Engine</h2>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Adjust individual harmonic order magnitudes (Amperes) to see the synthesized time-domain waveform and calculate exact Current THD ($THD_I$) and Voltage THD ($THD_V$).
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Sliders for Harmonic Magnitudes -->
+                    <div class="space-y-3 bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-xs">
+                        <h3 class="font-semibold text-sky-400 text-sm border-b border-slate-800 pb-2">Harmonic Amplitudes (A)</h3>
+                        
+                        <div>
+                            <div class="flex justify-between text-slate-300">
+                                <span>Fundamental ($I_1$):</span>
+                                <span id="val-fft-h1" class="font-mono text-sky-400 font-bold">100 A</span>
+                            </div>
+                            <input type="range" id="slider-fft-h1" min="10" max="200" value="100" class="w-full h-1 bg-slate-700 rounded" oninput="updateFFTEngine()">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-slate-300">
+                                <span>5th Harmonic ($I_5$):</span>
+                                <span id="val-fft-h5" class="font-mono text-amber-400 font-bold">35 A</span>
+                            </div>
+                            <input type="range" id="slider-fft-h5" min="0" max="80" value="35" class="w-full h-1 bg-slate-700 rounded" oninput="updateFFTEngine()">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-slate-300">
+                                <span>7th Harmonic ($I_7$):</span>
+                                <span id="val-fft-h7" class="font-mono text-purple-400 font-bold">20 A</span>
+                            </div>
+                            <input type="range" id="slider-fft-h7" min="0" max="60" value="20" class="w-full h-1 bg-slate-700 rounded" oninput="updateFFTEngine()">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-slate-300">
+                                <span>11th Harmonic ($I_{11}$):</span>
+                                <span id="val-fft-h11" class="font-mono text-emerald-400 font-bold">10 A</span>
+                            </div>
+                            <input type="range" id="slider-fft-h11" min="0" max="40" value="10" class="w-full h-1 bg-slate-700 rounded" oninput="updateFFTEngine()">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-slate-300">
+                                <span>13th Harmonic ($I_{13}$):</span>
+                                <span id="val-fft-h13" class="font-mono text-rose-400 font-bold">7 A</span>
+                            </div>
+                            <input type="range" id="slider-fft-h13" min="0" max="30" value="7" class="w-full h-1 bg-slate-700 rounded" oninput="updateFFTEngine()">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-slate-300">
+                                <span>17th Harmonic ($I_{17}$):</span>
+                                <span id="val-fft-h17" class="font-mono text-orange-400 font-bold">4 A</span>
+                            </div>
+                            <input type="range" id="slider-fft-h17" min="0" max="20" value="4" class="w-full h-1 bg-slate-700 rounded" oninput="updateFFTEngine()">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-slate-300">
+                                <span>19th Harmonic ($I_{19}$):</span>
+                                <span id="val-fft-h19" class="font-mono text-cyan-400 font-bold">3 A</span>
+                            </div>
+                            <input type="range" id="slider-fft-h19" min="0" max="20" value="3" class="w-full h-1 bg-slate-700 rounded" oninput="updateFFTEngine()">
+                        </div>
+                    </div>
+
+                    <!-- Canvas for FFT & Formulas -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="bg-[#080c14] border border-slate-800 rounded-xl p-3">
+                            <canvas id="canvas-fft-synth" class="w-full h-64 block"></canvas>
+                        </div>
+
+                        <!-- Mathematical Formulas Box -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-3 text-xs space-y-1">
+                                <span class="font-bold text-sky-400">Current THD Formula:</span>
+                                <p class="font-mono text-slate-300 text-[11px] bg-slate-950 p-2 rounded">
+                                    THD_I = √(I₂² + I₃² + ... + I_n²) / I₁ × 100%
+                                </p>
+                                <div class="flex justify-between pt-1">
+                                    <span>Calculated THD-I:</span>
+                                    <span id="fft-calc-thdi" class="font-mono font-bold text-amber-400 text-sm">42.8 %</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Total RMS Current ($I_{rms}$):</span>
+                                    <span id="fft-calc-irms" class="font-mono font-bold text-slate-200">108.8 A</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-3 text-xs space-y-1">
+                                <span class="font-bold text-purple-400">Voltage Distortion Equation ($V_h = I_h \times Z_h$):</span>
+                                <p class="font-mono text-slate-300 text-[11px] bg-slate-950 p-2 rounded">
+                                    THD_V = √(V₂² + V₃² + ... + V_n²) / V₁ × 100%
+                                </p>
+                                <div class="flex justify-between pt-1">
+                                    <span>System Impedance ($Z_{sys}$):</span>
+                                    <span id="fft-calc-zsys" class="font-mono font-bold text-slate-300">0.08 Ω</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Calculated THD-V:</span>
+                                    <span id="fft-calc-thdv" class="font-mono font-bold text-sky-400 text-sm">5.9 %</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 4: PASSIVE vs ACTIVE FILTER SIMULATION & RESONANCE -->
+        <!-- ================================================================================= -->
+        <div id="tab-filters" class="tab-content space-y-6">
+            
+            <!-- Sub-navigation for Filters -->
+            <div class="flex border-b border-slate-800 space-x-4 text-xs font-semibold">
+                <button onclick="switchFilterSubtab('sub-passive')" id="subtab-btn-passive" class="py-2 px-4 border-b-2 border-sky-400 text-sky-400">Passive LC Filters & Resonance</button>
+                <button onclick="switchFilterSubtab('sub-active')" id="subtab-btn-active" class="py-2 px-4 border-b-2 border-transparent text-slate-400 hover:text-white">Active Harmonic Filter (AHF) & Control</button>
+            </div>
+
+            <!-- SUBTAB 1: PASSIVE FILTER & BODE RESONANCE -->
+            <div id="sub-passive" class="space-y-6">
+                <div class="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white">🛡️ Single-Tuned Passive Filter & Resonance Simulation</h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            A single-tuned passive filter creates a low-impedance path to ground at its resonant frequency $f_r = \frac{1}{2\pi\sqrt{LC}}$, trapping dominant harmonic currents. However, it creates parallel resonance with the grid upstream!
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Controls for Passive LC Filter -->
+                        <div class="space-y-4 bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-xs">
+                            <h3 class="font-semibold text-sky-400 border-b border-slate-800 pb-2">Filter Parameters</h3>
+                            
+                            <div>
+                                <label class="text-slate-300 block mb-1">Tuning Harmonic Order ($h_r$): <span id="val-filter-hr" class="font-mono text-sky-400 font-bold">4.7th (235 Hz)</span></label>
+                                <input type="range" id="input-filter-hr" min="4.0" max="13.0" step="0.1" value="4.7" class="w-full h-1.5 bg-slate-800 rounded" oninput="updatePassiveFilterEngine()">
+                                <span class="text-[10px] text-slate-500 block mt-1">Normally tuned slightly below 5th (e.g. 4.7th) to prevent over-loading.</span>
+                            </div>
+
+                            <div>
+                                <label class="text-slate-300 block mb-1">Capacitor Bank Power ($Q_C$ kVAR): <span id="val-filter-q" class="font-mono text-sky-400 font-bold">50 kVAR</span></label>
+                                <input type="range" id="input-filter-q" min="10" max="200" step="5" value="50" class="w-full h-1.5 bg-slate-800 rounded" oninput="updatePassiveFilterEngine()">
+                            </div>
+
+                            <div>
+                                <label class="text-slate-300 block mb-1">Damping Resistance ($R_{filter}$): <span id="val-filter-r" class="font-mono text-sky-400 font-bold">0.15 Ω</span></label>
+                                <input type="range" id="input-filter-r" min="0.02" max="1.0" step="0.02" value="0.15" class="w-full h-1.5 bg-slate-800 rounded" oninput="updatePassiveFilterEngine()">
+                            </div>
+
+                            <!-- Resonance Warning Indicator -->
+                            <div id="resonance-warning-box" class="p-3 rounded-lg border bg-amber-500/10 border-amber-500/30 text-amber-300 space-y-1">
+                                <span class="font-bold flex items-center gap-1">⚠️ Parallel Resonance Risk</span>
+                                <p class="text-[11px] leading-tight">
+                                    Parallel resonance occurs at <span id="val-parallel-freq" class="font-bold font-mono">185 Hz (3.7th)</span>. Ensure this point is far from 5th or 7th harmonics!
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Bode Graph / Frequency Response -->
+                        <div class="lg:col-span-2 space-y-2">
+                            <div class="bg-[#080c14] border border-slate-800 rounded-xl p-3">
+                                <canvas id="canvas-bode" class="w-full h-72 block"></canvas>
+                            </div>
+                            <div class="flex justify-between text-[11px] text-slate-400 px-2 font-mono">
+                                <span>Tuned Notch (Series Resonance) = Low Impedance</span>
+                                <span class="text-amber-400">Peak (Parallel Resonance) = High Impedance amplification!</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUBTAB 2: ACTIVE HARMONIC FILTER (AHF) -->
+            <div id="sub-active" class="hidden space-y-6">
+                <div class="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white">⚡ Active Harmonic Filter (AHF) Anti-Phase Injection</h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            An AHF monitors non-linear load current in real-time, extracts harmonic distortion components via FFT/DSP, and drives IGBTs to inject exact anti-phase current ($I_{comp} = -I_{harmonic}$), canceling harmonics at the PCC.
+                        </p>
+                    </div>
+
+                    <!-- Step-by-Step Control Loop Animation -->
+                    <div class="bg-[#080c14] border border-slate-800 rounded-xl p-4 space-y-4">
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                            <span class="text-xs font-semibold text-sky-400">6-Stage AHF Control Logic Sequence</span>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="triggerAHFStep()" class="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-semibold">▶ Next Step</button>
+                                <button onclick="resetAHFStep()" class="px-3 py-1 bg-slate-800 text-slate-300 rounded text-xs">Reset</button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-xs">
+                            <div id="ahf-step-1" class="p-2 rounded bg-sky-500/20 border border-sky-500 text-sky-300 font-medium">1. Current CT Sensor</div>
+                            <div id="ahf-step-2" class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-500">2. DSP & FFT Extraction</div>
+                            <div id="ahf-step-3" class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-500">3. Anti-Phase Calc</div>
+                            <div id="ahf-step-4" class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-500">4. PWM Modulation</div>
+                            <div id="ahf-step-5" class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-500">5. IGBT Injection</div>
+                            <div id="ahf-step-6" class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-500">6. Sinusoidal Grid</div>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs font-mono text-slate-300" id="ahf-step-description">
+                            Step 1: Current Transformers (CT) measure the distorted non-linear VFD current waveform ($I_{load}$).
+                        </div>
+
+                        <!-- Canvas showing Load Current, Injection Current, and Net Source Current -->
+                        <div class="bg-[#05080f] border border-slate-800 rounded-lg p-2">
+                            <canvas id="canvas-ahf-injection" class="w-full h-60 block"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 5: TRANSFORMER, MOTOR & CABLE LOSSES -->
+        <!-- ================================================================================= -->
+        <div id="tab-effects" class="tab-content space-y-6">
+            <div class="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white">🔥 Industrial System Losses & Thermal Effects</h2>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Harmonic currents do not perform useful work at the motor shaft, but they drastically increase skin-effect $I^2R$ losses, transformer K-Factor eddy current heating, and motor negative-sequence torque counter-rotation.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Transformer K-Factor & Heating Card -->
+                    <div class="bg-[#080c14] border border-slate-800 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-sm font-semibold text-orange-400">Transformer Heating</h3>
+                            <span id="trans-temp-badge" class="px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 font-mono text-xs font-bold">HOT (K-9.4)</span>
+                        </div>
+                        
+                        <div class="relative flex justify-center py-4">
+                            <div id="trans-graphic" class="w-24 h-24 rounded-full border-4 border-orange-500 bg-orange-500/20 flex items-center justify-center transition-all duration-500 shadow-lg glow-danger">
+                                <span class="text-2xl">⚡</span>
+                            </div>
+                        </div>
+
+                        <div class="text-xs space-y-1 bg-slate-900 p-3 rounded-lg border border-slate-800 font-mono">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Eddy Current Loss:</span>
+                                <span id="trans-eddy-loss" class="text-amber-400 font-bold">+285%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">K-Factor Rating:</span>
+                                <span id="trans-kfactor-val" class="text-slate-200">K-13 Needed</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Derating Factor:</span>
+                                <span id="trans-derating-val" class="text-red-400 font-bold">76% Max Load</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Motor 5th Harmonic Reverse Torque Card -->
+                    <div class="bg-[#080c14] border border-slate-800 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-sm font-semibold text-purple-400">Motor 5th Harmonic Torque</h3>
+                            <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 font-mono text-xs font-bold">Negative Seq</span>
+                        </div>
+
+                        <div class="flex justify-center items-center py-2 space-x-4">
+                            <div class="text-center">
+                                <span class="text-[10px] text-slate-400 block">Fundamental (50Hz)</span>
+                                <span class="text-emerald-400 text-lg font-bold">↻ Forward</span>
+                            </div>
+                            <div class="text-slate-600 font-bold">VS</div>
+                            <div class="text-center">
+                                <span class="text-[10px] text-slate-400 block">5th Harmonic</span>
+                                <span class="text-red-400 text-lg font-bold">↺ Reverse</span>
+                            </div>
+                        </div>
+
+                        <p class="text-[11px] text-slate-400 leading-relaxed">
+                            The 5th harmonic creates a rotating magnetic field in the <strong class="text-red-400">opposite direction</strong> of motor rotation, creating torsional vibration, noise, and severe rotor overheating.
+                        </p>
+
+                        <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-xs font-mono flex justify-between">
+                            <span class="text-slate-400">Torque Ripple:</span>
+                            <span id="motor-torque-ripple" class="text-purple-400 font-bold">8.4% Pulsation</span>
+                        </div>
+                    </div>
+
+                    <!-- Cable Skin Effect & Losses Card -->
+                    <div class="bg-[#080c14] border border-slate-800 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-sm font-semibold text-sky-400">Cable $I^2R$ Losses</h3>
+                            <span class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 font-mono text-xs font-bold">Skin Effect</span>
+                        </div>
+
+                        <div class="space-y-2 text-xs">
+                            <label class="text-slate-400 block">Feeder Cable Length (m): <span id="val-cable-len" class="font-mono text-sky-400 font-bold">75 m</span></label>
+                            <input type="range" id="input-cable-len" min="10" max="300" step="10" value="75" class="w-full h-1.5 bg-slate-800 rounded" oninput="updateLossesEngine()">
+                        </div>
+
+                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-800 text-xs font-mono space-y-1">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Fundamental Loss:</span>
+                                <span id="cable-loss-fund" class="text-slate-300">1,250 W</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Harmonic Extra Loss:</span>
+                                <span id="cable-loss-harm" class="text-red-400 font-bold">+680 W</span>
+                            </div>
+                            <div class="flex justify-between pt-1 border-t border-slate-800">
+                                <span class="text-slate-200">Total Cable Heat:</span>
+                                <span id="cable-loss-total" class="text-amber-400 font-bold">1,930 W</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 6: IEEE 519 & POINT OF COMMON COUPLING (PCC) -->
+        <!-- ================================================================================= -->
+        <div id="tab-ieee" class="tab-content space-y-6">
+            <div class="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white">📐 IEEE 519 Standard & Point of Common Coupling (PCC)</h2>
+                    <p class="text-xs text-slate-400 mt-1">
+                        IEEE 519-2022 sets limits on harmonic currents at the <strong>Point of Common Coupling (PCC)</strong> based on the Short-Circuit Ratio ($I_{sc}/I_L$).
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- PCC Visual Diagram -->
+                    <div class="lg:col-span-2 bg-[#080c14] border border-slate-800 rounded-xl p-4">
+                        <canvas id="canvas-pcc" class="w-full h-64 block"></canvas>
+                    </div>
+
+                    <!-- Short-Circuit Ratio Calculator & IEEE Table -->
+                    <div class="space-y-4 bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-xs">
+                        <h3 class="font-semibold text-sky-400 border-b border-slate-800 pb-2">Short-Circuit Ratio ($I_{sc} / I_L$)</h3>
+                        
+                        <div>
+                            <label class="text-slate-300 block mb-1">Grid Short Circuit Capacity ($I_{sc}$): <span id="val-isc" class="font-mono text-sky-400 font-bold">12.5 kA</span></label>
+                            <input type="range" id="input-isc" min="2" max="50" step="0.5" value="12.5" class="w-full h-1.5 bg-slate-800 rounded" oninput="updateIEEEEngine()">
+                        </div>
+
+                        <div>
+                            <label class="text-slate-300 block mb-1">Max Demand Load Current ($I_L$): <span id="val-il" class="font-mono text-sky-400 font-bold">250 A</span></label>
+                            <input type="range" id="input-il" min="50" max="1000" step="25" value="250" class="w-full h-1.5 bg-slate-800 rounded" oninput="updateIEEEEngine()">
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono space-y-1">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Calculated $I_{sc}/I_L$:</span>
+                                <span id="ieee-sc-ratio" class="text-amber-400 font-bold text-sm">50.0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Max Allowed TDD/THD:</span>
+                                <span id="ieee-allowed-thd" class="text-emerald-400 font-bold">8.0%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Current PCC Status:</span>
+                                <span id="ieee-status-badge" class="text-red-400 font-bold">FAIL (38.2%)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Power Factor Decomposition (DPF vs True PF) -->
+                <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                        <span class="text-slate-400 block font-semibold">Displacement Power Factor (DPF)</span>
+                        <p class="text-lg font-bold font-mono text-sky-400 mt-1">cos(φ₁) = 0.96</p>
+                        <p class="text-[10px] text-slate-500 mt-1">Phase angle shift between fundamental voltage and current.</p>
+                    </div>
+
+                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                        <span class="text-slate-400 block font-semibold">Distortion Power Factor</span>
+                        <p class="text-lg font-bold font-mono text-amber-400 mt-1">1 / √(1 + THD²) = 0.93</p>
+                        <p class="text-[10px] text-slate-500 mt-1">Reduction in power factor caused purely by harmonic wave distortion.</p>
+                    </div>
+
+                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                        <span class="text-slate-400 block font-semibold">True Power Factor ($PF_{true}$)</span>
+                        <p class="text-lg font-bold font-mono text-emerald-400 mt-1">DPF × Dist_PF = 0.89</p>
+                        <p class="text-[10px] text-slate-500 mt-1">Actual billable power factor measured by modern utility revenue meters.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 7: DECISION WIZARD & FLOWCHART -->
+        <!-- ================================================================================= -->
+        <div id="tab-wizard" class="tab-content space-y-6">
+            <div class="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white">🧭 Engineering Filter Selection Wizard</h2>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Answer a few questions regarding your facility's electrical system to receive a preliminary engineering recommendation.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Interactive Wizard Form -->
+                    <div class="space-y-4 bg-slate-900/80 p-5 rounded-xl border border-slate-800 text-xs">
+                        <h3 class="font-semibold text-sky-400 text-sm border-b border-slate-800 pb-2">System Assessment Questionnaire</h3>
+
+                        <div class="space-y-1">
+                            <label class="text-slate-300 font-medium">1. Total VFD Power relative to Transformer:</label>
+                            <select id="wiz-q1" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" onchange="runWizard()">
+                                <option value="low">Low (&lt; 15% of transformer kVA)</option>
+                                <option value="medium" selected>Moderate (15% to 40% of transformer kVA)</option>
+                                <option value="high">High (&gt; 40% of transformer kVA)</option>
+                            </select>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-slate-300 font-medium">2. Load Profile Variation:</label>
+                            <select id="wiz-q2" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" onchange="runWizard()">
+                                <option value="constant">Constant / Fixed Speed Load</option>
+                                <option value="variable" selected>Highly Dynamic / Variable Speed Load</option>
+                            </select>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-slate-300 font-medium">3. Existing PFC Capacitor Banks Present?</label>
+                            <select id="wiz-q3" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" onchange="runWizard()">
+                                <option value="no">No Capacitor Banks</option>
+                                <option value="yes" selected>Yes, Standard Un-detuned Capacitors Installed</option>
+                            </select>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-slate-300 font-medium">4. Required Target Current THD ($THD_I$):</label>
+                            <select id="wiz-q4" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200" onchange="runWizard()">
+                                <option value="15">&lt; 15% (General Industrial)</option>
+                                <option value="8" selected>&lt; 8% (IEEE 519 Standard Compliance)</option>
+                                <option value="5">&lt; 5% (Sensitive Data Center / Hospital)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Recommendation Output Card -->
+                    <div class="bg-[#080c14] border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
+                        <div class="space-y-3">
+                            <span class="text-xs uppercase font-bold text-slate-500 tracking-wider">Preliminary Recommendation</span>
+                            <h3 id="wiz-result-title" class="text-xl font-bold text-sky-400">Active Harmonic Filter (AHF)</h3>
+                            <p id="wiz-result-desc" class="text-xs text-slate-300 leading-relaxed">
+                                Due to high load variability and existing capacitor bank resonance risks, a centralized Active Harmonic Filter (AHF) is recommended at the MCC bus.
+                            </p>
+                        </div>
+
+                        <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-[11px] text-amber-300 space-y-1">
+                            <strong class="block font-semibold">⚠️ Engineering Disclaimer</strong>
+                            <p>Preliminary educational selection only. Final filter selection requires site power quality logging, harmonic study software modeling, and manufacturer verification.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 8: EXPERIMENTS & DESIGN MISTAKES (FAULT MODES) -->
+        <!-- ================================================================================= -->
+        <div id="tab-experiments" class="tab-content space-y-6">
+            <div class="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white">🧪 "What-If" Experiments & Design Mistakes Lab</h2>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Select a common real-world engineering mistake or experiment to simulate its catastrophic effects in real time.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <button onclick="runExperiment('mistake-resonance')" class="text-left bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl p-4 transition-all">
+                        <span class="text-xs font-bold text-red-400 block mb-1">🔥 Mistake #1: Un-detuned Capacitors</span>
+                        <p class="text-[11px] text-slate-300">Connecting standard PFC capacitors directly to a VFD bus without detuning reactors, triggering catastrophic 5th harmonic resonance.</p>
+                    </button>
+
+                    <button onclick="runExperiment('mistake-weakgrid')" class="text-left bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl p-4 transition-all">
+                        <span class="text-xs font-bold text-amber-400 block mb-1">⚡ Mistake #2: Weak Generator Power</span>
+                        <p class="text-[11px] text-slate-300">Running high VFD loads on a backup diesel generator with high internal source impedance, collapsing voltage waveforms.</p>
+                    </button>
+
+                    <button onclick="runExperiment('mistake-oversize-passive')" class="text-left bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-xl p-4 transition-all">
+                        <span class="text-xs font-bold text-sky-400 block mb-1">⚓ Mistake #3: Oversized Passive Filter</span>
+                        <p class="text-[11px] text-slate-300">Operating a large passive LC filter at light VFD motor load, causing leading capacitive power factor and generator trip.</p>
+                    </button>
+                </div>
+
+                <!-- Experiment Output Banner -->
+                <div id="experiment-output-box" class="hidden bg-[#080c14] border border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-200">
+                    <span class="text-sky-400 font-bold block mb-1">Experiment Execution Summary:</span>
+                    <p id="experiment-output-text">Select an experiment above to simulate.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 9: VIRTUAL POWER QUALITY ANALYZER (OSCILLOSCOPE) -->
+        <!-- ================================================================================= -->
+        <div id="tab-analyzer" class="tab-content space-y-6">
+            <div class="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <span>📟 Virtual Power Quality Analyzer (PQmeter 9000)</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Multi-channel virtual oscilloscope and harmonic spectrum analyzer with CT/PT probe selection.</p>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="flex items-center space-x-2">
+                        <button id="scope-btn-hold" onclick="toggleScopeHold()" class="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold">FREEZE / HOLD</button>
+                        <button onclick="resetScope()" class="px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold">RESET</button>
+                    </div>
+                </div>
+
+                <!-- Measurement Probe Location -->
+                <div class="flex items-center space-x-4 text-xs">
+                    <span class="text-slate-400 font-medium">Probe Location:</span>
+                    <label class="flex items-center space-x-1 cursor-pointer">
+                        <input type="radio" name="probe-loc" value="pcc" checked onchange="updateScopeProbe()" class="accent-sky-500">
+                        <span class="text-slate-200">Point of Common Coupling (PCC)</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer">
+                        <input type="radio" name="probe-loc" value="mcc" onchange="updateScopeProbe()" class="accent-sky-500">
+                        <span class="text-slate-200">MCC Switchboard</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer">
+                        <input type="radio" name="probe-loc" value="vfd" onchange="updateScopeProbe()" class="accent-sky-500">
+                        <span class="text-slate-200">VFD Input Terminals</span>
+                    </label>
+                </div>
+
+                <!-- Scope Screen -->
+                <div class="bg-[#04070d] border-2 border-slate-800 rounded-xl p-3 shadow-inner">
+                    <canvas id="canvas-pq-scope" class="w-full h-80 block"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 10: LESSONS & QUIZ MODE -->
+        <!-- ================================================================================= -->
+        <div id="tab-lessons" class="tab-content space-y-6">
+            
+            <!-- Subtab switches for Lessons / Quiz -->
+            <div class="flex border-b border-slate-800 space-x-4 text-xs font-semibold">
+                <button onclick="switchEduSubtab('edu-lessons')" id="edubtn-lessons" class="py-2 px-4 border-b-2 border-sky-400 text-sky-400">Step-by-Step Lessons (12 Modules)</button>
+                <button onclick="switchEduSubtab('edu-quiz')" id="edubtn-quiz" class="py-2 px-4 border-b-2 border-transparent text-slate-400 hover:text-white">Interactive Engineering Quiz (20 Questions)</button>
+            </div>
+
+            <!-- LESSONS CONTAINER -->
+            <div id="edu-lessons" class="space-y-4">
+                <div id="lessons-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Lessons rendered via JS -->
+                </div>
+            </div>
+
+            <!-- QUIZ CONTAINER -->
+            <div id="edu-quiz" class="hidden space-y-6">
+                <div class="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h2 class="text-lg font-bold text-white">✍️ Industrial Power Quality Assessment</h2>
+                        <span id="quiz-score-badge" class="font-mono text-xs text-sky-400 font-bold">Score: 0 / 20</span>
+                    </div>
+
+                    <div id="quiz-card" class="space-y-4 text-xs">
+                        <!-- Quiz Question JS Target -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Global Application State
+        const state = {
+            mode: 'beginner', // 'beginner' or 'engineer'
+            activeTab: 'tab-sld',
+            filterSubtab: 'sub-passive',
+            eduSubtab: 'edu-lessons',
+            
+            // System Electrical Parameters
+            gridVoltage: 400, // V
+            frequency: 50, // Hz
+            loadPercent: 85, // %
+            vfdType: '6pulse', // '6pulse', '12pulse', 'afe'
+            transformerZ: 5.75, // %
+            dcCapacitance: 1200, // uF
+            lineReactancePct: 2.0, // %
+            cableLength: 75, // m
+            shortCircuitKa: 12.5, // kA
+            maxDemandAmp: 250, // A
+
+            // Topology Filter Case
+            caseTopology: 'none', // 'none', 'passive', 'active', 'compare'
+
+            // Passive Filter Settings
+            passiveHr: 4.7,
+            passiveKvar: 50,
+            passiveR: 0.15,
+
+            // Active Filter Settings
+            ahfStep: 1,
+
+            // FFT Magnitudes (Harmonics in Amperes)
+            harmonics: {
+                h1: 100,
+                h5: 35,
+                h7: 20,
+                h11: 10,
+                h13: 7,
+                h17: 4,
+                h19: 3
+            },
+
+            // Waveform Decomp Toggles
+            decompToggles: { 1: true, 5: true, 7: true, 11: true, 13: true },
+
+            // Scope State
+            scopeHold: false,
+            scopeProbe: 'pcc',
+
+            // Quiz State
+            currentQuestionIdx: 0,
+            quizScore: 0
+        };
+
+        function switchTab(tabId) {
+            state.activeTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(el => {
+                el.classList.remove('text-sky-400', 'border-sky-400');
+                el.classList.add('text-slate-400', 'border-transparent');
+            });
+
+            const activeContent = document.getElementById(tabId);
+            if(activeContent) activeContent.classList.add('active');
+
+            // Highlight button
+            const btn = Array.from(document.querySelectorAll('.nav-tab')).find(b => b.getAttribute('onclick').includes(tabId));
+            if(btn) {
+                btn.classList.add('text-sky-400', 'border-sky-400');
+                btn.classList.remove('text-slate-400', 'border-transparent');
+            }
+
+            // Trigger canvas redraws on tab show
+            setTimeout(() => {
+                resizeAndRedrawAll();
+            }, 50);
+        }
+
+        function switchFilterSubtab(subId) {
+            state.filterSubtab = subId;
+            document.getElementById('sub-passive').classList.toggle('hidden', subId !== 'sub-passive');
+            document.getElementById('sub-active').classList.toggle('hidden', subId !== 'sub-active');
+            
+            document.getElementById('subtab-btn-passive').className = subId === 'sub-passive' ? 
+                'py-2 px-4 border-b-2 border-sky-400 text-sky-400' : 'py-2 px-4 border-b-2 border-transparent text-slate-400 hover:text-white';
+            document.getElementById('subtab-btn-active').className = subId === 'sub-active' ? 
+                'py-2 px-4 border-b-2 border-sky-400 text-sky-400' : 'py-2 px-4 border-b-2 border-transparent text-slate-400 hover:text-white';
+
+            setTimeout(() => resizeAndRedrawAll(), 50);
+        }
+
+        function switchEduSubtab(subId) {
+            state.eduSubtab = subId;
+            document.getElementById('edu-lessons').classList.toggle('hidden', subId !== 'edu-lessons');
+            document.getElementById('edu-quiz').classList.toggle('hidden', subId !== 'edu-quiz');
+
+            document.getElementById('edubtn-lessons').className = subId === 'edu-lessons' ? 
+                'py-2 px-4 border-b-2 border-sky-400 text-sky-400' : 'py-2 px-4 border-b-2 border-transparent text-slate-400 hover:text-white';
+            document.getElementById('edubtn-quiz').className = subId === 'edu-quiz' ? 
+                'py-2 px-4 border-b-2 border-sky-400 text-sky-400' : 'py-2 px-4 border-b-2 border-transparent text-slate-400 hover:text-white';
+        }
+
+        function setAppMode(mode) {
+            state.mode = mode;
+            document.getElementById('mode-beginner').className = mode === 'beginner' ? 
+                'px-3 py-1 rounded text-xs font-medium transition-all bg-sky-600 text-white shadow' : 
+                'px-3 py-1 rounded text-xs font-medium transition-all text-slate-400 hover:text-white';
+            document.getElementById('mode-engineer').className = mode === 'engineer' ? 
+                'px-3 py-1 rounded text-xs font-medium transition-all bg-sky-600 text-white shadow' : 
+                'px-3 py-1 rounded text-xs font-medium transition-all text-slate-400 hover:text-white';
+        }
+
+        // Core Physics Calculations
+        function calculateSystemMetrics() {
+            // Fundamental Current base
+            let I1 = (state.loadPercent / 100) * 150; // Amps base
+            let h5 = 0, h7 = 0, h11 = 0, h13 = 0;
+
+            if (state.vfdType === '6pulse') {
+                h5 = I1 * 0.35 * (100 / (state.lineReactancePct * 20 + 80));
+                h7 = I1 * 0.20 * (100 / (state.lineReactancePct * 20 + 80));
+                h11 = I1 * 0.10;
+                h13 = I1 * 0.07;
+            } else if (state.vfdType === '12pulse') {
+                h5 = I1 * 0.04; // 5th & 7th cancelled mostly
+                h7 = I1 * 0.03;
+                h11 = I1 * 0.09;
+                h13 = I1 * 0.07;
+            } else if (state.vfdType === 'afe') {
+                h5 = I1 * 0.02;
+                h7 = I1 * 0.015;
+                h11 = I1 * 0.01;
+                h13 = I1 * 0.01;
+            }
+
+            // Apply Topology Mitigation
+            if (state.caseTopology === 'passive') {
+                h5 *= 0.18; // 82% reduction on 5th
+                h7 *= 0.35;
+                h11 *= 0.60;
+            } else if (state.caseTopology === 'active') {
+                h5 *= 0.05; // 95% reduction across orders
+                h7 *= 0.05;
+                h11 *= 0.08;
+                h13 *= 0.08;
+            }
+
+            const sumSqHarmonics = (h5 * h5) + (h7 * h7) + (h11 * h11) + (h13 * h13);
+            const IharmRms = Math.sqrt(sumSqHarmonics);
+            const Irms = Math.sqrt((I1 * I1) + sumSqHarmonics);
+            const thdI = (I1 > 0) ? (IharmRms / I1) * 100 : 0;
+
+            // Voltage THD calculation: Vh = Ih * Zh
+            const Zsys = (state.transformerZ / 100) * (400 / (Math.sqrt(3) * 200)); // approx
+            const thdV = thdI * 0.16 * (state.transformerZ / 5.75);
+
+            // Power Factor
+            const dpf = 0.96;
+            const distPf = 1 / Math.sqrt(1 + Math.pow(thdI / 100, 2));
+            const truePf = dpf * distPf;
+
+            // Losses
+            const cableR = 0.00018 * state.cableLength; // ohms
+            const fundLoss = 3 * I1 * I1 * cableR;
+            const harmLoss = 3 * IharmRms * IharmRms * cableR * 1.4; // skin effect factor
+            const totalLossesKw = (fundLoss + harmLoss) / 1000 + 2.5;
+
+            // K-Factor
+            const kFactor = 1 + (Math.pow(5, 2) * Math.pow(h5/I1, 2)) + (Math.pow(7, 2) * Math.pow(h7/I1, 2));
+
+            return { I1, h5, h7, h11, h13, Irms, thdI, thdV, truePf, dpf, totalLossesKw, kFactor };
+        }
+
+        function updateGlobalParameters() {
+            state.loadPercent = parseFloat(document.getElementById('input-load').value);
+            state.vfdType = document.getElementById('input-vfd-type').value;
+            state.transformerZ = parseFloat(document.getElementById('input-z').value);
+
+            document.getElementById('val-load').innerText = state.loadPercent + '%';
+            document.getElementById('val-z').innerText = state.transformerZ + '%';
+
+            refreshDashboardMetrics();
+        }
+
+        function refreshDashboardMetrics() {
+            const m = calculateSystemMetrics();
+            
+            document.getElementById('header-thdi').innerText = m.thdI.toFixed(1) + '%';
+            document.getElementById('header-thdv').innerText = m.thdV.toFixed(1) + '%';
+            document.getElementById('header-pf').innerText = m.truePf.toFixed(2);
+
+            document.getElementById('metric-rms').innerText = m.Irms.toFixed(1) + ' A';
+            document.getElementById('metric-thdi').innerText = m.thdI.toFixed(1) + '%';
+            document.getElementById('metric-thdv').innerText = m.thdV.toFixed(1) + '%';
+            document.getElementById('metric-tpf').innerText = m.truePf.toFixed(2);
+            document.getElementById('metric-losses').innerText = m.totalLossesKw.toFixed(2) + ' kW';
+            document.getElementById('metric-kfactor').innerText = 'K-' + m.kFactor.toFixed(1);
+
+            const statusEl = document.getElementById('metric-thdi-status');
+            if(m.thdI > 8.0) {
+                statusEl.innerText = '⚠️ Exceeds IEEE 519';
+                statusEl.className = 'text-[10px] text-red-400 font-bold';
+            } else {
+                statusEl.innerText = '✅ IEEE 519 Compliant';
+                statusEl.className = 'text-[10px] text-emerald-400 font-bold';
+            }
+
+            document.getElementById('sld-thd-badge').innerText = 'THD-I: ' + m.thdI.toFixed(1) + '%';
+        }
+
+        function setCaseTopology(topo) {
+            state.caseTopology = topo;
+            ['none', 'passive', 'active', 'compare'].forEach(t => {
+                const btn = document.getElementById('topo-' + t);
+                if(btn) {
+                    if(t === topo) {
+                        btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold border transition-all bg-sky-500/20 text-sky-400 border-sky-500/50 shadow-lg glow-accent';
+                    } else {
+                        btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold border transition-all bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700';
+                    }
+                }
+            });
+            refreshDashboardMetrics();
+        }
+
+        // SLD Canvas Particles Animation
+        let particles = [];
+        for(let i = 0; i < 40; i++) {
+            particles.push({
+                x: Math.random(),
+                speed: 0.002 + Math.random() * 0.003,
+                type: Math.random() > 0.4 ? 'fundamental' : 'harmonic'
+            });
+        }
+
+        function drawSLDCanvas() {
+            const canvas = document.getElementById('canvas-sld');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Nodes
+            const nodes = [
+                { name: 'UTILITY GRID', x: w * 0.1, y: h * 0.5, color: '#38bdf8' },
+                { name: 'TRANSFORMER', x: w * 0.3, y: h * 0.5, color: '#f59e0b' },
+                { name: 'MCC BUS', x: w * 0.5, y: h * 0.5, color: '#10b981' },
+                { name: 'FILTER', x: w * 0.5, y: h * 0.8, color: state.caseTopology === 'active' ? '#8b5cf6' : '#38bdf8' },
+                { name: 'VFD DRIVE', x: w * 0.72, y: h * 0.5, color: '#ef4444' },
+                { name: 'MOTOR', x: w * 0.9, y: h * 0.5, color: '#3b82f6' }
+            ];
+
+            // Connections
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(nodes[0].x, nodes[0].y);
+            ctx.lineTo(nodes[4].x, nodes[4].y);
+            ctx.lineTo(nodes[5].x, nodes[5].y);
+            ctx.stroke();
+
+            // Branch to Filter
+            if (state.caseTopology !== 'none') {
+                ctx.beginPath();
+                ctx.moveTo(nodes[2].x, nodes[2].y);
+                ctx.lineTo(nodes[3].x, nodes[3].y);
+                ctx.stroke();
+            }
+
+            // Draw Node Boxes
+            nodes.forEach((n, idx) => {
+                if(idx === 3 && state.caseTopology === 'none') return; // Hide filter node if none
+
+                ctx.fillStyle = '#0f172a';
+                ctx.strokeStyle = n.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(n.x - 35, n.y - 20, 70, 40, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = '9px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(n.name, n.x, n.y + 35);
+            });
+
+            // Animate Particles
+            const m = calculateSystemMetrics();
+            particles.forEach(p => {
+                p.x += p.speed;
+                if(p.x > 1) p.x = 0;
+
+                const currX = nodes[0].x + p.x * (nodes[4].x - nodes[0].x);
+                const currY = nodes[0].y;
+
+                if (p.type === 'harmonic' && m.thdI > 10) {
+                    // Harmonic particle flows backwards towards grid or down into filter
+                    ctx.fillStyle = '#ef4444';
+                    ctx.shadowColor = '#ef4444';
+                    ctx.shadowBlur = 8;
+                    ctx.beginPath();
+                    ctx.arc(currX, currY - 4, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Fundamental particle
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.shadowColor = '#38bdf8';
+                    ctx.shadowBlur = 6;
+                    ctx.beginPath();
+                    ctx.arc(currX, currY + 4, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.shadowBlur = 0;
+            });
+        }
+
+        function drawSLDScopeCanvas() {
+            const canvas = document.getElementById('canvas-sld-scope');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Grid lines
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1;
+            for(let x=0; x<w; x+=30) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+            for(let y=0; y<h; y+=30) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+
+            const m = calculateSystemMetrics();
+
+            // Voltage Waveform (Clean Sine)
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for(let x = 0; x < w; x++) {
+                const t = (x / w) * Math.PI * 4;
+                const v = Math.sin(t) * (h * 0.35);
+                const y = h * 0.5 - v;
+                if(x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Distorted Current Waveform
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for(let x = 0; x < w; x++) {
+                const t = (x / w) * Math.PI * 4;
+                let iSignal = Math.sin(t) * (m.I1 / 150) * (h * 0.3);
+                
+                // Add harmonics
+                iSignal -= Math.sin(5 * t) * (m.h5 / 150) * (h * 0.25);
+                iSignal += Math.sin(7 * t) * (m.h7 / 150) * (h * 0.25);
+
+                const y = h * 0.5 - iSignal;
+                if(x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        function drawSLDFftCanvas() {
+            const canvas = document.getElementById('canvas-sld-fft');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const m = calculateSystemMetrics();
+            const orders = [
+                { label: '1st', val: 100, color: '#38bdf8' },
+                { label: '5th', val: (m.h5 / m.I1) * 100, color: '#f59e0b' },
+                { label: '7th', val: (m.h7 / m.I1) * 100, color: '#8b5cf6' },
+                { label: '11th', val: (m.h11 / m.I1) * 100, color: '#10b981' },
+                { label: '13th', val: (m.h13 / m.I1) * 100, color: '#f43f5e' }
+            ];
+
+            const barWidth = w / (orders.length * 2);
+            orders.forEach((ord, i) => {
+                const barHeight = (ord.val / 100) * (h * 0.75);
+                const x = (i * 2 + 0.5) * barWidth;
+                const y = h - barHeight - 25;
+
+                ctx.fillStyle = ord.color;
+                ctx.beginPath();
+                ctx.roundRect(x, y, barWidth, barHeight, 4);
+                ctx.fill();
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '10px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(ord.label, x + barWidth/2, h - 8);
+                ctx.fillText(ord.val.toFixed(0) + '%', x + barWidth/2, y - 5);
+            });
+        }
+
+        function updateRectifierPhysics() {
+            state.dcCapacitance = parseFloat(document.getElementById('input-cap').value);
+            state.lineReactancePct = parseFloat(document.getElementById('input-line-l').value);
+
+            document.getElementById('val-cap').innerText = state.dcCapacitance + ' µF';
+            document.getElementById('val-line-l').innerText = state.lineReactancePct.toFixed(1) + ' %';
+
+            drawRectifierCanvas();
+            refreshDashboardMetrics();
+        }
+
+        function drawRectifierCanvas() {
+            const canvas = document.getElementById('canvas-rectifier');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Title overlay
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = '11px Inter';
+            ctx.fillText('6-Pulse Diode Bridge & DC Link Charging Simulator', 15, 25);
+
+            // DC Bus Line (Capacitor Charging Envelope)
+            const capFactor = state.dcCapacitance / 1200;
+            ctx.strokeStyle = '#ef4444';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            for(let x=0; x<w; x++) {
+                const t = (x / w) * Math.PI * 6;
+                const ripple = Math.abs(Math.sin(t)) * (0.25 / capFactor);
+                const y = h * 0.4 + ripple * (h * 0.2);
+                if(x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Diode Pulsating Currents
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for(let x=0; x<w; x++) {
+                const t = (x / w) * Math.PI * 6;
+                const acVoltage = Math.abs(Math.sin(t));
+                const dcEnvelope = 0.85 - (0.1 / capFactor);
+
+                let iPulse = 0;
+                if (acVoltage > dcEnvelope) {
+                    iPulse = Math.pow((acVoltage - dcEnvelope) / (1 - dcEnvelope), 1.5) * (h * 0.35);
+                }
+
+                const y = h * 0.85 - iPulse;
+                if(x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        function toggleHarmonicDecomp(hOrder) {
+            state.decompToggles[hOrder] = !state.decompToggles[hOrder];
+            const btn = document.getElementById('decomp-h' + hOrder);
+            if(btn) {
+                btn.style.opacity = state.decompToggles[hOrder] ? '1.0' : '0.3';
+            }
+            drawDecompCanvas();
+        }
+
+        function drawDecompCanvas() {
+            const canvas = document.getElementById('canvas-decomp');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Synthesized decomposed sum
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for(let x=0; x<w; x++) {
+                const t = (x / w) * Math.PI * 4;
+                let sum = 0;
+                if(state.decompToggles[1]) sum += Math.sin(t) * 0.35;
+                if(state.decompToggles[5]) sum -= Math.sin(5*t) * 0.12;
+                if(state.decompToggles[7]) sum += Math.sin(7*t) * 0.08;
+                if(state.decompToggles[11]) sum -= Math.sin(11*t) * 0.04;
+                if(state.decompToggles[13]) sum += Math.sin(13*t) * 0.02;
+
+                const y = h * 0.5 - sum * h;
+                if(x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        function updateFFTEngine() {
+            state.harmonics.h1 = parseFloat(document.getElementById('slider-fft-h1').value);
+            state.harmonics.h5 = parseFloat(document.getElementById('slider-fft-h5').value);
+            state.harmonics.h7 = parseFloat(document.getElementById('slider-fft-h7').value);
+            state.harmonics.h11 = parseFloat(document.getElementById('slider-fft-h11').value);
+            state.harmonics.h13 = parseFloat(document.getElementById('slider-fft-h13').value);
+            state.harmonics.h17 = parseFloat(document.getElementById('slider-fft-h17').value);
+            state.harmonics.h19 = parseFloat(document.getElementById('slider-fft-h19').value);
+
+            document.getElementById('val-fft-h1').innerText = state.harmonics.h1 + ' A';
+            document.getElementById('val-fft-h5').innerText = state.harmonics.h5 + ' A';
+            document.getElementById('val-fft-h7').innerText = state.harmonics.h7 + ' A';
+            document.getElementById('val-fft-h11').innerText = state.harmonics.h11 + ' A';
+            document.getElementById('val-fft-h13').innerText = state.harmonics.h13 + ' A';
+            document.getElementById('val-fft-h17').innerText = state.harmonics.h17 + ' A';
+            document.getElementById('val-fft-h19').innerText = state.harmonics.h19 + ' A';
+
+            // Math
+            const h = state.harmonics;
+            const sumSq = Math.pow(h.h5, 2) + Math.pow(h.h7, 2) + Math.pow(h.h11, 2) + Math.pow(h.h13, 2) + Math.pow(h.h17, 2) + Math.pow(h.h19, 2);
+            const iharm = Math.sqrt(sumSq);
+            const irms = Math.sqrt(Math.pow(h.h1, 2) + sumSq);
+            const thdi = (h.h1 > 0) ? (iharm / h.h1) * 100 : 0;
+            const thdv = thdi * 0.14;
+
+            document.getElementById('fft-calc-thdi').innerText = thdi.toFixed(1) + ' %';
+            document.getElementById('fft-calc-irms').innerText = irms.toFixed(1) + ' A';
+            document.getElementById('fft-calc-thdv').innerText = thdv.toFixed(1) + ' %';
+
+            drawFFTSynthCanvas();
+        }
+
+        function drawFFTSynthCanvas() {
+            const canvas = document.getElementById('canvas-fft-synth');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const hArms = state.harmonics;
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for(let x=0; x<w; x++) {
+                const t = (x / w) * Math.PI * 4;
+                let sum = Math.sin(t) * hArms.h1;
+                sum -= Math.sin(5*t) * hArms.h5;
+                sum += Math.sin(7*t) * hArms.h7;
+                sum -= Math.sin(11*t) * hArms.h11;
+                sum += Math.sin(13*t) * hArms.h13;
+
+                const scale = (h * 0.35) / Math.max(150, hArms.h1 * 1.4);
+                const y = h * 0.5 - sum * scale;
+                if(x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        function updatePassiveFilterEngine() {
+            state.passiveHr = parseFloat(document.getElementById('input-filter-hr').value);
+            state.passiveKvar = parseFloat(document.getElementById('input-filter-q').value);
+            state.passiveR = parseFloat(document.getElementById('input-filter-r').value);
+
+            document.getElementById('val-filter-hr').innerText = state.passiveHr.toFixed(1) + 'th (' + (state.passiveHr * 50).toFixed(0) + ' Hz)';
+            document.getElementById('val-filter-q').innerText = state.passiveKvar + ' kVAR';
+            document.getElementById('val-filter-r').innerText = state.passiveR.toFixed(2) + ' Ω';
+
+            // Calculate parallel resonance frequency f_parallel = f1 * sqrt(S_sc / Q_c)
+            const fParallel = Math.round(50 * Math.sqrt(25000 / state.passiveKvar) * 0.35);
+            document.getElementById('val-parallel-freq').innerText = fParallel + ' Hz (' + (fParallel/50).toFixed(1) + 'th)';
+
+            drawBodeCanvas();
+        }
+
+        function drawBodeCanvas() {
+            const canvas = document.getElementById('canvas-bode');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Bode Curve
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for(let x=0; x<w; x++) {
+                const freq = (x / w) * 1000; // 0 to 1000 Hz
+                const tunedFreq = state.passiveHr * 50;
+
+                // Impedance curve approximation
+                let z = Math.abs(freq - tunedFreq) * 0.05 + state.passiveR * 10;
+                if (Math.abs(freq - 185) < 30) {
+                    z += 40 / (Math.abs(freq - 185) + 1); // parallel resonance peak
+                }
+
+                const y = h - Math.min(h * 0.9, z * 4);
+                if(x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        function triggerAHFStep() {
+            state.ahfStep = (state.ahfStep % 6) + 1;
+            updateAHFStepUI();
+        }
+
+        function resetAHFStep() {
+            state.ahfStep = 1;
+            updateAHFStepUI();
+        }
+
+        function updateAHFStepUI() {
+            for(let i=1; i<=6; i++) {
+                const el = document.getElementById('ahf-step-' + i);
+                if(el) {
+                    if(i === state.ahfStep) {
+                        el.className = 'p-2 rounded bg-sky-500/20 border border-sky-500 text-sky-300 font-bold glow-accent';
+                    } else {
+                        el.className = 'p-2 rounded bg-slate-900 border border-slate-800 text-slate-500';
+                    }
+                }
+            }
+
+            const descs = [
+                "Step 1: Current Transformers (CT) measure the distorted non-linear VFD current waveform (I_load).",
+                "Step 2: High-speed Digital Signal Processor (DSP) performs Fast Fourier Transform (FFT) extraction.",
+                "Step 3: Control algorithm calculates exact opposite anti-phase compensation current: I_comp = -I_harmonics.",
+                "Step 4: Pulse Width Modulation (PWM) controller generates switching signals for IGBT inverter gates.",
+                "Step 5: IGBT inverter fires, injecting anti-phase harmonic current directly into the bus.",
+                "Step 6: Harmonic currents cancel out perfectly; clean sinusoidal current flows from grid source."
+            ];
+            document.getElementById('ahf-step-description').innerText = descs[state.ahfStep - 1];
+
+            drawAHFInjectionCanvas();
+        }
+
+        function drawAHFInjectionCanvas() {
+            const canvas = document.getElementById('canvas-ahf-injection');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Load Current (Amber)
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for(let x=0; x<w; x++) {
+                const t = (x/w)*Math.PI*4;
+                const iLoad = Math.sin(t) - Math.sin(5*t)*0.35 + Math.sin(7*t)*0.2;
+                const y = h*0.5 - iLoad*(h*0.25);
+                if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+
+            // Injection Anti-Phase Current (Purple - Step 5/6)
+            if(state.ahfStep >= 5) {
+                ctx.strokeStyle = '#8b5cf6';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                for(let x=0; x<w; x++) {
+                    const t = (x/w)*Math.PI*4;
+                    const iComp = Math.sin(5*t)*0.35 - Math.sin(7*t)*0.2; // Anti-phase
+                    const y = h*0.5 - iComp*(h*0.25);
+                    if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                }
+                ctx.stroke();
+            }
+
+            // Net Source Current (Clean Sky Blue - Step 6)
+            if(state.ahfStep === 6) {
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                for(let x=0; x<w; x++) {
+                    const t = (x/w)*Math.PI*4;
+                    const iSource = Math.sin(t);
+                    const y = h*0.5 - iSource*(h*0.25);
+                    if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function updateLossesEngine() {
+            state.cableLength = parseFloat(document.getElementById('input-cable-len').value);
+            document.getElementById('val-cable-len').innerText = state.cableLength + ' m';
+
+            const m = calculateSystemMetrics();
+            const cableR = 0.00018 * state.cableLength;
+            const fundW = Math.round(3 * m.I1 * m.I1 * cableR);
+            const harmW = Math.round(3 * (m.Irms*m.Irms - m.I1*m.I1) * cableR * 1.5);
+
+            document.getElementById('cable-loss-fund').innerText = fundW + ' W';
+            document.getElementById('cable-loss-harm').innerText = '+' + harmW + ' W';
+            document.getElementById('cable-loss-total').innerText = (fundW + harmW) + ' W';
+        }
+
+        function updateIEEEEngine() {
+            state.shortCircuitKa = parseFloat(document.getElementById('input-isc').value);
+            state.maxDemandAmp = parseFloat(document.getElementById('input-il').value);
+
+            document.getElementById('val-isc').innerText = state.shortCircuitKa.toFixed(1) + ' kA';
+            document.getElementById('val-il').innerText = state.maxDemandAmp + ' A';
+
+            const scRatio = (state.shortCircuitKa * 1000) / state.maxDemandAmp;
+            document.getElementById('ieee-sc-ratio').innerText = scRatio.toFixed(1);
+
+            let allowedThd = 5.0;
+            if(scRatio > 20 && scRatio <= 50) allowedThd = 8.0;
+            else if(scRatio > 50 && scRatio <= 100) allowedThd = 12.0;
+            else if(scRatio > 100) allowedThd = 15.0;
+
+            document.getElementById('ieee-allowed-thd').innerText = allowedThd.toFixed(1) + '%';
+            drawPCCCanvas();
+        }
+
+        function drawPCCCanvas() {
+            const canvas = document.getElementById('canvas-pcc');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = '12px Inter';
+            ctx.fillText('Point of Common Coupling (PCC) Measurement Boundary', 20, 30);
+        }
+
+        function runWizard() {
+            const q1 = document.getElementById('wiz-q1').value;
+            const q2 = document.getElementById('wiz-q2').value;
+            const q3 = document.getElementById('wiz-q3').value;
+            const q4 = document.getElementById('wiz-q4').value;
+
+            let title = 'Active Harmonic Filter (AHF)';
+            let desc = 'Recommended for dynamic variable loads with existing capacitors to avoid resonance.';
+
+            if(q1 === 'low' && q2 === 'constant' && q3 === 'no') {
+                title = 'AC Line Reactor (3% - 5%)';
+                desc = 'Cost-effective solution for small, single VFD loads without strict IEEE 519 compliance limits.';
+            } else if(q2 === 'constant' && q3 === 'no' && q4 === '15') {
+                title = 'Single-Tuned Passive Harmonic Filter';
+                desc = 'Suitable for high-power constant-speed drives with known dominant 5th harmonic.';
+            }
+
+            document.getElementById('wiz-result-title').innerText = title;
+            document.getElementById('wiz-result-desc').innerText = desc;
+        }
+
+        function runExperiment(expKey) {
+            const box = document.getElementById('experiment-output-box');
+            const txt = document.getElementById('experiment-output-text');
+            box.classList.remove('hidden');
+
+            if(expKey === 'mistake-resonance') {
+                txt.innerText = "CRITICAL FAULT: Standard capacitors connected! Parallel resonance excited at 250Hz (5th). Voltage THD spiked to 18.4%. Capacitors over-heating and fuse blown!";
+            } else if(expKey === 'mistake-weakgrid') {
+                txt.innerText = "WARNING: Generator source impedance is 3x utility transformer. VFD pulse current caused 14.2% THD-V flat-topping on generator output!";
+            } else if(expKey === 'mistake-oversize-passive') {
+                txt.innerText = "TRIP WARNING: Motor load dropped to 15%. Oversized LC filter injected 80 kVAR leading current, causing generator over-voltage trip!";
+            }
+        }
+
+        function toggleScopeHold() {
+            state.scopeHold = !state.scopeHold;
+            document.getElementById('scope-btn-hold').innerText = state.scopeHold ? 'RESUME' : 'FREEZE / HOLD';
+        }
+
+        function resetScope() {
+            state.scopeHold = false;
+        }
+
+        function updateScopeProbe() {
+            const probe = document.querySelector('input[name="probe-loc"]:checked').value;
+            state.scopeProbe = probe;
+        }
+
+        function drawPQScopeCanvas() {
+            if(state.scopeHold) return;
+            const canvas = document.getElementById('canvas-pq-scope');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0,0,w,h);
+
+            // Scope grid
+            ctx.strokeStyle = '#0e1726';
+            ctx.lineWidth = 1;
+            for(let x=0; x<w; x+=20) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+            for(let y=0; y<h; y+=20) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+
+            // Trace
+            const m = calculateSystemMetrics();
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for(let x=0; x<w; x++) {
+                const t = (x/w)*Math.PI*6 + Date.now()*0.003;
+                let iTrace = Math.sin(t) - Math.sin(5*t)*(m.h5/150);
+                const y = h*0.5 - iTrace*(h*0.3);
+                if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+        }
+
+        const lessons = [
+            { id: 1, title: 'Module 1: What is a Harmonic?', desc: 'Harmonics are sinusoidal voltages or currents having frequencies that are integer multiples of the fundamental frequency (50/60Hz).' },
+            { id: 2, title: 'Module 2: Why VFDs Create Harmonics', desc: 'Diode bridge rectifiers only conduct during peak AC line voltages to charge the DC link capacitor, drawing non-linear current pulses.' },
+            { id: 3, title: 'Module 3: Characteristic Harmonic Order', desc: 'For an n-pulse rectifier, characteristic harmonics occur at orders h = n·k ± 1. For 6-pulse, these are 5th, 7th, 11th, 13th...' },
+            { id: 4, title: 'Module 4: Current THD vs Voltage THD', desc: 'Current harmonics are generated by non-linear loads. As harmonic currents flow through system impedance (Z_sys), they produce Voltage THD.' },
+            { id: 5, title: 'Module 5: Passive LC Filters', desc: 'Series LC circuits tuned slightly below a dominant harmonic order to trap current to ground.' },
+            { id: 6, title: 'Module 6: Active Harmonic Filters (AHF)', desc: 'Power electronics inverter generating equal and opposite anti-phase harmonic currents in real time.' },
+            { id: 7, title: 'Module 7: Harmonic Parallel Resonance', desc: 'Dangerous amplification of harmonic currents caused by interaction between PFC capacitor banks and supply transformer inductance.' },
+            { id: 8, title: 'Module 8: IEEE 519 Standard & PCC', desc: 'IEEE 519 defines maximum allowable current distortion limits at the Point of Common Coupling based on short-circuit ratio.' },
+            { id: 9, title: 'Module 9: Displacement vs True Power Factor', desc: 'True Power Factor accounts for both phase angle displacement (DPF) and harmonic wave distortion.' },
+            { id: 10, title: 'Module 10: Transformer K-Factor Heating', desc: 'K-factor quantifies a transformer capability to handle eddy current heating caused by non-linear harmonic currents.' },
+            { id: 11, title: 'Module 11: Motor 5th Harmonic Reverse Torque', desc: '5th harmonic produces a negative-sequence rotating magnetic field causing counter-torque, vibration, and overheating.' },
+            { id: 12, title: 'Module 12: Cable Skin Effect Losses', desc: 'High frequency harmonic currents travel along the outer skin of conductors, drastically increasing effective AC resistance and I²R heat.' }
+        ];
+
+        const quizQuestions = [
+            { q: "1. What are the dominant characteristic harmonic orders produced by a standard 6-pulse VFD?", options: ["2nd and 4th", "5th and 7th", "3rd and 9th", "6th and 12th"], ans: 1 },
+            { q: "2. Which formula describes the characteristic harmonic order 'h' for an n-pulse rectifier?", options: ["h = n · k ± 1", "h = n² + k", "h = 2n ± k", "h = n / k"], ans: 0 },
+            { q: "3. Why does a standard VFD draw non-sinusoidal current from the AC mains?", options: ["Due to motor winding resistance", "Diodes conduct only when AC voltage exceeds DC bus capacitor voltage", "Because of PWM switching at 4kHz", "Due to cable capacitance"], ans: 1 },
+            { q: "4. What is the Point of Common Coupling (PCC) according to IEEE 519?", options: ["The motor terminal box", "The VFD DC bus", "The point where the utility customer connects to another customer or grid", "The ground rod connection"], ans: 2 },
+            { q: "5. How does harmonic current cause Voltage Distortion (THD-V)?", options: ["By increasing grid frequency", "Harmonic current flows through system source impedance (Vh = Ih × Zh)", "By discharging the DC capacitor", "Through magnetic coupling"], ans: 1 },
+            { q: "6. What risk is created when connecting standard un-detuned PFC capacitors to a bus with VFDs?", options: ["Low power factor", "Parallel harmonic resonance amplification", "High motor speed", "Reduced DC voltage"], ans: 1 },
+            { q: "7. An Active Harmonic Filter (AHF) mitigates harmonics by doing what?", options: ["Injecting equal and opposite anti-phase harmonic currents", "Filtering through a heavy resistor", "Lowering motor frequency", "Shorting the line"], ans: 0 },
+            { q: "8. What mechanical effect does the 5th harmonic current have on a 3-phase induction motor?", options: ["Increases forward motor speed", "Creates a negative-sequence reverse rotating magnetic field causing torque ripple", "Improves motor efficiency", "Balances phase currents"], ans: 1 },
+            { q: "9. True Power Factor is defined as:", options: ["cos(φ) only", "Displacement PF × Distortion PF", "kW / kVAR", "THD-I / THD-V"], ans: 1 },
+            { q: "10. What transformer rating factor quantifies its capability to handle harmonic heating?", options: ["PCC Factor", "K-Factor", "Z-Factor", "THD Factor"], ans: 1 },
+            { q: "11. Single-tuned passive LC filters are typically tuned to what frequency relative to the target harmonic?", options: ["Exactly on the harmonic frequency", "Slightly below the target harmonic order (e.g. 4.7th)", "20% above the harmonic order", "At fundamental 50Hz"], ans: 1 },
+            { q: "12. What effect increases feeder cable AC resistance at high harmonic frequencies?", options: ["Proximity effect only", "Skin Effect", "Dielectric loss", "Corona discharge"], ans: 1 },
+            { q: "13. What is the typical input current THD of an unfiltered 6-pulse VFD?", options: ["3% to 5%", "10% to 15%", "35% to 45%", "80% to 100%"], ans: 2 },
+            { q: "14. A 12-pulse drive converter eliminates which harmonic orders?", options: ["5th and 7th", "11th and 13th", "3rd and 9th", "None"], ans: 0 },
+            { q: "15. Short-circuit ratio (Isc / IL) is used in IEEE 519 to determine:", options: ["Cable size", "Allowable harmonic current limits at the PCC", "Transformer kVA rating", "Motor torque"], ans: 1 },
+            { q: "16. Why are triplen harmonics (3rd, 9th, 15th) usually negligible in balanced 3-phase 6-pulse VFDs?", options: ["They cancel in 3-phase bridge rectifiers without neutral", "They are absorbed by DC link", "They travel to ground", "They merge into 5th"], ans: 0 },
+            { q: "17. What happens to a passive LC filter at light load if it remains connected?", options: ["It burns out", "It injects excessive capacitive kVAR causing leading power factor", "It short circuits", "It generates 3rd harmonic"], ans: 1 },
+            { q: "18. Active Front End (AFE) VFDs utilize what technology to achieve <5% THD?", options: ["Diode bridge", "IGBT active rectifier switching at high PWM frequency", "Heavy DC choke", "Delta transformer"], ans: 1 },
+            { q: "19. Which parameter increases the sharpness and peak amplitude of VFD input current pulses?", options: ["Higher DC link capacitance", "Higher line reactor inductance", "Lower grid voltage", "Smaller motor load"], ans: 0 },
+            { q: "20. Distortion Power Factor is calculated as:", options: ["1 / √(1 + THD-I²)", "cos(φ1)", "kW / kVA", "V_rms / I_rms"], ans: 0 }
+        ];
+
+        function renderEduModule() {
+            const lessonsContainer = document.getElementById('lessons-grid');
+            if(lessonsContainer) {
+                lessonsContainer.innerHTML = lessons.map(l => `
+                    <div class="bg-[#080c14] border border-slate-800 rounded-xl p-4 space-y-2">
+                        <span class="text-xs font-bold text-sky-400 uppercase tracking-wider">${l.title}</span>
+                        <p class="text-xs text-slate-300 leading-relaxed">${l.desc}</p>
+                    </div>
+                `).join('');
+            }
+
+            renderQuizQuestion();
+        }
+
+        function renderQuizQuestion() {
+            const container = document.getElementById('quiz-card');
+            if(!container) return;
+
+            const q = quizQuestions[state.currentQuestionIdx];
+            container.innerHTML = `
+                <div class="space-y-3">
+                    <span class="text-xs font-mono text-slate-400">Question ${state.currentQuestionIdx + 1} of ${quizQuestions.length}</span>
+                    <h3 class="text-sm font-semibold text-white">${q.q}</h3>
+                    <div class="space-y-2 pt-2">
+                        ${q.options.map((opt, idx) => `
+                            <button onclick="answerQuiz(${idx})" class="w-full text-left p-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-sky-500 text-xs text-slate-200 transition-all">
+                                ${String.fromCharCode(65 + idx)}. ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function answerQuiz(selectedIdx) {
+            const q = quizQuestions[state.currentQuestionIdx];
+            if(selectedIdx === q.ans) {
+                state.quizScore++;
+            }
+            state.currentQuestionIdx = (state.currentQuestionIdx + 1) % quizQuestions.length;
+            document.getElementById('quiz-score-badge').innerText = `Score: ${state.quizScore} / ${quizQuestions.length}`;
+            renderQuizQuestion();
+        }
+
+        function resizeAndRedrawAll() {
+            drawSLDCanvas();
+            drawSLDScopeCanvas();
+            drawSLDFftCanvas();
+            drawRectifierCanvas();
+            drawDecompCanvas();
+            drawFFTSynthCanvas();
+            drawBodeCanvas();
+            drawAHFInjectionCanvas();
+            drawPCCCanvas();
+            drawPQScopeCanvas();
+        }
+
+        function animateLoop() {
+            drawSLDCanvas();
+            drawSLDScopeCanvas();
+            drawPQScopeCanvas();
+            requestAnimationFrame(animateLoop);
+        }
+
+        window.onload = function() {
+            renderEduModule();
+            updateGlobalParameters();
+            updateRectifierPhysics();
+            updateFFTEngine();
+            updatePassiveFilterEngine();
+            updateLossesEngine();
+            updateIEEEEngine();
+            runWizard();
+
+            window.addEventListener('resize', resizeAndRedrawAll);
+            resizeAndRedrawAll();
+            
+            // Start real-time simulation loop
+            animateLoop();
+        };
+    </script>
+</body>
+</html>
