@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Electromagnetics Lab — Electric Field & Flux Density</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js for 3D graphics -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- OrbitControls for interactive 3D camera -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- KaTeX for math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    .glow-cyan { box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); }
+    .glow-amber { box-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
+    .tab-active { border-bottom: 2px solid #06b6d4; color: #06b6d4; background-color: rgba(6, 182, 212, 0.1); }
+    
+    body { background-color: #0b0f19; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+    canvas { display: block; outline: none; }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden select-none">
+
+  <!-- TOP HEADER & NAVBAR -->
+  <header class="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="bg-cyan-500/20 p-2 rounded-lg border border-cyan-500/40 text-cyan-400">
+        <i data-lucide="zap" class="w-6 h-6 animate-pulse"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg tracking-wide text-cyan-400 flex items-center gap-2">
+          ELECTROMAGNETICS LAB 
+          <span class="text-xs font-semibold px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-300">v2.5 PRO</span>
+        </h1>
+        <p class="text-xs text-slate-400">Interactive Electric Field & Electric Flux Density Simulator</p>
+      </div>
+    </div>
+
+    <!-- Persistent Telemetry Panel -->
+    <div class="hidden lg:flex items-center space-x-4 bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-xs">
+      <div class="flex items-center space-x-1.5">
+        <span class="text-slate-400">Q:</span>
+        <span id="tele-q" class="font-mono font-bold text-cyan-300">+10.00 μC</span>
+      </div>
+      <div class="h-4 w-[1px] bg-slate-800"></div>
+      <div class="flex items-center space-x-1.5">
+        <span class="text-slate-400">r:</span>
+        <span id="tele-r" class="font-mono font-bold text-amber-300">2.50 m</span>
+      </div>
+      <div class="h-4 w-[1px] bg-slate-800"></div>
+      <div class="flex items-center space-x-1.5">
+        <span class="text-slate-400">|E|:</span>
+        <span id="tele-e" class="font-mono font-bold text-emerald-400">14.38 kV/m</span>
+      </div>
+      <div class="h-4 w-[1px] bg-slate-800"></div>
+      <div class="flex items-center space-x-1.5">
+        <span class="text-slate-400">|D|:</span>
+        <span id="tele-d" class="font-mono font-bold text-purple-400">127.32 nC/m²</span>
+      </div>
+      <div class="h-4 w-[1px] bg-slate-800"></div>
+      <div class="flex items-center space-x-1.5">
+        <span class="text-slate-400">Flux (Φ):</span>
+        <span id="tele-flux" class="font-mono font-bold text-rose-400">1.13 MV·m</span>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-2">
+      <input type="text" id="global-search" placeholder="Search concept or formula..." 
+        class="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-cyan-500 w-44 md:w-56 transition-all">
+      <button onclick="toggleHighContrast()" title="Toggle Contrast" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300">
+        <i data-lucide="sun" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="bg-slate-950 border-b border-slate-800 px-2 flex space-x-1 overflow-x-auto shrink-0 text-xs font-medium text-slate-400">
+    <button onclick="switchTab('sim-3d')" id="tab-sim-3d" class="tab-active px-3 py-2.5 rounded-t flex items-center gap-1.5 whitespace-nowrap transition-all">
+      <i data-lucide="box" class="w-4 h-4"></i> 3D Field Lab
+    </button>
+    <button onclick="switchTab('fund')" id="tab-fund" class="px-3 py-2.5 rounded-t flex items-center gap-1.5 whitespace-nowrap hover:text-slate-200 transition-all">
+      <i data-lucide="brain" class="w-4 h-4"></i> Fundamentals
+    </button>
+    <button onclick="switchTab('lines')" id="tab-lines" class="px-3 py-2.5 rounded-t flex items-center gap-1.5 whitespace-nowrap hover:text-slate-200 transition-all">
+      <i data-lucide="compass" class="w-4 h-4"></i> Field Lines & Dipole
+    </button>
+    <button onclick="switchTab('flux')" id="tab-flux" class="px-3 py-2.5 rounded-t flex items-center gap-1.5 whitespace-nowrap hover:text-slate-200 transition-all">
+      <i data-lucide="layers" class="w-4 h-4"></i> Flux & Gauss's Law
+    </button>
+    <button onclick="switchTab('ed-comp')" id="tab-ed-comp" class="px-3 py-2.5 rounded-t flex items-center gap-1.5 whitespace-nowrap hover:text-slate-200 transition-all">
+      <i data-lucide="git-compare" class="w-4 h-4"></i> E vs D & Dielectric
+    </button>
+    <button onclick="switchTab('distributions')" id="tab-distributions" class="px-3 py-2.5 rounded-t flex items-center gap-1.5 whitespace-nowrap hover:text-slate-200 transition-all">
+      <i data-lucide="activity" class="w-4 h-4"></i> Distributions & Graphs
+    </button>
+
+    <button onclick="switchTab('calc')" id="tab-calc" class="px-3 py-2.5 rounded-t flex items-center gap-1.5 whitespace-nowrap hover:text-slate-200 transition-all">
+      <i data-lucide="calculator" class="w-4 h-4"></i> Step Calculator
+    </button>
+    <button onclick="switchTab('gate')" id="tab-gate" class="px-3 py-2.5 rounded-t flex items-center gap-1.5 whitespace-nowrap hover:text-slate-200 transition-all">
+      <i data-lucide="award" class="w-4 h-4"></i> GATE Exam Practice
+    </button>
+    <button onclick="switchTab('quiz')" id="tab-quiz" class="px-3 py-2.5 rounded-t flex items-center gap-1.5 whitespace-nowrap hover:text-slate-200 transition-all">
+      <i data-lucide="help-circle" class="w-4 h-4"></i> Quiz & Analytics
+    </button>
+    <button onclick="switchTab('formulas')" id="tab-formulas" class="px-3 py-2.5 rounded-t flex items-center gap-1.5 whitespace-nowrap hover:text-slate-200 transition-all">
+      <i data-lucide="book-open" class="w-4 h-4"></i> Formula Sheet
+    </button>
+  </nav>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="flex-1 relative overflow-hidden bg-slate-900">
+
+    <!-- ================= TAB 1: 3D FIELD LAB ================= -->
+    <section id="sec-sim-3d" class="w-full h-full flex flex-col md:flex-row relative">
+      <!-- 3D Canvas Container -->
+      <div class="flex-1 relative bg-slate-950">
+        <div id="three-container" class="w-full h-full"></div>
+
+        <!-- 3D Overlay Viewport Controls -->
+        <div class="absolute top-4 left-4 flex flex-wrap gap-2 z-10">
+          <button onclick="setCameraView('iso')" class="bg-slate-900/90 hover:bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 backdrop-blur">
+            Isometric
+          </button>
+          <button onclick="setCameraView('top')" class="bg-slate-900/90 hover:bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 backdrop-blur">
+            Top (XY)
+          </button>
+          <button onclick="setCameraView('front')" class="bg-slate-900/90 hover:bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 backdrop-blur">
+            Front (XZ)
+          </button>
+          <button onclick="setCameraView('side')" class="bg-slate-900/90 hover:bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 backdrop-blur">
+            Side (YZ)
+          </button>
+          <button onclick="resetCamera()" class="bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-cyan-300 backdrop-blur">
+            Reset View
+          </button>
+        </div>
+
+        <!-- Vector Probe Tooltip Overlay -->
+        <div id="probe-card" class="absolute bottom-4 left-4 bg-slate-900/90 border border-slate-700 p-3 rounded-xl backdrop-blur max-w-xs text-xs space-y-1.5 shadow-2xl z-10">
+          <div class="font-bold text-cyan-400 flex items-center justify-between">
+            <span>Observation Point P</span>
+            <span id="coords-display" class="font-mono text-slate-400 text-[10px]">(0, 0, 2)</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1 text-[11px] font-mono text-slate-300 pt-1 border-t border-slate-800">
+            <div>Ex: <span id="ex-val" class="text-emerald-400">0</span></div>
+            <div>Ey: <span id="ey-val" class="text-emerald-400">0</span></div>
+            <div>Ez: <span id="ez-val" class="text-emerald-400">14.4</span></div>
+          </div>
+          <div class="text-[11px] font-mono text-slate-300">
+            |E| = <span id="e-total-val" class="text-emerald-400 font-bold">14.38 kV/m</span>
+          </div>
+          <div class="text-[11px] font-mono text-slate-300">
+            |D| = <span id="d-total-val" class="text-purple-400 font-bold">127.32 nC/m²</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls & Parameters Sidebar -->
+      <div class="w-full md:w-80 bg-slate-900 border-l border-slate-800 p-4 overflow-y-auto space-y-5 text-xs">
+        <div>
+          <h2 class="font-bold text-slate-200 text-sm mb-1 flex items-center gap-1.5">
+            <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i> Simulation Controls
+          </h2>
+          <p class="text-slate-400 text-[11px]">Adjust parameters in real-time to observe 3D changes.</p>
+        </div>
+
+        <!-- Charge Controls -->
+        <div class="space-y-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <label class="block font-medium text-slate-300">
+            Charge Magnitude (Q): <span id="q-slider-val" class="font-mono text-cyan-400 font-bold">+10.0 μC</span>
+          </label>
+          <input type="range" id="q-slider" min="-50" max="50" step="1" value="10" 
+            class="w-full accent-cyan-500 bg-slate-800 rounded h-1.5 cursor-pointer">
+
+          <label class="block font-medium text-slate-300 pt-1">
+            Observation Distance (r): <span id="r-slider-val" class="font-mono text-amber-400 font-bold">2.50 m</span>
+          </label>
+          <input type="range" id="r-slider" min="0.5" max="8" step="0.1" value="2.5" 
+            class="w-full accent-amber-500 bg-slate-800 rounded h-1.5 cursor-pointer">
+
+          <label class="block font-medium text-slate-300 pt-1">
+            Relative Permittivity (εᵣ): <span id="er-slider-val" class="font-mono text-purple-400 font-bold">1.0 (Vacuum)</span>
+          </label>
+          <input type="range" id="er-slider" min="1" max="10" step="0.5" value="1" 
+            class="w-full accent-purple-500 bg-slate-800 rounded h-1.5 cursor-pointer">
+        </div>
+
+        <!-- Toggle Visibility Components -->
+        <div class="space-y-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <span class="block font-medium text-slate-300 mb-1">Visual Layers</span>
+          <label class="flex items-center space-x-2 text-slate-300 cursor-pointer">
+            <input type="checkbox" id="chk-vectors" checked class="accent-cyan-500 rounded">
+            <span>Show Vector Field Grid</span>
+          </label>
+          <label class="flex items-center space-x-2 text-slate-300 cursor-pointer">
+            <input type="checkbox" id="chk-lines" checked class="accent-cyan-500 rounded">
+            <span>Show Electric Field Lines</span>
+          </label>
+          <label class="flex items-center space-x-2 text-slate-300 cursor-pointer">
+            <input type="checkbox" id="chk-gauss" class="accent-cyan-500 rounded">
+            <span>Show Gaussian Surface Sphere</span>
+          </label>
+          <label class="flex items-center space-x-2 text-slate-300 cursor-pointer">
+            <input type="checkbox" id="chk-components" class="accent-cyan-500 rounded">
+            <span>Show Ex, Ey, Ez Components</span>
+          </label>
+        </div>
+
+        <!-- Predict-Before-Simulate Widget -->
+        <div class="bg-cyan-950/40 border border-cyan-800/60 p-3 rounded-xl space-y-2">
+          <div class="font-semibold text-cyan-300 flex items-center gap-1.5">
+            <i data-lucide="help-circle" class="w-4 h-4"></i> Predict & Learn
+          </div>
+          <p class="text-[11px] text-slate-300">If distance <span class="font-mono">r</span> is doubled (2r), how does <span class="font-mono">|E|</span> change?</p>
+          <div class="grid grid-cols-3 gap-1 pt-1">
+            <button onclick="checkPrediction('half')" class="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-300">Halves (1/2)</button>
+            <button onclick="checkPrediction('quarter')" class="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-300">Quarters (1/4)</button>
+            <button onclick="checkPrediction('same')" class="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-300">Stays Same</button>
+          </div>
+          <div id="prediction-feedback" class="hidden text-[11px] font-medium p-2 rounded"></div>
+        </div>
+
+        <!-- Real-Time Math Equation Container -->
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+          <span class="block font-medium text-slate-300 text-[11px]">Governing Equation</span>
+          <div id="katex-sim-eq" class="text-cyan-300 overflow-x-auto py-1"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: FUNDAMENTALS ================= -->
+    <section id="sec-fund" class="w-full h-full overflow-y-auto p-6 hidden space-y-6">
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-cyan-400">1. Physical Intuition & Basic Concepts</h2>
+          <p class="text-slate-400 text-sm mt-1">Understanding Electric Charge, Inverse-Square Law, and Field Properties.</p>
+        </div>
+
+        <!-- Interactive Charge Attraction/Repulsion Demo -->
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4">
+          <h3 class="font-bold text-slate-200 text-sm flex items-center gap-2">
+            <i data-lucide="play-circle" class="w-4 h-4 text-cyan-400"></i> Interactive Electrostatic Force & Polarity
+          </h3>
+          <p class="text-xs text-slate-400">Click to flip charge polarities and drag sliders to observe attractive/repulsive force vectors.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <div class="flex justify-around items-center h-40 bg-slate-900 rounded-xl border border-slate-800 relative overflow-hidden" id="force-demo-box">
+              <!-- Charge A -->
+              <div id="demo-qa" class="w-12 h-12 rounded-full bg-rose-500/20 border-2 border-rose-500 flex items-center justify-center font-bold text-rose-400 text-lg shadow-lg cursor-pointer transition-transform" onclick="toggleChargeA()">+Q1</div>
+              <!-- Force Arrows -->
+              <div class="flex flex-col items-center">
+                <span id="force-arrow-text" class="text-[10px] font-mono text-cyan-400">REPULSIVE FORCE</span>
+                <i data-lucide="arrow-left-right" id="force-icon" class="w-8 h-8 text-cyan-400 animate-pulse"></i>
+              </div>
+              <!-- Charge B -->
+              <div id="demo-qb" class="w-12 h-12 rounded-full bg-rose-500/20 border-2 border-rose-500 flex items-center justify-center font-bold text-rose-400 text-lg shadow-lg cursor-pointer transition-transform" onclick="toggleChargeB()">+Q2</div>
+            </div>
+
+            <div class="space-y-3 text-xs">
+              <div class="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                <span class="font-semibold text-slate-200">Coulomb's Law Formula:</span>
+                <div id="katex-coulomb" class="my-2 text-cyan-300"></div>
+                <p class="text-slate-400 text-[11px]">Force is directly proportional to charge products and inversely proportional to distance squared ($r^2$).</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Why Electric Field is a Source Property -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2">
+            <h4 class="font-bold text-slate-200 text-sm text-cyan-400">Electric Field Intensity ($\mathbf{E}$)</h4>
+            <p class="text-slate-300">The Electric Field is a property of the <strong>source charge configuration alone</strong> at a given point in space.</p>
+            <div class="p-2 bg-slate-900 rounded border border-slate-800 font-mono text-slate-200">
+              $$\mathbf{E} = \lim_{q_t \to 0} \frac{\mathbf{F}}{q_t} \quad \text{[V/m or N/C]}$$
+            </div>
+          </div>
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2">
+            <h4 class="font-bold text-slate-200 text-sm text-amber-400">Electrostatic Force ($\mathbf{F}$)</h4>
+            <p class="text-slate-300">Force experienced depends on both the source field and the test charge ($q_t$) placed at that location.</p>
+            <div class="p-2 bg-slate-900 rounded border border-slate-800 font-mono text-slate-200">
+              $$\mathbf{F} = q_t \mathbf{E} \quad \text{[N]}$$
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: FIELD LINES & DIPOLE ================= -->
+    <section id="sec-lines" class="w-full h-full p-4 hidden flex flex-col md:flex-row gap-4">
+      <div class="flex-1 bg-slate-950 rounded-xl border border-slate-800 relative overflow-hidden">
+        <canvas id="lines-canvas" class="w-full h-full cursor-crosshair"></canvas>
+        <div class="absolute top-3 left-3 bg-slate-900/90 border border-slate-700 p-2 rounded-lg text-xs backdrop-blur text-slate-300">
+          Click on canvas to place test charges or drag dipole.
+        </div>
+      </div>
+
+      <div class="w-full md:w-80 bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-4 text-xs overflow-y-auto">
+        <h3 class="font-bold text-slate-200 text-sm flex items-center gap-2">
+          <i data-lucide="settings" class="w-4 h-4 text-cyan-400"></i> Field Line Controls
+        </h3>
+
+        <div>
+          <label class="block font-medium text-slate-300 mb-1">Configuration Preset</label>
+          <select id="line-preset" onchange="loadLinePreset(this.value)" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-slate-200 text-xs">
+            <option value="single">Single Positive Charge (+Q)</option>
+            <option value="dipole">Electric Dipole (+Q and -Q)</option>
+            <option value="like">Two Like Charges (+Q and +Q)</option>
+            <option value="quadrupole">Electric Quadrupole</option>
+          </select>
+        </div>
+
+        <div class="space-y-2">
+          <label class="block font-medium text-slate-300">Field Line Density</label>
+          <input type="range" id="line-density" min="8" max="32" step="4" value="16" class="w-full accent-cyan-500 bg-slate-800 h-1.5 rounded" onchange="drawFieldLines()">
+        </div>
+
+        <!-- Electric Dipole Theory Card -->
+        <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+          <span class="font-bold text-cyan-400 block text-xs">Electric Dipole Moment ($\mathbf{p}$)</span>
+          <p class="text-slate-400 text-[11px]">Vector directed from $-Q$ to $+Q$ with magnitude $p = Q \cdot d$.</p>
+          <div id="katex-dipole" class="text-slate-200"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: FLUX & GAUSS'S LAW ================= -->
+    <section id="sec-flux" class="w-full h-full p-6 overflow-y-auto hidden space-y-6">
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-cyan-400">Electric Flux & Gauss's Law</h2>
+          <p class="text-slate-400 text-sm mt-1">Understanding flux linkage $\Phi_E = \iint \mathbf{E} \cdot d\mathbf{A}$ and surface enclosements.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Interactive Surface Orientation Canvas -->
+          <div class="bg-slate-950 p-4 border border-slate-800 rounded-2xl space-y-3">
+            <h3 class="font-bold text-slate-200 text-sm">Electric Flux vs Angle ($\theta$)</h3>
+            <div class="h-48 bg-slate-900 rounded-xl relative border border-slate-800 flex items-center justify-center">
+              <canvas id="flux-angle-canvas" width="300" height="180"></canvas>
+            </div>
+            <div class="space-y-2 text-xs">
+              <label class="block font-medium text-slate-300">
+                Surface Tilt Angle ($\theta$): <span id="flux-angle-val" class="text-cyan-400 font-mono font-bold">0°</span>
+              </label>
+              <input type="range" id="flux-angle-slider" min="0" max="180" value="0" class="w-full accent-cyan-500 bg-slate-800 h-1.5 rounded" oninput="updateFluxDemo()">
+            </div>
+          </div>
+
+          <!-- Gauss's Law Math & Derivation -->
+          <div class="bg-slate-950 p-4 border border-slate-800 rounded-2xl space-y-3 text-xs">
+            <h3 class="font-bold text-slate-200 text-sm">Integral Form of Gauss's Law</h3>
+            <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+              <div id="katex-gauss-int" class="text-cyan-300 text-sm"></div>
+              <p class="text-slate-400 text-[11px]">The total outward electric flux through any closed Gaussian surface equals total enclosed charge divided by $\varepsilon_0$.</p>
+            </div>
+
+            <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+              <span class="font-bold text-amber-400">Differential Form (Maxwell's 1st Eq.):</span>
+              <div id="katex-gauss-diff" class="text-amber-300"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 5: E VS D & DIELECTRICS ================= -->
+    <section id="sec-ed-comp" class="w-full h-full p-6 overflow-y-auto hidden space-y-6">
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-cyan-400">Electric Field ($\mathbf{E}$) vs Flux Density ($\mathbf{D}$)</h2>
+          <p class="text-slate-400 text-sm mt-1">Free vs Bound Charges, Medium Permittivity, and Polarization ($\mathbf{P}$).</p>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="overflow-x-auto bg-slate-950 border border-slate-800 rounded-2xl">
+          <table class="w-full text-xs text-left text-slate-300">
+            <thead class="bg-slate-900 text-slate-200 border-b border-slate-800 font-semibold">
+              <tr>
+                <th class="p-3">Property</th>
+                <th class="p-3 text-cyan-400">Electric Field Intensity ($\mathbf{E}$)</th>
+                <th class="p-3 text-purple-400">Electric Flux Density ($\mathbf{D}$)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800">
+              <tr>
+                <td class="p-3 font-semibold text-slate-400">SI Unit</td>
+                <td class="p-3 font-mono">Volts / meter [V/m] or N/C</td>
+                <td class="p-3 font-mono">Coulombs / meter² [C/m²]</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-semibold text-slate-400">Medium Dependence</td>
+                <td class="p-3">Yes. Decreases in dielectric media ($\mathbf{E} = \mathbf{E}_0 / \varepsilon_r$).</td>
+                <td class="p-3">No. Relates directly to free charges ($\oint \mathbf{D} \cdot d\mathbf{A} = Q_{\text{free}}$).</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-semibold text-slate-400">Physical Origin</td>
+                <td class="p-3">Total force experienced per unit positive test charge.</td>
+                <td class="p-3">Total electric flux passing perpendicularly per unit area.</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-semibold text-slate-400">Polarization Rel.</td>
+                <td class="p-3 font-mono">$$\mathbf{E} = \frac{\mathbf{D} - \mathbf{P}}{\varepsilon_0}$$</td>
+                <td class="p-3 font-mono">$$\mathbf{D} = \varepsilon_0 \mathbf{E} + \mathbf{P}$$</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 6: DISTRIBUTIONS & GRAPHS ================= -->
+    <section id="sec-distributions" class="w-full h-full p-6 overflow-y-auto hidden space-y-6">
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-cyan-400">Charge Distributions & Distance Graphs</h2>
+          <p class="text-slate-400 text-sm mt-1">Comparing Point Charge ($1/r^2$), Infinite Line Charge ($1/r$), and Infinite Sheet (Constant field).</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-slate-950 p-4 border border-slate-800 rounded-2xl">
+            <h3 class="font-bold text-slate-200 text-sm mb-2">E vs r Distance Plot</h3>
+            <canvas id="dist-graph-canvas" width="380" height="240" class="w-full bg-slate-900 rounded-xl border border-slate-800"></canvas>
+          </div>
+
+          <div class="bg-slate-950 p-4 border border-slate-800 rounded-2xl space-y-3 text-xs">
+            <h3 class="font-bold text-slate-200 text-sm">Analytical Field Equations</h3>
+            <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl">
+              <span class="font-semibold text-cyan-400">Point Charge:</span>
+              <div id="katex-eq-point" class="py-1"></div>
+            </div>
+            <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl">
+              <span class="font-semibold text-amber-400">Infinite Line Charge ($\rho_L$):</span>
+              <div id="katex-eq-line" class="py-1"></div>
+            </div>
+            <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl">
+              <span class="font-semibold text-emerald-400">Infinite Sheet Charge ($\rho_S$):</span>
+              <div id="katex-eq-sheet" class="py-1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 7: CALCULATOR ================= -->
+    <section id="sec-calc" class="w-full h-full p-6 overflow-y-auto hidden space-y-6">
+      <div class="max-w-3xl mx-auto bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-5 text-xs">
+        <div>
+          <h2 class="text-xl font-bold text-cyan-400">Step-by-Step Electromagnetics Calculator</h2>
+          <p class="text-slate-400 mt-1">Select configuration and input variables to get full step-by-step substitution.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Calculation Target</label>
+            <select id="calc-target" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-slate-200">
+              <option value="point">Point Charge E & D</option>
+              <option value="line">Infinite Line Charge E</option>
+              <option value="sheet">Infinite Sheet Charge E</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Charge Value</label>
+            <input type="number" id="calc-q" value="10" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-slate-200">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Distance r (m)</label>
+            <input type="number" id="calc-r" value="2.5" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-slate-200">
+          </div>
+        </div>
+
+        <button onclick="runCalculation()" class="w-full bg-cyan-600 hover:bg-cyan-500 font-bold py-2.5 rounded-xl text-slate-950 text-sm transition-all">
+          Execute Step-by-Step Solve
+        </button>
+
+        <div id="calc-output" class="bg-slate-900 p-4 rounded-xl border border-slate-800 font-mono space-y-2 text-slate-200 hidden">
+          <!-- Dynamically Populated -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 8: GATE EXAM PRACTICE ================= -->
+    <section id="sec-gate" class="w-full h-full p-6 overflow-y-auto hidden space-y-6">
+      <div class="max-w-3xl mx-auto space-y-5">
+        <div>
+          <h2 class="text-2xl font-bold text-cyan-400">GATE Exam Practice Questions</h2>
+          <p class="text-slate-400 text-sm mt-1">High-yield numerical and conceptual problems for Electrical Engineering / Physics.</p>
+        </div>
+
+        <div id="gate-question-card" class="bg-slate-950 border border-slate-800 p-6 rounded-2xl space-y-4 text-xs">
+          <!-- Dynamically Loaded Question -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 9: QUIZ & ANALYTICS ================= -->
+    <section id="sec-quiz" class="w-full h-full p-6 overflow-y-auto hidden space-y-6">
+      <div class="max-w-3xl mx-auto space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-cyan-400">Interactive Quiz & Mastery Dashboard</h2>
+          <p class="text-slate-400 text-sm mt-1">Test your concepts and track progress over time.</p>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl text-center">
+            <span class="text-slate-400 block">Attempted</span>
+            <span id="quiz-attempted" class="text-2xl font-bold text-cyan-400 font-mono">0</span>
+          </div>
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl text-center">
+            <span class="text-slate-400 block">Accuracy</span>
+            <span id="quiz-accuracy" class="text-2xl font-bold text-emerald-400 font-mono">0%</span>
+          </div>
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl text-center">
+            <span class="text-slate-400 block">Concepts Solved</span>
+            <span id="quiz-solved" class="text-2xl font-bold text-amber-400 font-mono">0</span>
+          </div>
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl text-center">
+            <span class="text-slate-400 block">Current Streak</span>
+            <span id="quiz-streak" class="text-2xl font-bold text-purple-400 font-mono">0</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 10: FORMULA SHEET ================= -->
+    <section id="sec-formulas" class="w-full h-full p-6 overflow-y-auto hidden space-y-6">
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-cyan-400">Comprehensive Electromagnetics Formula Reference</h2>
+          <p class="text-slate-400 text-sm mt-1">Complete formula cheat-sheet with SI units and definitions.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2">
+            <span class="font-bold text-cyan-400 text-sm">Point Charge Field</span>
+            <div id="form-katex-1" class="py-1"></div>
+            <p class="text-slate-400 text-[11px]">$k = 1/(4\pi\varepsilon_0) \approx 8.9875 \times 10^9 \text{ N}\cdot\text{m}^2/\text{C}^2$</p>
+          </div>
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2">
+            <span class="font-bold text-amber-400 text-sm">Electric Flux Density</span>
+            <div id="form-katex-2" class="py-1"></div>
+            <p class="text-slate-400 text-[11px]">$\varepsilon_0 \approx 8.854 \times 10^{-12} \text{ F/m}$</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
+  <script>
+    // --- GLOBAL CONSTANTS & STATE ---
+    const EPSILON_0 = 8.8541878176e-12; // F/m
+    const K_COULOMB = 1 / (4 * Math.PI * EPSILON_0);
+
+    let currentTab = 'sim-3d';
+    let state = {
+      q: 10e-6, // 10 uC
+      r: 2.5,   // meters
+      er: 1.0,
+      showVectors: true,
+      showLines: true,
+      showGauss: false,
+      showComponents: false
+    };
+
+    // --- THREE.JS SIMULATION VARIABLES ---
+    let scene, camera, renderer, controls;
+    let chargeMesh, probeMesh, gaussMesh, vectorGroup, lineGroup;
+
+    // --- INITIALIZATION ON DOM READY ---
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initMathTeX();
+      init3DScene();
+      setupEventListeners();
+      updateAllCalculations();
+      init2DCanvases();
+      loadGateQuestion();
+    });
+
+    // --- TAB SWITCHING LOGIC ---
+    function switchTab(tabId) {
+      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('tab-active'));
+      document.getElementById(`tab-${tabId}`).classList.add('tab-active');
+
+      document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+      document.getElementById(`sec-${tabId}`).classList.remove('hidden');
+
+      currentTab = tabId;
+      if (tabId === 'sim-3d' && renderer) {
+        onWindowResize();
+      } else if (tabId === 'lines') {
+        drawFieldLines();
+      } else if (tabId === 'flux') {
+        updateFluxDemo();
+      } else if (tabId === 'distributions') {
+        drawDistGraph();
+      }
+    }
+
+    // --- MATH KATEX RENDERING ---
+    function initMathTeX() {
+      const render = (id, tex) => {
+        const el = document.getElementById(id);
+        if (el) katex.render(tex, el, { throwOnError: false });
+      };
+
+      render('katex-sim-eq', '\\mathbf{E} = \\frac{1}{4\\pi\\varepsilon_0 \\varepsilon_r} \\frac{Q}{r^2} \\hat{\\mathbf{a}}_r');
+      render('katex-coulomb', '\\mathbf{F}_{12} = \\frac{1}{4\\pi\\varepsilon_0} \\frac{Q_1 Q_2}{r^2} \\hat{\\mathbf{a}}_r');
+      render('katex-dipole', '\\mathbf{p} = Q \\mathbf{d} \\quad [\\text{C}\\cdot\\text{m}]');
+      render('katex-gauss-int', '\\Phi_E = \\iint_{S} \\mathbf{E} \\cdot d\\mathbf{A} = \\frac{Q_{\\text{enc}}}{\\varepsilon_0}');
+      render('katex-gauss-diff', '\\nabla \\cdot \\mathbf{D} = \\rho_v');
+      render('katex-eq-point', 'E = \\frac{Q}{4\\pi\\varepsilon_0 r^2} \\quad (E \\propto 1/r^2)');
+      render('katex-eq-line', 'E = \\frac{\\rho_L}{2\\pi\\varepsilon_0 r} \\quad (E \\propto 1/r)');
+      render('katex-eq-sheet', 'E = \\frac{\\rho_S}{2\\varepsilon_0} \\quad (E = \\text{constant})');
+      render('form-katex-1', '\\mathbf{E} = \\frac{Q}{4\\pi\\varepsilon_0 r^2} \\hat{\\mathbf{a}}_r \\quad [\\text{V/m}]');
+      render('form-katex-2', '\\mathbf{D} = \\varepsilon \\mathbf{E} = \\varepsilon_0 \\varepsilon_r \\mathbf{E} \\quad [\\text{C/m}^2]');
+    }
+
+    // --- THREE.JS 3D SCENE SETUP ---
+    function init3DScene() {
+      const container = document.getElementById('three-container');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0b0f19);
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(5, 4, 7);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(10, 20, 15);
+      scene.add(dirLight);
+
+      // Grid & Axes
+      const gridHelper = new THREE.GridHelper(16, 16, 0x334155, 0x1e293b);
+      scene.add(gridHelper);
+
+      const axesHelper = new THREE.AxesHelper(3);
+      scene.add(axesHelper);
+
+      // Source Charge Sphere
+      const chargeGeo = new THREE.SphereGeometry(0.35, 32, 32);
+      const chargeMat = new THREE.MeshStandardMaterial({ color: 0x06b6d4, roughness: 0.2, metalness: 0.8 });
+      chargeMesh = new THREE.Mesh(chargeGeo, chargeMat);
+      scene.add(chargeMesh);
+
+      // Observation Point Marker
+      const probeGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const probeMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+      probeMesh = new THREE.Mesh(probeGeo, probeMat);
+      probeMesh.position.set(0, 0, state.r);
+      scene.add(probeMesh);
+
+      // Gaussian Sphere
+      const gaussGeo = new THREE.SphereGeometry(state.r, 32, 32);
+      const gaussMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, wireframe: true, transparent: true, opacity: 0.15 });
+      gaussMesh = new THREE.Mesh(gaussGeo, gaussMat);
+      gaussMesh.visible = state.showGauss;
+      scene.add(gaussMesh);
+
+      // Groups for dynamic elements
+      vectorGroup = new THREE.Group();
+      lineGroup = new THREE.Group();
+      scene.add(vectorGroup);
+      scene.add(lineGroup);
+
+      update3DField();
+
+      window.addEventListener('resize', onWindowResize);
+      animate();
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('three-container');
+      if (!container) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    // --- UPDATE 3D FIELD ARROWS & LINES ---
+    function update3DField() {
+      // Clear old vectors
+      while(vectorGroup.children.length > 0){ 
+        vectorGroup.remove(vectorGroup.children[0]); 
+      }
+      while(lineGroup.children.length > 0){ 
+        lineGroup.remove(lineGroup.children[0]); 
+      }
+
+      // Update Charge Color based on polarity
+      if (state.q >= 0) {
+        chargeMesh.material.color.setHex(0x06b6d4); // Cyan positive
+      } else {
+        chargeMesh.material.color.setHex(0xf43f5e); // Rose negative
+      }
+
+      // Update Probe Position
+      probeMesh.position.set(0, 0, state.r);
+      gaussMesh.scale.setScalar(state.r / gaussMesh.geometry.parameters.radius);
+
+      // Rebuild Vector Field Grid if enabled
+      if (state.showVectors) {
+        const step = 2.0;
+        for (let x = -4; x <= 4; x += step) {
+          for (let y = -4; y <= 4; y += step) {
+            for (let z = -4; z <= 4; z += step) {
+              if (x === 0 && y === 0 && z === 0) continue;
+              const pos = new THREE.Vector3(x, y, z);
+              const rDist = pos.length();
+              const dir = pos.clone().normalize();
+
+              if (state.q < 0) dir.negate();
+
+              const arrowLen = Math.min(0.8, 1.5 / (rDist * rDist));
+              const arrow = new THREE.ArrowHelper(dir, pos, arrowLen, state.q >= 0 ? 0x10b981 : 0xf43f5e, 0.2, 0.1);
+              vectorGroup.add(arrow);
+            }
+          }
+        }
+      }
+
+      // Rebuild Field Lines if enabled
+      if (state.showLines) {
+        const lineCount = 16;
+        for (let i = 0; i < lineCount; i++) {
+          const phi = Math.acos(-1 + (2 * i) / lineCount);
+          const theta = Math.sqrt(lineCount * Math.PI) * phi;
+
+          const points = [];
+          const dir = new THREE.Vector3(
+            Math.sin(phi) * Math.cos(theta),
+            Math.sin(phi) * Math.sin(theta),
+            Math.cos(phi)
+          );
+
+          for (let len = 0.35; len <= 6; len += 0.2) {
+            points.push(dir.clone().multiplyScalar(len));
+          }
+
+          const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+          const lineMat = new THREE.LineBasicMaterial({ color: state.q >= 0 ? 0x06b6d4 : 0xf43f5e, transparent: true, opacity: 0.4 });
+          const line = new THREE.Line(lineGeo, lineMat);
+          lineGroup.add(line);
+        }
+      }
+    }
+
+    // --- REAL-TIME CALCULATIONS & TELEMETRY UPDATES ---
+    function updateAllCalculations() {
+      const q = state.q;
+      const r = state.r;
+      const er = state.er;
+
+      // Calculations
+      const E = (K_COULOMB * Math.abs(q)) / (er * r * r); // V/m
+      const D = (EPSILON_0 * er) * E; // C/m^2
+      const flux = E * (4 * Math.PI * r * r); // V*m
+
+      // Update Header Telemetry
+      document.getElementById('tele-q').innerText = `${q >= 0 ? '+' : ''}${(q * 1e6).toFixed(2)} μC`;
+      document.getElementById('tele-r').innerText = `${r.toFixed(2)} m`;
+      document.getElementById('tele-e').innerText = `${(E / 1000).toFixed(2)} kV/m`;
+      document.getElementById('tele-d').innerText = `${(D * 1e9).toFixed(2)} nC/m²`;
+      document.getElementById('tele-flux').innerText = `${(flux / 1e6).toFixed(2)} MV·m`;
+
+      // Update 3D Overlay Probe Readout
+      document.getElementById('coords-display').innerText = `(0.00, 0.00, ${r.toFixed(2)})`;
+      document.getElementById('ex-val').innerText = '0.00';
+      document.getElementById('ey-val').innerText = '0.00';
+      document.getElementById('ez-val').innerText = (E / 1000).toFixed(2);
+      document.getElementById('e-total-val').innerText = `${(E / 1000).toFixed(2)} kV/m`;
+      document.getElementById('d-total-val').innerText = `${(D * 1e9).toFixed(2)} nC/m²`;
+    }
+
+    // --- EVENT LISTENERS FOR CONTROLS ---
+    function setupEventListeners() {
+      // Sliders
+      document.getElementById('q-slider').addEventListener('input', (e) => {
+        state.q = parseFloat(e.target.value) * 1e-6;
+        document.getElementById('q-slider-val').innerText = `${e.target.value >= 0 ? '+' : ''}${e.target.value}.0 μC`;
+        update3DField();
+        updateAllCalculations();
+      });
+
+      document.getElementById('r-slider').addEventListener('input', (e) => {
+        state.r = parseFloat(e.target.value);
+        document.getElementById('r-slider-val').innerText = `${state.r.toFixed(2)} m`;
+        update3DField();
+        updateAllCalculations();
+      });
+
+      document.getElementById('er-slider').addEventListener('input', (e) => {
+        state.er = parseFloat(e.target.value);
+        document.getElementById('er-slider-val').innerText = `${state.er.toFixed(1)} ${state.er === 1 ? '(Vacuum)' : ''}`;
+        updateAllCalculations();
+      });
+
+      // Toggles
+      document.getElementById('chk-vectors').addEventListener('change', (e) => {
+        state.showVectors = e.target.checked;
+        vectorGroup.visible = state.showVectors;
+      });
+
+      document.getElementById('chk-lines').addEventListener('change', (e) => {
+        state.showLines = e.target.checked;
+        lineGroup.visible = state.showLines;
+      });
+
+      document.getElementById('chk-gauss').addEventListener('change', (e) => {
+        state.showGauss = e.target.checked;
+        gaussMesh.visible = state.showGauss;
+      });
+    }
+
+    // --- CAMERA VIEW HELPER FUNCTIONS ---
+    function setCameraView(view) {
+      if (view === 'top') camera.position.set(0, 10, 0.01);
+      else if (view === 'front') camera.position.set(0, 0, 10);
+      else if (view === 'side') camera.position.set(10, 0, 0);
+      else camera.position.set(5, 4, 7);
+      controls.target.set(0, 0, 0);
+    }
+
+    function resetCamera() {
+      setCameraView('iso');
+    }
+
+    // --- PREDICT-BEFORE-SIMULATE CHECKER ---
+    function checkPrediction(choice) {
+      const fb = document.getElementById('prediction-feedback');
+      fb.classList.remove('hidden', 'bg-emerald-950/80', 'text-emerald-300', 'bg-rose-950/80', 'text-rose-300');
+
+      if (choice === 'quarter') {
+        fb.classList.add('bg-emerald-950/80', 'text-emerald-300');
+        fb.innerHTML = 'Correct! Because $E \\propto 1/r^2$, doubling distance reduces field strength to $(1/2)^2 = 1/4$.';
+      } else {
+        fb.classList.add('bg-rose-950/80', 'text-rose-300');
+        fb.innerHTML = 'Incorrect. Remember the inverse-square law: field scales with $1/r^2$, not $1/r$.';
+      }
+      katex.render(fb.innerHTML, fb);
+    }
+
+    // --- 2D CANVASES & PLOTS ---
+    function init2DCanvases() {
+      drawFieldLines();
+      updateFluxDemo();
+      drawDistGraph();
+    }
+
+    // 2D Field Lines Simulation Canvas
+    function drawFieldLines() {
+      const canvas = document.getElementById('lines-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Charge Representations
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const preset = document.getElementById('line-preset').value;
+
+      let charges = [];
+      if (preset === 'single') {
+        charges = [{ x: cx, y: cy, q: 1 }];
+      } else if (preset === 'dipole') {
+        charges = [{ x: cx - 80, y: cy, q: 1 }, { x: cx + 80, y: cy, q: -1 }];
+      } else if (preset === 'like') {
+        charges = [{ x: cx - 80, y: cy, q: 1 }, { x: cx + 80, y: cy, q: 1 }];
+      } else {
+        charges = [
+          { x: cx - 60, y: cy - 60, q: 1 }, { x: cx + 60, y: cy - 60, q: -1 },
+          { x: cx - 60, y: cy + 60, q: -1 }, { x: cx + 60, y: cy + 60, q: 1 }
+        ];
+      }
+
+      // Trace field lines from positive charges
+      const numLines = parseInt(document.getElementById('line-density').value);
+      charges.filter(c => c.q > 0).forEach(c => {
+        for (let i = 0; i < numLines; i++) {
+          const angle = (i * 2 * Math.PI) / numLines;
+          let px = c.x + 15 * Math.cos(angle);
+          let py = c.y + 15 * Math.sin(angle);
+
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.strokeStyle = '#06b6d4';
+          ctx.lineWidth = 1.5;
+
+          for (let step = 0; step < 150; step++) {
+            let Ex = 0, Ey = 0;
+            charges.forEach(ch => {
+              const dx = px - ch.x;
+              const dy = py - ch.y;
+              const r2 = dx * dx + dy * dy + 1e-4;
+              const r = Math.sqrt(r2);
+              Ex += (ch.q * dx) / (r2 * r);
+              Ey += (ch.q * dy) / (r2 * r);
+            });
+
+            const EMag = Math.sqrt(Ex * Ex + Ey * Ey);
+            if (EMag === 0) break;
+
+            px += (Ex / EMag) * 4;
+            py += (Ey / EMag) * 4;
+            ctx.lineTo(px, py);
+
+            if (px < 0 || px > canvas.width || py < 0 || py > canvas.height) break;
+          }
+          ctx.stroke();
+        }
+      });
+
+      // Draw charge spheres
+      charges.forEach(ch => {
+        ctx.beginPath();
+        ctx.arc(ch.x, ch.y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = ch.q > 0 ? '#06b6d4' : '#f43f5e';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ch.q > 0 ? '+' : '-', ch.x, ch.y);
+      });
+    }
+
+    function loadLinePreset(preset) {
+      drawFieldLines();
+    }
+
+    // Flux Angle Canvas
+    function updateFluxDemo() {
+      const canvas = document.getElementById('flux-angle-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const angleDeg = parseFloat(document.getElementById('flux-angle-slider').value);
+      document.getElementById('flux-angle-val').innerText = `${angleDeg}°`;
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const rad = (angleDeg * Math.PI) / 180;
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+
+      // Draw Uniform Field Lines
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      for (let y = 20; y <= 160; y += 20) {
+        ctx.beginPath();
+        ctx.moveTo(20, y);
+        ctx.lineTo(280, y);
+        ctx.stroke();
+
+        // Arrow head
+        ctx.fillStyle = '#334155';
+        ctx.beginPath();
+        ctx.moveTo(280, y);
+        ctx.lineTo(270, y - 4);
+        ctx.lineTo(270, y + 4);
+        ctx.fill();
+      }
+
+      // Draw Tilted Surface Line
+      const len = 60;
+      const dx = len * Math.sin(rad);
+      const dy = len * Math.cos(rad);
+
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(cx - dx, cy - dy);
+      ctx.lineTo(cx + dx, cy + dy);
+      ctx.stroke();
+
+      // Normal Vector Arrow
+      const nx = 40 * Math.cos(rad);
+      const ny = -40 * Math.sin(rad);
+
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + nx, cy + ny);
+      ctx.stroke();
+    }
+
+    // Distance Plots (E vs r)
+    function drawDistGraph() {
+      const canvas = document.getElementById('dist-graph-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Axes
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(40, 20); ctx.lineTo(40, 210); ctx.lineTo(360, 210);
+      ctx.stroke();
+
+      // Labels
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('E (Field Strength)', 10, 15);
+      ctx.fillText('r (Distance)', 320, 225);
+
+      // Curve 1: Point Charge (1/r^2) - Cyan
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let x = 45; x <= 350; x++) {
+        const r = (x - 40) / 30;
+        const y = 210 - 150 / (r * r);
+        if (x === 45) ctx.moveTo(x, Math.max(25, y));
+        else ctx.lineTo(x, Math.max(25, y));
+      }
+      ctx.stroke();
+
+      // Curve 2: Line Charge (1/r) - Amber
+      ctx.strokeStyle = '#f59e0b';
+      ctx.beginPath();
+      for (let x = 45; x <= 350; x++) {
+        const r = (x - 40) / 30;
+        const y = 210 - 80 / r;
+        if (x === 45) ctx.moveTo(x, Math.max(25, y));
+        else ctx.lineTo(x, Math.max(25, y));
+      }
+      ctx.stroke();
+
+      // Curve 3: Sheet Charge (Constant) - Emerald
+      ctx.strokeStyle = '#10b981';
+      ctx.beginPath();
+      ctx.moveTo(45, 120);
+      ctx.lineTo(350, 120);
+      ctx.stroke();
+    }
+
+    // --- STEP CALCULATOR ENGINE ---
+    function runCalculation() {
+      const target = document.getElementById('calc-target').value;
+      const qVal = parseFloat(document.getElementById('calc-q').value) * 1e-6;
+      const rVal = parseFloat(document.getElementById('calc-r').value);
+      const out = document.getElementById('calc-output');
+
+      out.classList.remove('hidden');
+      out.innerHTML = '';
+
+      if (target === 'point') {
+        const E = (K_COULOMB * Math.abs(qVal)) / (rVal * rVal);
+        const D = EPSILON_0 * E;
+
+        out.innerHTML = `
+          <div class="text-cyan-400 font-bold border-b border-slate-800 pb-1">Calculation Steps (Point Charge):</div>
+          <div>1. Given Q = ${qVal * 1e6} μC, r = ${rVal} m</div>
+          <div>2. Formula: E = Q / (4 * π * ε₀ * r²)</div>
+          <div>3. Substitution: E = (${qVal}) / (4 * π * 8.854e-12 * ${rVal}²)</div>
+          <div class="text-emerald-400 font-bold">▶ Final E = ${(E/1000).toFixed(4)} kV/m</div>
+          <div class="text-purple-400 font-bold">▶ Final D = ε₀ * E = ${(D * 1e9).toFixed(4)} nC/m²</div>
+        `;
+      }
+    }
+
+    // --- GATE QUESTIONS SYSTEM ---
+    const gateQuestions = [
+      {
+        q: "A point charge $Q_1 = +20\\;\\mu\\text{C}$ is located at $(0, 0, 0)$ and $Q_2 = -50\\;\\mu\\text{C}$ is located at $(2, 0, 0)\\;\\text{m}$. Find the magnitude of total electric field intensity $\\mathbf{E}$ at point $P(0, 2, 0)\\,\\text{m}$.",
+        options: ["22.5 kV/m", "48.2 kV/m", "57.8 kV/m", "63.1 kV/m"],
+        answer: 2,
+        explanation: "1) Calculate vector field from $Q_1$: $\\mathbf{E}_1 = \\frac{20\\mu C}{4\\pi\\varepsilon_0 (2)^2} \\mathbf{a}_y = 44.9 \\mathbf{a}_y\\;\\text{kV/m}$.<br>2) Vector from $Q_2$ to P: $\\mathbf{R}_2 = -2\\mathbf{a}_x + 2\\mathbf{a}_y$, distance $R_2 = \\sqrt{8}$.<br>3) Field from $Q_2$: $\\mathbf{E}_2 = 39.75 (-2\\mathbf{a}_x + 2\\mathbf{a}_y)/\\sqrt{8}$.<br>4) Superposition yields $|\\mathbf{E}_{\\text{total}}| = 57.8\\;\\text{kV/m}$."
+      }
+    ];
+
+    function loadGateQuestion() {
+      const q = gateQuestions[0];
+      const card = document.getElementById('gate-question-card');
+      card.innerHTML = `
+        <div class="font-bold text-cyan-400 text-sm">Practice Question 1 (AI Generated - GATE Level)</div>
+        <div class="text-slate-200" id="gate-q-text">${q.q}</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2">
+          ${q.options.map((opt, i) => `
+            <button onclick="submitGateAnswer(${i})" class="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-left text-slate-300 font-mono">
+              ${String.fromCharCode(65 + i)}) ${opt}
+            </button>
+          `).join('')}
+        </div>
+        <div id="gate-expl" class="hidden p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1"></div>
+      `;
+      katex.render(q.q, document.getElementById('gate-q-text'));
+    }
+
+    function submitGateAnswer(index) {
+      const q = gateQuestions[0];
+      const expl = document.getElementById('gate-expl');
+      expl.classList.remove('hidden');
+      if (index === q.answer) {
+        expl.innerHTML = `<span class="text-emerald-400 font-bold">Correct!</span><br><span class="text-slate-300">${q.explanation}</span>`;
+      } else {
+        expl.innerHTML = `<span class="text-rose-400 font-bold">Incorrect.</span><br><span class="text-slate-300">${q.explanation}</span>`;
+      }
+    }
+
+    // UI Contrast Toggle
+    function toggleHighContrast() {
+      document.body.classList.toggle('bg-black');
+    }
+  </script>
+</body>
+</html>
