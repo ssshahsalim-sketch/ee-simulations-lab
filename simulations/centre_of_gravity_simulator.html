@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CENTRE OF GRAVITY — Interactive Physics & Engineering Simulator</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #182234;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-color: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.35);
+            --cg-marker: #ef4444;
+            --border-color: #334155;
+            --sidebar-width: 280px;
+            --header-height: 60px;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --grid-line: rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f1f5f9;
+            --bg-secondary: #ffffff;
+            --bg-card: #f8fafc;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent-color: #0284c7;
+            --accent-glow: rgba(2, 132, 199, 0.2);
+            --cg-marker: #dc2626;
+            --border-color: #e2e8f0;
+            --grid-line: rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            height: var(--header-height);
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            z-index: 10;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--accent-color);
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: radial-gradient(circle, var(--cg-marker) 30%, transparent 35%),
+                        linear-gradient(var(--accent-color), var(--accent-color));
+            background-size: 100% 100%, 2px 100%;
+            background-position: center, center;
+            border-radius: 50%;
+            border: 2px solid var(--accent-color);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn {
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: #fff;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            color: #fff;
+        }
+
+        /* App Container Layout */
+        .app-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - var(--header-height));
+            position: relative;
+        }
+
+        /* Sidebar Navigation */
+        sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 9;
+        }
+
+        .nav-group {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            padding: 0 1.25rem 0.5rem;
+            font-weight: 700;
+        }
+
+        .nav-item {
+            padding: 0.6rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.15s;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            color: var(--text-main);
+            background-color: var(--bg-card);
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .nav-item .icon {
+            width: 18px;
+            text-align: center;
+        }
+
+        /* Main Workspace */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: relative;
+            background-color: var(--bg-primary);
+        }
+
+        /* Learning Path Progress Header */
+        .learning-path {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            overflow-x: auto;
+            white-space: nowrap;
+            font-size: 0.8rem;
+        }
+
+        .step-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        .step-badge.completed {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .step-badge.current {
+            background: var(--accent-color);
+            color: #fff;
+            border-color: var(--accent-color);
+        }
+
+        /* Simulation Canvas & Panels Workspace */
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            grid-template-rows: 1fr auto;
+            flex: 1;
+            gap: 1rem;
+            padding: 1rem;
+            height: calc(100% - 40px);
+        }
+
+        .canvas-container {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .canvas-toolbar {
+            padding: 0.5rem 1rem;
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .canvas-view {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Floating Overlays on Canvas */
+        .readout-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.6rem 0.9rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+            pointer-events: none;
+            z-index: 5;
+            color: var(--text-main);
+        }
+
+        .legend-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            display: flex;
+            gap: 0.8rem;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .legend-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* Control Panel Right Column */
+        .control-panel {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        .panel-section:last-child {
+            border-bottom: none;
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .control-group {
+            margin-bottom: 0.8rem;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--border-color);
+            accent-color: var(--accent-color);
+            cursor: pointer;
+        }
+
+        select, input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 0.4rem 0.6rem;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-main);
+            font-size: 0.85rem;
+        }
+
+        /* Dynamic Math / Explanation Panel Bottom */
+        .bottom-panel {
+            grid-column: 1 / -1;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.8rem 1.2rem;
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .formula-display {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.95rem;
+            background-color: var(--bg-card);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: 1px dashed var(--accent-color);
+            color: var(--accent-color);
+            flex: 1;
+        }
+
+        .explanation-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            flex: 2;
+            line-height: 1.4;
+        }
+
+        /* Modal styling */
+        .modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Responsive Layout Adjustments */
+        @media (max-width: 992px) {
+            .workspace-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: 350px auto auto;
+                overflow-y: auto;
+            }
+            .bottom-panel {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            sidebar {
+                position: absolute;
+                left: 0; top: 0; bottom: 0;
+                transform: translateX(-100%);
+            }
+            sidebar.open {
+                transform: translateX(0);
+            }
+        }
+
+        /* Mobile Hamburger */
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        @media (max-width: 992px) {
+            .menu-toggle { display: block; }
+        }
+
+        /* Quiz / GATE options styling */
+        .quiz-option {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .quiz-option:hover {
+            border-color: var(--accent-color);
+        }
+        .quiz-option.correct {
+            border-color: var(--success);
+            background: rgba(34, 197, 94, 0.1);
+        }
+        .quiz-option.incorrect {
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Tab switch for COM vs CG vs Centroid */
+        .tab-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+        .tab-btn {
+            padding: 0.3rem 0.8rem;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-radius: 4px;
+        }
+        .tab-btn.active {
+            background: var(--accent-color);
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <button class="menu-toggle" id="menuToggle">☰</button>
+            <div class="logo-area">
+                <div class="logo-icon"></div>
+                <span>CENTRE OF GRAVITY <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">Interactive Lab</span></span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn" id="teachMeBtn">🎓 Teach Me</button>
+            <button class="btn" id="unitConvBtn">📏 Units</button>
+            <button class="btn" id="themeToggleBtn">🌙/☀️</button>
+            <button class="btn btn-primary" id="resetBtn">🔄 Reset</button>
+        </div>
+    </header>
+
+    <!-- App Container -->
+    <div class="app-container">
+        
+        <!-- Sidebar Navigation -->
+        <sidebar id="sidebar">
+            <div class="nav-group">
+                <div class="nav-title">Core Fundamentals</div>
+                <div class="nav-item active" data-module="concept"><span class="icon">💡</span>Concept & Formation</div>
+                <div class="nav-item" data-module="comparison"><span class="icon">⚖️</span>CG vs COM vs Centroid</div>
+                <div class="nav-item" data-module="regular"><span class="icon">📐</span>Regular Geometric Shapes</div>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-title">Mass & Material Mechanics</div>
+                <div class="nav-item" data-module="beam"><span class="icon">🪵</span>Drag & Drop Mass Beam</div>
+                <div class="nav-item" data-module="seesaw"><span class="icon">⚖️</span>Balancing Beam Simulation</div>
+                <div class="nav-item" data-module="composite"><span class="icon">🧩</span>Composite Body Lab</div>
+                <div class="nav-item" data-module="holes"><span class="icon">🕳️</span>Holes & Cutouts (Negative Area)</div>
+                <div class="nav-item" data-module="materials"><span class="icon">🧱</span>Multi-Material Density</div>
+                <div class="nav-item" data-module="irregular"><span class="icon">✏️</span>Irregular Body & Plumb Line</div>
+                <div class="nav-item" data-module="outside"><span class="icon">⭕</span>CG Outside the Material</div>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-title">Advanced & 3D</div>
+                <div class="nav-item" data-module="visualizer3d"><span class="icon">📦</span>3D CG Visualizer</div>
+                <div class="nav-item" data-module="stability"><span class="icon">🚜</span>Stability & Tipping Lab</div>
+                <div class="nav-item" data-module="industrial"><span class="icon">⚡</span>Industrial Cabinet Design</div>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-title">Tools & Practice</div>
+                <div class="nav-item" data-module="formulas"><span class="icon">📜</span>Formula Sheet</div>
+                <div class="nav-item" data-module="solver"><span class="icon">🧮</span>Numerical Solver</div>
+                <div class="nav-item" data-module="gate"><span class="icon">🎓</span>GATE Practice Questions</div>
+                <div class="nav-item" data-module="challenge"><span class="icon">🏆</span>Challenge Mini-Games</div>
+                <div class="nav-item" data-module="mastered"><span class="icon">🏁</span>CG Concept Mastered</div>
+            </div>
+        </sidebar>
+
+        <!-- Main Workspace -->
+        <main>
+            <!-- Learning Path Header -->
+            <div class="learning-path">
+                <span style="font-weight: 700; color: var(--text-muted);">Learning Path:</span>
+                <span class="step-badge current" data-step="concept">1. Concept</span> →
+                <span class="step-badge" data-step="regular">2. Regular Shapes</span> →
+                <span class="step-badge" data-step="beam">3. Mass Beam</span> →
+                <span class="step-badge" data-step="composite">4. Composite</span> →
+                <span class="step-badge" data-step="holes">5. Cutouts</span> →
+                <span class="step-badge" data-step="materials">6. Density</span> →
+                <span class="step-badge" data-step="stability">7. Stability</span> →
+                <span class="step-badge" data-step="gate">8. GATE Exam</span>
+            </div>
+
+            <!-- Interactive Workspace Grid -->
+            <div class="workspace-grid">
+                
+                <!-- Main Canvas Interactive View -->
+                <div class="canvas-container">
+                    <div class="canvas-toolbar">
+                        <span id="moduleTitle" style="font-weight: 700; font-size: 0.95rem;">Concept: How CG is Formed</span>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn" id="toggleGridBtn">🌐 Toggle Grid</button>
+                            <button class="btn" id="explainResultBtn">❓ Explain Result</button>
+                        </div>
+                    </div>
+
+                    <div class="canvas-view" id="canvasView">
+                        <canvas id="simCanvas"></canvas>
+                        
+                        <!-- Overlay Readouts -->
+                        <div class="readout-overlay" id="readoutOverlay">
+                            CG Position: (<span id="cgX">0.00</span>, <span id="cgY">0.00</span>) m<br>
+                            Total Weight: <span id="totalWeight">0.0</span> N
+                        </div>
+
+                        <!-- Legend Overlay -->
+                        <div class="legend-overlay">
+                            <div class="legend-item"><div class="legend-color" style="background: var(--cg-marker);"></div> CG Point</div>
+                            <div class="legend-item"><div class="legend-color" style="background: #38bdf8;"></div> Gravity Vectors</div>
+                            <div class="legend-item"><div class="legend-color" style="background: #eab308;"></div> Resultant Force</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side Control Panel -->
+                <div class="control-panel" id="controlPanel">
+                    <!-- Controls will be rendered dynamically based on active module -->
+                </div>
+
+                <!-- Bottom Panel (Formula and Dynamic Narrative) -->
+                <div class="bottom-panel">
+                    <div class="formula-display" id="formulaDisplay">
+                        $\bar{x} = \frac{\sum m_i x_i}{\sum m_i}, \quad \bar{y} = \frac{\sum m_i y_i}{\sum m_i}$
+                    </div>
+                    <div class="explanation-text" id="explanationText">
+                        The Centre of Gravity (CG) is the single point where the total weight of a body can be considered to act.
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-backdrop" id="teachModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="teachTitle">Guided Tutorial</h3>
+                <button class="btn" id="closeTeachModal">✕</button>
+            </div>
+            <div id="teachBody" style="font-size: 0.9rem; line-height: 1.6; color: var(--text-main);">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="unitModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Unit Converter</h3>
+                <button class="btn" id="closeUnitModal">✕</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Length Unit Conversion</label>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.3rem;">
+                        <input type="number" id="unitVal" value="1000" style="flex:1;">
+                        <select id="unitFrom" style="flex:1;">
+                            <option value="mm">mm</option>
+                            <option value="cm">cm</option>
+                            <option value="m">m</option>
+                        </select>
+                        <span style="align-self: center;">=</span>
+                        <div id="unitResult" style="flex:1; padding: 0.4rem; background: var(--bg-card); border-radius: 4px; border: 1px solid var(--border-color); font-weight: 700;">1.00 m</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * CENTRE OF GRAVITY SIMULATOR - Core Engine & Modules
+         */
+
+        // Application State
+        const state = {
+            currentModule: 'concept',
+            theme: 'dark',
+            showGrid: true,
+            
+            // Concept Module
+            concept: {
+                forming: false,
+                particles: [],
+                progress: 0,
+                angle: 0
+            },
+
+            // Comparison Module
+            comparison: {
+                tab: 'cg',
+                uniformGravity: true,
+                uniformDensity: true
+            },
+
+            // Regular Shapes
+            regular: {
+                shape: 'rectangle',
+                width: 4,
+                height: 2,
+                base: 4,
+                radius: 2,
+                a: 4, b: 2, h: 2 // trapezoid
+            },
+
+            // Drag-and-Drop Mass Beam
+            beam: {
+                length: 10,
+                masses: [
+                    { id: 1, mass: 2, x: 2, color: '#ef4444' },
+                    { id: 2, mass: 5, x: 5, color: '#3b82f6' },
+                    { id: 3, mass: 3, x: 8, color: '#10b981' }
+                ],
+                draggingId: null
+            },
+
+            // Seesaw Simulation
+            seesaw: {
+                fulcrumX: 5,
+                angle: 0,
+                masses: [
+                    { mass: 4, x: 2 },
+                    { mass: 4, x: 8 }
+                ]
+            },
+
+            // Composite Body
+            composite: {
+                shapes: [
+                    { id: 1, type: 'rectangle', w: 4, h: 2, x: 2, y: 1, isHole: false, color: '#3b82f6' },
+                    { id: 2, type: 'triangle', b: 2, h: 2, x: 4, y: 2, isHole: false, color: '#10b981' }
+                ]
+            },
+
+            // Holes & Cutouts
+            holes: {
+                plateW: 6,
+                plateH: 4,
+                holeR: 1,
+                holeX: 4,
+                holeY: 2
+            },
+
+            // Multi-material
+            materials: {
+                leftMat: 'wood',  // density 500
+                rightMat: 'steel' // density 7800
+            },
+
+            // Irregular Body & Plumb line
+            irregular: {
+                points: [
+                    {x: 2, y: 1}, {x: 5, y: 0.5}, {x: 6, y: 3}, {x: 3, y: 4.5}, {x: 1, y: 3}
+                ],
+                suspensionPt: 0,
+                angle: 0
+            },
+
+            // Stability & Tipping
+            stability: {
+                cgHeight: 2.0,
+                baseWidth: 3.0,
+                tiltAngle: 0,
+                mass: 1000
+            },
+
+            // Industrial Cabinet
+            industrial: {
+                components: [
+                    { name: 'Transformer', mass: 50, x: 0.5, y: 0.5, w: 0.4, h: 0.4, color: '#ef4444' },
+                    { name: 'VFD Drive', mass: 20, x: 0.5, y: 1.2, w: 0.3, h: 0.4, color: '#3b82f6' },
+                    { name: 'Busbar & Switch', mass: 10, x: 0.5, y: 1.8, w: 0.6, h: 0.2, color: '#eab308' }
+                ],
+                draggingIdx: null
+            },
+
+            // Challenge Mode
+            challenge: {
+                score: 0,
+                targetX: 5.0,
+                userGuessX: 0
+            }
+        };
+
+        // Material Densities (kg/m3)
+        const DENSITIES = {
+            wood: 600,
+            aluminum: 2700,
+            steel: 7850,
+            copper: 8960
+        };
+
+        // DOM Element References
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasView = document.getElementById('canvasView');
+        const sidebar = document.getElementById('sidebar');
+        const controlPanel = document.getElementById('controlPanel');
+        const formulaDisplay = document.getElementById('formulaDisplay');
+        const explanationText = document.getElementById('explanationText');
+        const moduleTitle = document.getElementById('moduleTitle');
+
+        // Setup Canvas Resolution
+        function resizeCanvas() {
+            canvas.width = canvasView.clientWidth;
+            canvas.height = canvasView.clientHeight;
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Utility: Coordinate System Converters (Meters to Pixels)
+        const viewport = {
+            scale: 60, // 1 meter = 60 pixels
+            ox: 100,   // Origin X pixel
+            oy: 0      // Origin Y pixel (calculated from canvas height)
+        };
+
+        function toPxX(mX) {
+            return viewport.ox + mX * viewport.scale;
+        }
+
+        function toPxY(mY) {
+            return (canvas.height - 100) - mY * viewport.scale;
+        }
+
+        function toMeterX(pxX) {
+            return (pxX - viewport.ox) / viewport.scale;
+        }
+
+        function toMeterY(pxY) {
+            return ((canvas.height - 100) - pxY) / viewport.scale;
+        }
+
+        // Draw Coordinate Grid
+        function drawGrid() {
+            if (!state.showGrid) return;
+            ctx.save();
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid-line').trim() || 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 1;
+
+            const gridStep = viewport.scale; // 1m lines
+
+            for (let x = 0; x < canvas.width; x += gridStep) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y < canvas.height; y += gridStep) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw Main Axes
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2;
+            
+            // X Axis
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - 100);
+            ctx.lineTo(canvas.width, canvas.height - 100);
+            ctx.stroke();
+
+            // Y Axis
+            ctx.beginPath();
+            ctx.moveTo(viewport.ox, 0);
+            ctx.lineTo(viewport.ox, canvas.height);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Draw Glowing CG Marker
+        function drawCGMarker(mX, mY, label = 'CG') {
+            const px = toPxX(mX);
+            const py = toPxY(mY);
+
+            ctx.save();
+            
+            // Outer Pulsing Glow
+            const glow = ctx.createRadialGradient(px, py, 2, px, py, 18);
+            glow.addColorStop(0, 'rgba(239, 68, 68, 0.8)');
+            glow.addColorStop(1, 'rgba(239, 68, 68, 0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(px, py, 18, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Crosshair
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(px - 12, py); ctx.lineTo(px + 12, py);
+            ctx.moveTo(px, py - 12); ctx.lineTo(px, py + 12);
+            ctx.stroke();
+
+            // Center Dot
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Text Label
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(`${label} (${mX.toFixed(2)}, ${mY.toFixed(2)})m`, px + 14, py - 10);
+
+            ctx.restore();
+
+            // Update UI Overlay Readouts
+            document.getElementById('cgX').innerText = mX.toFixed(2);
+            document.getElementById('cgY').innerText = mY.toFixed(2);
+        }
+
+        // Module-Specific Drawing Logic
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+
+            switch (state.currentModule) {
+                case 'concept':
+                    drawConceptModule();
+                    break;
+                case 'comparison':
+                    drawComparisonModule();
+                    break;
+                case 'regular':
+                    drawRegularShapesModule();
+                    break;
+                case 'beam':
+                    drawBeamModule();
+                    break;
+                case 'seesaw':
+                    drawSeesawModule();
+                    break;
+                case 'composite':
+                    drawCompositeModule();
+                    break;
+                case 'holes':
+                    drawHolesModule();
+                    break;
+                case 'materials':
+                    drawMaterialsModule();
+                    break;
+                case 'irregular':
+                case 'outside':
+                    drawIrregularModule();
+                    break;
+                case 'visualizer3d':
+                    draw3DModule();
+                    break;
+                case 'stability':
+                    drawStabilityModule();
+                    break;
+                case 'industrial':
+                    drawIndustrialModule();
+                    break;
+                case 'challenge':
+                    drawChallengeModule();
+                    break;
+                default:
+                    drawDefaultPlaceholder();
+                    break;
+            }
+        }
+
+        // --- MODULE IMPLEMENTATIONS ---
+
+        // 1. CONCEPT & FORMATION MODULE
+        function initConceptParticles() {
+            state.concept.particles = [];
+            for (let i = 0; i < 40; i++) {
+                state.concept.particles.push({
+                    x: 1 + Math.random() * 4,
+                    y: 1 + Math.random() * 2,
+                    weight: 10 + Math.random() * 10
+                });
+            }
+        }
+
+        function drawConceptModule() {
+            if (state.concept.particles.length === 0) initConceptParticles();
+
+            // Draw Block Body
+            const p1 = { x: toPxX(1), y: toPxY(3) };
+            const p2 = { x: toPxX(5), y: toPxY(1) };
+            
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+            ctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+            ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+
+            let totalW = 0;
+            let sumX = 0, sumY = 0;
+
+            // Draw Small Gravity Force Vectors or Animated Resultant
+            state.concept.particles.forEach(p => {
+                totalW += p.weight;
+                sumX += p.weight * p.x;
+                sumY += p.weight * p.y;
+
+                if (!state.concept.forming) {
+                    // Small distributed gravity arrows
+                    const px = toPxX(p.x);
+                    const py = toPxY(p.y);
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(px, py + 20);
+                    ctx.stroke();
+                }
+            });
+
+            const cgX = sumX / totalW;
+            const cgY = sumY / totalW;
+
+            if (state.concept.forming) {
+                // Animate combining forces to CG
+                const px = toPxX(cgX);
+                const py = toPxY(cgY);
+
+                ctx.strokeStyle = '#eab308';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(px, py + 80);
+                ctx.stroke();
+
+                // Arrow head
+                ctx.fillStyle = '#eab308';
+                ctx.beginPath();
+                ctx.moveTo(px - 8, py + 80);
+                ctx.lineTo(px + 8, py + 80);
+                ctx.lineTo(px, py + 95);
+                ctx.fill();
+
+                // Vertical Line of Action
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(px, 0); ctx.lineTo(px, canvas.height);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            drawCGMarker(cgX, cgY, 'CG');
+            document.getElementById('totalWeight').innerText = totalW.toFixed(1);
+        }
+
+        // 2. COMPARISON MODULE
+        function drawComparisonModule() {
+            const w = 4, h = 2;
+            const px = toPxX(1), py = toPxY(3);
+            
+            // Draw gradient body if non-uniform density
+            if (!state.comparison.uniformDensity) {
+                const grad = ctx.createLinearGradient(px, py, px + w * viewport.scale, py);
+                grad.addColorStop(0, '#1e293b');
+                grad.addColorStop(1, '#38bdf8');
+                ctx.fillStyle = grad;
+            } else {
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+            }
+
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.fillRect(px, py, w * viewport.scale, h * viewport.scale);
+            ctx.strokeRect(px, py, w * viewport.scale, h * viewport.scale);
+
+            // Centroid (Geometry)
+            const centroidX = 3.0, centroidY = 2.0;
+            
+            // COM (Density weighted)
+            const comX = state.comparison.uniformDensity ? 3.0 : 3.8;
+            const comY = 2.0;
+
+            // CG (Gravity field weighted)
+            const cgX = comX;
+            const cgY = state.comparison.uniformGravity ? comY : 1.7; // shift in non-uniform gravity
+
+            drawCGMarker(cgX, cgY, 'CG');
+
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.arc(toPxX(centroidX), toPxY(centroidY), 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillText('Centroid', toPxX(centroidX) + 8, toPxY(centroidY) - 8);
+
+            ctx.fillStyle = '#3b82f6';
+            ctx.beginPath();
+            ctx.arc(toPxX(comX), toPxY(comY), 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillText('COM', toPxX(comX) + 8, toPxY(comY) + 15);
+        }
+
+        // 3. REGULAR SHAPES MODULE
+        function drawRegularShapesModule() {
+            const r = state.regular;
+            let cgX = 0, cgY = 0;
+
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+
+            if (r.shape === 'rectangle') {
+                const px = toPxX(1), py = toPxY(1 + r.height);
+                ctx.fillRect(px, py, r.width * viewport.scale, r.height * viewport.scale);
+                ctx.strokeRect(px, py, r.width * viewport.scale, r.height * viewport.scale);
+                cgX = 1 + r.width / 2;
+                cgY = 1 + r.height / 2;
+            } else if (r.shape === 'triangle') {
+                const p1 = { x: toPxX(1), y: toPxY(1) };
+                const p2 = { x: toPxX(1 + r.base), y: toPxY(1) };
+                const p3 = { x: toPxX(1 + r.base / 2), y: toPxY(1 + r.height) };
+
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                // Draw Medians
+                ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)';
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo((p2.x + p3.x) / 2, (p2.y + p3.y) / 2);
+                ctx.moveTo(p2.x, p2.y); ctx.lineTo((p1.x + p3.x) / 2, (p1.y + p3.y) / 2);
+                ctx.moveTo(p3.x, p3.y); ctx.lineTo((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                cgX = 1 + r.base / 2;
+                cgY = 1 + r.height / 3;
+            } else if (r.shape === 'semicircle') {
+                const cx = toPxX(1 + r.radius);
+                const cy = toPxY(1);
+                ctx.beginPath();
+                ctx.arc(cx, cy, r.radius * viewport.scale, 0, Math.PI, true);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                cgX = 1 + r.radius;
+                cgY = 1 + (4 * r.radius) / (3 * Math.PI);
+            }
+
+            drawCGMarker(cgX, cgY, 'Centroid');
+        }
+
+        // 4. DRAG AND DROP MASS BEAM MODULE
+        function drawBeamModule() {
+            const b = state.beam;
+            const beamY = 2;
+            const px1 = toPxX(0);
+            const px2 = toPxX(b.length);
+            const py = toPxY(beamY);
+
+            // Draw Support/Beam
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(px1, py - 10, px2 - px1, 20);
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(px1, py - 10, px2 - px1, 20);
+
+            let totalM = 0;
+            let sumMx = 0;
+
+            // Draw Masses
+            b.masses.forEach((m) => {
+                totalM += m.mass;
+                sumMx += m.mass * m.x;
+
+                const mPxX = toPxX(m.x);
+                const radius = 12 + m.mass * 2;
+
+                ctx.fillStyle = m.color;
+                ctx.beginPath();
+                ctx.arc(mPxX, py - 10 - radius, radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${m.mass}kg`, mPxX, py - 10 - radius + 4);
+            });
+
+            const cgX = sumMx / totalM;
+            drawCGMarker(cgX, beamY, 'CG');
+
+            // Draw Fulcrum Balance Point Indicator
+            const fulcrumPx = toPxX(cgX);
+            ctx.fillStyle = '#22c55e';
+            ctx.beginPath();
+            ctx.moveTo(fulcrumPx, py + 10);
+            ctx.lineTo(fulcrumPx - 15, py + 35);
+            ctx.lineTo(fulcrumPx + 15, py + 35);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('Fulcrum', fulcrumPx, py + 48);
+
+            document.getElementById('totalWeight').innerText = (totalM * 9.81).toFixed(1);
+        }
+
+        // 5. SEESAW BALANCING SIMULATION
+        function drawSeesawModule() {
+            const s = state.seesaw;
+            const fulcrumX = 5;
+            const py = toPxY(2);
+
+            let torqueLeft = 0, torqueRight = 0, totalM = 0, sumMx = 0;
+
+            s.masses.forEach(m => {
+                totalM += m.mass;
+                sumMx += m.mass * m.x;
+                const dist = m.x - fulcrumX;
+                if (dist < 0) torqueLeft += Math.abs(dist) * m.mass;
+                else torqueRight += dist * m.mass;
+            });
+
+            const cgX = sumMx / totalM;
+            const tilt = (torqueRight - torqueLeft) * 0.05; // radians angle
+
+            ctx.save();
+            ctx.translate(toPxX(fulcrumX), py);
+            ctx.rotate(tilt);
+
+            // Draw Tilting Beam
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(-250, -10, 500, 20);
+
+            // Draw Masses on Beam
+            s.masses.forEach(m => {
+                const relX = (m.x - fulcrumX) * viewport.scale;
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(relX - 15, -35, 30, 25);
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px sans-serif';
+                ctx.fillText(`${m.mass}kg`, relX - 10, -18);
+            });
+
+            ctx.restore();
+
+            // Draw Fixed Fulcrum
+            const fPx = toPxX(fulcrumX);
+            ctx.fillStyle = '#eab308';
+            ctx.beginPath();
+            ctx.moveTo(fPx, py);
+            ctx.lineTo(fPx - 20, py + 35);
+            ctx.lineTo(fPx + 20, py + 35);
+            ctx.fill();
+
+            drawCGMarker(cgX, 2, 'CG');
+        }
+
+        // 6. COMPOSITE BODY LAB
+        function drawCompositeModule() {
+            let totalA = 0, sumAx = 0, sumAy = 0;
+
+            state.composite.shapes.forEach(s => {
+                let area = 0, cx = 0, cy = 0;
+                if (s.type === 'rectangle') {
+                    area = s.w * s.h;
+                    cx = s.x + s.w / 2;
+                    cy = s.y + s.h / 2;
+
+                    ctx.fillStyle = s.color;
+                    ctx.fillRect(toPxX(s.x), toPxY(s.y + s.h), s.w * viewport.scale, s.h * viewport.scale);
+                } else if (s.type === 'triangle') {
+                    area = 0.5 * s.b * s.h;
+                    cx = s.x + s.b / 3;
+                    cy = s.y + s.h / 3;
+
+                    ctx.fillStyle = s.color;
+                    ctx.beginPath();
+                    ctx.moveTo(toPxX(s.x), toPxY(s.y));
+                    ctx.lineTo(toPxX(s.x + s.b), toPxY(s.y));
+                    ctx.lineTo(toPxX(s.x), toPxY(s.y + s.h));
+                    ctx.fill();
+                }
+
+                totalA += area;
+                sumAx += area * cx;
+                sumAy += area * cy;
+            });
+
+            const cgX = sumAx / totalA;
+            const cgY = sumAy / totalA;
+
+            drawCGMarker(cgX, cgY, 'Composite CG');
+        }
+
+        // 7. HOLES & CUTOUTS (NEGATIVE AREA)
+        function drawHolesModule() {
+            const h = state.holes;
+
+            const plateArea = h.plateW * h.plateH;
+            const holeArea = Math.PI * h.holeR * h.holeR;
+
+            const plateCx = h.plateW / 2;
+            const plateCy = h.plateH / 2;
+
+            // Subtraction: A_net = A1 - A2
+            const netArea = plateArea - holeArea;
+            const cgX = (plateArea * plateCx - holeArea * h.holeX) / netArea;
+            const cgY = (plateArea * plateCy - holeArea * h.holeY) / netArea;
+
+            // Draw Plate
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+            ctx.fillRect(toPxX(0), toPxY(h.plateH), h.plateW * viewport.scale, h.plateH * viewport.scale);
+
+            // Draw Hole (Subtracted Region)
+            ctx.fillStyle = varColor('--bg-secondary');
+            ctx.beginPath();
+            ctx.arc(toPxX(h.holeX), toPxY(h.holeY), h.holeR * viewport.scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ef4444';
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            drawCGMarker(cgX, cgY, 'Shifted CG');
+        }
+
+        // 8. MULTI-MATERIAL DENSITY
+        function drawMaterialsModule() {
+            const m = state.materials;
+            const rho1 = DENSITIES[m.leftMat];
+            const rho2 = DENSITIES[m.rightMat];
+
+            const vol = 2 * 2 * 0.1; // 2x2 section
+            const mass1 = rho1 * vol;
+            const mass2 = rho2 * vol;
+
+            const x1 = 1, x2 = 3;
+            const cgX = (mass1 * x1 + mass2 * x2) / (mass1 + mass2);
+
+            // Left Block
+            ctx.fillStyle = m.leftMat === 'wood' ? '#d97706' : '#94a3b8';
+            ctx.fillRect(toPxX(0), toPxY(2), 2 * viewport.scale, 2 * viewport.scale);
+
+            // Right Block
+            ctx.fillStyle = m.rightMat === 'steel' ? '#475569' : '#b45309';
+            ctx.fillRect(toPxX(2), toPxY(2), 2 * viewport.scale, 2 * viewport.scale);
+
+            drawCGMarker(cgX, 1, 'Density CG');
+        }
+
+        // 9. IRREGULAR BODY & PLUMB-LINE
+        function drawIrregularModule() {
+            const pts = state.irregular.points;
+
+            ctx.save();
+            // Translate to suspension point for plumb line simulation
+            const sus = pts[state.irregular.suspensionPt || 0];
+            const susPx = { x: toPxX(sus.x), y: toPxY(sus.y) };
+
+            ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
+            ctx.strokeStyle = '#a855f7';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            pts.forEach((p, i) => {
+                if (i === 0) ctx.moveTo(toPxX(p.x), toPxY(p.y));
+                else ctx.lineTo(toPxX(p.x), toPxY(p.y));
+            });
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+
+            // Calculate Polygon Centroid (Numerical Approximation)
+            let sumX = 0, sumY = 0;
+            pts.forEach(p => { sumX += p.x; sumY += p.y; });
+            const cgX = sumX / pts.length;
+            const cgY = sumY / pts.length;
+
+            // Plumb Line Vertical Line
+            ctx.strokeStyle = '#eab308';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(susPx.x, susPx.y);
+            ctx.lineTo(susPx.x, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            drawCGMarker(cgX, cgY, 'Plumb CG');
+            ctx.restore();
+        }
+
+        // 10. 3D CG VISUALIZER (Isometric Projection Canvas)
+        function draw3DModule() {
+            const iso = (x, y, z) => ({
+                px: toPxX(3) + (x - y) * 25,
+                py: toPxY(2) - (x + y) * 12 - z * 30
+            });
+
+            // Draw 3D Cuboid Frame
+            const dx = 2, dy = 2, dz = 3;
+            const p000 = iso(0,0,0), p100 = iso(dx,0,0), p110 = iso(dx,dy,0), p010 = iso(0,dy,0);
+            const p001 = iso(0,0,dz), p101 = iso(dx,0,dz), p111 = iso(dx,dy,dz), p011 = iso(0,dy,dz);
+
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            ctx.moveTo(p000.px, p000.py); ctx.lineTo(p100.px, p100.py); ctx.lineTo(p110.px, p110.py); ctx.lineTo(p010.px, p010.py); ctx.closePath(); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(p001.px, p001.py); ctx.lineTo(p101.px, p101.py); ctx.lineTo(p111.px, p111.py); ctx.lineTo(p011.px, p011.py); ctx.closePath(); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(p000.px, p000.py); ctx.lineTo(p001.px, p001.py);
+            ctx.moveTo(p100.px, p100.py); ctx.lineTo(p101.px, p101.py);
+            ctx.moveTo(p110.px, p110.py); ctx.lineTo(p111.px, p111.py);
+            ctx.moveTo(p010.px, p010.py); ctx.lineTo(p011.px, p011.py);
+            ctx.stroke();
+
+            // 3D CG Center Point
+            const cg3D = iso(dx/2, dy/2, dz/2);
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(cg3D.px, cg3D.py, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillText(`3D CG (${dx/2}, ${dy/2}, ${dz/2})`, cg3D.px + 12, cg3D.py);
+        }
+
+        // 11. STABILITY & TIPPING LAB
+        function drawStabilityModule() {
+            const st = state.stability;
+            
+            ctx.save();
+            const groundY = toPxY(0);
+            const blockX = toPxX(3);
+
+            ctx.translate(blockX, groundY);
+            ctx.rotate(st.tiltAngle * Math.PI / 180);
+
+            // Draw Vehicle Block
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(-st.baseWidth * viewport.scale / 2, -st.cgHeight * 2 * viewport.scale / 2, st.baseWidth * viewport.scale, st.cgHeight * 2 * viewport.scale);
+
+            // CG Point in rotated coords
+            const cgPxY = -st.cgHeight * viewport.scale;
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(0, cgPxY, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            // Line of Action of Weight (Vertical downward line from CG)
+            const rad = st.tiltAngle * Math.PI / 180;
+            const worldCgX = blockX - (st.cgHeight * viewport.scale) * Math.sin(rad);
+            const worldCgY = groundY - (st.cgHeight * viewport.scale) * Math.cos(rad);
+
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(worldCgX, worldCgY);
+            ctx.lineTo(worldCgX, groundY + 50);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Base of support boundaries
+            const rightEdge = blockX + (st.baseWidth * viewport.scale / 2) * Math.cos(rad);
+            const isTipping = worldCgX > rightEdge;
+
+            // Stability Status Indicator
+            ctx.fillStyle = isTipping ? '#ef4444' : '#22c55e';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.fillText(isTipping ? '🔴 TIPPING OVER!' : '🟢 STABLE EQUILIBRIUM', blockX - 60, groundY + 80);
+        }
+
+        // 12. INDUSTRIAL CABINET
+        function drawIndustrialModule() {
+            const ind = state.industrial;
+            const cabW = 1.6, cabH = 2.4;
+
+            // Draw Cabinet Outline
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(toPxX(1), toPxY(cabH), cabW * viewport.scale, cabH * viewport.scale);
+
+            let totalM = 0, sumMx = 0, sumMy = 0;
+
+            // Draw Electrical Components inside Cabinet
+            ind.components.forEach((c) => {
+                totalM += c.mass;
+                sumMx += c.mass * (c.x + c.w / 2);
+                sumMy += c.mass * (c.y + c.h / 2);
+
+                ctx.fillStyle = c.color;
+                ctx.fillRect(toPxX(1 + c.x), toPxY(c.y + c.h), c.w * viewport.scale, c.h * viewport.scale);
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px sans-serif';
+                ctx.fillText(c.name, toPxX(1 + c.x) + 4, toPxY(c.y + c.h) + 14);
+            });
+
+            const cgX = sumMx / totalM;
+            const cgY = sumMy / totalM;
+
+            drawCGMarker(1 + cgX, cgY, 'Cabinet CG');
+        }
+
+        // 13. CHALLENGE MODULE
+        function drawChallengeModule() {
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = '16px sans-serif';
+            ctx.fillText(`Target CG X-Coordinate: ${state.challenge.targetX.toFixed(2)} m`, toPxX(1), toPxY(4));
+            ctx.fillText(`Current Score: ${state.challenge.score}`, toPxX(1), toPxY(3.5));
+
+            drawBeamModule();
+        }
+
+        function drawDefaultPlaceholder() {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '16px sans-serif';
+            ctx.fillText('Select a module from the sidebar to begin visual simulation.', toPxX(1), toPxY(2));
+        }
+
+        function varColor(name) {
+            return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        }
+
+        // --- CONTROL PANEL GENERATION ---
+        function updateControlPanel() {
+            controlPanel.innerHTML = '';
+
+            const m = state.currentModule;
+
+            if (m === 'concept') {
+                controlPanel.innerHTML = `
+                    <div class="panel-section">
+                        <div class="panel-title">Formation Controls</div>
+                        <button class="btn btn-primary" id="btnFormCG" style="width:100%;">Show How CG is Formed</button>
+                    </div>
+                `;
+                document.getElementById('btnFormCG').onclick = () => {
+                    state.concept.forming = !state.concept.forming;
+                    draw();
+                };
+            } else if (m === 'comparison') {
+                controlPanel.innerHTML = `
+                    <div class="panel-section">
+                        <div class="panel-title">Property Toggles</div>
+                        <label><input type="checkbox" id="chkDensity" ${state.comparison.uniformDensity ? 'checked' : ''}> Uniform Density</label><br><br>
+                        <label><input type="checkbox" id="chkGravity" ${state.comparison.uniformGravity ? 'checked' : ''}> Uniform Gravity Field</label>
+                    </div>
+                `;
+                document.getElementById('chkDensity').onchange = (e) => { state.comparison.uniformDensity = e.target.checked; draw(); };
+                document.getElementById('chkGravity').onchange = (e) => { state.comparison.uniformGravity = e.target.checked; draw(); };
+            } else if (m === 'regular') {
+                controlPanel.innerHTML = `
+                    <div class="panel-section">
+                        <div class="panel-title">Shape Selection</div>
+                        <select id="selShape">
+                            <option value="rectangle" ${state.regular.shape==='rectangle'?'selected':''}>Rectangle</option>
+                            <option value="triangle" ${state.regular.shape==='triangle'?'selected':''}>Triangle</option>
+                            <option value="semicircle" ${state.regular.shape==='semicircle'?'selected':''}>Semicircle</option>
+                        </select>
+                    </div>
+                    <div class="panel-section">
+                        <div class="panel-title">Dimensions</div>
+                        <div class="control-group">
+                            <label>Width / Base (m) <span id="lblW">${state.regular.width}</span></label>
+                            <input type="range" id="rngW" min="1" max="6" step="0.5" value="${state.regular.width}">
+                        </div>
+                        <div class="control-group">
+                            <label>Height (m) <span id="lblH">${state.regular.height}</span></label>
+                            <input type="range" id="rngH" min="1" max="4" step="0.5" value="${state.regular.height}">
+                        </div>
+                    </div>
+                `;
+                document.getElementById('selShape').onchange = (e) => { state.regular.shape = e.target.value; draw(); };
+                document.getElementById('rngW').oninput = (e) => { state.regular.width = state.regular.base = parseFloat(e.target.value); document.getElementById('lblW').innerText = e.target.value; draw(); };
+                document.getElementById('rngH').oninput = (e) => { state.regular.height = parseFloat(e.target.value); document.getElementById('lblH').innerText = e.target.value; draw(); };
+            } else if (m === 'beam') {
+                controlPanel.innerHTML = `
+                    <div class="panel-section">
+                        <div class="panel-title">Mass Controls</div>
+                        ${state.beam.masses.map((m, i) => `
+                            <div class="control-group">
+                                <label>Mass ${i+1} (${m.mass} kg)</label>
+                                <input type="range" class="rngMass" data-idx="${i}" min="1" max="10" value="${m.mass}">
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                document.querySelectorAll('.rngMass').forEach(input => {
+                    input.oninput = (e) => {
+                        const idx = parseInt(e.target.dataset.idx);
+                        state.beam.masses[idx].mass = parseFloat(e.target.value);
+                        draw();
+                    };
+                });
+            } else if (m === 'holes') {
+                controlPanel.innerHTML = `
+                    <div class="panel-section">
+                        <div class="panel-title">Hole Position</div>
+                        <div class="control-group">
+                            <label>Hole X Position</label>
+                            <input type="range" id="rngHoleX" min="1" max="5" step="0.2" value="${state.holes.holeX}">
+                        </div>
+                        <div class="control-group">
+                            <label>Hole Radius</label>
+                            <input type="range" id="rngHoleR" min="0.4" max="1.5" step="0.1" value="${state.holes.holeR}">
+                        </div>
+                    </div>
+                `;
+                document.getElementById('rngHoleX').oninput = (e) => { state.holes.holeX = parseFloat(e.target.value); draw(); };
+                document.getElementById('rngHoleR').oninput = (e) => { state.holes.holeR = parseFloat(e.target.value); draw(); };
+            } else if (m === 'stability') {
+                controlPanel.innerHTML = `
+                    <div class="panel-section">
+                        <div class="panel-title">Vehicle Parameters</div>
+                        <div class="control-group">
+                            <label>CG Height (m)</label>
+                            <input type="range" id="rngCgH" min="1" max="3.5" step="0.1" value="${state.stability.cgHeight}">
+                        </div>
+                        <div class="control-group">
+                            <label>Base Support Width (m)</label>
+                            <input type="range" id="rngBaseW" min="1.5" max="4" step="0.1" value="${state.stability.baseWidth}">
+                        </div>
+                        <div class="control-group">
+                            <label>Platform Tilt Angle (°)</label>
+                            <input type="range" id="rngTilt" min="0" max="45" step="1" value="${state.stability.tiltAngle}">
+                        </div>
+                    </div>
+                `;
+                document.getElementById('rngCgH').oninput = (e) => { state.stability.cgHeight = parseFloat(e.target.value); draw(); };
+                document.getElementById('rngBaseW').oninput = (e) => { state.stability.baseWidth = parseFloat(e.target.value); draw(); };
+                document.getElementById('rngTilt').oninput = (e) => { state.stability.tiltAngle = parseFloat(e.target.value); draw(); };
+            } else if (m === 'gate') {
+                renderGateModuleUI();
+            } else if (m === 'solver') {
+                renderSolverUI();
+            } else if (m === 'formulas') {
+                renderFormulaSheetUI();
+            }
+        }
+
+        // GATE Exam Questions Practice Module UI
+        function renderGateModuleUI() {
+            controlPanel.innerHTML = `
+                <div class="panel-section">
+                    <div class="panel-title">GATE Concept Check</div>
+                    <div style="font-size: 0.85rem; line-height: 1.4; margin-bottom: 1rem;">
+                        <strong>Q:</strong> A uniform semicircular plate of radius $R$ has a concentric semicircular cutout of radius $R/2$. Where is the centroid located from the flat base?
+                    </div>
+                    <div class="quiz-option" onclick="checkQuiz(this, false)">A) $\\frac{4R}{3\\pi}$</div>
+                    <div class="quiz-option" onclick="checkQuiz(this, true)">B) $\\frac{28R}{15\\pi}$</div>
+                    <div class="quiz-option" onclick="checkQuiz(this, false)">C) $\\frac{2R}{\\pi}$</div>
+                </div>
+            `;
+        }
+
+        window.checkQuiz = function(el, isCorrect) {
+            if (isCorrect) {
+                el.classList.add('correct');
+                explanationText.innerText = "Correct! Using composite area subtraction: y = (A1*y1 - A2*y2) / (A1 - A2) = (28R)/(15π).";
+            } else {
+                el.classList.add('incorrect');
+                explanationText.innerText = "Incorrect. Remember to subtract the cutout area using the negative area method.";
+            }
+        };
+
+        // Numerical Solver Panel UI
+        function renderSolverUI() {
+            controlPanel.innerHTML = `
+                <div class="panel-section">
+                    <div class="panel-title">Point Mass CG Solver</div>
+                    <div class="control-group">
+                        <label>m1 (kg), x1 (m)</label>
+                        <input type="text" id="m1_input" value="2, 1">
+                    </div>
+                    <div class="control-group">
+                        <label>m2 (kg), x2 (m)</label>
+                        <input type="text" id="m2_input" value="5, 4">
+                    </div>
+                    <button class="btn btn-primary" id="btnSolve" style="width:100%; margin-top:0.5rem;">Calculate CG</button>
+                </div>
+            `;
+            document.getElementById('btnSolve').onclick = () => {
+                const [m1, x1] = document.getElementById('m1_input').value.split(',').map(Number);
+                const [m2, x2] = document.getElementById('m2_input').value.split(',').map(Number);
+                const cg = (m1 * x1 + m2 * x2) / (m1 + m2);
+                explanationText.innerText = `Calculated CG = (${m1}*${x1} + ${m2}*${x2}) / (${m1}+${m2}) = ${cg.toFixed(2)} m`;
+            };
+        }
+
+        // Formula Sheet Panel UI
+        function renderFormulaSheetUI() {
+            controlPanel.innerHTML = `
+                <div class="panel-section">
+                    <div class="panel-title">Standard Formulas</div>
+                    <div style="font-size:0.8rem; display:flex; flex-direction:column; gap:0.5rem;">
+                        <div><strong>Rectangle:</strong> $\\bar{x}=b/2, \\bar{y}=h/2$</div>
+                        <div><strong>Triangle:</strong> $\\bar{y}=h/3$</div>
+                        <div><strong>Semicircle:</strong> $\\bar{y}=\\frac{4r}{3\\pi}$</div>
+                        <div><strong>Semi-disc:</strong> $\\bar{y}=\\frac{4r}{3\\pi}$</div>
+                        <div><strong>Quarter circle:</strong> $\\bar{x}=\\bar{y}=\\frac{4r}{3\\pi}$</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Drag & Touch Event Handlers for Masses on Beam
+        let isDragging = false;
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseM = toMeterX(e.clientX - rect.left);
+
+            if (state.currentModule === 'beam') {
+                state.beam.masses.forEach(m => {
+                    if (Math.abs(m.x - mouseM) < 0.5) {
+                        state.beam.draggingId = m.id;
+                        isDragging = true;
+                    }
+                });
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseM = toMeterX(e.clientX - rect.left);
+
+            if (state.currentModule === 'beam' && state.beam.draggingId !== null) {
+                const m = state.beam.masses.find(item => item.id === state.beam.draggingId);
+                if (m) {
+                    m.x = Math.max(0, Math.min(10, mouseM));
+                    draw();
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            state.beam.draggingId = null;
+        });
+
+        // Navigation Switcher
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+
+                const mod = item.dataset.module;
+                state.currentModule = mod;
+                moduleTitle.innerText = item.innerText;
+
+                updateControlPanel();
+                draw();
+            });
+        });
+
+        // Theme Toggle
+        document.getElementById('themeToggleBtn').onclick = () => {
+            state.theme = state.theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', state.theme);
+            draw();
+        };
+
+        // Modal Handlers
+        document.getElementById('teachMeBtn').onclick = () => {
+            document.getElementById('teachModal').classList.add('active');
+            document.getElementById('teachBody').innerHTML = `
+                <p><strong>Module Guide:</strong></p>
+                <p>The Centre of Gravity (CG) represents the point where the total gravitational force acts on a body.</p>
+                <br>
+                <p><strong>Key Takeaways:</strong></p>
+                <ul>
+                    <li>For uniform gravity, CG coincides with Centre of Mass (COM).</li>
+                    <li>Symmetry lines always contain the centroid.</li>
+                    <li>Holes shift the CG away from the cutout location.</li>
+                </ul>
+            `;
+        };
+        document.getElementById('closeTeachModal').onclick = () => document.getElementById('teachModal').classList.remove('active');
+
+        document.getElementById('unitConvBtn').onclick = () => document.getElementById('unitModal').classList.add('active');
+        document.getElementById('closeUnitModal').onclick = () => document.getElementById('unitModal').classList.remove('active');
+
+        document.getElementById('unitVal').oninput = (e) => {
+            const val = parseFloat(e.target.value) || 0;
+            const unit = document.getElementById('unitFrom').value;
+            let meters = val;
+            if (unit === 'mm') meters = val / 1000;
+            if (unit === 'cm') meters = val / 100;
+            document.getElementById('unitResult').innerText = `${meters.toFixed(3)} m`;
+        };
+
+        document.getElementById('menuToggle').onclick = () => sidebar.classList.toggle('open');
+        document.getElementById('toggleGridBtn').onclick = () => { state.showGrid = !state.showGrid; draw(); };
+
+        // Initialization
+        window.onload = () => {
+            resizeCanvas();
+            updateControlPanel();
+            draw();
+        };
+    </script>
+</body>
+</html>
