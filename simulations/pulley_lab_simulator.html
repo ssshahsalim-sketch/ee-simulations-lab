@@ -1,0 +1,2044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PULLEY LAB - Mechanical Advantage & Physics Simulator</title>
+    <style>
+        :root {
+            --bg-dark: #121824;
+            --panel-bg: rgba(22, 30, 46, 0.95);
+            --panel-border: #2a364f;
+            --accent-yellow: #f59e0b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --text-light: #f3f4f6;
+            --text-muted: #9ca3af;
+            --pulley-metal: #94a3b8;
+            --rope-color: #fbbf24;
+            --load-orange: #ea580c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            overflow-x: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* App Header */
+        header {
+            background: #0b0f19;
+            border-bottom: 1px solid var(--panel-border);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-yellow);
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            color: #000;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .brand-title h1 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #fff;
+        }
+
+        .brand-title p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .top-nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            background: #1e293b;
+            color: var(--text-light);
+            border: 1px solid var(--panel-border);
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: #334155;
+            border-color: var(--accent-blue);
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-accent {
+            background: var(--accent-yellow);
+            border-color: var(--accent-yellow);
+            color: #000;
+        }
+
+        .btn-accent:hover {
+            background: #d97706;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+        }
+
+        .btn-active {
+            background: var(--accent-blue) !important;
+            border-color: #60a5fa !important;
+        }
+
+        /* Layout Grid */
+        .app-container {
+            display: grid;
+            grid-template-columns: 320px 1fr 340px;
+            flex: 1;
+            height: calc(100vh - 57px);
+            overflow: hidden;
+        }
+
+        @media (max-width: 1200px) {
+            .app-container {
+                grid-template-columns: 280px 1fr 300px;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 500px auto;
+                overflow-y: auto;
+                height: auto;
+            }
+        }
+
+        /* Panel Common Styling */
+        .panel {
+            background: var(--panel-bg);
+            border-right: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            z-index: 5;
+        }
+
+        .panel-right {
+            border-right: none;
+            border-left: 1px solid var(--panel-border);
+        }
+
+        .panel-header {
+            padding: 12px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border-bottom: 1px solid var(--panel-border);
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--accent-yellow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-label span.val {
+            color: var(--accent-yellow);
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #334155;
+            border-radius: 3px;
+            outline: none;
+            accent-color: var(--accent-yellow);
+        }
+
+        input[type="number"], select {
+            background: #0f172a;
+            border: 1px solid var(--panel-border);
+            color: var(--text-light);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            width: 100%;
+        }
+
+        input[type="number"]:focus, select:focus {
+            border-color: var(--accent-blue);
+            outline: none;
+        }
+
+        /* Toggle Switches */
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .3s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-blue);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Main Simulation Canvas Area */
+        .viewport-container {
+            position: relative;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        canvas#simCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Floating Overlay Controls on Canvas */
+        .canvas-overlay {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 6;
+        }
+
+        .canvas-bottom-bar {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 6;
+        }
+
+        .canvas-bottom-bar > * {
+            pointer-events: auto;
+        }
+
+        .hud-card {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--panel-border);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .hud-value {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--accent-yellow);
+        }
+
+        /* Live Physics Dashboard Cards */
+        .metric-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .metric-title {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .metric-sub {
+            font-size: 0.7rem;
+            color: var(--accent-blue);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .badge-success { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .badge-danger { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
+
+        /* Bottom Drawer / Tabs Section */
+        .bottom-tabs-container {
+            background: var(--panel-bg);
+            border-top: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            height: 260px;
+            z-index: 5;
+        }
+
+        .tab-headers {
+            display: flex;
+            background: #0f172a;
+            border-bottom: 1px solid var(--panel-border);
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-yellow);
+            border-bottom-color: var(--accent-yellow);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .tab-content {
+            padding: 12px;
+            overflow-y: auto;
+            flex: 1;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Charts */
+        .chart-container {
+            width: 100%;
+            height: 180px;
+            position: relative;
+        }
+
+        /* Course / Guided Mode Steps */
+        .course-card {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .course-progress {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .progress-step {
+            height: 4px;
+            flex: 1;
+            background: #334155;
+            border-radius: 2px;
+        }
+
+        .progress-step.done { background: var(--accent-green); }
+        .progress-step.current { background: var(--accent-yellow); }
+
+        /* Modal Screens */
+        .modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: #1e293b;
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 650px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* FBD View Component */
+        .fbd-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            background: #0f172a;
+            border-radius: 8px;
+            border: 1px dashed var(--panel-border);
+            position: relative;
+        }
+
+        /* Formula Display */
+        .formula-box {
+            font-family: 'Courier New', Courier, monospace;
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-yellow);
+            color: #60a5fa;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        /* Energy Bar Graph Visualizer */
+        .energy-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .energy-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.75rem;
+        }
+
+        .energy-bar-label {
+            width: 80px;
+            color: var(--text-muted);
+        }
+
+        .energy-bar-track {
+            flex: 1;
+            height: 12px;
+            background: #334155;
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .energy-bar-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        /* Table Styling */
+        table.sim-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        table.sim-table th, table.sim-table td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        table.sim-table th {
+            background: #0f172a;
+            color: var(--accent-yellow);
+        }
+
+        /* Audio Control Button Floating */
+        .sound-toggle {
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        /* Responsive Utilities */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+        .segment-counter-badge {
+            position: absolute;
+            background: var(--accent-yellow);
+            color: #000;
+            font-weight: bold;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <div class="brand-logo">⚙</div>
+            <div class="brand-title">
+                <h1>PULLEY LAB</h1>
+                <p>Mechanical Advantage • Force • Tension • Energy</p>
+            </div>
+        </div>
+        <div class="top-nav">
+            <button class="btn btn-sm" id="btnCourse">🎓 Guided Course</button>
+            <button class="btn btn-sm" id="btnChallenge">🎯 100kg Challenge</button>
+            <button class="btn btn-sm" id="btnExploded">💥 Exploded View</button>
+            <button class="btn btn-sm" id="btnCalc">🧮 Calculator</button>
+            <button class="btn btn-sm" id="btnMyths">💡 Myths vs Facts</button>
+            <button class="btn btn-sm btn-accent" id="btnResetAll">↻ Reset</button>
+        </div>
+    </header>
+
+    <!-- Main Application Container -->
+    <div class="app-container">
+
+        <!-- LEFT PANEL: SIMULATION CONTROLS -->
+        <div class="panel">
+            <div class="panel-header">
+                <span>⚙️ Configuration</span>
+                <span id="unitToggle" style="cursor:pointer; font-size: 0.75rem; color: var(--accent-blue);">[ SI Units ]</span>
+            </div>
+            <div class="panel-body">
+
+                <!-- System Preset Selection -->
+                <div class="control-group">
+                    <label class="control-label">Pulley Configuration System</label>
+                    <select id="presetSelect">
+                        <option value="fixed">1:1 Fixed Pulley (Change Direction)</option>
+                        <option value="movable">2:1 Single Movable Pulley</option>
+                        <option value="bt2">2:1 Block & Tackle (2 Segments)</option>
+                        <option value="bt3">3:1 Block & Tackle (3 Segments)</option>
+                        <option value="bt4" selected>4:1 Block & Tackle (4 Segments)</option>
+                        <option value="bt5">5:1 Block & Tackle (5 Segments)</option>
+                        <option value="bt6">6:1 Block & Tackle (6 Segments)</option>
+                        <option value="bt8">8:1 Block & Tackle (8 Segments)</option>
+                        <option value="cascade">Cascaded Stage System (2^n)</option>
+                        <option value="custom">Custom Pulley Rig</option>
+                    </select>
+                </div>
+
+                <!-- Custom Sheave Sliders (If Custom Selected) -->
+                <div id="customControls" style="display: none;" class="control-group">
+                    <label class="control-label">Movable Sheaves: <span id="valMovableCount" class="val">2</span></label>
+                    <input type="range" id="sliderMovable" min="1" max="6" value="2">
+                    <label class="control-label">Fixed Sheaves: <span id="valFixedCount" class="val">2</span></label>
+                    <input type="range" id="sliderFixed" min="1" max="6" value="2">
+                    <div class="toggle-row" style="margin-top: 4px;">
+                        <span>Anchor Rope to Moving Load?</span>
+                        <label class="switch"><input type="checkbox" id="chkAnchorLoad"><span class="slider"></span></label>
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--panel-border);">
+
+                <!-- Load Mass Control -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Load Mass ($m$)</span>
+                        <span id="valMass" class="val">100 kg</span>
+                    </div>
+                    <input type="range" id="sliderMass" min="1" max="1000" value="100">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="numMass" value="100" min="1" max="1000">
+                        <select id="massPresetSelect">
+                            <option value="">Quick Presets...</option>
+                            <option value="50">50 kg (Bag of Cement)</option>
+                            <option value="100">100 kg (Engine Block)</option>
+                            <option value="250">250 kg (Grand Piano)</option>
+                            <option value="1000">1000 kg (Small Car)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Gravity Setting -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Gravity ($g$)</span>
+                        <span id="valGravity" class="val">9.81 m/s²</span>
+                    </div>
+                    <select id="gravitySelect">
+                        <option value="9.81">Earth (9.81 m/s²)</option>
+                        <option value="1.62">Moon (1.62 m/s²)</option>
+                        <option value="3.71">Mars (3.71 m/s²)</option>
+                        <option value="24.79">Jupiter (24.79 m/s²)</option>
+                        <option value="10.0">Standard Physics (10.0 m/s²)</option>
+                    </select>
+                </div>
+
+                <!-- Maximum Available Pulling Force -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Max Human Pull Force ($F_{user}$)</span>
+                        <span id="valMaxUserForce" class="val">300 N</span>
+                    </div>
+                    <input type="range" id="sliderUserForce" min="50" max="2000" step="10" value="300">
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--panel-border);">
+
+                <!-- Friction & Real World Toggle -->
+                <div class="control-group">
+                    <div class="toggle-row">
+                        <span style="font-weight: bold; color: var(--accent-yellow);">Real-World Friction Mode</span>
+                        <label class="switch"><input type="checkbox" id="chkRealWorld" checked><span class="slider"></span></label>
+                    </div>
+                </div>
+
+                <div id="frictionControls" class="control-group">
+                    <div class="control-label">
+                        <span>System Efficiency ($\eta$)</span>
+                        <span id="valEfficiency" class="val">85%</span>
+                    </div>
+                    <input type="range" id="sliderEfficiency" min="30" max="100" value="85">
+                    <p style="font-size: 0.7rem; color: var(--text-muted);">Accounts for sheave bearing friction & rope bending stiffness losses.</p>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--panel-border);">
+
+                <!-- Visual Overlays & Toggles -->
+                <div class="control-group">
+                    <span class="control-label" style="font-weight: bold; color: #fff;">Visual Layers</span>
+                    <div class="grid-2">
+                        <div class="toggle-row"><span>Vectors</span><label class="switch"><input type="checkbox" id="chkVectors" checked><span class="slider"></span></label></div>
+                        <div class="toggle-row"><span>Tension</span><label class="switch"><input type="checkbox" id="chkTension" checked><span class="slider"></span></label></div>
+                        <div class="toggle-row"><span>Count Badges</span><label class="switch"><input type="checkbox" id="chkSegments" checked><span class="slider"></span></label></div>
+                        <div class="toggle-row"><span>3D Shading</span><label class="switch"><input type="checkbox" id="chk3D" checked><span class="slider"></span></label></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- CENTER PANEL: ANIMATED SIMULATION VIEWPORT -->
+        <div class="viewport-container">
+
+            <!-- Floating Top Overlay -->
+            <div class="canvas-overlay">
+                <button class="btn btn-sm" id="btnPlayPause">⏸ Pause</button>
+                <button class="btn btn-sm" id="btnStep">⏭ Step</button>
+                <button class="btn btn-sm" id="btnHighlightRopes">🔍 Highlight Supporting Segments</button>
+                <button class="btn btn-sm" id="btnViewMode">🎥 Perspective View</button>
+            </div>
+
+            <!-- Main Canvas -->
+            <canvas id="simCanvas"></canvas>
+
+            <!-- Floating Canvas Bottom Bar -->
+            <div class="canvas-bottom-bar">
+                <div class="hud-card">
+                    <div>
+                        <div class="metric-title">Applied Pull Force</div>
+                        <div id="hudAppliedForce" class="hud-value">288.5 N</div>
+                    </div>
+                </div>
+
+                <div class="hud-card" style="gap: 16px;">
+                    <button class="btn btn-accent" id="btnPullRope">✊ Pull Rope</button>
+                    <button class="btn" id="btnReleaseRope">👇 Lower Load</button>
+                </div>
+
+                <div class="hud-card">
+                    <div>
+                        <div class="metric-title">Load Height</div>
+                        <div id="hudHeight" class="hud-value">0.00 m</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: LIVE PHYSICS DASHBOARD -->
+        <div class="panel panel-right">
+            <div class="panel-header">
+                <span>📊 Live Physics Dashboard</span>
+            </div>
+            <div class="panel-body">
+
+                <!-- Load Lift Capability Status -->
+                <div id="statusBadgeContainer" style="text-align: center;">
+                    <span id="liftStatusBadge" class="status-badge badge-success" style="font-size: 0.9rem; width: 100%; padding: 6px;">
+                        ✓ REQUIRED FORCE WITHIN HUMAN CAPACITY
+                    </span>
+                </div>
+
+                <!-- Primary Physics Values Grid -->
+                <div class="grid-2">
+                    <div class="metric-card">
+                        <span class="metric-title">Load Weight ($W$)</span>
+                        <span id="dashWeight" class="metric-value">981 N</span>
+                        <span class="metric-sub">$m \cdot g$</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-title">Supporting Segments ($n$)</span>
+                        <span id="dashSegments" class="metric-value" style="color: var(--accent-yellow);">4</span>
+                        <span class="metric-sub">Rope count bearing load</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-title">Ideal Advantage (IMA)</span>
+                        <span id="dashIMA" class="metric-value">4.00</span>
+                        <span class="metric-sub">Theoretical limit</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-title">Actual Advantage (AMA)</span>
+                        <span id="dashAMA" class="metric-value" style="color: var(--accent-green);">3.40</span>
+                        <span class="metric-sub">$\eta \cdot IMA$</span>
+                    </div>
+                </div>
+
+                <!-- Required Force Card -->
+                <div class="metric-card" style="border-color: var(--accent-yellow); background: rgba(245, 158, 11, 0.05);">
+                    <span class="metric-title">Required Pull Force ($F_{req}$)</span>
+                    <span id="dashReqForce" class="metric-value" style="color: var(--accent-yellow); font-size: 1.5rem;">288.5 N</span>
+                    <span id="dashForceComparison" class="metric-sub">vs Max Available: 300 N</span>
+                </div>
+
+                <!-- Force-Distance Tradeoff Card -->
+                <div class="metric-card">
+                    <span class="metric-title">Force / Distance Tradeoff</span>
+                    <div style="font-size: 0.8rem; margin-top: 4px;">
+                        To lift load <b style="color:var(--accent-yellow);">1.0 m</b>, you must pull:
+                        <div id="dashRopeDistance" style="font-size: 1.1rem; font-weight: bold; color: var(--accent-blue); margin-top: 2px;">
+                            4.0 m of rope
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Structural Reaction & Tension -->
+                <div class="grid-2">
+                    <div class="metric-card">
+                        <span class="metric-title">Rope Tension ($T$)</span>
+                        <span id="dashRopeTension" class="metric-value">245.3 N</span>
+                        <span class="metric-sub">Per segment (Ideal)</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-title">Anchor Support Load</span>
+                        <span id="dashAnchorLoad" class="metric-value">1269.5 N</span>
+                        <span class="metric-sub">Ceiling reaction force</span>
+                    </div>
+                </div>
+
+                <!-- Live Energy Bar Chart -->
+                <div class="metric-card">
+                    <span class="metric-title">Work & Energy Conservation</span>
+                    <div class="energy-bars" style="margin-top: 8px;">
+                        <div class="energy-bar-row">
+                            <span class="energy-bar-label">Input Work</span>
+                            <div class="energy-bar-track">
+                                <div id="barInputWork" class="energy-bar-fill" style="width: 100%; background: var(--accent-blue);"></div>
+                            </div>
+                            <span id="valInputWork" style="width: 45px; text-align: right;">981 J</span>
+                        </div>
+                        <div class="energy-bar-row">
+                            <span class="energy-bar-label">Useful Work</span>
+                            <div class="energy-bar-track">
+                                <div id="barOutputWork" class="energy-bar-fill" style="width: 85%; background: var(--accent-green);"></div>
+                            </div>
+                            <span id="valOutputWork" style="width: 45px; text-align: right;">834 J</span>
+                        </div>
+                        <div class="energy-bar-row">
+                            <span class="energy-bar-label">Friction Loss</span>
+                            <div class="energy-bar-track">
+                                <div id="barFrictionLoss" class="energy-bar-fill" style="width: 15%; background: var(--accent-red);"></div>
+                            </div>
+                            <span id="valFrictionLoss" style="width: 45px; text-align: right;">147 J</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real Time Dynamic Explanation -->
+                <div class="metric-card" style="background: rgba(15, 23, 42, 0.9);">
+                    <span class="metric-title" style="color: var(--accent-yellow);">💡 Dynamic Physics Insight</span>
+                    <p id="dynamicInsightText" style="font-size: 0.75rem; color: var(--text-light); margin-top: 4px; line-height: 1.3;">
+                        The load is supported by 4 parallel rope segments. Each segment carries 1/4th of the total load weight, effectively reducing required force at the expense of pulling 4x distance.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- BOTTOM DRAWER: ANALYTICS, COMPARISONS, AND EXPERIMENTS -->
+    <div class="bottom-tabs-container">
+        <div class="tab-headers">
+            <button class="tab-btn active" onclick="switchTab('tabGraphs')">📈 Dynamic Graphs</button>
+            <button class="tab-btn" onclick="switchTab('tabComparison')">📋 System Comparison Table</button>
+            <button class="tab-btn" onclick="switchTab('tabFBD')">📐 Free Body Diagram (FBD)</button>
+            <button class="tab-btn" onclick="switchTab('tabFormulas')">📖 Formula Library</button>
+            <button class="tab-btn" onclick="switchTab('tabSafety')">🛡️ Safety & Overload Limits</button>
+            <button class="tab-btn" onclick="switchTab('tabApplications')">🏗️ Real World Applications</button>
+        </div>
+
+        <!-- TAB 1: GRAPHS -->
+        <div id="tabGraphs" class="tab-content active">
+            <div class="grid-3">
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Required Force vs Mechanical Advantage</div>
+                    <div class="chart-container"><canvas id="chartForceVsMA"></canvas></div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Rope Pull Distance vs System MA</div>
+                    <div class="chart-container"><canvas id="chartDistanceVsMA"></canvas></div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Input Work vs System Efficiency</div>
+                    <div class="chart-container"><canvas id="chartWorkVsEff"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: COMPARISON TABLE -->
+        <div id="tabComparison" class="tab-content">
+            <table class="sim-table">
+                <thead>
+                    <tr>
+                        <th>Configuration</th>
+                        <th>Supporting Segments ($n$)</th>
+                        <th>IMA</th>
+                        <th>AMA (85% Eff)</th>
+                        <th>Ideal Pull Force (100kg)</th>
+                        <th>Real Pull Force (100kg)</th>
+                        <th>Rope Pulled for 1m Lift</th>
+                    </tr>
+                </thead>
+                <tbody id="comparisonTableBody">
+                    <!-- Populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TAB 3: FREE BODY DIAGRAM -->
+        <div id="tabFBD" class="tab-content">
+            <div style="display: flex; gap: 20px; align-items: center; justify-content: center; height: 100%;">
+                <div class="fbd-container" style="width: 250px;">
+                    <canvas id="fbdCanvas" width="250" height="180"></canvas>
+                </div>
+                <div style="max-width: 400px; font-size: 0.85rem;">
+                    <h4 style="color: var(--accent-yellow); margin-bottom: 6px;">Equilibrium Analysis</h4>
+                    <div id="fbdMathText" class="formula-box">
+                        $\Sigma F_y = 0$<br>
+                        $n \cdot T - W = 0$<br>
+                        $T = W / n$
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
+                        For the load to remain in equilibrium or move at a constant velocity, the total upward tension forces from all $n$ supporting segments must equal the downward gravitational weight ($W = mg$).
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: FORMULA LIBRARY -->
+        <div id="tabFormulas" class="tab-content">
+            <div class="grid-3" style="font-size: 0.8rem;">
+                <div class="formula-box">
+                    <strong>Gravitational Weight ($W$)</strong><br>
+                    $W = m \cdot g$<br>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">$m$ = mass (kg), $g$ = gravity (m/s²)</span>
+                </div>
+                <div class="formula-box">
+                    <strong>Ideal Mechanical Advantage (IMA)</strong><br>
+                    $IMA = n = \frac{d_{input}}{d_{load}}$<br>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">$n$ = number of supporting rope segments</span>
+                </div>
+                <div class="formula-box">
+                    <strong>Actual Mechanical Advantage (AMA)</strong><br>
+                    $AMA = \frac{F_{load}}{F_{input\_real}} = \eta \cdot IMA$<br>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal;">$\eta$ = mechanical efficiency factor</span>
+                </div>
+                <div class="formula-box">
+                    <strong>Required Pull Force ($F_{in}$)</strong><br>
+                    $F_{in} = \frac{W}{n \cdot \eta}$<br>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">Includes real friction losses</span>
+                </div>
+                <div class="formula-box">
+                    <strong>Conservation of Work/Energy</strong><br>
+                    $W_{in} = F_{in} \cdot d_{in}$<br>
+                    $W_{out} = W_{load} \cdot d_{load}$<br>
+                    $W_{in} = W_{out} + W_{loss}$
+                </div>
+                <div class="formula-box">
+                    <strong>Ceiling Anchor Support Load</strong><br>
+                    $F_{anchor} = W + F_{in}$ (For downward pull)<br>
+                    $F_{anchor} = W - F_{in}$ (For upward pull)
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: SAFETY AND OVERLOAD -->
+        <div id="tabSafety" class="tab-content">
+            <div class="grid-2">
+                <div>
+                    <h4 style="color: var(--accent-red);">Rope Working Load Limit (WLL)</h4>
+                    <div class="control-group" style="margin-top: 8px;">
+                        <label class="control-label">Rope Rated WLL: <span id="valRopeWLL" class="val">500 N</span></label>
+                        <input type="range" id="sliderRopeWLL" min="100" max="2000" step="50" value="500">
+                    </div>
+                    <div id="ropeSafetyStatus" style="margin-top: 8px; font-size: 0.8rem;" class="status-badge badge-success">
+                        ROPE TENSION WITHIN SAFE LIMITS
+                    </div>
+                </div>
+                <div>
+                    <h4 style="color: var(--accent-yellow);">Engineering Safety Principles</h4>
+                    <ul style="font-size: 0.75rem; color: var(--text-muted); margin-left: 16px; margin-top: 6px; line-height: 1.4;">
+                        <li><strong>Safety Factor ($SF$):</strong> Industrial overhead lifting mandates a 5:1 or 10:1 safety factor above maximum breaking strength.</li>
+                        <li><strong>Anchor Reaction:</strong> Remember that overhead ceiling anchors must support BOTH the load weight AND the reaction force of the input pull.</li>
+                        <li><strong>High Mechanical Advantage Risk:</strong> A high MA system makes heavy loads easy to pull, which can deceptively overload rigging lines without feeling heavy to the operator!</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: REAL WORLD APPLICATIONS -->
+        <div id="tabApplications" class="tab-content">
+            <div class="grid-3" style="font-size: 0.8rem;">
+                <div class="course-card">
+                    <h4 style="color: var(--accent-yellow);">🚢 Crane & Construction Hoist</h4>
+                    <p style="color: var(--text-muted); font-size: 0.75rem;">Uses heavy multi-sheave block & tackles inside crane booms to enable electric motors to lift multi-ton steel beams effortlessly.</p>
+                </div>
+                <div class="course-card">
+                    <h4 style="color: var(--accent-yellow);">⛵ Sailing Yacht Main Sheet</h4>
+                    <p style="color: var(--text-muted); font-size: 0.75rem;">Sailboats use 4:1 to 8:1 block and tackles to allow human sailors to pull in high-tension sails against gale forces.</p>
+                </div>
+                <div class="course-card">
+                    <h4 style="color: var(--accent-yellow);">⛰️ Mountain & Crevasse Rescue</h4>
+                    <p style="color: var(--text-muted); font-size: 0.75rem;">Rescuers build 3:1 (Z-rig) or 5:1 friction-saving pulley setups with static ropes to pull fallen climbers out of crevasses.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GUIDED COURSE -->
+    <div id="modalCourse" class="modal-backdrop">
+        <div class="modal">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="color: var(--accent-yellow);">🎓 Interactive Learning Course</h2>
+                <button class="btn btn-sm" onclick="closeModal('modalCourse')">✖ Close</button>
+            </div>
+            <div class="course-progress" id="courseProgressDots"></div>
+            <div class="course-card">
+                <h3 id="courseStepTitle" style="color: var(--accent-blue);">Level 1: What is a Pulley?</h3>
+                <p id="courseStepText" style="font-size: 0.85rem; line-height: 1.4; color: var(--text-light);">
+                    Welcome to Pulley Lab! A pulley is a simple machine consisting of a wheel on an axle that supports a moving cable or rope.
+                </p>
+                <div id="courseStepTask" class="formula-box" style="margin-top: 8px;">
+                    Task: Set the preset to "1:1 Fixed Pulley" and observe the required pulling force.
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <button class="btn" id="btnPrevStep">← Previous Step</button>
+                <button class="btn btn-primary" id="btnNextStep">Next Step →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: 100KG CHALLENGE -->
+    <div id="modalChallenge" class="modal-backdrop">
+        <div class="modal">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="color: var(--accent-yellow);">🎯 The 100 kg Human Challenge</h2>
+                <button class="btn btn-sm" onclick="closeModal('modalChallenge')">✖ Close</button>
+            </div>
+            <div style="font-size: 0.85rem; line-height: 1.4;">
+                <p><strong>Scenario:</strong> An engine block weighing <b>100 kg</b> ($981\text{ N}$) must be lifted into a truck.</p>
+                <p>Your maximum pulling capacity is capped at <b>250 N</b> (~25 kg equivalent strength).</p>
+                <p>System friction efficiency is <b>80%</b>.</p>
+                <div class="formula-box" style="margin: 12px 0;">
+                    Predict: What is the MINIMUM ideal pulley configuration required to lift this load?
+                </div>
+                <div class="grid-2" style="margin-bottom: 12px;">
+                    <button class="btn" onclick="checkChallengeAnswer('bt2')">Option A: 2:1 Block & Tackle</button>
+                    <button class="btn" onclick="checkChallengeAnswer('bt3')">Option B: 3:1 Block & Tackle</button>
+                    <button class="btn" onclick="checkChallengeAnswer('bt4')">Option C: 4:1 Block & Tackle</button>
+                    <button class="btn" onclick="checkChallengeAnswer('bt5')">Option D: 5:1 Block & Tackle</button>
+                </div>
+                <div id="challengeFeedback" style="display: none; padding: 10px; border-radius: 6px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: MYTHS VS FACTS -->
+    <div id="modalMyths" class="modal-backdrop">
+        <div class="modal">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="color: var(--accent-yellow);">💡 Common Pulley Myths Debunked</h2>
+                <button class="btn btn-sm" onclick="closeModal('modalMyths')">✖ Close</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.8rem;">
+                <div class="course-card">
+                    <h4 style="color: var(--accent-red);">MYTH 1: "Adding more pulley wheels always multiplies force."</h4>
+                    <p style="color: var(--accent-green); font-weight: bold; margin-top: 4px;">FALSE!</p>
+                    <p style="color: var(--text-muted);">Mechanical advantage is determined strictly by the number of <i>supporting rope segments</i> bearing the moving load, not merely how many wheels exist in the frame.</p>
+                </div>
+                <div class="course-card">
+                    <h4 style="color: var(--accent-red);">MYTH 2: "Pulleys give you free energy."</h4>
+                    <p style="color: var(--accent-green); font-weight: bold; margin-top: 4px;">FALSE!</p>
+                    <p style="color: var(--text-muted);">Conservation of energy ($Work = Force \times Distance$) is absolute. You trade force for distance: a 4:1 pulley reduces pull force to 25%, but you must pull 4x more rope length!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CALCULATOR -->
+    <div id="modalCalc" class="modal-backdrop">
+        <div class="modal">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="color: var(--accent-yellow);">🧮 Mechanical Advantage Calculator</h2>
+                <button class="btn btn-sm" onclick="closeModal('modalCalc')">✖ Close</button>
+            </div>
+            <div class="grid-2" style="font-size: 0.85rem;">
+                <div>
+                    <label class="control-label">Load Mass (kg)</label>
+                    <input type="number" id="calcMass" value="150">
+                    <label class="control-label" style="margin-top: 8px;">Supporting Segments ($n$)</label>
+                    <input type="number" id="calcN" value="4">
+                    <label class="control-label" style="margin-top: 8px;">Efficiency (%)</label>
+                    <input type="number" id="calcEff" value="85">
+                    <button class="btn btn-primary" style="margin-top: 12px; width: 100%;" onclick="runCalculator()">Calculate Rig</button>
+                </div>
+                <div class="formula-box" id="calcResults">
+                    Fill in parameters and click Calculate...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION CODE -->
+    <script>
+        /**
+         * PULLEY LAB - Complete Engine Architecture
+         * Pure JavaScript, Canvas API
+         */
+
+        // Global State & Simulation Parameters
+        const state = {
+            preset: 'bt4',
+            mass: 100, // kg
+            gravity: 9.81, // m/s^2
+            maxUserForce: 300, // N
+            realWorldMode: true,
+            efficiency: 0.85, // 85%
+            ropeWLL: 500, // N (Safety)
+            units: 'SI', // SI or Imperial
+            
+            // Visual Layers Toggles
+            showVectors: true,
+            showTension: true,
+            showSegments: true,
+            use3D: true,
+            perspectiveView: false,
+            explodedView: false,
+            highlightSegments: false,
+
+            // Mechanics State
+            loadHeight: 0, // meters lifted (0 to 2m max)
+            ropePulled: 0, // total meters pulled
+            isPulling: false,
+            isLowering: false,
+            isPaused: false,
+            
+            // Custom Rig parameters
+            customMovable: 2,
+            customFixed: 2,
+            customAnchorLoad: true,
+
+            // Animation timing & rotation
+            time: 0,
+            sheaveRotations: [],
+
+            // Course Step
+            courseStep: 0
+        };
+
+        // DOM Element Cache
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const fbdCanvas = document.getElementById('fbdCanvas');
+        const fbdCtx = fbdCanvas.getContext('2d');
+
+        // Derived Physics Calculations
+        function getPhysics() {
+            const W = state.mass * state.gravity; // Load Weight in Newtons
+            let n = 1; // supporting segments count
+            let ima = 1;
+
+            if (state.preset === 'fixed') {
+                n = 1;
+                ima = 1;
+            } else if (state.preset === 'movable') {
+                n = 2;
+                ima = 2;
+            } else if (state.preset.startsWith('bt')) {
+                n = parseInt(state.preset.replace('bt', ''));
+                ima = n;
+            } else if (state.preset === 'cascade') {
+                // Cascaded 3-stage setup = 2^3 = 8 MA
+                n = 8;
+                ima = 8;
+            } else if (state.preset === 'custom') {
+                n = state.customMovable * 2 + (state.customAnchorLoad ? 1 : 0);
+                ima = n;
+            }
+
+            const eff = state.realWorldMode ? state.efficiency : 1.0;
+            const ama = ima * eff;
+            
+            // Ideal input force and Real input force
+            const idealForce = W / ima;
+            const reqForce = W / ama;
+            
+            const tension = idealForce; // rope tension (ideal uniform)
+            
+            // Reaction force on ceiling support
+            // For downward pull, anchor carries Weight + Pull Force
+            const anchorForce = W + (state.preset === 'movable' ? 0 : reqForce);
+
+            const ropeDist = n; // Rope travel for 1m load lift
+
+            const isLiftPossible = state.maxUserForce >= reqForce;
+
+            return {
+                W, n, ima, ama, eff, idealForce, reqForce, tension, anchorForce, ropeDist, isLiftPossible
+            };
+        }
+
+        // Setup Canvas Resolution
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Render Canvas Visual Engine
+        function renderSim() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const physics = getPhysics();
+
+            const cx = canvas.width / 2;
+            const topY = 80;
+            const maxLiftPx = canvas.height - 280;
+            const loadY = canvas.height - 150 - (state.loadHeight / 2.0) * maxLiftPx;
+
+            // Draw Background Grid
+            drawGrid();
+
+            // Draw Ceiling / Structural Anchor Beam
+            drawCeiling(cx, topY);
+
+            if (state.explodedView) {
+                drawExplodedView(cx, topY);
+            } else if (state.preset === 'cascade') {
+                drawCascadedSystem(cx, topY, loadY, physics);
+            } else {
+                drawStandardBlockTackle(cx, topY, loadY, physics);
+            }
+
+            // Draw Force Vector Arrows Overlays
+            if (state.showVectors) {
+                drawForceVectors(cx, loadY, physics);
+            }
+        }
+
+        // Draw Background Grid Lines & Scale
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+            ctx.lineWidth = 1;
+            const step = 40;
+            for (let x = 0; x < canvas.width; x += step) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += step) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+        }
+
+        // Draw Top Structural Support Beam
+        function drawCeiling(cx, topY) {
+            ctx.save();
+            ctx.fillStyle = '#334155';
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.fillRect(cx - 180, topY - 25, 360, 25);
+            ctx.strokeRect(cx - 180, topY - 25, 360, 25);
+
+            // Hatch lines for wall anchor
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            for (let i = -170; i < 170; i += 15) {
+                ctx.beginPath();
+                ctx.moveTo(cx + i, topY - 25);
+                ctx.lineTo(cx + i + 10, topY - 35);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // Draw Standard Block and Tackle Mechanics
+        function drawStandardBlockTackle(cx, topY, loadY, physics) {
+            const n = physics.n;
+            const r = 24; // sheave radius
+            
+            // Determine fixed and movable sheaves count
+            let numFixed = Math.ceil(n / 2);
+            let numMovable = Math.floor(n / 2);
+
+            if (state.preset === 'fixed') { numFixed = 1; numMovable = 0; }
+            if (state.preset === 'movable') { numFixed = 0; numMovable = 1; }
+            if (state.preset === 'custom') {
+                numFixed = state.customFixed;
+                numMovable = state.customMovable;
+            }
+
+            const fixedY = topY + 30;
+            const movableY = loadY - 60;
+
+            // Draw Fixed Upper Block Bracket
+            if (numFixed > 0) {
+                ctx.fillStyle = '#64748b';
+                ctx.fillRect(cx - (numFixed * r) - 6, topY, (numFixed * r * 2) + 12, 30);
+            }
+
+            // Draw Ropes First (Behind sheaves)
+            ctx.strokeStyle = varColor('--rope-color');
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            
+            // Calculate Rope Path Points
+            let segPoints = [];
+            let isAnchorOnLoad = (n % 2 !== 0);
+            if (state.preset === 'movable') isAnchorOnLoad = false;
+            if (state.preset === 'custom') isAnchorOnLoad = state.customAnchorLoad;
+
+            // Start from Anchor
+            let startX = cx;
+            let startY = isAnchorOnLoad ? movableY : fixedY;
+
+            if (state.preset === 'fixed') {
+                // Fixed single rope
+                ctx.moveTo(cx - r, loadY);
+                ctx.lineTo(cx - r, fixedY);
+                ctx.arc(cx, fixedY, r, Math.PI, 0, false);
+                // Pulling end
+                const pullX = cx + r + 40;
+                const pullY = topY + 180 + (state.ropePulled * 40);
+                ctx.lineTo(pullX, pullY);
+                ctx.stroke();
+
+                // Draw Pulling Force Hand / Indicator
+                drawPullHand(pullX, pullY, physics);
+
+                // Segment points for tension badges
+                segPoints.push({x: cx - r, y: (fixedY + loadY) / 2, type: 'supporting'});
+            } else {
+                // Block & Tackle Loop Drawing Logic
+                let ropeX = cx - ((n - 1) * 8);
+                ctx.moveTo(ropeX, isAnchorOnLoad ? movableY : fixedY);
+
+                let currentY = isAnchorOnLoad ? movableY : fixedY;
+                let goingUp = isAnchorOnLoad;
+
+                for (let i = 0; i < n; i++) {
+                    let nextY = goingUp ? fixedY : movableY;
+                    let nextX = ropeX + 16;
+                    
+                    ctx.lineTo(ropeX, nextY);
+                    
+                    segPoints.push({
+                        x: ropeX,
+                        y: (currentY + nextY) / 2,
+                        type: 'supporting',
+                        idx: i + 1
+                    });
+
+                    ropeX = nextX;
+                    currentY = nextY;
+                    goingUp = !goingUp;
+                }
+
+                // Final pull line to operator
+                const pullX = ropeX + 30;
+                const pullY = topY + 200 + (state.ropePulled * 30);
+                ctx.lineTo(pullX, pullY);
+                ctx.stroke();
+
+                drawPullHand(pullX, pullY, physics);
+            }
+
+            // Draw Fixed Pulley Sheaves
+            for (let i = 0; i < numFixed; i++) {
+                let sx = cx - ((numFixed - 1) * r) + (i * r * 2);
+                drawSheave(sx, fixedY, r, state.time * 0.05);
+            }
+
+            // Draw Movable Lower Block & Hook Assembly
+            if (numMovable > 0 || state.preset === 'movable') {
+                ctx.save();
+                // Lower Bracket frame
+                ctx.fillStyle = '#64748b';
+                let blockWidth = Math.max(numMovable * r * 2 + 12, 40);
+                ctx.fillRect(cx - blockWidth/2, movableY, blockWidth, 25);
+                
+                for (let i = 0; i < Math.max(numMovable, 1); i++) {
+                    let sx = cx - ((numMovable - 1) * r) + (i * r * 2);
+                    drawSheave(sx, movableY, r, -state.time * 0.05 * n);
+                }
+
+                // Steel Hook & Shaft connecting to Load
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(cx, movableY + 25);
+                ctx.lineTo(cx, loadY - 40);
+                ctx.stroke();
+
+                // Hook Loop
+                ctx.beginPath();
+                ctx.arc(cx, loadY - 30, 10, Math.PI * 0.5, Math.PI * 2.2);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            // Draw Heavy Weight Load Box
+            drawLoadBox(cx, loadY, physics);
+
+            // Draw Highlight Supporting Segments Overlay
+            if (state.highlightSegments || state.showSegments) {
+                segPoints.forEach((pt, idx) => {
+                    drawSegmentBadge(pt.x, pt.y, pt.idx || (idx + 1));
+                });
+            }
+        }
+
+        // Draw Cascaded Exponential Pulley System (1:1, 2:1, 4:1, 8:1)
+        function drawCascadedSystem(cx, topY, loadY, physics) {
+            const stages = 3; // 2^3 = 8 MA
+            ctx.strokeStyle = varColor('--rope-color');
+            ctx.lineWidth = 3;
+
+            let lastY = loadY;
+            let startX = cx - 80;
+
+            for (let s = 0; s < stages; s++) {
+                let px = startX + (s * 50);
+                let py = topY + 60 + (s * 40);
+                let mY = lastY - 50;
+
+                // Stage fixed/movable pulley
+                drawSheave(px, py, 18, state.time * 0.02);
+                drawSheave(px, mY, 18, -state.time * 0.02);
+
+                // Stage Rope
+                ctx.beginPath();
+                ctx.moveTo(px - 18, py);
+                ctx.lineTo(px - 18, mY);
+                ctx.stroke();
+
+                lastY = mY;
+            }
+
+            drawLoadBox(cx, loadY, physics);
+        }
+
+        // Draw Single Pulley Sheave Wheel with Metallic Gradient
+        function drawSheave(x, y, radius, rotation) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // 3D Metallic Wheel Shading
+            let grad = ctx.createRadialGradient(-radius/3, -radius/3, 2, 0, 0, radius);
+            grad.addColorStop(0, '#cbd5e1');
+            grad.addColorStop(0.7, '#64748b');
+            grad.addColorStop(1, '#334155');
+
+            ctx.fillStyle = grad;
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Rim Groove
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius - 3, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Rotating Axle Spoke Indicators
+            ctx.rotate(rotation);
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 4; i++) {
+                ctx.rotate(Math.PI / 2);
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, radius - 5);
+                ctx.stroke();
+            }
+
+            // Center Bearing Shaft Pin
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(0, 0, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Draw Load Engine/Container Box
+        function drawLoadBox(cx, loadY, physics) {
+            ctx.save();
+            const w = 90;
+            const h = 70;
+            const x = cx - w / 2;
+            const y = loadY;
+
+            // Box Body Gradient
+            let grad = ctx.createLinearGradient(x, y, x + w, y + h);
+            grad.addColorStop(0, '#ea580c');
+            grad.addColorStop(1, '#9a3412');
+
+            ctx.fillStyle = grad;
+            ctx.strokeStyle = '#f97316';
+            ctx.lineWidth = 2;
+            
+            // Rounded Rectangle Box
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            // Label text inside load
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${state.mass} kg`, cx, y + 32);
+
+            ctx.font = '10px Segoe UI';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.fillText(`W = ${physics.W.toFixed(0)} N`, cx, y + 48);
+
+            ctx.restore();
+        }
+
+        // Draw Pulling Operator / Hand Handle Indicator
+        function drawPullHand(x, y, physics) {
+            ctx.save();
+            // Pull Ring Handle
+            ctx.strokeStyle = physics.isLiftPossible ? '#10b981' : '#ef4444';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(x, y + 15, 12, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Arrow Direction of Human Pull
+            ctx.fillStyle = physics.isLiftPossible ? '#10b981' : '#ef4444';
+            ctx.beginPath();
+            ctx.moveTo(x - 8, y + 35);
+            ctx.lineTo(x + 8, y + 35);
+            ctx.lineTo(x, y + 50);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.font = 'bold 11px Segoe UI';
+            ctx.fillText(`Pull: ${physics.reqForce.toFixed(1)} N`, x + 18, y + 20);
+            ctx.restore();
+        }
+
+        // Draw Dynamic Force Vector Arrows
+        function drawForceVectors(cx, loadY, physics) {
+            ctx.save();
+
+            // Weight Vector Arrow (Downward RED)
+            const wLen = Math.min(physics.W / 10, 100);
+            drawArrow(cx, loadY + 70, cx, loadY + 70 + wLen, '#ef4444', 4, `W = ${physics.W.toFixed(0)} N`);
+
+            // Total Upward Rope Tension Vectors (Green)
+            const segForce = physics.W / physics.n;
+            const tLen = Math.min(segForce / 10, 60);
+
+            if (state.showTension) {
+                for (let i = 0; i < physics.n; i++) {
+                    let offset = (i - (physics.n - 1) / 2) * 16;
+                    drawArrow(cx + offset, loadY - 10, cx + offset, loadY - 10 - tLen, '#10b981', 2, '');
+                }
+            }
+
+            ctx.restore();
+        }
+
+        // Utility Arrow Renderer
+        function drawArrow(fromX, fromY, toX, toY, color, width, label) {
+            const headlen = 10;
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const angle = Math.atan2(dy, dx);
+
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = width;
+
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+
+            if (label) {
+                ctx.font = 'bold 11px Segoe UI';
+                ctx.fillText(label, toX + 12, (fromY + toY) / 2);
+            }
+        }
+
+        // Draw Supporting Rope Segment Badge Counter
+        function drawSegmentBadge(x, y, num) {
+            ctx.save();
+            ctx.fillStyle = '#f59e0b';
+            ctx.shadowColor = 'rgba(245, 158, 11, 0.6)';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(x, y, 11, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 11px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(num, x, y);
+            ctx.restore();
+        }
+
+        // Exploded View Mechanical Disassembly Component Mode
+        function drawExplodedView(cx, topY) {
+            ctx.fillStyle = '#f59e0b';
+            ctx.font = 'bold 16px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText("EXPLODED MECHANISM ASSEMBLY VIEW", cx, topY + 20);
+
+            const parts = [
+                { name: "Ceiling Support Frame", y: topY + 60, color: "#64748b" },
+                { name: "Bronze Axle Shaft & Bearings", y: topY + 120, color: "#f59e0b" },
+                { name: "Steel Sheave Wheels (Grooved)", y: topY + 180, color: "#cbd5e1" },
+                { name: "Braided Polymer Rope Line", y: topY + 240, color: "#fbbf24" },
+                { name: "Moving Block Frame & Latch", y: topY + 300, color: "#64748b" },
+                { name: "Forged Safety Lifting Hook", y: topY + 360, color: "#94a3b8" }
+            ];
+
+            parts.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(cx - 120, p.y, 240, 30);
+                ctx.fillStyle = "#000";
+                ctx.font = "bold 12px Segoe UI";
+                ctx.fillText(p.name, cx, p.y + 20);
+            });
+        }
+
+        // Render Free Body Diagram Tab
+        function renderFBD() {
+            fbdCtx.clearRect(0, 0, fbdCanvas.width, fbdCanvas.height);
+            const physics = getPhysics();
+            const cx = fbdCanvas.width / 2;
+            const cy = fbdCanvas.height / 2 + 10;
+
+            // Draw Central Mass Dot/Box
+            fbdCtx.fillStyle = '#ea580c';
+            fbdCtx.fillRect(cx - 20, cy - 15, 40, 30);
+            fbdCtx.fillStyle = '#fff';
+            fbdCtx.font = 'bold 10px Segoe UI';
+            fbdCtx.textAlign = 'center';
+            fbdCtx.fillText('LOAD', cx, cy + 4);
+
+            // Downward Weight Vector
+            drawFBDArrow(cx, cy + 15, cx, cy + 65, '#ef4444', `W = ${physics.W.toFixed(0)}N`);
+
+            // Upward Rope Tension Vectors
+            const n = physics.n;
+            const segTension = (physics.W / n).toFixed(1);
+            for (let i = 0; i < n; i++) {
+                let off = (i - (n - 1) / 2) * 12;
+                drawFBDArrow(cx + off, cy - 15, cx + off, cy - 55, '#10b981', i === 0 ? `T = ${segTension}N` : '');
+            }
+
+            // Update Math Text Block
+            document.getElementById('fbdMathText').innerHTML = `
+                $$\\Sigma F_y = 0$$<br>
+                $$${n} \\cdot T - W = 0$$<br>
+                $$T = \\frac{${physics.W.toFixed(0)}\\text{ N}}{${n}} = ${segTension}\\text{ N}$$
+            `;
+        }
+
+        function drawFBDArrow(fromX, fromY, toX, toY, color, label) {
+            fbdCtx.strokeStyle = color;
+            fbdCtx.fillStyle = color;
+            fbdCtx.lineWidth = 2;
+            fbdCtx.beginPath();
+            fbdCtx.moveTo(fromX, fromY);
+            fbdCtx.lineTo(toX, toY);
+            fbdCtx.stroke();
+
+            if (label) {
+                fbdCtx.font = '10px Segoe UI';
+                fbdCtx.fillText(label, toX + 25, (fromY + toY) / 2);
+            }
+        }
+
+        // Helper color function
+        function varColor(name) {
+            return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        }
+
+        // Live Dashboard Update Loop
+        function updateDashboard() {
+            const p = getPhysics();
+
+            document.getElementById('dashWeight').innerText = `${p.W.toFixed(1)} N`;
+            document.getElementById('dashSegments').innerText = p.n;
+            document.getElementById('dashIMA').innerText = p.ima.toFixed(2);
+            document.getElementById('dashAMA').innerText = p.ama.toFixed(2);
+            document.getElementById('dashReqForce').innerText = `${p.reqForce.toFixed(1)} N`;
+            document.getElementById('hudAppliedForce').innerText = `${p.reqForce.toFixed(1)} N`;
+            document.getElementById('hudHeight').innerText = `${state.loadHeight.toFixed(2)} m`;
+            
+            document.getElementById('dashRopeDistance').innerText = `${(state.loadHeight * p.ropeDist).toFixed(2)} m pulled`;
+            document.getElementById('dashForceComparison').innerText = `vs Max User Strength: ${state.maxUserForce} N`;
+            document.getElementById('dashRopeTension').innerText = `${p.tension.toFixed(1)} N`;
+            document.getElementById('dashAnchorLoad').innerText = `${p.anchorForce.toFixed(1)} N`;
+
+            // Status Badge Logic
+            const badge = document.getElementById('liftStatusBadge');
+            if (p.isLiftPossible) {
+                badge.className = 'status-badge badge-success';
+                badge.innerText = `✓ REQUIRED FORCE (${p.reqForce.toFixed(0)}N) WITHIN CAPACITY (${state.maxUserForce}N)`;
+            } else {
+                badge.className = 'status-badge badge-danger';
+                badge.innerText = `❌ INSUFFICIENT FORCE! NEED ${p.reqForce.toFixed(0)}N (CAPACITY: ${state.maxUserForce}N)`;
+            }
+
+            // Energy & Work Calculations
+            const workOut = p.W * state.loadHeight; // Joules
+            const workIn = p.reqForce * (state.loadHeight * p.ropeDist);
+            const loss = Math.max(workIn - workOut, 0);
+
+            document.getElementById('valInputWork').innerText = `${workIn.toFixed(0)} J`;
+            document.getElementById('valOutputWork').innerText = `${workOut.toFixed(0)} J`;
+            document.getElementById('valFrictionLoss').innerText = `${loss.toFixed(0)} J`;
+
+            // Dynamic Insight Text Generator
+            document.getElementById('dynamicInsightText').innerText = 
+                `System configuration provides an Ideal Mechanical Advantage of ${p.ima}:1 using ${p.n} supporting rope segments. ` +
+                `At ${Math.round(p.eff * 100)}% efficiency, actual force multiplication is ${p.ama.toFixed(2)}x. ` +
+                `To lift the ${state.mass}kg load by 1m, you trade force for distance by pulling ${p.ropeDist}m of rope.`;
+
+            // Safety Rope WLL Check
+            const ropeStatus = document.getElementById('ropeSafetyStatus');
+            if (p.tension > state.ropeWL) {
+                ropeStatus.className = 'status-badge badge-danger';
+                ropeStatus.innerText = '⚠️ WARNING: ROPE OVERLOAD DETECTED!';
+            } else {
+                ropeStatus.className = 'status-badge badge-success';
+                ropeStatus.innerText = '✓ ROPE TENSION WITHIN SAFE WORKING LOAD LIMIT';
+            }
+
+            renderFBD();
+        }
+
+        // Animation Loop Handler
+        function animate() {
+            if (!state.isPaused) {
+                state.time += 1;
+
+                // Handle rope pulling movement
+                if (state.isPulling) {
+                    const p = getPhysics();
+                    if (p.isLiftPossible && state.loadHeight < 2.0) {
+                        state.loadHeight += 0.01;
+                        state.ropePulled = state.loadHeight * p.ropeDist;
+                    }
+                } else if (state.isLowering) {
+                    if (state.loadHeight > 0) {
+                        state.loadHeight -= 0.01;
+                        state.ropePulled = state.loadHeight * getPhysics().ropeDist;
+                    }
+                }
+            }
+
+            renderSim();
+            updateDashboard();
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize UI Event Handlers
+        function initEvents() {
+            // Preset Selection
+            document.getElementById('presetSelect').addEventListener('change', (e) => {
+                state.preset = e.target.value;
+                document.getElementById('customControls').style.display = (state.preset === 'custom') ? 'block' : 'none';
+                updateComparisonTable();
+            });
+
+            // Sliders
+            document.getElementById('sliderMass').addEventListener('input', (e) => {
+                state.mass = parseFloat(e.target.value);
+                document.getElementById('valMass').innerText = `${state.mass} kg`;
+                document.getElementById('numMass').value = state.mass;
+            });
+
+            document.getElementById('numMass').addEventListener('change', (e) => {
+                state.mass = Math.max(1, Math.min(1000, parseFloat(e.target.value) || 100));
+                document.getElementById('sliderMass').value = state.mass;
+                document.getElementById('valMass').innerText = `${state.mass} kg`;
+            });
+
+            document.getElementById('massPresetSelect').addEventListener('change', (e) => {
+                if (e.target.value) {
+                    state.mass = parseFloat(e.target.value);
+                    document.getElementById('sliderMass').value = state.mass;
+                    document.getElementById('numMass').value = state.mass;
+                    document.getElementById('valMass').innerText = `${state.mass} kg`;
+                }
+            });
+
+            document.getElementById('gravitySelect').addEventListener('change', (e) => {
+                state.gravity = parseFloat(e.target.value);
+                document.getElementById('valGravity').innerText = `${state.gravity} m/s²`;
+            });
+
+            document.getElementById('sliderUserForce').addEventListener('input', (e) => {
+                state.maxUserForce = parseFloat(e.target.value);
+                document.getElementById('valMaxUserForce').innerText = `${state.maxUserForce} N`;
+            });
+
+            document.getElementById('chkRealWorld').addEventListener('change', (e) => {
+                state.realWorldMode = e.target.checked;
+                document.getElementById('frictionControls').style.display = state.realWorldMode ? 'block' : 'none';
+            });
+
+            document.getElementById('sliderEfficiency').addEventListener('input', (e) => {
+                state.efficiency = parseFloat(e.target.value) / 100.0;
+                document.getElementById('valEfficiency').innerText = `${e.target.value}%`;
+            });
+
+            // Visual Toggles
+            document.getElementById('chkVectors').addEventListener('change', (e) => state.showVectors = e.target.checked);
+            document.getElementById('chkTension').addEventListener('change', (e) => state.showTension = e.target.checked);
+            document.getElementById('chkSegments').addEventListener('change', (e) => state.showSegments = e.target.checked);
+
+            // Pull Rope Controls
+            const btnPull = document.getElementById('btnPullRope');
+            btnPull.addEventListener('mousedown', () => state.isPulling = true);
+            window.addEventListener('mouseup', () => { state.isPulling = false; state.isLowering = false; });
+            btnPull.addEventListener('touchstart', (e) => { e.preventDefault(); state.isPulling = true; });
+            window.addEventListener('touchend', () => { state.isPulling = false; state.isLowering = false; });
+
+            document.getElementById('btnReleaseRope').addEventListener('mousedown', () => state.isLowering = true);
+
+            // Pause & Play
+            document.getElementById('btnPlayPause').addEventListener('click', () => {
+                state.isPaused = !state.isPaused;
+                document.getElementById('btnPlayPause').innerText = state.isPaused ? '▶ Play' : '⏸ Pause';
+            });
+
+            document.getElementById('btnHighlightRopes').addEventListener('click', () => {
+                state.highlightSegments = !state.highlightSegments;
+            });
+
+            document.getElementById('btnExploded').addEventListener('click', () => {
+                state.explodedView = !state.explodedView;
+            });
+
+            // Reset
+            document.getElementById('btnResetAll').addEventListener('click', () => {
+                state.loadHeight = 0;
+                state.ropePulled = 0;
+            });
+
+            // Navigation Modal Controls
+            document.getElementById('btnCourse').addEventListener('click', () => openModal('modalCourse'));
+            document.getElementById('btnChallenge').addEventListener('click', () => openModal('modalChallenge'));
+            document.getElementById('btnMyths').addEventListener('click', () => openModal('modalMyths'));
+            document.getElementById('btnCalc').addEventListener('click', () => openModal('modalCalc'));
+
+            // Safety Slider
+            document.getElementById('sliderRopeWLL').addEventListener('input', (e) => {
+                state.ropeWLL = parseFloat(e.target.value);
+                document.getElementById('valRopeWLL').innerText = `${state.ropeWLL} N`;
+            });
+        }
+
+        // Dynamic Comparison Table Population
+        function updateComparisonTable() {
+            const presets = [
+                { name: '1:1 Fixed', key: 'fixed', n: 1 },
+                { name: '2:1 Movable', key: 'movable', n: 2 },
+                { name: '2:1 Block & Tackle', key: 'bt2', n: 2 },
+                { name: '3:1 Block & Tackle', key: 'bt3', n: 3 },
+                { name: '4:1 Block & Tackle', key: 'bt4', n: 4 },
+                { name: '6:1 Block & Tackle', key: 'bt6', n: 6 },
+                { name: '8:1 Block & Tackle', key: 'bt8', n: 8 }
+            ];
+
+            const tbody = document.getElementById('comparisonTableBody');
+            tbody.innerHTML = '';
+
+            presets.forEach(p => {
+                const W = state.mass * state.gravity;
+                const ima = p.n;
+                const ama = ima * 0.85;
+                const idealF = W / ima;
+                const realF = W / ama;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${p.name}</b></td>
+                    <td>${p.n}</td>
+                    <td>${ima}.00</td>
+                    <td>${ama.toFixed(2)}</td>
+                    <td>${idealF.toFixed(1)} N</td>
+                    <td style="color:var(--accent-yellow); font-weight:bold;">${realF.toFixed(1)} N</td>
+                    <td>${p.n}.0 m</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Modal Utilities
+        function openModal(id) { document.getElementById(id).classList.add('open'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+        // Guided Course Content Engine
+        const courseSteps = [
+            { title: "Level 1: What is a Pulley?", text: "A pulley is a wheel on an axle that supports a moving cable or rope. In a 1:1 fixed pulley setup, force direction is changed, but input force equals load weight.", preset: "fixed" },
+            { title: "Level 2: Single Movable Pulley", text: "When a pulley wheel attaches directly to the load, it moves with the load. The load is now split between two supporting rope segments, doubling your mechanical advantage (2:1).", preset: "movable" },
+            { title: "Level 3: Block & Tackle Systems", text: "By combining fixed and movable sheaves into blocks, we can achieve high mechanical advantage. Notice how 4 supporting segments divide required pull force to 25%!", preset: "bt4" },
+            { title: "Level 4: Energy Conservation", text: "Physics requires that Input Work equals Output Work ($W = F \\cdot d$). Lower force requires pulling proportionally more rope length. You cannot cheat energy!", preset: "bt4" }
+        ];
+
+        function renderCourseStep() {
+            const step = courseSteps[state.courseStep];
+            document.getElementById('courseStepTitle').innerText = step.title;
+            document.getElementById('courseStepText').innerText = step.text;
+            state.preset = step.preset;
+            document.getElementById('presetSelect').value = step.preset;
+        }
+
+        document.getElementById('btnNextStep').addEventListener('click', () => {
+            if (state.courseStep < courseSteps.length - 1) {
+                state.courseStep++;
+                renderCourseStep();
+            }
+        });
+
+        document.getElementById('btnPrevStep').addEventListener('click', () => {
+            if (state.courseStep > 0) {
+                state.courseStep--;
+                renderCourseStep();
+            }
+        });
+
+        // Interactive Challenge Answer Validation
+        function checkChallengeAnswer(ans) {
+            const feedback = document.getElementById('challengeFeedback');
+            feedback.style.display = 'block';
+            if (ans === 'bt5') {
+                feedback.style.background = 'rgba(16, 185, 129, 0.2)';
+                feedback.style.border = '1px solid #10b981';
+                feedback.innerHTML = '<b style="color:#10b981;">CORRECT!</b><br>100kg weight = 981N. With 80% efficiency, a 5:1 system gives an AMA of 4.0. Required pull force = 981 / 4.0 = 245.25N, which is safely below your 250N human limit!';
+            } else {
+                feedback.style.background = 'rgba(239, 68, 68, 0.2)';
+                feedback.style.border = '1px solid #ef4444';
+                feedback.innerHTML = '<b style="color:#ef4444;">INSUFFICIENT MECHANICAL ADVANTAGE!</b><br>Due to 80% friction losses, this configuration still requires more than your 250 N pulling limit. Try a higher ratio!';
+            }
+        }
+
+        // Mechanical Advantage Calculator
+        function runCalculator() {
+            const m = parseFloat(document.getElementById('calcMass').value);
+            const n = parseFloat(document.getElementById('calcN').value);
+            const eff = parseFloat(document.getElementById('calcEff').value) / 100.0;
+
+            const W = m * 9.81;
+            const ama = n * eff;
+            const reqF = W / ama;
+            const ropeM = n;
+
+            document.getElementById('calcResults').innerHTML = `
+                <strong>Calculation Results:</strong><br>
+                Load Weight: <b>${W.toFixed(1)} N</b><br>
+                Ideal MA: <b>${n}:1</b> | Actual MA: <b>${ama.toFixed(2)}:1</b><br>
+                Required Pull Force: <b style="color:var(--accent-yellow);">${reqF.toFixed(1)} N</b><br>
+                Rope Pull for 1m Lift: <b>${ropeM} meters</b>
+            `;
+        }
+
+        // Tab Switcher Handler
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        // Application Entry Point
+        window.onload = function() {
+            resizeCanvas();
+            initEvents();
+            updateComparisonTable();
+            renderCourseStep();
+            
+            // Kick off 60 FPS Animation loop
+            animate();
+        };
+    </script>
+</body>
+</html>
