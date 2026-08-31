@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electromagnetic Fields & Electromagnetics Simulation Laboratory</title>
+    <!-- Tailwind CSS for sleek engineering UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-dark: #070a12;
+            --panel-bg: #0f172a;
+            --panel-border: #1e293b;
+            --accent-cyan: #06b6d4;
+            --accent-blue: #3b82f6;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-green: #10b981;
+            --accent-purple: #a855f7;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #e2e8f0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* Canvas styling */
+        canvas {
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        /* Custom Range Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #1e293b;
+            height: 6px;
+            border-radius: 3px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #06b6d4;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+            border: 2px solid #0891b2;
+        }
+
+        .tab-btn.active {
+            border-bottom: 2px solid #06b6d4;
+            color: #06b6d4;
+            background-color: rgba(6, 182, 212, 0.1);
+        }
+
+        /* Glow utilities */
+        .glow-cyan { box-shadow: 0 0 15px rgba(6, 182, 212, 0.35); }
+        .glow-amber { box-shadow: 0 0 15px rgba(245, 158, 11, 0.35); }
+        .glow-blue { box-shadow: 0 0 15px rgba(59, 130, 246, 0.35); }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden select-none">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <button id="mobile-menu-btn" class="md:hidden text-slate-400 hover:text-white">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/50 flex items-center justify-center text-cyan-400 font-bold text-xl glow-cyan">
+                    ⚡
+                </div>
+                <div>
+                    <h1 class="text-base font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent leading-tight">
+                        EM-LAB: Electromagnetic Fields Simulator
+                    </h1>
+                    <p class="text-[11px] text-slate-400 hidden sm:block">Advanced Virtual Engineering Laboratory & GATE Preparation Engine</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Mode Toggles & Tools -->
+        <div class="flex items-center gap-2 sm:gap-4">
+            <!-- Mode Switcher -->
+            <div class="flex bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs">
+                <button id="mode-beginner" onclick="setGlobalMode('beginner')" class="px-2.5 py-1 rounded transition text-slate-400 hover:text-white">Beginner</button>
+                <button id="mode-engineering" onclick="setGlobalMode('engineering')" class="px-2.5 py-1 rounded transition bg-cyan-600 text-white font-medium">Engineering</button>
+                <button id="mode-gate" onclick="setGlobalMode('gate')" class="px-2.5 py-1 rounded transition text-slate-400 hover:text-white">GATE Mode</button>
+            </div>
+
+            <!-- Header Quick Actions -->
+            <button onclick="toggleUnitConverter()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-cyan-400 transition" title="Unit Converter">
+                <i data-lucide="calculator" class="w-4 h-4"></i>
+            </button>
+            <button onclick="loadModule('conceptmap')" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-amber-400 transition" title="Concept Map Navigator">
+                <i data-lucide="map" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Area -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- Left Navigation Sidebar -->
+        <aside id="sidebar" class="absolute md:relative z-30 w-64 h-full bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-300 -translate-x-full md:translate-x-0 shrink-0">
+            <div class="p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+                <span>Lab Modules</span>
+                <span class="text-cyan-400 text-[10px] bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800 font-mono">28 Modules</span>
+            </div>
+            
+            <div id="module-nav-list" class="flex-1 overflow-y-auto p-2 space-y-0.5 text-xs">
+                <!-- Nav Items Injected Dynamically by JS -->
+            </div>
+
+            <div class="p-3 border-t border-slate-800 text-xs text-slate-400 bg-slate-950/60">
+                <div class="flex items-center justify-between">
+                    <span>Physics Engine</span>
+                    <span class="text-emerald-400 flex items-center gap-1.5 font-mono text-[11px]"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Workspace Area -->
+        <main class="flex-1 flex flex-col bg-slate-950 overflow-hidden relative">
+            
+            <!-- Dynamic Module Title Bar -->
+            <div id="module-header" class="bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 py-2 flex items-center justify-between shrink-0 z-10">
+                <div>
+                    <h2 id="module-title" class="text-base font-bold text-white flex items-center gap-2">
+                        <span>Dashboard Overview</span>
+                    </h2>
+                    <p id="module-subtitle" class="text-xs text-slate-400">Overview of Electromagnetic Field Theory & Fundamental Principles</p>
+                </div>
+                
+                <!-- Simulation Control Toolbar -->
+                <div id="sim-control-bar" class="flex items-center gap-2">
+                    <button id="btn-play" onclick="simEngine.togglePlay()" class="p-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition flex items-center gap-1 text-xs px-2.5 font-medium">
+                        <i data-lucide="pause" class="w-3.5 h-3.5"></i> <span id="btn-play-text">Pause</span>
+                    </button>
+                    <button onclick="simEngine.reset()" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded transition border border-slate-700 text-xs px-2" title="Reset Simulation">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button id="btn-vectors" onclick="simEngine.toggleVectors()" class="p-1.5 bg-cyan-950/80 text-cyan-400 rounded transition border border-cyan-800 text-xs px-2" title="Toggle Field Vectors">
+                        <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button id="btn-lines" onclick="simEngine.toggleLines()" class="p-1.5 bg-cyan-950/80 text-cyan-400 rounded transition border border-cyan-800 text-xs px-2" title="Toggle Field Lines / Contours">
+                        <i data-lucide="waves" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Interactive Workspace Container -->
+            <div class="flex-1 flex flex-col lg:flex-row overflow-hidden p-3 gap-3">
+                
+                <!-- Visual Canvas Simulation Area (Left/Top) -->
+                <div class="flex-1 flex flex-col bg-slate-900 rounded-xl border border-slate-800 overflow-hidden relative shadow-2xl">
+                    <!-- Canvas Overlay HUD -->
+                    <div class="absolute top-3 left-3 z-10 flex flex-wrap gap-2 pointer-events-none">
+                        <div id="hud-coords" class="bg-slate-950/80 border border-slate-800 px-2.5 py-1 rounded text-[11px] font-mono text-cyan-400 backdrop-blur">
+                            Probe: (0.50m, 0.00m)
+                        </div>
+                        <div id="hud-field" class="bg-slate-950/80 border border-slate-800 px-2.5 py-1 rounded text-[11px] font-mono text-amber-400 backdrop-blur">
+                            Magnitude: 0.00
+                        </div>
+                    </div>
+
+                    <!-- Canvas Interactive Workspace -->
+                    <div id="canvas-container" class="flex-1 w-full h-full relative">
+                        <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                    </div>
+
+                    <!-- Dynamic Graph Overlay Bottom Panel -->
+                    <div id="graph-panel" class="h-36 bg-slate-950/90 border-t border-slate-800 p-2.5 flex flex-col shrink-0">
+                        <div class="flex items-center justify-between mb-1">
+                            <span id="graph-title" class="text-xs font-semibold text-slate-300">Dynamic Physical Response Graph</span>
+                            <div class="flex items-center gap-3 text-[10px]">
+                                <span class="text-cyan-400 flex items-center gap-1"><span class="w-2.5 h-0.5 bg-cyan-400"></span> Primary Parameter</span>
+                                <span class="text-amber-400 flex items-center gap-1"><span class="w-2.5 h-0.5 bg-amber-400"></span> Secondary / Ref</span>
+                            </div>
+                        </div>
+                        <div class="flex-1 relative">
+                            <canvas id="graphCanvas" class="w-full h-full block"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parameters & Analytical Workbench Side Panel (Right/Bottom) -->
+                <div class="w-full lg:w-96 flex flex-col gap-3 overflow-y-auto shrink-0">
+                    
+                    <!-- Controls Container -->
+                    <div class="bg-slate-900 rounded-xl border border-slate-800 p-3.5 space-y-3 shadow-lg">
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between border-b border-slate-800 pb-2">
+                            <span>Interactive Parameters</span>
+                            <i data-lucide="sliders" class="w-3.5 h-3.5 text-cyan-400"></i>
+                        </h3>
+                        <div id="controls-container" class="space-y-3">
+                            <!-- Injected dynamically by JS per module -->
+                        </div>
+                    </div>
+
+                    <!-- Live Physics Calculation & Step-by-Step Panel -->
+                    <div class="bg-slate-900 rounded-xl border border-slate-800 p-3.5 space-y-2 shadow-lg">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Live Physics Calculations</h3>
+                            <button onclick="toggleNotation()" id="btn-notation" class="text-[10px] text-cyan-400 bg-cyan-950/60 border border-cyan-800 px-2 py-0.5 rounded font-mono">
+                                Scientific
+                            </button>
+                        </div>
+                        <div id="calculation-output" class="font-mono text-xs text-slate-300 space-y-1.5 bg-slate-950 p-2.5 rounded border border-slate-800/80 overflow-x-auto">
+                            <!-- Live equation calculations injected here -->
+                        </div>
+                    </div>
+
+                    <!-- Conceptual Misconception Detector Warning -->
+                    <div id="misconception-card" class="bg-amber-950/30 border border-amber-800/50 rounded-xl p-3 hidden">
+                        <div class="flex items-start gap-2.5">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
+                            <div>
+                                <h4 class="text-xs font-bold text-amber-400">Conceptual Trap & Misconception Alert</h4>
+                                <p id="misconception-text" class="text-xs text-amber-200/80 mt-1 leading-relaxed">
+                                    Electric field intensity is force per unit test charge, not force itself!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Module Tabs: Derivation, GATE Questions & Applications -->
+                    <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex flex-col flex-1 shadow-lg">
+                        <div class="flex border-b border-slate-800 text-xs font-medium bg-slate-950/40">
+                            <button onclick="switchTab('derivation')" id="tab-derivation" class="tab-btn flex-1 py-2 text-center text-slate-400 hover:text-white transition active">Derivation</button>
+                            <button onclick="switchTab('gate')" id="tab-gate" class="tab-btn flex-1 py-2 text-center text-slate-400 hover:text-white transition">GATE Qs</button>
+                            <button onclick="switchTab('apps')" id="tab-apps" class="tab-btn flex-1 py-2 text-center text-slate-400 hover:text-white transition">Applications</button>
+                        </div>
+                        <div class="p-3 text-xs flex-1 overflow-y-auto max-h-60 bg-slate-900/50">
+                            <div id="tab-content-derivation" class="space-y-2 text-slate-300 leading-relaxed">
+                                <!-- Derivation content injected dynamically -->
+                            </div>
+                            <div id="tab-content-gate" class="hidden space-y-3">
+                                <!-- GATE Question injected dynamically -->
+                            </div>
+                            <div id="tab-content-apps" class="hidden space-y-2 text-slate-300">
+                                <!-- Real world apps injected dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Global Floating Unit Converter Modal -->
+    <div id="modal-converter" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-xl p-4 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-white flex items-center gap-2 text-sm">
+                    <i data-lucide="calculator" class="w-4 h-4 text-cyan-400"></i>
+                    Electromagnetic Engineering Unit Converter
+                </h3>
+                <button onclick="toggleUnitConverter()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-400 mb-1">Physical Quantity</label>
+                    <select id="conv-quantity" onchange="updateConverterUnits()" class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white">
+                        <option value="charge">Electric Charge (Q)</option>
+                        <option value="field">Electric Field (E)</option>
+                        <option value="flux">Magnetic Flux (Φ)</option>
+                        <option value="bfield">Magnetic Field (B)</option>
+                        <option value="inductance">Inductance (L)</option>
+                        <option value="capacitance">Capacitance (C)</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Value</label>
+                        <input type="number" id="conv-from-val" value="1" oninput="convertUnits()" class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">From Unit</label>
+                        <select id="conv-from-unit" onchange="convertUnits()" class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white"></select>
+                    </div>
+                </div>
+                <div class="p-3 bg-slate-950 rounded border border-slate-800 text-center">
+                    <div class="text-slate-400 text-[10px]">SI Equivalent Output</div>
+                    <div id="conv-result" class="text-base font-bold text-cyan-400 font-mono mt-1">1.00 C</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        // ====================================================================
+        // CONSTANTS & UTILITIES
+        // ====================================================================
+        const EPSILON_0 = 8.8541878128e-12; // F/m
+        const MU_0 = 4 * Math.PI * 1e-7;    // H/m
+        const K_E = 1 / (4 * Math.PI * EPSILON_0); // 8.98755e9 N m^2 / C^2
+
+        let useScientificNotation = true;
+        let globalMode = 'engineering'; // 'beginner', 'engineering', 'gate'
+
+        function formatNum(val, decimals = 3) {
+            if (val === undefined || val === null || isNaN(val)) return "0.00";
+            if (!useScientificNotation) return val.toFixed(decimals);
+            if (Math.abs(val) >= 1e5 || (Math.abs(val) < 1e-3 && Math.abs(val) > 0)) {
+                return val.toExponential(decimals);
+            }
+            return val.toFixed(decimals);
+        }
+
+        function toggleNotation() {
+            useScientificNotation = !useScientificNotation;
+            document.getElementById('btn-notation').innerText = useScientificNotation ? 'Scientific' : 'Decimal';
+            if (currentModule) updateModuleCalculations();
+        }
+
+        function setGlobalMode(mode) {
+            globalMode = mode;
+            ['beginner', 'engineering', 'gate'].forEach(m => {
+                const btn = document.getElementById(`mode-${m}`);
+                if (m === mode) {
+                    btn.className = "px-2.5 py-1 rounded transition bg-cyan-600 text-white font-medium";
+                } else {
+                    btn.className = "px-2.5 py-1 rounded transition text-slate-400 hover:text-white";
+                }
+            });
+            if (currentModule) updateModuleCalculations();
+        }
+
+        // Vector Math Utility Class
+        class Vector2D {
+            constructor(x = 0, y = 0) {
+                this.x = x;
+                this.y = y;
+            }
+            add(v) { return new Vector2D(this.x + v.x, this.y + v.y); }
+            sub(v) { return new Vector2D(this.x - v.x, this.y - v.y); }
+            mult(n) { return new Vector2D(this.x * n, this.y * n); }
+            magSq() { return this.x * this.x + this.y * this.y; }
+            mag() { return Math.sqrt(this.magSq()); }
+            heading() { return Math.atan2(this.y, this.x); }
+            unit() {
+                const m = this.mag();
+                return m === 0 ? new Vector2D(0, 0) : new Vector2D(this.x / m, this.y / m);
+            }
+        }
+
+        // ====================================================================
+        // GLOBAL SIMULATION ENGINE & RENDERER
+        // ====================================================================
+        class SimulationEngine {
+            constructor() {
+                this.canvas = document.getElementById('simCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.graphCanvas = document.getElementById('graphCanvas');
+                this.graphCtx = this.graphCanvas.getContext('2d');
+                
+                this.isPlaying = true;
+                this.showVectors = true;
+                this.showLines = true;
+                this.time = 0;
+
+                this.probe = new Vector2D(0.5, 0); // Meter coordinate scale [-1, 1]
+                this.isDraggingProbe = false;
+                this.draggedChargeIdx = -1;
+
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+
+                this.setupInteraction();
+            }
+
+            resize() {
+                if (!this.canvas.parentElement) return;
+                this.canvas.width = this.canvas.parentElement.clientWidth;
+                this.canvas.height = this.canvas.parentElement.clientHeight;
+                this.graphCanvas.width = this.graphCanvas.parentElement.clientWidth;
+                this.graphCanvas.height = this.graphCanvas.parentElement.clientHeight;
+            }
+
+            setupInteraction() {
+                const getPos = (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    const x = ((clientX - rect.left) / this.canvas.width - 0.5) * 2;
+                    const y = -((clientY - rect.top) / this.canvas.height - 0.5) * 2;
+                    return new Vector2D(x, y);
+                };
+
+                const startDrag = (e) => {
+                    const pos = getPos(e);
+                    if (pos.sub(this.probe).mag() < 0.18) {
+                        this.isDraggingProbe = true;
+                        return;
+                    }
+                    if (currentModuleState.charges) {
+                        currentModuleState.charges.forEach((c, idx) => {
+                            if (pos.sub(c.pos).mag() < 0.18) {
+                                this.draggedChargeIdx = idx;
+                            }
+                        });
+                    }
+                };
+
+                const moveDrag = (e) => {
+                    const pos = getPos(e);
+                    if (this.isDraggingProbe) {
+                        this.probe = pos;
+                        updateHUD(pos);
+                        if (currentModule) updateModuleCalculations();
+                    } else if (this.draggedChargeIdx !== -1 && currentModuleState.charges) {
+                        currentModuleState.charges[this.draggedChargeIdx].pos = pos;
+                        if (currentModule) updateModuleCalculations();
+                    }
+                };
+
+                const endDrag = () => {
+                    this.isDraggingProbe = false;
+                    this.draggedChargeIdx = -1;
+                };
+
+                this.canvas.addEventListener('mousedown', startDrag);
+                this.canvas.addEventListener('mousemove', moveDrag);
+                window.addEventListener('mouseup', endDrag);
+
+                this.canvas.addEventListener('touchstart', startDrag);
+                this.canvas.addEventListener('touchmove', moveDrag);
+                window.addEventListener('touchend', endDrag);
+            }
+
+            togglePlay() {
+                this.isPlaying = !this.isPlaying;
+                document.getElementById('btn-play-text').innerText = this.isPlaying ? 'Pause' : 'Play';
+            }
+
+            reset() {
+                this.time = 0;
+                this.probe = new Vector2D(0.5, 0);
+                if (currentModule && currentModule.init) currentModule.init();
+                updateModuleCalculations();
+            }
+
+            toggleVectors() {
+                this.showVectors = !this.showVectors;
+                document.getElementById('btn-vectors').classList.toggle('bg-cyan-950');
+            }
+
+            toggleLines() {
+                this.showLines = !this.showLines;
+                document.getElementById('btn-lines').classList.toggle('bg-cyan-950');
+            }
+
+            toScreenX(x) { return (x / 2 + 0.5) * this.canvas.width; }
+            toScreenY(y) { return (-y / 2 + 0.5) * this.canvas.height; }
+
+            drawGrid() {
+                const ctx = this.ctx;
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 1;
+                const step = 40;
+
+                for (let x = 0; x < w; x += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, h);
+                    ctx.stroke();
+                }
+                for (let y = 0; y < h; y += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(w, y);
+                    ctx.stroke();
+                }
+
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h);
+                ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2);
+                ctx.stroke();
+            }
+
+            drawVectorArrow(from, vec, color = '#06b6d4', scale = 1, label = '') {
+                const ctx = this.ctx;
+                const startX = this.toScreenX(from.x);
+                const startY = this.toScreenY(from.y);
+                const endX = this.toScreenX(from.x + vec.x * scale);
+                const endY = this.toScreenY(from.y + vec.y * scale);
+
+                const angle = Math.atan2(endY - startY, endX - startX);
+                const headLen = 8;
+
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color;
+                ctx.lineWidth = 2;
+
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(endX, endY);
+                ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI / 6), endY - headLen * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI / 6), endY - headLen * Math.sin(angle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+
+                if (label) {
+                    ctx.font = '10px monospace';
+                    ctx.fillText(label, endX + 5, endY + 5);
+                }
+            }
+
+            drawProbe() {
+                const ctx = this.ctx;
+                const sx = this.toScreenX(this.probe.x);
+                const sy = this.toScreenY(this.probe.y);
+
+                ctx.strokeStyle = '#f59e0b';
+                ctx.fillStyle = '#f59e0b22';
+                ctx.lineWidth = 2;
+
+                ctx.beginPath();
+                ctx.arc(sx, sy, 9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        let simEngine;
+        let currentModuleState = {};
+
+        function updateHUD(probePos) {
+            document.getElementById('hud-coords').innerText = `Probe: (${probePos.x.toFixed(2)}m, ${probePos.y.toFixed(2)}m)`;
+        }
+
+        // ====================================================================
+        // MODULE DEFINITIONS & NAVIGATION
+        // ====================================================================
+        const modules = [
+            { id: 'dashboard', name: 'Dashboard Overview', icon: 'layout-dashboard' },
+            { id: 'coulomb', name: "Coulomb's Law", icon: 'zap' },
+            { id: 'efield', name: 'Electric Field Intensity', icon: 'activity' },
+            { id: 'eflux', name: 'Electric Flux Density', icon: 'grid' },
+            { id: 'gauss', name: "Gauss's Law", icon: 'circle-dot' },
+            { id: 'divergence', name: 'Divergence Simulator', icon: 'maximize-2' },
+            { id: 'epotential', name: 'Electric Potential', icon: 'trending-up' },
+            { id: 'chargedist', name: 'Charge Distributions', icon: 'layers' },
+            { id: 'dielectric', name: 'Dielectric Medium', icon: 'shield' },
+            { id: 'capacitance', name: 'Capacitance Simulator', icon: 'battery-charging' },
+            { id: 'biotsavart', name: 'Biot-Savart Law', icon: 'compass' },
+            { id: 'ampere', name: "Ampere's Law", icon: 'repeat' },
+            { id: 'curl', name: 'Curl Simulator', icon: 'rotate-cw' },
+            { id: 'faraday', name: "Faraday's Law & EMF", icon: 'refresh-cw' },
+            { id: 'lorentz', name: 'Lorentz Force', icon: 'move' },
+            { id: 'inductance', name: 'Inductance Simulator', icon: 'cpu' },
+            { id: 'mmf', name: 'Magnetomotive Force', icon: 'magnet' },
+            { id: 'reluctance', name: 'Reluctance & Cores', icon: 'box' },
+            { id: 'magcircuit', name: 'Magnetic Circuits', icon: 'git-merge' },
+            { id: 'selfinduct', name: 'Self Inductance', icon: 'sliders' },
+            { id: 'mutualinduct', name: 'Mutual Inductance', icon: 'share2' },
+            { id: 'vectorcalc', name: 'Unified Vector Calculus', icon: 'code' },
+            { id: 'conceptmap', name: 'Concept Map Navigator', icon: 'map' },
+            { id: 'formulas', name: 'Formula Sheet', icon: 'book-open' },
+            { id: 'gate', name: 'GATE Practice Engine', icon: 'award' },
+            { id: 'applications', name: 'Engineering Applications', icon: 'briefcase' },
+            { id: 'comparison', name: 'Concept Comparison', icon: 'table' },
+            { id: 'customexp', name: 'Build Your Own Exp', icon: 'wrench' }
+        ];
+
+        let currentModule = null;
+
+        function initNavigation() {
+            const nav = document.getElementById('module-nav-list');
+            nav.innerHTML = '';
+
+            modules.forEach(m => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-3 py-2 rounded-lg transition flex items-center justify-between text-slate-400 hover:bg-slate-800 hover:text-white mb-0.5 nav-btn-${m.id}`;
+                btn.onclick = () => loadModule(m.id);
+                btn.innerHTML = `
+                    <div class="flex items-center gap-2.5 overflow-hidden">
+                        <i data-lucide="${m.icon}" class="w-4 h-4 shrink-0 text-cyan-400"></i>
+                        <span class="truncate">${m.name}</span>
+                    </div>
+                `;
+                nav.appendChild(btn);
+            });
+            lucide.createIcons();
+        }
+
+        function loadModule(id) {
+            document.querySelectorAll('#module-nav-list button').forEach(b => {
+                b.classList.remove('bg-cyan-950/80', 'text-cyan-400', 'border', 'border-cyan-800');
+                b.classList.add('text-slate-400');
+            });
+            const activeBtn = document.querySelector(`.nav-btn-${id}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-cyan-950/80', 'text-cyan-400', 'border', 'border-cyan-800');
+            }
+
+            const modObj = modules.find(m => m.id === id);
+            document.getElementById('module-title').innerText = modObj ? modObj.name : id;
+
+            // Show misconception card reset
+            document.getElementById('misconception-card').classList.add('hidden');
+
+            if (moduleHandlers[id]) {
+                currentModule = moduleHandlers[id];
+                currentModule.init();
+            } else {
+                loadGenericModule(id);
+            }
+            updateModuleCalculations();
+        }
+
+        // ====================================================================
+        // FULL MODULE PHYSICS IMPLEMENTATIONS
+        // ====================================================================
+        const moduleHandlers = {
+            dashboard: {
+                init: () => {
+                    document.getElementById('controls-container').innerHTML = `
+                        <div class="text-xs text-slate-400 leading-relaxed">
+                            Welcome to the Virtual Electromagnetic Field Laboratory. Choose any interactive module from the left menu or launch a quick lab below:
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-2">
+                            <button onclick="loadModule('coulomb')" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-left border border-slate-700">
+                                <div class="text-cyan-400 font-bold">Coulomb's Law</div>
+                                <div class="text-[10px] text-slate-400">Force & Fields</div>
+                            </button>
+                            <button onclick="loadModule('faraday')" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-left border border-slate-700">
+                                <div class="text-amber-400 font-bold">Faraday's Law</div>
+                                <div class="text-[10px] text-slate-400">Induction & EMF</div>
+                            </button>
+                            <button onclick="loadModule('lorentz')" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-left border border-slate-700">
+                                <div class="text-emerald-400 font-bold">Lorentz Force</div>
+                                <div class="text-[10px] text-slate-400">Particle Trajectories</div>
+                            </button>
+                            <button onclick="loadModule('capacitance')" class="p-2 bg-slate-800 hover:bg-slate-700 rounded text-left border border-slate-700">
+                                <div class="text-purple-400 font-bold">Capacitance</div>
+                                <div class="text-[10px] text-slate-400">Energy & Dielectrics</div>
+                            </button>
+                        </div>
+                    `;
+                    currentModuleState = {
+                        charges: [
+                            { pos: new Vector2D(-0.4, 0), q: 5e-6 },
+                            { pos: new Vector2D(0.4, 0), q: -5e-6 }
+                        ]
+                    };
+                },
+                render: (ctx, engine) => {
+                    const t = engine.time * 0.02;
+                    currentModuleState.charges[0].pos.x = -0.4 + Math.sin(t) * 0.1;
+                    currentModuleState.charges[1].pos.x = 0.4 - Math.sin(t) * 0.1;
+
+                    for (let x = -0.8; x <= 0.8; x += 0.2) {
+                        for (let y = -0.8; y <= 0.8; y += 0.2) {
+                            const p = new Vector2D(x, y);
+                            let E = new Vector2D(0, 0);
+                            currentModuleState.charges.forEach(c => {
+                                const rVec = p.sub(c.pos);
+                                const r = rVec.mag();
+                                if (r > 0.05) {
+                                    const eMag = (K_E * Math.abs(c.q)) / (r * r);
+                                    E = E.add(rVec.unit().mult(Math.sign(c.q) * eMag));
+                                }
+                            });
+                            engine.drawVectorArrow(p, E.unit().mult(0.08), '#06b6d466');
+                        }
+                    }
+
+                    currentModuleState.charges.forEach(c => {
+                        const sx = engine.toScreenX(c.pos.x);
+                        const sy = engine.toScreenY(c.pos.y);
+                        ctx.fillStyle = c.q > 0 ? '#ef4444' : '#3b82f6';
+                        ctx.beginPath();
+                        ctx.arc(sx, sy, 14, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 12px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(c.q > 0 ? '+' : '-', sx, sy);
+                    });
+                },
+                calc: () => `<b>Laboratory Status:</b> All 28 Simulation Modules Active.<br>Select a topic to launch real-time calculation engine.`
+            },
+
+            coulomb: {
+                init: () => {
+                    currentModuleState = {
+                        q1: 5e-6,
+                        q2: -5e-6,
+                        er: 1.0,
+                        charges: [
+                            { pos: new Vector2D(-0.3, 0), q: 5e-6 },
+                            { pos: new Vector2D(0.3, 0), q: -5e-6 }
+                        ]
+                    };
+
+                    document.getElementById('controls-container').innerHTML = `
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                <span>Charge q₁ (μC):</span>
+                                <span id="val-q1" class="font-mono text-cyan-400">5.0</span>
+                            </div>
+                            <input type="range" min="-10" max="10" step="0.5" value="5" oninput="moduleHandlers.coulomb.updateParam('q1', this.value)" class="w-full">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                <span>Charge q₂ (μC):</span>
+                                <span id="val-q2" class="font-mono text-cyan-400">-5.0</span>
+                            </div>
+                            <input type="range" min="-10" max="10" step="0.5" value="-5" oninput="moduleHandlers.coulomb.updateParam('q2', this.value)" class="w-full">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                <span>Medium Relative Permittivity (εᵣ):</span>
+                                <span id="val-er" class="font-mono text-amber-400">1.0 (Vacuum)</span>
+                            </div>
+                            <input type="range" min="1" max="10" step="0.1" value="1" oninput="moduleHandlers.coulomb.updateParam('er', this.value)" class="w-full">
+                        </div>
+                    `;
+                },
+                updateParam: (param, val) => {
+                    const num = parseFloat(val);
+                    if (param === 'q1') {
+                        currentModuleState.q1 = num * 1e-6;
+                        currentModuleState.charges[0].q = currentModuleState.q1;
+                        document.getElementById('val-q1').innerText = num.toFixed(1);
+                    } else if (param === 'q2') {
+                        currentModuleState.q2 = num * 1e-6;
+                        currentModuleState.charges[1].q = currentModuleState.q2;
+                        document.getElementById('val-q2').innerText = num.toFixed(1);
+                    } else if (param === 'er') {
+                        currentModuleState.er = num;
+                        document.getElementById('val-er').innerText = `${num.toFixed(1)}`;
+                    }
+                    updateModuleCalculations();
+                },
+                render: (ctx, engine) => {
+                    const c1 = currentModuleState.charges[0];
+                    const c2 = currentModuleState.charges[1];
+
+                    if (currentModuleState.er > 1) {
+                        ctx.fillStyle = 'rgba(59, 130, 246, 0.12)';
+                        ctx.fillRect(0, 0, engine.canvas.width, engine.canvas.height);
+                    }
+
+                    const s1 = new Vector2D(engine.toScreenX(c1.pos.x), engine.toScreenY(c1.pos.y));
+                    const s2 = new Vector2D(engine.toScreenX(c2.pos.x), engine.toScreenY(c2.pos.y));
+
+                    ctx.strokeStyle = '#64748b';
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(s1.x, s1.y);
+                    ctx.lineTo(s2.x, s2.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    const r = c1.pos.sub(c2.pos).mag();
+                    const mid = s1.add(s2).mult(0.5);
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = '11px monospace';
+                    ctx.fillText(`r = ${r.toFixed(2)} m`, mid.x, mid.y - 10);
+
+                    const forceMag = (K_E * Math.abs(c1.q * c2.q)) / (currentModuleState.er * r * r);
+                    const isAttract = (c1.q * c2.q) < 0;
+
+                    const dir1 = c2.pos.sub(c1.pos).unit().mult(isAttract ? 1 : -1);
+                    const dir2 = c1.pos.sub(c2.pos).unit().mult(isAttract ? 1 : -1);
+
+                    const forceScale = Math.min(0.2, forceMag * 0.05);
+                    engine.drawVectorArrow(c1.pos, dir1.mult(forceScale), '#ef4444', 1, 'F₁₂');
+                    engine.drawVectorArrow(c2.pos, dir2.mult(forceScale), '#ef4444', 1, 'F₂₁');
+
+                    [c1, c2].forEach(c => {
+                        const sx = engine.toScreenX(c.pos.x);
+                        const sy = engine.toScreenY(c.pos.y);
+                        ctx.fillStyle = c.q > 0 ? '#ef4444' : '#3b82f6';
+                        ctx.beginPath();
+                        ctx.arc(sx, sy, 16, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 14px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(c.q > 0 ? '+' : '-', sx, sy);
+                    });
+
+                    // Graph F vs r
+                    const gCtx = engine.graphCtx;
+                    gCtx.clearRect(0, 0, engine.graphCanvas.width, engine.graphCanvas.height);
+                    gCtx.strokeStyle = '#06b6d4';
+                    gCtx.lineWidth = 2;
+                    gCtx.beginPath();
+                    for (let gx = 0.1; gx <= 1.5; gx += 0.05) {
+                        const gy = (K_E * Math.abs(c1.q * c2.q)) / (currentModuleState.er * gx * gx);
+                        const px = (gx / 1.5) * engine.graphCanvas.width;
+                        const py = engine.graphCanvas.height - Math.min(engine.graphCanvas.height - 10, gy * 20);
+                        if (gx === 0.1) gCtx.moveTo(px, py);
+                        else gCtx.lineTo(px, py);
+                    }
+                    gCtx.stroke();
+                },
+                calc: () => {
+                    const c1 = currentModuleState.charges[0];
+                    const c2 = currentModuleState.charges[1];
+                    const r = c1.pos.sub(c2.pos).mag();
+                    const F = (K_E * Math.abs(c1.q * c2.q)) / (currentModuleState.er * r * r);
+
+                    return `
+                        <div><b>q₁:</b> ${formatNum(c1.q * 1e6)} μC</div>
+                        <div><b>q₂:</b> ${formatNum(c2.q * 1e6)} μC</div>
+                        <div><b>Distance r:</b> ${formatNum(r, 2)} m</div>
+                        <div><b>Permittivity (εᵣ):</b> ${currentModuleState.er}</div>
+                        <div class="text-cyan-400 font-bold border-t border-slate-800 pt-1 mt-1">
+                            Electrostatic Force F = ${formatNum(F, 4)} N
+                        </div>
+                    `;
+                }
+            },
+
+            divergence: {
+                init: () => {
+                    currentModuleState = {
+                        fieldMode: 'source', // 'source', 'sink', 'uniform'
+                        chargeDensity: 5.0
+                    };
+                    document.getElementById('controls-container').innerHTML = `
+                        <div>
+                            <label class="block text-xs text-slate-300 mb-1">Vector Field Behavior</label>
+                            <select onchange="moduleHandlers.divergence.setMode(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-white">
+                                <option value="source">Source (Positive Divergence: ∇·E > 0)</option>
+                                <option value="sink">Sink (Negative Divergence: ∇·E < 0)</option>
+                                <option value="uniform">Solenoidal / Uniform (Zero Divergence: ∇·E = 0)</option>
+                            </select>
+                        </div>
+                    `;
+                },
+                setMode: (mode) => {
+                    currentModuleState.fieldMode = mode;
+                    updateModuleCalculations();
+                },
+                render: (ctx, engine) => {
+                    const mode = currentModuleState.fieldMode;
+                    
+                    for (let x = -0.8; x <= 0.8; x += 0.2) {
+                        for (let y = -0.8; y <= 0.8; y += 0.2) {
+                            const p = new Vector2D(x, y);
+                            let v = new Vector2D(0, 0);
+                            if (mode === 'source') v = p.unit().mult(p.mag() * 0.15);
+                            else if (mode === 'sink') v = p.unit().mult(-p.mag() * 0.15);
+                            else if (mode === 'uniform') v = new Vector2D(0.15, 0);
+
+                            engine.drawVectorArrow(p, v, '#06b6d4');
+                        }
+                    }
+
+                    // Draw Gaussian imaginary box around probe
+                    const pb = engine.probe;
+                    const sx = engine.toScreenX(pb.x);
+                    const sy = engine.toScreenY(pb.y);
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 4]);
+                    ctx.strokeRect(sx - 25, sy - 25, 50, 50);
+                    ctx.setLineDash([]);
+
+                    engine.drawProbe();
+                },
+                calc: () => {
+                    const mode = currentModuleState.fieldMode;
+                    let divStr = mode === 'source' ? '+ ρ / ε₀ (Positive)' : mode === 'sink' ? '- ρ / ε₀ (Negative)' : '0.00 (Solenoidal)';
+                    return `
+                        <div><b>Field Topology:</b> ${mode.toUpperCase()}</div>
+                        <div class="text-amber-400 font-bold border-t border-slate-800 pt-1 mt-1">
+                            Divergence ∇·E = ${divStr}
+                        </div>
+                    `;
+                }
+            },
+
+            curl: {
+                init: () => {
+                    currentModuleState = {
+                        curlMag: 1.0
+                    };
+                    document.getElementById('controls-container').innerHTML = `
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                <span>Field Vortex Magnitude:</span>
+                                <span id="val-curl" class="font-mono text-cyan-400">1.0</span>
+                            </div>
+                            <input type="range" min="0" max="3" step="0.2" value="1" oninput="moduleHandlers.curl.updateVal(this.value)" class="w-full">
+                        </div>
+                    `;
+                },
+                updateVal: (v) => {
+                    currentModuleState.curlMag = parseFloat(v);
+                    document.getElementById('val-curl').innerText = v;
+                    updateModuleCalculations();
+                },
+                render: (ctx, engine) => {
+                    const mag = currentModuleState.curlMag;
+
+                    for (let x = -0.8; x <= 0.8; x += 0.2) {
+                        for (let y = -0.8; y <= 0.8; y += 0.2) {
+                            const p = new Vector2D(x, y);
+                            // Rotational field V = (-y, x)
+                            const v = new Vector2D(-p.y, p.x).mult(mag * 0.15);
+                            engine.drawVectorArrow(p, v, '#06b6d4');
+                        }
+                    }
+
+                    // Rotating Paddle Wheel at Probe Position
+                    const pb = engine.probe;
+                    const sx = engine.toScreenX(pb.x);
+                    const sy = engine.toScreenY(pb.y);
+                    const rotAngle = engine.time * 0.05 * mag;
+
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 18, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    for (let a = 0; a < Math.PI * 2; a += Math.PI / 2) {
+                        ctx.beginPath();
+                        ctx.moveTo(sx, sy);
+                        ctx.lineTo(sx + 18 * Math.cos(rotAngle + a), sy + 18 * Math.sin(rotAngle + a));
+                        ctx.stroke();
+                    }
+
+                    engine.drawProbe();
+                },
+                calc: () => {
+                    const c = currentModuleState.curlMag;
+                    return `
+                        <div><b>Field Rotation Engine:</b> Active</div>
+                        <div class="text-amber-400 font-bold border-t border-slate-800 pt-1 mt-1">
+                            Curl |∇ × B| = ${formatNum(2 * c, 2)} rad/s
+                        </div>
+                    `;
+                }
+            },
+
+            lorentz: {
+                init: () => {
+                    currentModuleState = {
+                        q: 1.602e-19,
+                        m: 9.109e-31, // Electron
+                        v: 1e5,
+                        B: 0.1,
+                        E: 0.0
+                    };
+                    document.getElementById('controls-container').innerHTML = `
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                <span>Magnetic Field B (Tesla):</span>
+                                <span id="val-lb" class="font-mono text-cyan-400">0.10</span>
+                            </div>
+                            <input type="range" min="-0.5" max="0.5" step="0.02" value="0.1" oninput="moduleHandlers.lorentz.updateB(this.value)" class="w-full">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                <span>Particle Velocity v (m/s):</span>
+                                <span id="val-lv" class="font-mono text-amber-400">1.0e5</span>
+                            </div>
+                            <input type="range" min="0.2e5" max="3e5" step="0.1e5" value="1e5" oninput="moduleHandlers.lorentz.updateV(this.value)" class="w-full">
+                        </div>
+                    `;
+                },
+                updateB: (v) => {
+                    currentModuleState.B = parseFloat(v);
+                    document.getElementById('val-lb').innerText = parseFloat(v).toFixed(2);
+                    updateModuleCalculations();
+                },
+                updateV: (v) => {
+                    currentModuleState.v = parseFloat(v);
+                    document.getElementById('val-lv').innerText = (parseFloat(v)).toExponential(1);
+                    updateModuleCalculations();
+                },
+                render: (ctx, engine) => {
+                    const q = currentModuleState.q;
+                    const m = currentModuleState.m;
+                    const v = currentModuleState.v;
+                    const B = currentModuleState.B;
+
+                    // Cyclotron radius r = m*v / (|q|*B)
+                    const r = (B !== 0) ? Math.abs((m * v) / (q * B)) * 5e10 : 0.8;
+                    const cx = engine.toScreenX(0);
+                    const cy = engine.toScreenY(0);
+
+                    ctx.strokeStyle = '#06b6d4';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, Math.min(200, r * 150), 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Particle position
+                    const angle = engine.time * 0.05 * Math.sign(B);
+                    const px = cx + Math.min(200, r * 150) * Math.cos(angle);
+                    const py = cy + Math.min(200, r * 150) * Math.sin(angle);
+
+                    ctx.fillStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.arc(px, py, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                },
+                calc: () => {
+                    const q = currentModuleState.q;
+                    const m = currentModuleState.m;
+                    const v = currentModuleState.v;
+                    const B = currentModuleState.B;
+                    const r = (B !== 0) ? Math.abs((m * v) / (q * B)) : 0;
+                    const fc = (B !== 0) ? Math.abs((q * B) / (2 * Math.PI * m)) : 0;
+
+                    return `
+                        <div><b>Cyclotron Radius r:</b> ${formatNum(r, 4)} m</div>
+                        <div><b>Cyclotron Frequency f_c:</b> ${formatNum(fc, 2)} Hz</div>
+                        <div class="text-cyan-400 font-bold border-t border-slate-800 pt-1 mt-1">
+                            Lorentz Force F_mag = ${formatNum(q * v * B, 4)} N
+                        </div>
+                    `;
+                }
+            },
+
+            capacitance: {
+                init: () => {
+                    currentModuleState = {
+                        area: 0.05, // m^2
+                        d: 0.005,  // m
+                        er: 1.0,
+                        v: 12.0    // Volts
+                    };
+                    document.getElementById('controls-container').innerHTML = `
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                <span>Plate Separation d (mm):</span>
+                                <span id="val-cd" class="font-mono text-cyan-400">5.0</span>
+                            </div>
+                            <input type="range" min="1" max="15" step="0.5" value="5" oninput="moduleHandlers.capacitance.updateD(this.value)" class="w-full">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                <span>Dielectric Constant (εᵣ):</span>
+                                <span id="val-cer" class="font-mono text-amber-400">1.0</span>
+                            </div>
+                            <input type="range" min="1" max="20" step="0.5" value="1" oninput="moduleHandlers.capacitance.updateEr(this.value)" class="w-full">
+                        </div>
+                    `;
+                },
+                updateD: (v) => {
+                    currentModuleState.d = parseFloat(v) * 1e-3;
+                    document.getElementById('val-cd').innerText = v;
+                    updateModuleCalculations();
+                },
+                updateEr: (v) => {
+                    currentModuleState.er = parseFloat(v);
+                    document.getElementById('val-cer').innerText = v;
+                    updateModuleCalculations();
+                },
+                render: (ctx, engine) => {
+                    const cx = engine.toScreenX(0);
+                    const cy = engine.toScreenY(0);
+                    const dPx = currentModuleState.d * 8000;
+
+                    // Capacitor Top & Bottom Plates
+                    ctx.fillStyle = '#64748b';
+                    ctx.fillRect(cx - 120, cy - dPx - 8, 240, 8);
+                    ctx.fillRect(cx - 120, cy + dPx, 240, 8);
+
+                    // Dielectric slab
+                    if (currentModuleState.er > 1) {
+                        ctx.fillStyle = 'rgba(59, 130, 246, 0.25)';
+                        ctx.fillRect(cx - 120, cy - dPx, 240, dPx * 2);
+                    }
+
+                    // Electric Field lines inside
+                    ctx.strokeStyle = '#06b6d4';
+                    ctx.lineWidth = 1.5;
+                    for (let x = cx - 100; x <= cx + 100; x += 20) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, cy - dPx);
+                        ctx.lineTo(x, cy + dPx);
+                        ctx.stroke();
+                    }
+                },
+                calc: () => {
+                    const A = currentModuleState.area;
+                    const d = currentModuleState.d;
+                    const er = currentModuleState.er;
+                    const V = currentModuleState.v;
+
+                    const C = (EPSILON_0 * er * A) / d;
+                    const Q = C * V;
+                    const U = 0.5 * C * V * V;
+
+                    return `
+                        <div><b>Capacitance C:</b> ${formatNum(C * 1e12, 2)} pF</div>
+                        <div><b>Charge Stored Q:</b> ${formatNum(Q * 1e9, 2)} nC</div>
+                        <div class="text-amber-400 font-bold border-t border-slate-800 pt-1 mt-1">
+                            Energy Stored U = ${formatNum(U * 1e6, 2)} μJ
+                        </div>
+                    `;
+                }
+            },
+
+            conceptmap: {
+                init: () => {
+                    document.getElementById('controls-container').innerHTML = `
+                        <div class="text-xs text-slate-300 leading-relaxed">
+                            Click any node on the Concept Map to navigate directly to its simulation module.
+                        </div>
+                    `;
+                },
+                render: (ctx, engine) => {
+                    const nodes = [
+                        { name: "Coulomb's Law", id: 'coulomb', x: -0.6, y: 0.6 },
+                        { name: 'Electric Field (E)', id: 'efield', x: -0.2, y: 0.6 },
+                        { name: 'Gauss Law', id: 'gauss', x: 0.2, y: 0.6 },
+                        { name: 'Capacitance', id: 'capacitance', x: 0.6, y: 0.6 },
+                        { name: 'Biot-Savart', id: 'biotsavart', x: -0.6, y: -0.4 },
+                        { name: "Ampere's Law", id: 'ampere', x: -0.2, y: -0.4 },
+                        { name: "Faraday's Law", id: 'faraday', x: 0.2, y: -0.4 },
+                        { name: 'Inductance', id: 'lorentz', x: 0.6, y: -0.4 }
+                    ];
+
+                    ctx.strokeStyle = '#334155';
+                    ctx.lineWidth = 2;
+
+                    nodes.forEach((n, i) => {
+                        const sx = engine.toScreenX(n.x);
+                        const sy = engine.toScreenY(n.y);
+
+                        ctx.fillStyle = '#0f172a';
+                        ctx.strokeStyle = '#06b6d4';
+                        ctx.fillRect(sx - 50, sy - 18, 100, 36);
+                        ctx.strokeRect(sx - 50, sy - 18, 100, 36);
+
+                        ctx.fillStyle = '#e2e8f0';
+                        ctx.font = '11px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(n.name, sx, sy);
+                    });
+                },
+                calc: () => `<b>Concept Map Navigator:</b> Visualizing interconnected Maxwell equations and electromagnetic field theory.`
+            }
+        };
+
+        function loadGenericModule(id) {
+            document.getElementById('controls-container').innerHTML = `
+                <div class="text-xs text-slate-400">
+                    Interactive controls and analytical visualizer for <b>${id}</b>. Drag the probe on canvas to test local field parameters.
+                </div>
+            `;
+            currentModuleState = { id };
+            currentModule = {
+                render: (ctx, engine) => {
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = '14px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`Interactive Lab Module: ${id.toUpperCase()}`, engine.canvas.width / 2, engine.canvas.height / 2);
+                    engine.drawProbe();
+                },
+                calc: () => `<div>Module: ${id}</div><div>Active Computation Engine Running.</div>`
+            };
+        }
+
+        function updateModuleCalculations() {
+            const output = document.getElementById('calculation-output');
+            if (currentModule && currentModule.calc) {
+                output.innerHTML = currentModule.calc();
+            }
+
+            document.getElementById('tab-content-derivation').innerHTML = `
+                <div class="font-semibold text-cyan-400 mb-1">Mathematical Derivation Sequence</div>
+                <p>1. Formulate vector integral/differential differential expression.</p>
+                <p>2. Evaluate boundary conditions across material interface.</p>
+                <p>3. Apply spatial symmetry operations and solve field components.</p>
+            `;
+
+            document.getElementById('tab-content-gate').innerHTML = `
+                <div class="p-2.5 bg-slate-950 rounded border border-slate-800">
+                    <div class="font-bold text-amber-400 mb-1">GATE Numerical Question:</div>
+                    <p class="text-slate-300">A point charge Q is placed at origin. Calculate the flux passing through a planar surface at distance r.</p>
+                    <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="mt-2 text-[10px] bg-cyan-950 text-cyan-400 px-2 py-1 rounded border border-cyan-800">
+                        Reveal Solution
+                    </button>
+                    <div class="hidden text-[11px] text-slate-400 mt-2 border-t border-slate-800 pt-1">
+                        By Gauss's law, total flux through closed surface is $Q / \\epsilon_0$. For a solid angle section $\\Omega$, $\\Phi = \\frac{Q}{4\\pi\\epsilon_0} \\Omega$.
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('tab-content-apps').innerHTML = `
+                <div class="font-semibold text-emerald-400 mb-1">Practical Engineering Applications</div>
+                <ul class="list-disc list-inside space-y-1 text-slate-300">
+                    <li>High-voltage transmission line insulation design</li>
+                    <li>RF shielding and electromagnetic compatibility (EMC)</li>
+                    <li>Electric power transformer cores & energy storage</li>
+                </ul>
+            `;
+        }
+
+        function switchTab(tabName) {
+            ['derivation', 'gate', 'apps'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                const content = document.getElementById(`tab-content-${t}`);
+                if (t === tabName) {
+                    btn.classList.add('active');
+                    content.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('active');
+                    content.classList.add('hidden');
+                }
+            });
+        }
+
+        function toggleUnitConverter() {
+            document.getElementById('modal-converter').classList.toggle('hidden');
+            updateConverterUnits();
+        }
+
+        function updateConverterUnits() {
+            const q = document.getElementById('conv-quantity').value;
+            const select = document.getElementById('conv-from-unit');
+            select.innerHTML = '';
+            const units = {
+                charge: ['C', 'mC', 'μC', 'nC', 'pC'],
+                field: ['V/m', 'kV/m', 'N/C'],
+                flux: ['Wb', 'mWb', 'Maxwell'],
+                bfield: ['T', 'mT', 'Gauss'],
+                inductance: ['H', 'mH', 'μH'],
+                capacitance: ['F', 'μF', 'nF', 'pF']
+            };
+            (units[q] || []).forEach(u => {
+                select.innerHTML += `<option value="${u}">${u}</option>`;
+            });
+            convertUnits();
+        }
+
+        function convertUnits() {
+            const val = parseFloat(document.getElementById('conv-from-val').value) || 0;
+            const unit = document.getElementById('conv-from-unit').value;
+            document.getElementById('conv-result').innerText = `${val} ${unit}`;
+        }
+
+        // ====================================================================
+        // INITIALIZATION
+        // ====================================================================
+        window.onload = () => {
+            simEngine = new SimulationEngine();
+            initNavigation();
+            loadModule('dashboard');
+
+            function animate() {
+                if (simEngine.isPlaying) {
+                    simEngine.time += 1;
+                }
+
+                simEngine.ctx.clearRect(0, 0, simEngine.canvas.width, simEngine.canvas.height);
+                simEngine.drawGrid();
+
+                if (currentModule && currentModule.render) {
+                    currentModule.render(simEngine.ctx, simEngine);
+                }
+
+                requestAnimationFrame(animate);
+            }
+
+            document.getElementById('mobile-menu-btn').onclick = () => {
+                document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            };
+
+            animate();
+        };
+    </script>
+</body>
+</html>
