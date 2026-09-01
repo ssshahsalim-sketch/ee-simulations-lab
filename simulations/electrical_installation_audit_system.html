@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Electrical Installation Audit & Report Generator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- jsPDF and html2canvas for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 3px;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; color: black; }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased min-h-screen flex flex-col custom-scrollbar">
+
+    <!-- TOP DISCLAIMER BAR -->
+    <div class="bg-amber-600/90 text-slate-950 px-4 py-1.5 text-xs font-semibold flex justify-between items-center z-50 border-b border-amber-500">
+        <div class="flex items-center space-x-2 truncate">
+            <i data-lucide="shield-alert" class="w-4 h-4 shrink-0"></i>
+            <span class="truncate">THIS APPLICATION IS AN INSPECTION, TESTING AND DOCUMENTATION ASSISTANCE TOOL. STATUTORY APPROVALS, CERTIFICATIONS AND PERMISSIONS SHALL BE OBTAINED FROM THE COMPETENT AUTHORITY WHERE REQUIRED.</span>
+        </div>
+        <div class="flex items-center space-x-3 shrink-0 ml-2">
+            <span id="connection-status" class="flex items-center text-xs bg-slate-900/40 text-amber-100 px-2 py-0.5 rounded-full border border-amber-400/30">
+                <span class="w-2 h-2 rounded-full bg-green-400 inline-block mr-1.5"></span> ONLINE
+            </span>
+        </div>
+    </div>
+
+    <!-- MAIN HEADER -->
+    <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex justify-between items-center sticky top-0 z-40 shadow-lg">
+        <div class="flex items-center space-x-3">
+            <button id="toggle-sidebar-btn" class="p-1.5 text-slate-300 hover:bg-slate-700 rounded-md md:hidden">
+                <i data-lucide="menu" class="w-5 h-5"></i>
+            </button>
+            <div class="flex items-center space-x-2">
+                <div class="p-2 bg-amber-500/20 text-amber-400 rounded-lg border border-amber-500/30">
+                    <i data-lucide="zap" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg text-slate-100 leading-none">VoltAudit Pro</h1>
+                    <span class="text-xs text-slate-400">Electrical Installation Audit & Safety Inspection System</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2 sm:space-x-3">
+            <button onclick="loadDemoProject()" class="text-xs bg-slate-700 hover:bg-slate-600 text-amber-300 px-3 py-1.5 rounded-md border border-amber-500/30 transition flex items-center space-x-1">
+                <i data-lucide="play-circle" class="w-3.5 h-3.5"></i>
+                <span class="hidden sm:inline">Load Demo Project</span>
+            </button>
+            <button onclick="saveCurrentProject()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3 py-1.5 rounded-md transition flex items-center space-x-1 shadow-md shadow-amber-500/20">
+                <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                <span>Save Data</span>
+            </button>
+            <div class="relative group">
+                <button class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-md border border-slate-600 flex items-center space-x-1">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span class="hidden md:inline">Data Options</span>
+                    <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                </button>
+                <div class="absolute right-0 top-full mt-1 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl hidden group-hover:block z-50 p-1">
+                    <button onclick="exportProjectJSON()" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 rounded flex items-center space-x-2">
+                        <i data-lucide="file-json" class="w-4 h-4 text-sky-400"></i>
+                        <span>Export Project (JSON)</span>
+                    </button>
+                    <label class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 rounded flex items-center space-x-2 cursor-pointer">
+                        <i data-lucide="upload" class="w-4 h-4 text-emerald-400"></i>
+                        <span>Import Project (JSON)</span>
+                        <input type="file" id="import-json-input" class="hidden" accept=".json" onchange="importProjectJSON(event)">
+                    </label>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTAINER -->
+    <div class="flex flex-1 overflow-hidden">
+
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between shrink-0 transition-all duration-300 overflow-y-auto custom-scrollbar fixed md:static inset-y-0 left-0 z-30 transform -translate-x-full md:translate-x-0">
+            <div class="p-3 space-y-1">
+                <div class="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Navigation</div>
+
+                <nav class="space-y-0.5" id="nav-menu">
+                    <button onclick="switchTab('dashboard')" class="nav-item active w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4 text-amber-400"></i>
+                        <span>Dashboard</span>
+                    </button>
+
+                    <button onclick="switchTab('project-info')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="building-2" class="w-4 h-4 text-sky-400"></i>
+                        <span>Project Information</span>
+                    </button>
+
+                    <button onclick="switchTab('contractor-profile')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="briefcase" class="w-4 h-4 text-indigo-400"></i>
+                        <span>Contractor & Client</span>
+                    </button>
+
+                    <button onclick="switchTab('documents')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="file-check" class="w-4 h-4 text-emerald-400"></i>
+                        <span>Drawings & Docs</span>
+                    </button>
+
+                    <button onclick="switchTab('system-diagram')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="network" class="w-4 h-4 text-purple-400"></i>
+                        <span>Electrical Single Line</span>
+                    </button>
+
+                    <div class="pt-2 pb-1 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Inspections & Tests</div>
+
+                    <button onclick="switchTab('checklist')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="list-checks" class="w-4 h-4 text-amber-400"></i>
+                        <span>Inspection Checklist</span>
+                    </button>
+
+                    <button onclick="switchTab('testing-module')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="gauge" class="w-4 h-4 text-red-400"></i>
+                        <span>Electrical Testing</span>
+                    </button>
+
+                    <button onclick="switchTab('earthing')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="anchor" class="w-4 h-4 text-teal-400"></i>
+                        <span>Earthing & Bonding</span>
+                    </button>
+
+                    <button onclick="switchTab('thermography')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="thermometer" class="w-4 h-4 text-orange-400"></i>
+                        <span>Thermography Inspection</span>
+                    </button>
+
+                    <div class="pt-2 pb-1 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Defects & Reports</div>
+
+                    <button onclick="switchTab('defects')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i>
+                        <span>Defects / NCR Tracker</span>
+                    </button>
+
+                    <button onclick="switchTab('reports')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="file-text" class="w-4 h-4 text-blue-400"></i>
+                        <span>Report Generator</span>
+                    </button>
+
+                    <button onclick="switchTab('settings')" class="nav-item w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i data-lucide="sliders" class="w-4 h-4 text-slate-400"></i>
+                        <span>Standards & Settings</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Quick Site Mode Action -->
+            <div class="p-3 bg-slate-900 border-t border-slate-800">
+                <button onclick="openQuickSiteMode()" class="w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg p-2.5 text-xs font-semibold flex items-center justify-center space-x-2 transition">
+                    <i data-lucide="smartphone" class="w-4 h-4"></i>
+                    <span>Quick Mobile Site Mode</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 overflow-y-auto bg-slate-900 p-4 sm:p-6 custom-scrollbar">
+
+            <!-- VIEW: DASHBOARD -->
+            <section id="view-dashboard" class="tab-content space-y-6">
+                <!-- Stat Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm flex items-center justify-between">
+                        <div>
+                            <span class="text-xs text-slate-400 font-medium">Audit Score</span>
+                            <div class="text-2xl font-bold text-amber-400 mt-1" id="dash-score">0%</div>
+                            <span class="text-[10px] text-slate-500" id="dash-score-status">Pending Review</span>
+                        </div>
+                        <div class="w-12 h-12 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                            <i data-lucide="award" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm flex items-center justify-between">
+                        <div>
+                            <span class="text-xs text-slate-400 font-medium">Inspection Progress</span>
+                            <div class="text-2xl font-bold text-emerald-400 mt-1" id="dash-prog">0%</div>
+                            <span class="text-[10px] text-slate-500"><span id="dash-passed-count">0</span> Items Passed</span>
+                        </div>
+                        <div class="w-12 h-12 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm flex items-center justify-between">
+                        <div>
+                            <span class="text-xs text-slate-400 font-medium">Open Defects (NCRs)</span>
+                            <div class="text-2xl font-bold text-rose-400 mt-1" id="dash-ncr-count">0</div>
+                            <span class="text-[10px] text-slate-500"><span id="dash-critical-count">0</span> Critical</span>
+                        </div>
+                        <div class="w-12 h-12 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm flex items-center justify-between">
+                        <div>
+                            <span class="text-xs text-slate-400 font-medium">Documentation</span>
+                            <div class="text-2xl font-bold text-sky-400 mt-1" id="dash-doc-prog">0%</div>
+                            <span class="text-[10px] text-slate-500">Drawings & Approvals</span>
+                        </div>
+                        <div class="w-12 h-12 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                            <i data-lucide="folder-check" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workflow Stage Tracker -->
+                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700">
+                    <h3 class="text-sm font-semibold text-slate-200 mb-4 flex items-center space-x-2">
+                        <i data-lucide="git-commit" class="w-4 h-4 text-amber-400"></i>
+                        <span>Audit Workflow & Life Cycle Stage</span>
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-6 gap-2 text-center text-xs">
+                        <div class="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-medium">
+                            1. Info & Docs
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-slate-700/50 border border-slate-600 text-slate-300 font-medium" id="stage-drawing">
+                            2. Drawings
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-slate-700/50 border border-slate-600 text-slate-300 font-medium" id="stage-inspection">
+                            3. Site Inspection
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-slate-700/50 border border-slate-600 text-slate-300 font-medium" id="stage-testing">
+                            4. Electrical Testing
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-slate-700/50 border border-slate-600 text-slate-300 font-medium" id="stage-rectification">
+                            5. NCR Rectification
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-slate-700/50 border border-slate-600 text-slate-300 font-medium" id="stage-report">
+                            6. Final Report
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activities & Interactive System Preview -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-semibold text-slate-200 flex items-center space-x-2">
+                                <i data-lucide="activity" class="w-4 h-4 text-sky-400"></i>
+                                <span>Recent Audit Findings & Non-Conformities</span>
+                            </h3>
+                            <button onclick="switchTab('defects')" class="text-xs text-amber-400 hover:underline">View All</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="bg-slate-900/60 text-slate-400 uppercase text-[10px] border-b border-slate-700">
+                                    <tr>
+                                        <th class="p-2.5">NCR #</th>
+                                        <th class="p-2.5">Location</th>
+                                        <th class="p-2.5">Finding Description</th>
+                                        <th class="p-2.5">Severity</th>
+                                        <th class="p-2.5">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dash-defects-table-body" class="divide-y divide-slate-700/50">
+                                    <tr>
+                                        <td colspan="5" class="p-4 text-center text-slate-500">No active defects recorded yet.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-4 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-200 mb-2 flex items-center space-x-2">
+                                <i data-lucide="info" class="w-4 h-4 text-amber-400"></i>
+                                <span>Audit Summary</span>
+                            </h3>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Complete all electrical inspection checklists, insulation resistance, earthing tests, and verify safety controls to generate an authoritative Electrical Audit Report.
+                            </p>
+                        </div>
+                        <div class="space-y-2 pt-4 border-t border-slate-700">
+                            <button onclick="switchTab('reports')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 rounded-lg text-xs transition flex items-center justify-center space-x-2">
+                                <i data-lucide="file-output" class="w-4 h-4"></i>
+                                <span>Open Report Generator</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: PROJECT INFORMATION -->
+            <section id="view-project-info" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-sm space-y-6">
+                    <div class="border-b border-slate-700 pb-3 flex justify-between items-center">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100">Project Information</h2>
+                            <p class="text-xs text-slate-400">Enter project, building type, structural metadata, and contact engineering staff.</p>
+                        </div>
+                        <span class="text-xs bg-slate-700 text-amber-400 px-2.5 py-1 rounded-md font-mono" id="project-id-display">PROJ-2026-001</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Project Name *</label>
+                            <input type="text" id="proj-name" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="e.g. Horizon High-Rise Tower A">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Audit Reference Number</label>
+                            <input type="text" id="proj-audit-num" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" value="EA-2026-0101">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Building Category / Type</label>
+                            <select id="proj-building-type" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" onchange="toggleHighRiseModule()">
+                                <option value="High-Rise Commercial">High-Rise Commercial</option>
+                                <option value="High-Rise Residential">High-Rise Residential</option>
+                                <option value="Commercial">Commercial Building</option>
+                                <option value="Residential">Residential Complex</option>
+                                <option value="Industrial">Industrial Plant</option>
+                                <option value="Hospital">Hospital / Healthcare</option>
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-slate-400 mb-1">Site Address</label>
+                            <input type="text" id="proj-address" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="Street address, sector, plot number">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">City & State</label>
+                            <input type="text" id="proj-city-state" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="e.g. Mumbai, Maharashtra">
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-400 mb-1">Number of Floors</label>
+                            <input type="number" id="proj-floors" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" value="18">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Basements</label>
+                            <input type="number" id="proj-basements" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" value="2">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Total Built-up Area (Sq.M)</label>
+                            <input type="text" id="proj-area" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="e.g. 25,000 Sq.M">
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-400 mb-1">Audit Date</label>
+                            <input type="date" id="proj-audit-date" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Construction Stage</label>
+                            <select id="proj-stage" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500">
+                                <option value="Pre-Commissioning Final Inspection">Pre-Commissioning Final Inspection</option>
+                                <option value="Rough-In Stage">Rough-In Stage</option>
+                                <option value="Testing & Handover">Testing & Handover</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Occupancy Type</label>
+                            <input type="text" id="proj-occupancy" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" value="Business / Assembly">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: CONTRACTOR & CLIENT PROFILE -->
+            <section id="view-contractor-profile" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Contractor Profile -->
+                    <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                        <h3 class="text-sm font-bold text-slate-100 border-b border-slate-700 pb-2 flex items-center space-x-2">
+                            <i data-lucide="shield-check" class="w-4 h-4 text-amber-400"></i>
+                            <span>Electrical Contractor Profile</span>
+                        </h3>
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1">Contractor Company Name</label>
+                                <input type="text" id="contractor-name" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="Apex Electrical Solutions Pvt Ltd">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Contractor License No.</label>
+                                    <input type="text" id="contractor-license" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="EL-2024/7889">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Issuing Authority</label>
+                                    <input type="text" id="contractor-authority" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="Electrical Licensing Board">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Supervisor Name</label>
+                                    <input type="text" id="supervisor-name" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="Er. R. K. Sharma">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Supervisor License No.</label>
+                                    <input type="text" id="supervisor-license" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="SUP-90812">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Company Seal / Stamp</label>
+                                <input type="file" id="contractor-seal-input" class="text-slate-400 bg-slate-900 p-1 rounded-md border border-slate-700 w-full" accept="image/*" onchange="handleImageUpload(event, 'contractor-seal-preview')">
+                                <div class="mt-2 h-16 w-32 bg-slate-900 border border-dashed border-slate-700 rounded flex items-center justify-center text-slate-600 text-[10px]" id="contractor-seal-preview">
+                                    Seal Preview
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Client / Developer Info -->
+                    <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                        <h3 class="text-sm font-bold text-slate-100 border-b border-slate-700 pb-2 flex items-center space-x-2">
+                            <i data-lucide="user-check" class="w-4 h-4 text-sky-400"></i>
+                            <span>Client & Consultant Information</span>
+                        </h3>
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1">Client / Developer Name</label>
+                                <input type="text" id="client-name" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="Global Infrastructure Ltd">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">MEP / Electrical Consultant</label>
+                                <input type="text" id="client-consultant" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="Benchmark MEP Engineering Design">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Client Representative</label>
+                                    <input type="text" id="client-rep" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="Mr. A. V. Mehta">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Contact Phone</label>
+                                    <input type="text" id="client-phone" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="+91 98765 43210">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: DOCUMENTS & DRAWINGS CHECKLIST -->
+            <section id="view-documents" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100">Drawings & Compliance Documents Checklist</h2>
+                            <p class="text-xs text-slate-400">Track mandatory engineering drawings, statutory NOCs, and OEM factory test certificates.</p>
+                        </div>
+                        <span class="text-xs text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full" id="doc-completion-badge">0% Verified</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+                                <tr>
+                                    <th class="p-2.5">Document / Drawing Description</th>
+                                    <th class="p-2.5">Type</th>
+                                    <th class="p-2.5">Statutory Approval?</th>
+                                    <th class="p-2.5">Available?</th>
+                                    <th class="p-2.5">Verified?</th>
+                                    <th class="p-2.5">Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="documents-table-body" class="divide-y divide-slate-700">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: ELECTRICAL SINGLE LINE DIAGRAM -->
+            <section id="view-system-diagram" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100">Interactive Building Electrical Flow</h2>
+                            <p class="text-xs text-slate-400">Visual topology of power supply from Grid Utility down to distribution boards.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="simulateFault('none')" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded text-slate-200">Normal Flow</button>
+                            <button onclick="simulateFault('earth-fault')" class="text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 px-2.5 py-1 rounded">Simulate Earth Fault</button>
+                        </div>
+                    </div>
+
+                    <!-- Interactive SVG Diagram -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 overflow-x-auto flex justify-center">
+                        <svg width="700" height="320" viewBox="0 0 700 320" class="max-w-full">
+                            <!-- Utility Grid -->
+                            <rect x="280" y="10" width="140" height="40" rx="6" fill="#1e293b" stroke="#0ea5e9" stroke-width="2"/>
+                            <text x="350" y="35" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="bold">11kV Grid Utility</text>
+
+                            <!-- Path to Transformer -->
+                            <line x1="350" y1="50" x2="350" y2="90" stroke="#f59e0b" stroke-width="3" id="line-ht"/>
+
+                            <!-- Transformer -->
+                            <rect x="280" y="90" width="140" height="45" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="2" class="cursor-pointer" onclick="switchTab('checklist')"/>
+                            <text x="350" y="117" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="bold">Transformer (11kV / 415V)</text>
+
+                            <!-- Path to LT Main Panel -->
+                            <line x1="350" y1="135" x2="350" y2="175" stroke="#10b981" stroke-width="3" id="line-lt"/>
+
+                            <!-- Main LT Switchboard -->
+                            <rect x="240" y="175" width="220" height="45" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="2" class="cursor-pointer" onclick="switchTab('checklist')"/>
+                            <text x="350" y="202" text-anchor="middle" fill="#34d399" font-size="11" font-weight="bold">Main LT Panel (ACB / Busbars)</text>
+
+                            <!-- Branches to MDBs -->
+                            <line x1="280" y1="220" x2="150" y2="260" stroke="#64748b" stroke-width="2" id="line-mdb1"/>
+                            <line x1="350" y1="220" x2="350" y2="260" stroke="#64748b" stroke-width="2" id="line-mdb2"/>
+                            <line x1="420" y1="220" x2="550" y2="260" stroke="#64748b" stroke-width="2" id="line-mdb3"/>
+
+                            <!-- Sub-distribution DBs -->
+                            <rect x="80" y="260" width="140" height="40" rx="4" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+                            <text x="150" y="284" text-anchor="middle" fill="#cbd5e1" font-size="10">Emergency DB (DG/UPS)</text>
+
+                            <rect x="280" y="260" width="140" height="40" rx="4" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+                            <text x="350" y="284" text-anchor="middle" fill="#cbd5e1" font-size="10">Lighting DB (RCD Safe)</text>
+
+                            <rect x="480" y="260" width="140" height="40" rx="4" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+                            <text x="550" y="284" text-anchor="middle" fill="#cbd5e1" font-size="10">Power / HVAC DB</text>
+                        </svg>
+                    </div>
+                    <div id="diagram-fault-status" class="p-3 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-300">
+                        Status: System operating in normal mode. All distribution paths active.
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: MAIN INSPECTION CHECKLIST -->
+            <section id="view-checklist" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-slate-700 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100">Electrical Installation Inspection Checklist</h2>
+                            <p class="text-xs text-slate-400">Perform site physical inspection against standards and safety guidelines.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <select id="checklist-category-filter" class="bg-slate-900 border border-slate-700 rounded-md p-1.5 text-xs text-slate-300" onchange="renderChecklist()">
+                                <option value="ALL">All Categories</option>
+                                <option value="Incoming Supply & HT">Incoming Supply & HT</option>
+                                <option value="LT Panels & DBs">LT Panels & DBs</option>
+                                <option value="Cables & Tray">Cables & Tray</option>
+                                <option value="Earthing System">Earthing System</option>
+                                <option value="Life Safety & Fire">Life Safety & Fire</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Checklist Cards Container -->
+                    <div id="checklist-container" class="space-y-3">
+                        <!-- Populated Dynamically -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: ELECTRICAL TESTING MODULE -->
+            <section id="view-testing-module" class="tab-content hidden space-y-6">
+                <!-- Insulation Resistance Testing -->
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100">Insulation Resistance Test (Megger)</h2>
+                            <p class="text-xs text-slate-400">Record measured insulation values between conductors and ground (MΩ).</p>
+                        </div>
+                        <button onclick="addIRTestRow()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3 py-1.5 rounded transition">
+                            + Add Circuit Test Record
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+                                <tr>
+                                    <th class="p-2.5">Circuit / Cable ID</th>
+                                    <th class="p-2.5">Test Voltage</th>
+                                    <th class="p-2.5">L1-E (MΩ)</th>
+                                    <th class="p-2.5">L2-E (MΩ)</th>
+                                    <th class="p-2.5">L3-E (MΩ)</th>
+                                    <th class="p-2.5">N-E (MΩ)</th>
+                                    <th class="p-2.5">Criterion</th>
+                                    <th class="p-2.5">Result</th>
+                                    <th class="p-2.5">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ir-test-tbody" class="divide-y divide-slate-700">
+                                <!-- Rows inserted dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- RCD / RCCB Trip Testing -->
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100">Residual Current Device (RCD / RCCB) Testing</h2>
+                            <p class="text-xs text-slate-400">Verify earth fault sensitivity and trip speed in milliseconds (ms).</p>
+                        </div>
+                        <button onclick="addRCDTestRow()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3 py-1.5 rounded transition">
+                            + Add RCD Test Record
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+                                <tr>
+                                    <th class="p-2.5">Device DB Location</th>
+                                    <th class="p-2.5">Rating (mA)</th>
+                                    <th class="p-2.5">1x IΔn Trip Time</th>
+                                    <th class="p-2.5">5x IΔn Trip Time</th>
+                                    <th class="p-2.5">Test Button</th>
+                                    <th class="p-2.5">Evaluation</th>
+                                    <th class="p-2.5">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rcd-test-tbody" class="divide-y divide-slate-700">
+                                <!-- Rows inserted dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: EARTHING SYSTEM -->
+            <section id="view-earthing" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100">Earthing Grid & Earth Pit Audit</h2>
+                            <p class="text-xs text-slate-400">Record earth electrode resistance values (Ohms Ω) and equipotential bonding continuity.</p>
+                        </div>
+                        <button onclick="addEarthPitRow()" class="text-xs bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold px-3 py-1.5 rounded transition">
+                            + Add Earth Pit Record
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+                                <tr>
+                                    <th class="p-2.5">Earth Pit ID</th>
+                                    <th class="p-2.5">Location / Equipment</th>
+                                    <th class="p-2.5">Pit Type</th>
+                                    <th class="p-2.5">Resistance (Ω)</th>
+                                    <th class="p-2.5">Max Threshold</th>
+                                    <th class="p-2.5">Status</th>
+                                    <th class="p-2.5">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="earth-pits-tbody" class="divide-y divide-slate-700">
+                                <!-- Rows added dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: THERMOGRAPHY INSPECTION -->
+            <section id="view-thermography" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100">Infrared Thermographic Audit</h2>
+                            <p class="text-xs text-slate-400">Detect loose connections, overload hotspots, and phase unbalance.</p>
+                        </div>
+                        <button onclick="addThermoRow()" class="text-xs bg-orange-500 hover:bg-orange-600 text-slate-950 font-bold px-3 py-1.5 rounded transition">
+                            + Add Hotspot Record
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+                                <tr>
+                                    <th class="p-2.5">Equipment / Joint</th>
+                                    <th class="p-2.5">Ambient (°C)</th>
+                                    <th class="p-2.5">Measured Temp (°C)</th>
+                                    <th class="p-2.5">ΔT Rise (°C)</th>
+                                    <th class="p-2.5">Severity</th>
+                                    <th class="p-2.5">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="thermo-tbody" class="divide-y divide-slate-700">
+                                <!-- Dynamic Thermo Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: DEFECTS / NCR TRACKER -->
+            <section id="view-defects" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100">Non-Conformity & Defect Management (NCR)</h2>
+                            <p class="text-xs text-slate-400">Track life-safety non-conformities, assign responsibility, and confirm rectification.</p>
+                        </div>
+                        <button onclick="openNewNCRModal()" class="text-xs bg-rose-500 hover:bg-rose-600 text-white font-bold px-3 py-1.5 rounded transition flex items-center space-x-1">
+                            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                            <span>Log New NCR</span>
+                        </button>
+                    </div>
+
+                    <div class="space-y-3" id="ncr-cards-list">
+                        <!-- Dynamic NCR Cards -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: REPORT GENERATOR -->
+            <section id="view-reports" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-6">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-100">Electrical Audit Report Generator</h2>
+                            <p class="text-xs text-slate-400">Preview and export formal engineering audit reports to high-resolution PDF.</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <button onclick="generatePDF()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-lg transition flex items-center space-x-2 shadow-lg shadow-amber-500/20">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                <span>Export PDF Report</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Printable A4 Preview Container -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-center overflow-x-auto">
+                        <div id="pdf-report-preview" class="w-[210mm] bg-white text-slate-900 p-8 shadow-2xl rounded space-y-6 text-xs font-sans">
+                            <!-- REPORT COVER HEADER -->
+                            <div class="border-b-2 border-slate-800 pb-4 flex justify-between items-start">
+                                <div>
+                                    <h1 class="text-xl font-bold text-slate-900 uppercase tracking-tight">ELECTRICAL INSTALLATION AUDIT REPORT</h1>
+                                    <p class="text-xs text-slate-600 font-semibold mt-1">Pre-Commissioning Safety & Engineering Inspection</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs font-bold text-amber-600" id="rpt-audit-no">EA-2026-0101</div>
+                                    <div class="text-[10px] text-slate-500" id="rpt-date">Date: 2026-09-01</div>
+                                </div>
+                            </div>
+
+                            <!-- DISCLAIMER BOX -->
+                            <div class="p-3 bg-amber-50 border border-amber-300 rounded text-[10px] text-amber-900 leading-snug">
+                                <strong>STATUTORY DISCLAIMER:</strong> THIS REPORT RECORDS OBSERVATIONS, INSPECTIONS AND TESTS PERFORMED WITHIN THE STATED SCOPE. IT DOES NOT REPLACE ANY STATUTORY APPROVAL, PERMISSION, OR CERTIFICATION REQUIRED FROM REGULATORY COMPETENT AUTHORITIES.
+                            </div>
+
+                            <!-- METADATA TABLE -->
+                            <div class="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded border border-slate-200">
+                                <div>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Project Details</span>
+                                    <div class="font-bold text-slate-800" id="rpt-proj-name">Project Horizon Tower</div>
+                                    <div class="text-slate-600" id="rpt-proj-addr">Sector 4, Urban Complex</div>
+                                    <div class="text-slate-600" id="rpt-proj-type">High-Rise Commercial</div>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Contractor / Inspector</span>
+                                    <div class="font-bold text-slate-800" id="rpt-contractor">Apex Electrical Solutions</div>
+                                    <div class="text-slate-600" id="rpt-supervisor">Supervisor: Er. R. K. Sharma (SUP-90812)</div>
+                                    <div class="text-slate-600" id="rpt-license">License: EL-2024/7889</div>
+                                </div>
+                            </div>
+
+                            <!-- EXECUTIVE SCORE SUMMARY -->
+                            <div class="space-y-2">
+                                <h3 class="font-bold text-slate-800 uppercase text-xs border-b pb-1">1. Executive Audit Summary</h3>
+                                <div class="grid grid-cols-4 gap-2 text-center">
+                                    <div class="p-2 bg-slate-100 rounded border">
+                                        <div class="text-[10px] text-slate-500">Overall Score</div>
+                                        <div class="text-base font-bold text-slate-800" id="rpt-score">0%</div>
+                                    </div>
+                                    <div class="p-2 bg-slate-100 rounded border">
+                                        <div class="text-[10px] text-slate-500">Inspection Pass Rate</div>
+                                        <div class="text-base font-bold text-emerald-600" id="rpt-pass-rate">0%</div>
+                                    </div>
+                                    <div class="p-2 bg-slate-100 rounded border">
+                                        <div class="text-[10px] text-slate-500">Open Defects</div>
+                                        <div class="text-base font-bold text-rose-600" id="rpt-open-ncrs">0</div>
+                                    </div>
+                                    <div class="p-2 bg-slate-100 rounded border">
+                                        <div class="text-[10px] text-slate-500">Doc Verification</div>
+                                        <div class="text-base font-bold text-sky-600" id="rpt-doc-score">0%</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- KEY DEFECTS SUMMARY -->
+                            <div class="space-y-2">
+                                <h3 class="font-bold text-slate-800 uppercase text-xs border-b pb-1">2. Critical Defect & Non-Conformity Log</h3>
+                                <table class="w-full text-[10px] border border-slate-200">
+                                    <thead class="bg-slate-100">
+                                        <tr>
+                                            <th class="p-1 border text-left">NCR #</th>
+                                            <th class="p-1 border text-left">Location</th>
+                                            <th class="p-1 border text-left">Defect / Finding</th>
+                                            <th class="p-1 border text-left">Severity</th>
+                                            <th class="p-1 border text-left">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rpt-ncr-tbody">
+                                        <tr><td colspan="5" class="p-2 text-center text-slate-400">No defects logged.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- SIGNATURE BLOCK -->
+                            <div class="pt-8 grid grid-cols-2 gap-8 border-t border-slate-300">
+                                <div>
+                                    <div class="h-12 flex items-end">
+                                        <div class="text-xs font-bold text-slate-700" id="rpt-sig-name">Er. R. K. Sharma</div>
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 border-t border-slate-300 pt-1">Inspecting Electrical Supervisor</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="h-12 flex items-end justify-end">
+                                        <div id="rpt-seal-container" class="text-[10px] text-slate-400 font-mono">[Stamp / Seal]</div>
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 border-t border-slate-300 pt-1">Authorized Contractor Signatory & Seal</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: SETTINGS & STANDARDS -->
+            <section id="view-settings" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-4">
+                    <h2 class="text-base font-bold text-slate-100 border-b border-slate-700 pb-2">Reference Standards & Criteria Configuration</h2>
+                    <p class="text-xs text-slate-400">Modify test pass thresholds according to applicable regional codes (IS 732, IEC 60364, NEC).</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Min. Insulation Resistance Threshold (MΩ)</label>
+                            <input type="number" id="setting-min-ir" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200" value="1.0">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Max. Earth Electrode Resistance (Ω)</label>
+                            <input type="number" id="setting-max-earth" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200" value="5.0">
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- NCR MODAL FORM -->
+    <div id="ncr-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h3 class="font-bold text-slate-100 text-sm">Log Non-Conformity (NCR)</h3>
+                <button onclick="closeNCRModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-400 mb-1">Location / Equipment</label>
+                    <input type="text" id="modal-ncr-loc" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200" placeholder="e.g. 3rd Floor DB-03">
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1">Defect Description</label>
+                    <textarea id="modal-ncr-desc" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 h-20" placeholder="Describe safety defect or code breach..."></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Severity Level</label>
+                        <select id="modal-ncr-sev" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200">
+                            <option value="CRITICAL">CRITICAL</option>
+                            <option value="MAJOR">MAJOR</option>
+                            <option value="MINOR">MINOR</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Responsible Person</label>
+                        <input type="text" id="modal-ncr-resp" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200" placeholder="Electrical Site Subcontractor">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-700">
+                <button onclick="closeNCRModal()" class="px-3 py-1.5 bg-slate-700 text-slate-300 rounded text-xs">Cancel</button>
+                <button onclick="saveNCRFromModal()" class="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded text-xs">Save Defect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CORE JAVASCRIPT LOGIC -->
+    <script>
+        // CORE APPLICATION STATE
+        let auditData = {
+            project: {
+                id: 'PROJ-2026-001',
+                name: '',
+                auditNum: 'EA-2026-0101',
+                buildingType: 'High-Rise Commercial',
+                address: '',
+                cityState: '',
+                floors: 18,
+                basements: 2,
+                area: '',
+                auditDate: new Date().toISOString().split('T')[0],
+                stage: 'Pre-Commissioning Final Inspection',
+                occupancy: 'Business / Assembly'
+            },
+            contractor: {
+                name: '',
+                license: '',
+                authority: '',
+                supervisor: '',
+                supervisorLicense: '',
+                sealDataUrl: ''
+            },
+            client: {
+                name: '',
+                consultant: '',
+                rep: '',
+                phone: ''
+            },
+            documents: [
+                { id: 'doc-1', name: 'Approved Single Line Diagram (SLD)', type: 'Drawing', statutory: true, available: true, verified: true, remarks: 'Rev 03 Approved' },
+                { id: 'doc-2', name: 'Electrical Room Layout & Clearances', type: 'Drawing', statutory: false, available: true, verified: true, remarks: 'Verified site layout' },
+                { id: 'doc-3', name: 'Transformer Factory Test Certificates', type: 'OEM Cert', statutory: true, available: true, verified: false, remarks: 'Awaiting OEM stamp' },
+                { id: 'doc-4', name: 'Fire Officer Electrical NOC', type: 'Statutory', statutory: true, available: false, verified: false, remarks: 'Pending statutory clearance' }
+            ],
+            checklist: [
+                { id: 'chk-1', category: 'Incoming Supply & HT', point: 'Substation Working Clearance', req: 'Min 1.0m front clearance for panels', status: 'PASS', remarks: 'Clearances verified OK' },
+                { id: 'chk-2', category: 'LT Panels & DBs', point: 'Neutral & Earth Busbar Sizing', req: 'Sized per calculated short-circuit rating', status: 'PASS', remarks: 'Copper busbars confirmed' },
+                { id: 'chk-3', category: 'LT Panels & DBs', point: 'Phase & Danger Warning Labels', req: 'Caution notices & R-Y-B color coding', status: 'FAIL', remarks: 'Missing caution label on DB-03' },
+                { id: 'chk-4', category: 'Earthing System', point: 'Equipotential Bonding of Cable Trays', req: 'Continuous copper/GI bonding jumper', status: 'PASS', remarks: 'Bonded at 15m intervals' },
+                { id: 'chk-5', category: 'Life Safety & Fire', point: 'Emergency Staircase Lighting Circuit', req: 'Separated fire-resistant cable feed', status: 'PASS', remarks: 'Fire-rated cable used' }
+            ],
+            irTests: [
+                { id: 'ir-1', circuit: 'Main Incomer 400A Cable', voltage: '1000V', l1e: '150', l2e: '140', l3e: '160', ne: '200', criterion: '>= 1.0 MΩ', status: 'PASS' }
+            ],
+            rcdTests: [
+                { id: 'rcd-1', location: 'DB-Floor 1 Socket Circuit', rating: '30mA', trip1x: '28ms', trip5x: '12ms', testBtn: 'PASS', status: 'PASS' }
+            ],
+            earthPits: [
+                { id: 'ep-1', location: 'Substation Yard Pit 1', type: 'Copper Plate', resistance: '1.2', maxAllowed: '2.0', status: 'PASS' },
+                { id: 'ep-2', location: 'DG Body Earthing Pit 2', type: 'Chemical Pipe', resistance: '0.8', maxAllowed: '2.0', status: 'PASS' }
+            ],
+            thermography: [
+                { id: 'th-1', equipment: 'Main LT Panel Incomer ACB Terminal B-Phase', ambient: '30', temp: '58', delta: '28', severity: 'MAJOR' }
+            ],
+            ncrs: [
+                { id: 'NCR-001', location: '3rd Floor DB-03', desc: 'Missing warning label and open unused knockout hole on panel top.', severity: 'MAJOR', resp: 'Site Electrical Contractor', status: 'OPEN' }
+            ]
+        };
+
+        // DOM LOAD INITIALIZATION
+        window.onload = function() {
+            lucide.createIcons();
+            loadProjectFromStorage();
+            bindInputs();
+            renderAllViews();
+        };
+
+        // NAVIGATION TAB SWITCHING
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('bg-slate-800', 'text-white'));
+
+            const targetView = document.getElementById(`view-${tabId}`);
+            if (targetView) targetView.classList.remove('hidden');
+
+            // Highlight nav button
+            const activeBtn = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
+            if (activeBtn) activeBtn.classList.add('bg-slate-800', 'text-white');
+
+            // Responsive sidebar close on mobile selection
+            if (window.innerWidth < 768) {
+                document.getElementById('sidebar').classList.add('-translate-x-full');
+            }
+        }
+
+        // TOGGLE SIDEBAR MOBILE
+        document.getElementById('toggle-sidebar-btn').addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        });
+
+        // BIND FORM INPUTS TO STATE
+        function bindInputs() {
+            const map = [
+                ['proj-name', 'project', 'name'],
+                ['proj-audit-num', 'project', 'auditNum'],
+                ['proj-building-type', 'project', 'buildingType'],
+                ['proj-address', 'project', 'address'],
+                ['proj-city-state', 'project', 'cityState'],
+                ['proj-floors', 'project', 'floors'],
+                ['proj-basements', 'project', 'basements'],
+                ['proj-area', 'project', 'area'],
+                ['proj-audit-date', 'project', 'auditDate'],
+                ['contractor-name', 'contractor', 'name'],
+                ['contractor-license', 'contractor', 'license'],
+                ['contractor-authority', 'contractor', 'authority'],
+                ['supervisor-name', 'contractor', 'supervisor'],
+                ['supervisor-license', 'contractor', 'supervisorLicense'],
+                ['client-name', 'client', 'name'],
+                ['client-consultant', 'client', 'consultant'],
+                ['client-rep', 'client', 'rep'],
+                ['client-phone', 'client', 'phone']
+            ];
+
+            map.forEach(([elemId, section, key]) => {
+                const el = document.getElementById(elemId);
+                if (el) {
+                    el.value = auditData[section][key] || '';
+                    el.addEventListener('input', (e) => {
+                        auditData[section][key] = e.target.value;
+                        updateDashboardStats();
+                    });
+                }
+            });
+        }
+
+        // RENDER ALL VIEWS & CALCULATIONS
+        function renderAllViews() {
+            renderDocuments();
+            renderChecklist();
+            renderIRTests();
+            renderRCDTests();
+            renderEarthPits();
+            renderThermography();
+            renderNCRs();
+            updateDashboardStats();
+            renderReportPreview();
+        }
+
+        // DOCUMENTS RENDER
+        function renderDocuments() {
+            const tbody = document.getElementById('documents-table-body');
+            tbody.innerHTML = '';
+            auditData.documents.forEach((doc, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-700/30";
+                tr.innerHTML = `
+                    <td class="p-2.5 font-medium text-slate-200">${doc.name}</td>
+                    <td class="p-2.5 text-slate-400">${doc.type}</td>
+                    <td class="p-2.5">${doc.statutory ? '<span class="text-amber-400 font-bold">YES</span>' : '<span class="text-slate-500">NO</span>'}</td>
+                    <td class="p-2.5">
+                        <input type="checkbox" ${doc.available ? 'checked' : ''} onchange="toggleDocStatus(${idx}, 'available')" class="rounded border-slate-700 text-amber-500 bg-slate-900">
+                    </td>
+                    <td class="p-2.5">
+                        <input type="checkbox" ${doc.verified ? 'checked' : ''} onchange="toggleDocStatus(${idx}, 'verified')" class="rounded border-slate-700 text-emerald-500 bg-slate-900">
+                    </td>
+                    <td class="p-2.5"><input type="text" value="${doc.remarks}" onchange="updateDocRemark(${idx}, this.value)" class="bg-slate-900 border border-slate-700 rounded p-1 w-full text-xs text-slate-300"></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleDocStatus(idx, field) {
+            auditData.documents[idx][field] = !auditData.documents[idx][field];
+            updateDashboardStats();
+        }
+
+        function updateDocRemark(idx, val) {
+            auditData.documents[idx].remarks = val;
+        }
+
+        // CHECKLIST RENDER
+        function renderChecklist() {
+            const container = document.getElementById('checklist-container');
+            const filter = document.getElementById('checklist-category-filter').value;
+            container.innerHTML = '';
+
+            auditData.checklist.forEach((item, idx) => {
+                if (filter !== 'ALL' && item.category !== filter) return;
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 p-4 rounded-lg border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-3";
+                card.innerHTML = `
+                    <div class="space-y-1 flex-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[10px] bg-slate-800 text-amber-400 font-mono px-2 py-0.5 rounded border border-slate-700">${item.category}</span>
+                            <h4 class="text-xs font-bold text-slate-100">${item.point}</h4>
+                        </div>
+                        <p class="text-[11px] text-slate-400">${item.req}</p>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <select onchange="updateChecklistStatus(${idx}, this.value)" class="bg-slate-800 border border-slate-700 rounded text-xs font-bold p-1.5 ${item.status === 'PASS' ? 'text-emerald-400' : 'text-rose-400'}">
+                            <option value="PASS" ${item.status === 'PASS' ? 'selected' : ''}>PASS</option>
+                            <option value="FAIL" ${item.status === 'FAIL' ? 'selected' : ''}>FAIL</option>
+                            <option value="N/A" ${item.status === 'N/A' ? 'selected' : ''}>N/A</option>
+                        </select>
+                        <input type="text" value="${item.remarks}" onchange="updateChecklistRemark(${idx}, this.value)" placeholder="Field observation..." class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-slate-300 w-48">
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateChecklistStatus(idx, val) {
+            auditData.checklist[idx].status = val;
+            updateDashboardStats();
+            renderChecklist();
+        }
+
+        function updateChecklistRemark(idx, val) {
+            auditData.checklist[idx].remarks = val;
+        }
+
+        // IR TESTS RENDER
+        function renderIRTests() {
+            const tbody = document.getElementById('ir-test-tbody');
+            tbody.innerHTML = '';
+            auditData.irTests.forEach((t, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2"><input type="text" value="${t.circuit}" onchange="auditData.irTests[${idx}].circuit=this.value" class="bg-slate-900 border border-slate-700 rounded p-1 w-full text-xs text-slate-200"></td>
+                    <td class="p-2 text-slate-400">${t.voltage}</td>
+                    <td class="p-2"><input type="number" value="${t.l1e}" onchange="auditData.irTests[${idx}].l1e=this.value" class="bg-slate-900 border border-slate-700 rounded p-1 w-16 text-xs text-slate-200"></td>
+                    <td class="p-2"><input type="number" value="${t.l2e}" onchange="auditData.irTests[${idx}].l2e=this.value" class="bg-slate-900 border border-slate-700 rounded p-1 w-16 text-xs text-slate-200"></td>
+                    <td class="p-2"><input type="number" value="${t.l3e}" onchange="auditData.irTests[${idx}].l3e=this.value" class="bg-slate-900 border border-slate-700 rounded p-1 w-16 text-xs text-slate-200"></td>
+                    <td class="p-2"><input type="number" value="${t.ne}" onchange="auditData.irTests[${idx}].ne=this.value" class="bg-slate-900 border border-slate-700 rounded p-1 w-16 text-xs text-slate-200"></td>
+                    <td class="p-2 text-slate-400">${t.criterion}</td>
+                    <td class="p-2 font-bold text-emerald-400">${t.status}</td>
+                    <td class="p-2"><button onclick="deleteIRTest(${idx})" class="text-rose-400 hover:text-rose-300"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function addIRTestRow() {
+            auditData.irTests.push({ id: 'ir-' + Date.now(), circuit: 'New Feeder Cable', voltage: '500V', l1e: '100', l2e: '100', l3e: '100', ne: '150', criterion: '>= 1.0 MΩ', status: 'PASS' });
+            renderIRTests();
+        }
+
+        function deleteIRTest(idx) {
+            auditData.irTests.splice(idx, 1);
+            renderIRTests();
+        }
+
+        // RCD TESTS RENDER
+        function renderRCDTests() {
+            const tbody = document.getElementById('rcd-test-tbody');
+            tbody.innerHTML = '';
+            auditData.rcdTests.forEach((r, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2"><input type="text" value="${r.location}" onchange="auditData.rcdTests[${idx}].location=this.value" class="bg-slate-900 border border-slate-700 rounded p-1 w-full text-xs text-slate-200"></td>
+                    <td class="p-2 text-slate-400">${r.rating}</td>
+                    <td class="p-2"><input type="text" value="${r.trip1x}" onchange="auditData.rcdTests[${idx}].trip1x=this.value" class="bg-slate-900 border border-slate-700 rounded p-1 w-16 text-xs text-slate-200"></td>
+                    <td class="p-2"><input type="text" value="${r.trip5x}" onchange="auditData.rcdTests[${idx}].trip5x=this.value" class="bg-slate-900 border border-slate-700 rounded p-1 w-16 text-xs text-slate-200"></td>
+                    <td class="p-2 font-bold text-emerald-400">${r.testBtn}</td>
+                    <td class="p-2 font-bold text-emerald-400">${r.status}</td>
+                    <td class="p-2"><button onclick="deleteRCDTest(${idx})" class="text-rose-400 hover:text-rose-300"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function addRCDTestRow() {
+            auditData.rcdTests.push({ id: 'rcd-' + Date.now(), location: 'DB-Substation Panel', rating: '30mA', trip1x: '22ms', trip5x: '10ms', testBtn: 'PASS', status: 'PASS' });
+            renderRCDTests();
+        }
+
+        function deleteRCDTest(idx) {
+            auditData.rcdTests.splice(idx, 1);
+            renderRCDTests();
+        }
+
+        // EARTH PITS RENDER
+        function renderEarthPits() {
+            const tbody = document.getElementById('earth-pits-tbody');
+            tbody.innerHTML = '';
+            auditData.earthPits.forEach((ep, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2 font-mono text-amber-400">${ep.location}</td>
+                    <td class="p-2 text-slate-300">${ep.type}</td>
+                    <td class="p-2"><input type="number" step="0.1" value="${ep.resistance}" onchange="auditData.earthPits[${idx}].resistance=this.value; renderEarthPits();" class="bg-slate-900 border border-slate-700 rounded p-1 w-20 text-xs text-slate-200"></td>
+                    <td class="p-2 text-slate-400">&lt;= ${ep.maxAllowed} Ω</td>
+                    <td class="p-2 font-bold ${parseFloat(ep.resistance) <= parseFloat(ep.maxAllowed) ? 'text-emerald-400' : 'text-rose-400'}">
+                        ${parseFloat(ep.resistance) <= parseFloat(ep.maxAllowed) ? 'PASS' : 'FAIL'}
+                    </td>
+                    <td class="p-2"><button onclick="deleteEarthPit(${idx})" class="text-rose-400 hover:text-rose-300"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function addEarthPitRow() {
+            auditData.earthPits.push({ id: 'ep-' + Date.now(), location: 'Lightning Protection Earth Pit', type: 'Pipe Electrodes', resistance: '1.5', maxAllowed: '2.0', status: 'PASS' });
+            renderEarthPits();
+        }
+
+        function deleteEarthPit(idx) {
+            auditData.earthPits.splice(idx, 1);
+            renderEarthPits();
+        }
+
+        // THERMOGRAPHY RENDER
+        function renderThermography() {
+            const tbody = document.getElementById('thermo-tbody');
+            tbody.innerHTML = '';
+            auditData.thermography.forEach((th, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2 text-slate-200">${th.equipment}</td>
+                    <td class="p-2 text-slate-400">${th.ambient}°C</td>
+                    <td class="p-2 font-mono text-amber-400">${th.temp}°C</td>
+                    <td class="p-2 font-mono text-rose-400">+${th.delta}°C</td>
+                    <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${th.severity === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">${th.severity}</span></td>
+                    <td class="p-2"><button onclick="deleteThermo(${idx})" class="text-rose-400 hover:text-rose-300"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function addThermoRow() {
+            auditData.thermography.push({ id: 'th-' + Date.now(), equipment: 'Transformer Busbar Connection R-Phase', ambient: '32', temp: '65', delta: '33', severity: 'CRITICAL' });
+            renderThermography();
+        }
+
+        function deleteThermo(idx) {
+            auditData.thermography.splice(idx, 1);
+            renderThermography();
+        }
+
+        // NCR RENDER
+        function renderNCRs() {
+            const container = document.getElementById('ncr-cards-list');
+            const dashTable = document.getElementById('dash-defects-table-body');
+            container.innerHTML = '';
+            dashTable.innerHTML = '';
+
+            if (auditData.ncrs.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-slate-500 text-xs">No defects logged. Click "Log New NCR" to record non-conformities.</div>`;
+                dashTable.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500">No active defects recorded yet.</td></tr>`;
+                return;
+            }
+
+            auditData.ncrs.forEach((ncr, idx) => {
+                // Card in NCR view
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 p-4 rounded-lg border border-slate-700 flex justify-between items-start space-x-3";
+                card.innerHTML = `
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-bold font-mono text-rose-400">${ncr.id}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded font-bold ${ncr.severity === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">${ncr.severity}</span>
+                            <span class="text-xs text-slate-400 font-semibold">${ncr.location}</span>
+                        </div>
+                        <p class="text-xs text-slate-200">${ncr.desc}</p>
+                        <div class="text-[10px] text-slate-500">Responsible: ${ncr.resp}</div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="toggleNCRStatus(${idx})" class="text-xs px-2.5 py-1 rounded font-bold ${ncr.status === 'CLOSED' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
+                            ${ncr.status}
+                        </button>
+                        <button onclick="deleteNCR(${idx})" class="text-slate-500 hover:text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                `;
+                container.appendChild(card);
+
+                // Dashboard summary row
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2.5 font-mono text-rose-400 font-bold">${ncr.id}</td>
+                    <td class="p-2.5 text-slate-300">${ncr.location}</td>
+                    <td class="p-2.5 text-slate-300 truncate max-w-xs">${ncr.desc}</td>
+                    <td class="p-2.5"><span class="text-[10px] font-bold text-amber-400">${ncr.severity}</span></td>
+                    <td class="p-2.5"><span class="text-[10px] font-bold ${ncr.status === 'CLOSED' ? 'text-emerald-400' : 'text-rose-400'}">${ncr.status}</span></td>
+                `;
+                dashTable.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function toggleNCRStatus(idx) {
+            auditData.ncrs[idx].status = auditData.ncrs[idx].status === 'OPEN' ? 'CLOSED' : 'OPEN';
+            renderNCRs();
+            updateDashboardStats();
+        }
+
+        function deleteNCR(idx) {
+            auditData.ncrs.splice(idx, 1);
+            renderNCRs();
+            updateDashboardStats();
+        }
+
+        // NCR MODAL LOGIC
+        function openNewNCRModal() {
+            document.getElementById('ncr-modal').classList.remove('hidden');
+        }
+
+        function closeNCRModal() {
+            document.getElementById('ncr-modal').classList.add('hidden');
+        }
+
+        function saveNCRFromModal() {
+            const loc = document.getElementById('modal-ncr-loc').value;
+            const desc = document.getElementById('modal-ncr-desc').value;
+            const sev = document.getElementById('modal-ncr-sev').value;
+            const resp = document.getElementById('modal-ncr-resp').value || 'Electrical Contractor';
+
+            if (!loc || !desc) {
+                alert('Please enter location and defect description.');
+                return;
+            }
+
+            auditData.ncrs.push({
+                id: 'NCR-00' + (auditData.ncrs.length + 1),
+                location: loc,
+                desc: desc,
+                severity: sev,
+                resp: resp,
+                status: 'OPEN'
+            });
+
+            closeNCRModal();
+            renderNCRs();
+            updateDashboardStats();
+        }
+
+        // DASHBOARD COMPUTATIONS
+        function updateDashboardStats() {
+            // Inspection pass calculation
+            const totalChecklist = auditData.checklist.length;
+            const passedChecklist = auditData.checklist.filter(c => c.status === 'PASS').length;
+            const progPercent = totalChecklist > 0 ? Math.round((passedChecklist / totalChecklist) * 100) : 0;
+
+            // Documentation calculation
+            const totalDocs = auditData.documents.length;
+            const verifiedDocs = auditData.documents.filter(d => d.verified).length;
+            const docPercent = totalDocs > 0 ? Math.round((verifiedDocs / totalDocs) * 100) : 0;
+
+            // NCR Count
+            const openNCRs = auditData.ncrs.filter(n => n.status === 'OPEN').length;
+            const criticalNCRs = auditData.ncrs.filter(n => n.severity === 'CRITICAL' && n.status === 'OPEN').length;
+
+            // Overall score formula
+            const overallScore = Math.max(0, Math.round((progPercent * 0.6) + (docPercent * 0.4) - (openNCRs * 5)));
+
+            // Update DOM Stats
+            document.getElementById('dash-score').innerText = `${overallScore}%`;
+            document.getElementById('dash-score-status').innerText = overallScore >= 80 ? 'Compliant' : 'Needs Rectification';
+            document.getElementById('dash-prog').innerText = `${progPercent}%`;
+            document.getElementById('dash-passed-count').innerText = passedChecklist;
+            document.getElementById('dash-ncr-count').innerText = openNCRs;
+            document.getElementById('dash-critical-count').innerText = criticalNCRs;
+            document.getElementById('dash-doc-prog').innerText = `${docPercent}%`;
+
+            renderReportPreview();
+        }
+
+        // RENDER REPORT PREVIEW
+        function renderReportPreview() {
+            document.getElementById('rpt-audit-no').innerText = auditData.project.auditNum || 'EA-2026-0101';
+            document.getElementById('rpt-date').innerText = `Date: ${auditData.project.auditDate || '2026-09-01'}`;
+            document.getElementById('rpt-proj-name').innerText = auditData.project.name || 'Untitled Project';
+            document.getElementById('rpt-proj-addr').innerText = auditData.project.address || 'Address not specified';
+            document.getElementById('rpt-proj-type').innerText = auditData.project.buildingType;
+            document.getElementById('rpt-contractor').innerText = auditData.contractor.name || 'Contractor Profile Unconfigured';
+            document.getElementById('rpt-supervisor').innerText = `Supervisor: ${auditData.contractor.supervisor || 'N/A'} (${auditData.contractor.supervisorLicense || 'N/A'})`;
+            document.getElementById('rpt-license').innerText = `License: ${auditData.contractor.license || 'N/A'}`;
+
+            // Score Summary
+            const passed = auditData.checklist.filter(c => c.status === 'PASS').length;
+            const passRate = auditData.checklist.length > 0 ? Math.round((passed / auditData.checklist.length) * 100) : 0;
+            const openNCRs = auditData.ncrs.filter(n => n.status === 'OPEN').length;
+            const docScore = auditData.documents.length > 0 ? Math.round((auditData.documents.filter(d => d.verified).length / auditData.documents.length) * 100) : 0;
+
+            document.getElementById('rpt-score').innerText = `${Math.max(0, Math.round((passRate * 0.6) + (docScore * 0.4) - (openNCRs * 5)))}%`;
+            document.getElementById('rpt-pass-rate').innerText = `${passRate}%`;
+            document.getElementById('rpt-open-ncrs').innerText = openNCRs;
+            document.getElementById('rpt-doc-score').innerText = `${docScore}%`;
+
+            // Report NCR Table
+            const tbody = document.getElementById('rpt-ncr-tbody');
+            tbody.innerHTML = '';
+            if (auditData.ncrs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-2 text-center text-slate-400">No defects logged.</td></tr>`;
+            } else {
+                auditData.ncrs.forEach(ncr => {
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-slate-200";
+                    tr.innerHTML = `
+                        <td class="p-1 font-mono font-bold text-slate-800">${ncr.id}</td>
+                        <td class="p-1 text-slate-700">${ncr.location}</td>
+                        <td class="p-1 text-slate-700">${ncr.desc}</td>
+                        <td class="p-1 font-bold text-amber-600">${ncr.severity}</td>
+                        <td class="p-1 font-bold ${ncr.status === 'CLOSED' ? 'text-emerald-600' : 'text-rose-600'}">${ncr.status}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            document.getElementById('rpt-sig-name').innerText = auditData.contractor.supervisor || 'Authorized Supervisor';
+        }
+
+        // IMAGE UPLOAD HANDLER
+        function handleImageUpload(evt, targetId) {
+            const file = evt.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                auditData.contractor.sealDataUrl = e.target.result;
+                const container = document.getElementById(targetId);
+                container.innerHTML = `<img src="${e.target.result}" class="max-h-full max-w-full object-contain">`;
+                const rptSeal = document.getElementById('rpt-seal-container');
+                if (rptSeal) rptSeal.innerHTML = `<img src="${e.target.result}" class="h-10 inline-block">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // DEMO PROJECT LOADER
+        function loadDemoProject() {
+            auditData.project.name = "Sunrise Heights - Tower B";
+            auditData.project.auditNum = "EA-2026-9081";
+            auditData.project.buildingType = "High-Rise Residential";
+            auditData.project.address = "Plot 42, Green Park Avenue";
+            auditData.project.cityState = "Mumbai, Maharashtra";
+            auditData.contractor.name = "Apex Electrical Solutions Pvt Ltd";
+            auditData.contractor.license = "EL-2024/7889";
+            auditData.contractor.authority = "State Licensing Board";
+            auditData.contractor.supervisor = "Er. R. K. Sharma";
+            auditData.contractor.supervisorLicense = "SUP-90812";
+            auditData.client.name = "Sunrise Infrastructure & Developers";
+            auditData.client.consultant = "Benchmark MEP Engineering";
+
+            bindInputs();
+            renderAllViews();
+            alert("Demo project data loaded successfully.");
+        }
+
+        // LOCALSTORAGE PERSISTENCE
+        function saveCurrentProject() {
+            localStorage.setItem('volt_audit_current_project', JSON.stringify(auditData));
+            alert("Audit project saved successfully to browser storage.");
+        }
+
+        function loadProjectFromStorage() {
+            const saved = localStorage.getItem('volt_audit_current_project');
+            if (saved) {
+                try {
+                    auditData = JSON.parse(saved);
+                } catch(e) {
+                    console.error("Failed to parse saved project data", e);
+                }
+            }
+        }
+
+        // JSON EXPORT & IMPORT
+        function exportProjectJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(auditData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `${auditData.project.name || 'Audit_Project'}_data.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importProjectJSON(evt) {
+            const file = evt.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    auditData = JSON.parse(e.target.result);
+                    bindInputs();
+                    renderAllViews();
+                    alert("Project JSON imported successfully.");
+                } catch(err) {
+                    alert("Invalid JSON format.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // QUICK MOBILE MODE
+        function openQuickSiteMode() {
+            alert("Quick Mobile Site Mode: Tap PASS/FAIL on inspection items directly from mobile screen. Offline auto-save active.");
+            switchTab('checklist');
+        }
+
+        // SIMULATE FAULT IN SYSTEM DIAGRAM
+        function simulateFault(type) {
+            const statusEl = document.getElementById('diagram-fault-status');
+            const lineHt = document.getElementById('line-ht');
+            const lineLt = document.getElementById('line-lt');
+
+            if (type === 'earth-fault') {
+                statusEl.innerHTML = `<span class="text-rose-400 font-bold">🔴 EARTH FAULT DETECTED:</span> Neutral-to-Earth insulation resistance breach on Main LT Switchboard. Neutral isolator tripped.`;
+                lineLt.setAttribute('stroke', '#ef4444');
+            } else {
+                statusEl.innerHTML = `Status: System operating in normal mode. All distribution paths active.`;
+                lineLt.setAttribute('stroke', '#10b981');
+            }
+        }
+
+        // PDF EXPORT VIA HTML2CANVAS & JSPDF
+        async function generatePDF() {
+            const element = document.getElementById('pdf-report-preview');
+            if (!element) return;
+
+            try {
+                const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+                const imgData = canvas.toDataURL('image/png');
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`${auditData.project.name || 'Electrical_Audit'}_Report.pdf`);
+            } catch (err) {
+                alert("Failed to render PDF report: " + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
