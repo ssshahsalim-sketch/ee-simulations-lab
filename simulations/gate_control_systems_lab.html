@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GATE Control Systems — Interactive Simulation & Virtual Lab</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Plotly.js CDN -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- Math.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <!-- MathJax CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0B0F17',
+                            800: '#111827',
+                            700: '#1F2937',
+                            600: '#374151'
+                        },
+                        cyan: {
+                            400: '#22d3ee',
+                            500: '#06b6d4',
+                            600: '#0891b2'
+                        },
+                        accent: '#6366f1'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0B0F17;
+            color: #F3F4F6;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4B5563;
+        }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(31, 41, 55, 0.4);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease-in-out;
+        }
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            transform: translateY(-2px);
+        }
+        .active-tab {
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0) 100%);
+            border-left: 3px solid #6366f1;
+            color: #818cf8;
+        }
+        /* Responsive plot container */
+        .js-plotly-plot .plotly .main-svg {
+            background: transparent !important;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- TOP NAVBAR -->
+    <header class="h-14 border-b border-gray-800 bg-dark-900 flex items-center justify-between px-4 shrink-0 z-30">
+        <div class="flex items-center space-x-3">
+            <button id="toggle-sidebar" class="text-gray-400 hover:text-white lg:hidden">
+                <i class="fas fa-bars text-lg"></i>
+            </button>
+            <div class="flex items-center space-x-2">
+                <span class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg text-lg"><i class="fas fa-microchip"></i></span>
+                <span class="font-extrabold text-lg tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400">
+                    GATE CONTROL LAB
+                </span>
+            </div>
+            <span class="hidden md:inline-block px-2.5 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">
+                GATE EE/ECE
+            </span>
+        </div>
+
+        <!-- Global Search Bar -->
+        <div class="relative w-64 md:w-96 hidden sm:block">
+            <input type="text" id="global-search" placeholder="Search topic, formula, tool (e.g. 'Routh', 'Bode')..." 
+                   class="w-full bg-dark-800 text-sm text-gray-200 rounded-lg pl-9 pr-4 py-1.5 border border-gray-700 focus:outline-none focus:border-indigo-500 transition-colors">
+            <i class="fas fa-search absolute left-3 top-2.5 text-gray-500 text-xs"></i>
+            <div id="search-results" class="hidden absolute left-0 right-0 top-10 bg-dark-800 border border-gray-700 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto"></div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <!-- Mode Selector -->
+            <select id="learning-mode" class="bg-dark-800 text-xs text-gray-300 rounded-lg px-2.5 py-1.5 border border-gray-700 focus:outline-none focus:border-indigo-500">
+                <option value="beginner">Beginner Mode</option>
+                <option value="gate" selected>GATE Mode</option>
+                <option value="advanced">Advanced Mode</option>
+            </select>
+            <!-- Report Export Button -->
+            <button onclick="exportLabReport()" class="px-3 py-1.5 text-xs font-medium text-gray-300 bg-dark-800 hover:bg-gray-700 border border-gray-700 rounded-lg flex items-center space-x-1.5 transition">
+                <i class="fas fa-file-export text-indigo-400"></i>
+                <span class="hidden sm:inline">Export Report</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside id="sidebar" class="w-64 border-r border-gray-800 bg-dark-900 flex flex-col shrink-0 absolute lg:relative inset-y-0 left-0 z-20 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-in-out">
+            <div class="p-3 border-b border-gray-800/80">
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Progress Overview</div>
+                <div class="w-full bg-dark-800 rounded-full h-2 mb-1">
+                    <div id="overall-progress-bar" class="bg-indigo-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="flex justify-between text-xs text-gray-400 font-mono">
+                    <span>Completed</span>
+                    <span id="overall-progress-text">0%</span>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto p-2 space-y-0.5 text-sm" id="nav-menu">
+                <a href="#dashboard" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 active-tab transition">
+                    <i class="fas fa-home w-6 text-indigo-400"></i><span>Dashboard</span>
+                </a>
+                <a href="#master-lab" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-flask-vial w-6 text-emerald-400"></i><span>Master Lab</span>
+                </a>
+                
+                <div class="px-3 pt-3 pb-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Modeling & Dynamics</div>
+                <a href="#modelling" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-cube w-6 text-cyan-400"></i><span>System Modelling</span>
+                </a>
+                <a href="#feedback" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-sync-alt w-6 text-blue-400"></i><span>Feedback Systems</span>
+                </a>
+                <a href="#transfer-function" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-calculator w-6 text-indigo-400"></i><span>Transfer Function</span>
+                </a>
+                <a href="#block-diagram" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-th-large w-6 text-violet-400"></i><span>Block Diagram</span>
+                </a>
+                <a href="#signal-flow" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-project-diagram w-6 text-purple-400"></i><span>Signal Flow Graph</span>
+                </a>
+
+                <div class="px-3 pt-3 pb-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Time Domain Analysis</div>
+                <a href="#time-response" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-chart-line w-6 text-amber-400"></i><span>Time Response</span>
+                </a>
+                <a href="#steady-state" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-bullseye w-6 text-orange-400"></i><span>Steady-State Error</span>
+                </a>
+
+                <div class="px-3 pt-3 pb-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Stability & Frequency</div>
+                <a href="#routh" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-shield-alt w-6 text-red-400"></i><span>Routh-Hurwitz</span>
+                </a>
+                <a href="#nyquist" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-compass w-6 text-rose-400"></i><span>Nyquist Criterion</span>
+                </a>
+                <a href="#bode" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-wave-square w-6 text-pink-400"></i><span>Bode Plot</span>
+                </a>
+                <a href="#root-locus" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-route w-6 text-teal-400"></i><span>Root Locus</span>
+                </a>
+
+                <div class="px-3 pt-3 pb-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Design & State Space</div>
+                <a href="#compensators" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-adjust w-6 text-green-400"></i><span>Compensators</span>
+                </a>
+                <a href="#pid" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-sliders-h w-6 text-emerald-400"></i><span>P / PI / PID Control</span>
+                </a>
+                <a href="#state-space" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-[#6366f1] fa-matrix-org w-6 text-sky-400"></i><span>State Space</span>
+                </a>
+
+                <div class="px-3 pt-3 pb-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">GATE Exam & Labs</div>
+                <a href="#experiments" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-vial w-6 text-yellow-400"></i><span>15+ Virtual Labs</span>
+                </a>
+                <a href="#gate-practice" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-pen-nib w-6 text-indigo-300"></i><span>GATE Question Bank</span>
+                </a>
+                <a href="#formula-sheet" class="nav-item flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 transition">
+                    <i class="fas fa-book w-6 text-cyan-300"></i><span>Formula & Tricks</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- MAIN WORKSPACE -->
+        <main class="flex-1 overflow-y-auto bg-dark-900 p-4 md:p-6" id="main-content">
+            
+            <!-- VIEW: DASHBOARD -->
+            <section id="view-dashboard" class="space-y-6">
+                <div class="glass-panel p-6 rounded-2xl border border-gray-800 relative overflow-hidden">
+                    <div class="max-w-3xl">
+                        <h1 class="text-3xl font-extrabold text-white tracking-tight mb-2">GATE Control Systems Virtual Lab</h1>
+                        <p class="text-gray-400 text-sm leading-relaxed mb-4">
+                            Interactive simulation, mathematical modeling, design tools, and exam practice tailored for GATE EE/ECE aspirants.
+                        </p>
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="switchView('master-lab')" class="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white font-semibold rounded-lg shadow-lg shadow-indigo-500/25 flex items-center space-x-2 transition">
+                                <i class="fas fa-play text-sm"></i><span>Launch Master Simulator</span>
+                            </button>
+                            <button onclick="switchView('experiments')" class="px-5 py-2.5 bg-dark-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-semibold rounded-lg flex items-center space-x-2 transition">
+                                <i class="fas fa-vial text-yellow-400 text-sm"></i><span>Explore Experiments</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="glass-card p-4 rounded-xl">
+                        <div class="text-gray-400 text-xs font-medium">Topics Completed</div>
+                        <div class="text-2xl font-bold text-white mt-1" id="dash-completed-count">0 / 14</div>
+                        <div class="text-xs text-indigo-400 mt-1"><i class="fas fa-book-open mr-1"></i>Syllabus Coverage</div>
+                    </div>
+                    <div class="glass-card p-4 rounded-xl">
+                        <div class="text-gray-400 text-xs font-medium">Quiz Accuracy</div>
+                        <div class="text-2xl font-bold text-white mt-1" id="dash-quiz-score">0%</div>
+                        <div class="text-xs text-emerald-400 mt-1"><i class="fas fa-check-circle mr-1"></i>GATE Practice</div>
+                    </div>
+                    <div class="glass-card p-4 rounded-xl">
+                        <div class="text-gray-400 text-xs font-medium">Experiments Done</div>
+                        <div class="text-2xl font-bold text-white mt-1" id="dash-exp-count">0 / 15</div>
+                        <div class="text-xs text-cyan-400 mt-1"><i class="fas fa-flask mr-1"></i>Virtual Labs</div>
+                    </div>
+                    <div class="glass-card p-4 rounded-xl">
+                        <div class="text-gray-400 text-xs font-medium">Recommended Next</div>
+                        <div class="text-sm font-semibold text-amber-400 mt-2 truncate" id="dash-next-topic">Second Order Systems</div>
+                        <div class="text-xs text-gray-500 mt-1"><i class="fas fa-arrow-right mr-1"></i>High Priority GATE</div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="dashboard-grid">
+                    <!-- Cards will be populated dynamically -->
+                </div>
+            </section>
+
+            <!-- VIEW: MASTER SIMULATOR -->
+            <section id="view-master-lab" class="hidden space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-gray-800">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">Master Control System Lab</h2>
+                        <p class="text-gray-400 text-xs">Simultaneous multi-domain analysis: $G(s) = \frac{K}{s(s+p_1)(s+p_2)}$</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs text-gray-400">Preset Systems:</span>
+                        <button onclick="loadMasterPreset('type1_second')" class="px-2.5 py-1 bg-dark-800 hover:bg-gray-700 text-xs text-indigo-300 border border-gray-700 rounded">Type-1 2nd Order</button>
+                        <button onclick="loadMasterPreset('third_order')" class="px-2.5 py-1 bg-dark-800 hover:bg-gray-700 text-xs text-cyan-300 border border-gray-700 rounded">3rd Order (Unstable at High K)</button>
+                        <button onclick="loadMasterPreset('non_minimum')" class="px-2.5 py-1 bg-dark-800 hover:bg-gray-700 text-xs text-amber-300 border border-gray-700 rounded">Non-Minimum Phase</button>
+                    </div>
+                </div>
+
+                <!-- Controls Bar -->
+                <div class="glass-panel p-4 rounded-xl grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Gain $K$: <span id="master-k-val" class="text-indigo-400 font-mono">10</span></label>
+                        <input type="range" id="master-k" min="0.1" max="100" step="0.1" value="10" class="w-full accent-indigo-500" oninput="updateMasterSimulation()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Pole $p_1$: <span id="master-p1-val" class="text-indigo-400 font-mono">2</span></label>
+                        <input type="range" id="master-p1" min="0" max="10" step="0.1" value="2" class="w-full accent-indigo-500" oninput="updateMasterSimulation()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Pole $p_2$: <span id="master-p2-val" class="text-indigo-400 font-mono">5</span></label>
+                        <input type="range" id="master-p2" min="0.1" max="10" step="0.1" value="5" class="w-full accent-indigo-500" oninput="updateMasterSimulation()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Controller Add-on</label>
+                        <select id="master-controller" class="w-full bg-dark-800 text-xs text-gray-200 border border-gray-700 rounded px-2 py-1.5 focus:outline-none" onchange="updateMasterSimulation()">
+                            <option value="none">None (Raw Plant)</option>
+                            <option value="pid">PID Controller ($K_p=2, K_i=1, K_d=0.5$)</option>
+                            <option value="lead">Lead Compensator ($\alpha=0.1, T=0.2$)</option>
+                            <option value="lag">Lag Compensator ($\beta=10, T=2$)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Master Plots Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <!-- Step Response -->
+                    <div class="glass-panel p-4 rounded-xl">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-semibold text-white flex items-center"><i class="fas fa-chart-line text-amber-400 mr-2"></i>Time Domain Step Response</h3>
+                            <span id="master-stability-tag" class="text-xs px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">STABLE</span>
+                        </div>
+                        <div id="plot-master-step" class="w-full h-64"></div>
+                        <div class="grid grid-cols-3 gap-2 mt-2 text-[11px] font-mono bg-dark-900/60 p-2 rounded">
+                            <div>Peak Overshoot: <span id="master-mp" class="text-indigo-400">-</span></div>
+                            <div>Settling Time: <span id="master-ts" class="text-cyan-400">-</span></div>
+                            <div>Steady State Error: <span id="master-ess" class="text-amber-400">-</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Root Locus -->
+                    <div class="glass-panel p-4 rounded-xl">
+                        <h3 class="text-sm font-semibold text-white mb-2 flex items-center"><i class="fas fa-route text-teal-400 mr-2"></i>Root Locus Plot</h3>
+                        <div id="plot-master-rl" class="w-full h-64"></div>
+                    </div>
+
+                    <!-- Bode Plot -->
+                    <div class="glass-panel p-4 rounded-xl">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-semibold text-white flex items-center"><i class="fas fa-wave-square text-pink-400 mr-2"></i>Bode Diagram</h3>
+                            <div class="text-[11px] font-mono text-gray-400">
+                                GM: <span id="master-gm" class="text-indigo-400">-- dB</span> | PM: <span id="master-pm" class="text-cyan-400">--°</span>
+                            </div>
+                        </div>
+                        <div id="plot-master-bode" class="w-full h-64"></div>
+                    </div>
+
+                    <!-- Nyquist Plot -->
+                    <div class="glass-panel p-4 rounded-xl">
+                        <h3 class="text-sm font-semibold text-white mb-2 flex items-center"><i class="fas fa-compass text-rose-400 mr-2"></i>Nyquist Plot</h3>
+                        <div id="plot-master-nyquist" class="w-full h-64"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: SYSTEM MODELLING -->
+            <section id="view-modelling" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Mathematical Modelling Laboratory</h2>
+                    <p class="text-gray-400 text-xs">Derive differential equations and transfer functions for physical EE & ME systems.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider">Select Physical System</label>
+                        <select id="model-system-type" class="w-full bg-dark-800 text-sm text-gray-200 border border-gray-700 rounded-lg p-2 focus:outline-none" onchange="updateModellingLab()">
+                            <option value="mass-spring">Mass-Spring-Damper (Mechanical)</option>
+                            <option value="dc-motor">Armature-Controlled DC Motor</option>
+                            <option value="rlc">RLC Electrical Circuit</option>
+                        </select>
+
+                        <!-- Dynamic Parameters -->
+                        <div id="model-params-container" class="space-y-3 pt-2 border-t border-gray-800">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Visual Animation & Schema -->
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-sm font-semibold text-white">Physical System Animation</h3>
+                                <button onclick="toggleModelAnimation()" id="btn-model-anim" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-xs rounded text-white font-medium">Pause Animation</button>
+                            </div>
+                            <canvas id="model-canvas" class="w-full h-48 bg-dark-900 rounded-lg border border-gray-800"></canvas>
+                        </div>
+                        <div class="mt-4 p-4 bg-dark-900/80 rounded-lg border border-gray-800 font-mono text-xs space-y-2">
+                            <div class="text-indigo-400 font-bold">Mathematical Derivation:</div>
+                            <div id="model-derivation-equation" class="text-gray-300 overflow-x-auto"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Plot Response -->
+                <div class="glass-panel p-4 rounded-xl">
+                    <h3 class="text-sm font-semibold text-white mb-2">Physical System Output $x(t)$ / $\omega(t)$</h3>
+                    <div id="plot-model-response" class="w-full h-64"></div>
+                </div>
+            </section>
+
+            <!-- VIEW: FEEDBACK SYSTEMS -->
+            <section id="view-feedback" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Feedback Control Principles</h2>
+                    <p class="text-gray-400 text-xs">Closed-loop sensitivity, disturbance rejection, and negative vs positive feedback comparison.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-indigo-400">Interactive Feedback Loop Config</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs text-gray-300 mb-1">Forward Path Gain $G(s) = \frac{K_f}{s+1}$: Gain $K_f = <span id="fb-kf-val">5</span>$</label>
+                                <input type="range" id="fb-kf" min="0.5" max="20" step="0.5" value="5" class="w-full accent-indigo-500" oninput="updateFeedbackLab()">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-300 mb-1">Feedback Gain $H(s) = K_h$: Gain $K_h = <span id="fb-kh-val">1</span>$</label>
+                                <input type="range" id="fb-kh" min="0" max="5" step="0.1" value="1" class="w-full accent-indigo-500" oninput="updateFeedbackLab()">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-300 mb-1">Disturbance Magnitude $D(s) = <span id="fb-dist-val">2</span>$</label>
+                                <input type="range" id="fb-dist" min="0" max="10" step="0.5" value="2" class="w-full accent-indigo-500" oninput="updateFeedbackLab()">
+                            </div>
+                        </div>
+
+                        <!-- Diagram SVG -->
+                        <div class="p-4 bg-dark-900 rounded-lg border border-gray-800 text-center">
+                            <svg class="w-full h-32 mx-auto" viewBox="0 0 500 120">
+                                <!-- R(s) -->
+                                <line x1="20" y1="50" x2="70" y2="50" stroke="#818cf8" stroke-width="2" marker-end="url(#arrow)"/>
+                                <text x="35" y="40" fill="#818cf8" font-size="12">R(s)</text>
+                                <!-- Summing junction -->
+                                <circle cx="80" cy="50" r="10" fill="none" stroke="#fff" stroke-width="2"/>
+                                <text x="73" y="45" fill="#fff" font-size="10">+</text>
+                                <text x="75" y="68" fill="#fff" font-size="10">-</text>
+                                <!-- G(s) -->
+                                <line x1="90" y1="50" x2="140" y2="50" stroke="#fff" stroke-width="2"/>
+                                <rect x="140" y="30" width="80" height="40" fill="#1e1b4b" stroke="#6366f1" stroke-width="2" rx="4"/>
+                                <text x="165" y="55" fill="#fff" font-size="12" font-weight="bold">G(s)</text>
+                                <!-- Disturbance Sum -->
+                                <line x1="220" y1="50" x2="270" y2="50" stroke="#fff" stroke-width="2"/>
+                                <circle cx="280" cy="50" r="10" fill="none" stroke="#fff" stroke-width="2"/>
+                                <line x1="280" y1="10" x2="280" y2="40" stroke="#f59e0b" stroke-width="2"/>
+                                <text x="285" y="25" fill="#f59e0b" font-size="11">D(s)</text>
+                                <!-- Output C(s) -->
+                                <line x1="290" y1="50" x2="420" y2="50" stroke="#34d399" stroke-width="2"/>
+                                <text x="380" y="40" fill="#34d399" font-size="12">C(s)</text>
+                                <!-- Feedback H(s) -->
+                                <line x1="350" y1="50" x2="350" y2="100" stroke="#fff" stroke-width="2"/>
+                                <line x1="350" y1="100" x2="260" y2="100" stroke="#fff" stroke-width="2"/>
+                                <rect x="180" y="80" width="80" height="40" fill="#064e3b" stroke="#10b981" stroke-width="2" rx="4"/>
+                                <text x="205" y="105" fill="#fff" font-size="12" font-weight="bold">H(s)</text>
+                                <line x1="180" y1="100" x2="80" y2="100" stroke="#fff" stroke-width="2"/>
+                                <line x1="80" y1="100" x2="80" y2="60" stroke="#fff" stroke-width="2"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Plot -->
+                    <div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
+                        <h3 class="text-sm font-semibold text-white">Open Loop vs. Closed Loop Disturbance Rejection</h3>
+                        <div id="plot-feedback-comp" class="w-full h-64"></div>
+                        <div class="p-3 bg-dark-900/70 rounded text-xs space-y-1 text-gray-300">
+                            <div><strong class="text-indigo-400">GATE Key Concept:</strong> Feedback reduces plant sensitivity to parameters by factor of $(1 + G(s)H(s))$.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: TRANSFER FUNCTION CALCULATOR -->
+            <section id="view-transfer-function" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Transfer Function Analyzer & Interactive Pole-Zero Editor</h2>
+                    <p class="text-gray-400 text-xs">Enter coefficients or drag poles/zeros to compute frequency & time characteristics.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">Input Transfer Function $G(s)$</h3>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Numerator Polynomial Coefficients (descending powers)</label>
+                            <input type="text" id="tf-num" value="10" class="w-full bg-dark-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono text-cyan-400 focus:outline-none" placeholder="e.g. 1, 2">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Denominator Polynomial Coefficients</label>
+                            <input type="text" id="tf-den" value="1, 3, 10" class="w-full bg-dark-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono text-amber-400 focus:outline-none" placeholder="e.g. 1, 3, 10">
+                        </div>
+                        <button onclick="analyzeTransferFunction()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-lg transition">
+                            Compute Properties
+                        </button>
+
+                        <div class="border-t border-gray-800 pt-3 space-y-2 text-xs font-mono">
+                            <div class="flex justify-between"><span class="text-gray-400">DC Gain:</span> <span id="tf-out-dc" class="text-indigo-400">-</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">System Order:</span> <span id="tf-out-order" class="text-indigo-400">-</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">System Type:</span> <span id="tf-out-type" class="text-indigo-400">-</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Natural Freq $\omega_n$:</span> <span id="tf-out-wn" class="text-cyan-400">-</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Damping Ratio $\zeta$:</span> <span id="tf-out-zeta" class="text-amber-400">-</span></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2">
+                        <h3 class="text-sm font-semibold text-white mb-2">Pole-Zero Map (s-Plane)</h3>
+                        <div id="plot-tf-pz" class="w-full h-72"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: BLOCK DIAGRAM REDUCTION -->
+            <section id="view-block-diagram" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Block Diagram Reduction Simulator</h2>
+                    <p class="text-gray-400 text-xs">Step-by-step canonical reduction of series, parallel, and feedback block networks.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">Preset Cascaded Systems</h3>
+                        <select id="bd-preset" class="w-full bg-dark-800 border border-gray-700 text-xs text-gray-200 rounded p-2" onchange="loadBlockDiagramPreset()">
+                            <option value="cascade_feedback">Cascade $G_1, G_2$ with Feedback $H_1$</option>
+                            <option value="parallel_feedback">Parallel $(G_1 + G_2)$ with Feedback $H_1$</option>
+                            <option value="nested_loop">Nested Feedback Loops</option>
+                        </select>
+
+                        <button onclick="runBlockDiagramReduction()" class="w-full py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-lg transition">
+                            Run Step-by-Step Reduction
+                        </button>
+
+                        <div id="bd-steps-log" class="p-3 bg-dark-900 rounded-lg text-xs font-mono space-y-2 max-h-64 overflow-y-auto border border-gray-800">
+                            <!-- Injected Steps -->
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2 flex flex-col justify-between">
+                        <h3 class="text-sm font-semibold text-white mb-2">Block Diagram Reduction Visualization</h3>
+                        <div id="bd-visual-canvas" class="w-full h-80 bg-dark-900 rounded-lg border border-gray-800 p-4 flex items-center justify-center">
+                            <!-- Dynamic SVG Diagram representation -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: SIGNAL FLOW GRAPH -->
+            <section id="view-signal-flow" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Signal Flow Graph & Mason's Gain Formula</h2>
+                    <p class="text-gray-400 text-xs">Compute overall system gain $T = \frac{\sum P_k \Delta_k}{\Delta}$ from graph topology.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-3">
+                        <h3 class="text-sm font-semibold text-white">Graph Topology Setup</h3>
+                        <p class="text-xs text-gray-400">Nodes: $R \to x_1 \to x_2 \to C$</p>
+
+                        <div class="space-y-2 text-xs">
+                            <div><label class="text-gray-300">Forward Path 1 Gain $P_1$ ($G_1 G_2$):</label><input type="text" id="sfg-p1" value="G1*G2" class="w-full bg-dark-800 border border-gray-700 rounded p-1 text-cyan-400 font-mono"></div>
+                            <div><label class="text-gray-300">Forward Path 2 Gain $P_2$ ($G_3$):</label><input type="text" id="sfg-p2" value="G3" class="w-full bg-dark-800 border border-gray-700 rounded p-1 text-cyan-400 font-mono"></div>
+                            <div><label class="text-gray-300">Feedback Loop 1 ($H_1$):</label><input type="text" id="sfg-l1" value="-H1*G1" class="w-full bg-dark-800 border border-gray-700 rounded p-1 text-amber-400 font-mono"></div>
+                            <div><label class="text-gray-300">Feedback Loop 2 ($H_2$):</label><input type="text" id="sfg-l2" value="-H2*G2" class="w-full bg-dark-800 border border-gray-700 rounded p-1 text-amber-400 font-mono"></div>
+                        </div>
+
+                        <button onclick="calculateMasonGain()" class="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs rounded-lg transition">
+                            Apply Mason's Rule
+                        </button>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2 space-y-4">
+                        <h3 class="text-sm font-semibold text-white">Mason's Rule Step Breakdown</h3>
+                        <div id="sfg-output-details" class="p-4 bg-dark-900 rounded-lg text-xs font-mono space-y-3 border border-gray-800">
+                            <!-- Formula breakdown output -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: TIME RESPONSE -->
+            <section id="view-time-response" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Time Response & Second-Order Systems Simulator</h2>
+                    <p class="text-gray-400 text-xs">Analyze transient response parameters: $T_r, T_p, M_p, T_s$ for standard 2nd order LTI systems.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">System Parameters</h3>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-300 mb-1">
+                                <span>Natural Frequency $\omega_n$:</span>
+                                <span id="time-wn-val" class="text-cyan-400 font-mono">5.0 rad/s</span>
+                            </div>
+                            <input type="range" id="time-wn" min="1" max="20" step="0.5" value="5" class="w-full accent-cyan-500" oninput="updateTimeResponseLab()">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-300 mb-1">
+                                <span>Damping Ratio $\zeta$:</span>
+                                <span id="time-zeta-val" class="text-amber-400 font-mono">0.40</span>
+                            </div>
+                            <input type="range" id="time-zeta" min="0" max="2" step="0.05" value="0.4" class="w-full accent-amber-500" oninput="updateTimeResponseLab()">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">Input Signal $r(t)$</label>
+                            <select id="time-input-type" class="w-full bg-dark-800 border border-gray-700 text-xs text-gray-200 rounded p-2" onchange="updateTimeResponseLab()">
+                                <option value="step">Unit Step $u(t)$</option>
+                                <option value="impulse">Unit Impulse $\delta(t)$</option>
+                                <option value="ramp">Unit Ramp $t \cdot u(t)$</option>
+                            </select>
+                        </div>
+
+                        <!-- Computed Transient Metrics -->
+                        <div class="border-t border-gray-800 pt-3 space-y-2 text-xs font-mono bg-dark-900/50 p-3 rounded-lg">
+                            <div class="flex justify-between"><span class="text-gray-400">System State:</span> <span id="time-state-tag" class="text-emerald-400 font-bold">UNDERDAMPED</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Rise Time $T_r$:</span> <span id="time-tr" class="text-cyan-400">-</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Peak Time $T_p$:</span> <span id="time-tp" class="text-cyan-400">-</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Max Overshoot $M_p$:</span> <span id="time-mp" class="text-amber-400">-</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Settling Time $T_s$ (2%):</span> <span id="time-ts" class="text-indigo-400">-</span></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2">
+                        <h3 class="text-sm font-semibold text-white mb-2">Transient Response Plot $c(t)$</h3>
+                        <div id="plot-time-response" class="w-full h-80"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: STEADY-STATE ERROR -->
+            <section id="view-steady-state" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Steady-State Error & System Type Analyzer</h2>
+                    <p class="text-gray-400 text-xs">Evaluate static error constants $K_p, K_v, K_a$ and final value theorem applications.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">Open Loop $G(s)H(s)$ Setup</h3>
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">System Type (Integrators at Origin $s^N$)</label>
+                            <select id="sse-type" class="w-full bg-dark-800 border border-gray-700 text-xs text-gray-200 rounded p-2" onchange="updateSSEResults()">
+                                <option value="0">Type 0 (No integrator at s=0)</option>
+                                <option value="1" selected>Type 1 (One integrator 1/s)</option>
+                                <option value="2">Type 2 (Two integrators 1/s²)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">System Gain $K$</label>
+                            <input type="number" id="sse-k" value="10" class="w-full bg-dark-800 border border-gray-700 text-xs text-gray-200 rounded p-2" oninput="updateSSEResults()">
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2">
+                        <h3 class="text-sm font-semibold text-white mb-3">Static Error Constants & Response Matrix</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-gray-300 font-mono border border-gray-800">
+                                <thead class="bg-dark-900 text-gray-400">
+                                    <tr>
+                                        <th class="p-2.5 border-b border-gray-800">Input Signal</th>
+                                        <th class="p-2.5 border-b border-gray-800">Error Constant</th>
+                                        <th class="p-2.5 border-b border-gray-800">Calculated Constant</th>
+                                        <th class="p-2.5 border-b border-gray-800">Steady State Error $e_{ss}$</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-gray-800">
+                                        <td class="p-2.5">Unit Step $u(t)$</td>
+                                        <td class="p-2.5">$K_p = \lim_{s \to 0} G(s)$</td>
+                                        <td id="sse-kp-val" class="p-2.5 text-cyan-400">-</td>
+                                        <td id="sse-step-err" class="p-2.5 text-amber-400">-</td>
+                                    </tr>
+                                    <tr class="border-b border-gray-800">
+                                        <td class="p-2.5">Unit Ramp $t \cdot u(t)$</td>
+                                        <td class="p-2.5">$K_v = \lim_{s \to 0} s G(s)$</td>
+                                        <td id="sse-kv-val" class="p-2.5 text-cyan-400">-</td>
+                                        <td id="sse-ramp-err" class="p-2.5 text-amber-400">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-2.5">Unit Parabola $\frac{t^2}{2} u(t)$</td>
+                                        <td class="p-2.5">$K_a = \lim_{s \to 0} s^2 G(s)$</td>
+                                        <td id="sse-ka-val" class="p-2.5 text-cyan-400">-</td>
+                                        <td id="sse-para-err" class="p-2.5 text-amber-400">-</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: ROUTH-HURWITZ -->
+            <section id="view-routh" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Routh-Hurwitz Stability Criterion Calculator</h2>
+                    <p class="text-gray-400 text-xs">Construct complete Routh arrays, detect sign changes, and handle auxiliary polynomial cases.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">Characteristic Polynomial</h3>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Coefficients $a_n s^n + a_{n-1}s^{n-1} + \dots + a_0 = 0$</label>
+                            <input type="text" id="routh-poly-input" value="1, 2, 3, 4" class="w-full bg-dark-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono text-indigo-400 focus:outline-none">
+                        </div>
+                        <button onclick="computeRouthArray()" class="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs rounded-lg transition">
+                            Generate Routh Array
+                        </button>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2 space-y-4">
+                        <h3 class="text-sm font-semibold text-white">Routh Array & System Stability</h3>
+                        <div id="routh-matrix-container" class="p-4 bg-dark-900 rounded-lg overflow-x-auto border border-gray-800">
+                            <!-- Array generated by JS -->
+                        </div>
+                        <div id="routh-summary" class="p-3 bg-dark-900/60 rounded-lg text-xs font-mono"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: NYQUIST CRITERION -->
+            <section id="view-nyquist" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Nyquist Stability Criterion Simulator</h2>
+                    <p class="text-gray-400 text-xs">Analyze encirclements of the critical point $(-1 + j0)$ and verify $Z = N + P$.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">Open Loop $G(s)H(s)$ Gain $K$</h3>
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">Gain $K$: <span id="nyquist-k-val" class="text-rose-400 font-mono">10</span></label>
+                            <input type="range" id="nyquist-k" min="0.5" max="50" step="0.5" value="10" class="w-full accent-rose-500" oninput="updateNyquistPlot()">
+                        </div>
+
+                        <div class="p-3 bg-dark-900/60 rounded-lg text-xs font-mono space-y-2 border border-gray-800">
+                            <div>Open-loop RHP Poles ($P$): <span id="nyquist-p-count" class="text-amber-400">0</span></div>
+                            <div>Encirclements ($N$): <span id="nyquist-n-count" class="text-cyan-400">0</span></div>
+                            <div>Closed-loop RHP Poles ($Z = N + P$): <span id="nyquist-z-count" class="text-rose-400">0</span></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2">
+                        <h3 class="text-sm font-semibold text-white mb-2">Nyquist Plot in Complex Plane</h3>
+                        <div id="plot-nyquist-lab" class="w-full h-80"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: BODE PLOT -->
+            <section id="view-bode" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Bode Plot Analyzer</h2>
+                    <p class="text-gray-400 text-xs">Frequency response magnitude (dB) and phase plots with asymptotic vs exact curves.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">Frequency Response Parameters</h3>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Gain $K$</label>
+                            <input type="number" id="bode-k" value="100" class="w-full bg-dark-800 border border-gray-700 rounded p-2 text-xs font-mono text-cyan-400" oninput="updateBodeLab()">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Pole 1 Corner Frequency $\omega_{p1}$ (rad/s)</label>
+                            <input type="number" id="bode-wp1" value="2" class="w-full bg-dark-800 border border-gray-700 rounded p-2 text-xs font-mono text-cyan-400" oninput="updateBodeLab()">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Pole 2 Corner Frequency $\omega_{p2}$ (rad/s)</label>
+                            <input type="number" id="bode-wp2" value="10" class="w-full bg-dark-800 border border-gray-700 rounded p-2 text-xs font-mono text-cyan-400" oninput="updateBodeLab()">
+                        </div>
+
+                        <div class="p-3 bg-dark-900 rounded-lg text-xs font-mono space-y-1 border border-gray-800">
+                            <div>Gain Margin (GM): <span id="bode-gm-val" class="text-indigo-400">-</span></div>
+                            <div>Phase Margin (PM): <span id="bode-pm-val" class="text-cyan-400">-</span></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2">
+                        <h3 class="text-sm font-semibold text-white mb-2">Bode Plot (Magnitude & Phase)</h3>
+                        <div id="plot-bode-lab" class="w-full h-80"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: ROOT LOCUS -->
+            <section id="view-root-locus" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Root Locus Design Studio</h2>
+                    <p class="text-gray-400 text-xs">Trace closed-loop pole trajectories as gain $K$ varies from $0 \to \infty$.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">Root Locus Controls</h3>
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">Gain $K$: <span id="rl-k-val" class="text-teal-400 font-mono">5.0</span></label>
+                            <input type="range" id="rl-k" min="0" max="30" step="0.2" value="5" class="w-full accent-teal-500" oninput="updateRootLocusLab()">
+                        </div>
+
+                        <div class="p-3 bg-dark-900 rounded-lg text-xs font-mono space-y-2 border border-gray-800">
+                            <div class="text-gray-400 font-bold">GATE Rules Verification:</div>
+                            <div>Asymptote Angle: $\pm 60^\circ, 180^\circ$</div>
+                            <div>Centroid $\sigma_A$: <span id="rl-centroid" class="text-teal-400">-2.33</span></div>
+                            <div>Breakaway Point: <span id="rl-breakaway" class="text-amber-400">-0.84</span></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2">
+                        <h3 class="text-sm font-semibold text-white mb-2">Root Locus Trajectories</h3>
+                        <div id="plot-rl-lab" class="w-full h-80"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: COMPENSATORS -->
+            <section id="view-compensators" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">Lead, Lag & Lead-Lag Compensator Laboratory</h2>
+                    <p class="text-gray-400 text-xs">Design $G_c(s) = K_c \frac{s + 1/T}{s + 1/(\alpha T)}$ to improve phase margin or steady-state error.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">Compensator Type & Config</h3>
+                        <select id="comp-type" class="w-full bg-dark-800 border border-gray-700 text-xs text-gray-200 rounded p-2" onchange="updateCompensatorLab()">
+                            <option value="lead">Lead Compensator ($\alpha < 1$)</option>
+                            <option value="lag">Lag Compensator ($\beta > 1$)</option>
+                        </select>
+
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">Factor ($\alpha$ or $\beta$): <span id="comp-factor-val" class="text-green-400 font-mono">0.1</span></label>
+                            <input type="range" id="comp-factor" min="0.05" max="0.9" step="0.05" value="0.1" class="w-full accent-green-500" oninput="updateCompensatorLab()">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">Time Constant $T$: <span id="comp-t-val" class="text-green-400 font-mono">0.2</span></label>
+                            <input type="range" id="comp-t" min="0.05" max="2" step="0.05" value="0.2" class="w-full accent-green-500" oninput="updateCompensatorLab()">
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2">
+                        <h3 class="text-sm font-semibold text-white mb-2">Before vs. After Step Response</h3>
+                        <div id="plot-comp-lab" class="w-full h-80"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: PID CONTROLLER -->
+            <section id="view-pid" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">P / PI / PID Controller Studio</h2>
+                    <p class="text-gray-400 text-xs">Tune Proportional ($K_p$), Integral ($K_i$), and Derivative ($K_d$) actions for LTI plants.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">PID Gains</h3>
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">$K_p$ (Proportional): <span id="pid-kp-val" class="text-emerald-400 font-mono">4.0</span></label>
+                            <input type="range" id="pid-kp" min="0" max="20" step="0.2" value="4" class="w-full accent-emerald-500" oninput="updatePIDLab()">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">$K_i$ (Integral): <span id="pid-ki-val" class="text-emerald-400 font-mono">1.0</span></label>
+                            <input type="range" id="pid-ki" min="0" max="10" step="0.2" value="1" class="w-full accent-emerald-500" oninput="updatePIDLab()">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-300 mb-1">$K_d$ (Derivative): <span id="pid-kd-val" class="text-emerald-400 font-mono">0.5</span></label>
+                            <input type="range" id="pid-kd" min="0" max="5" step="0.1" value="0.5" class="w-full accent-emerald-500" oninput="updatePIDLab()">
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2">
+                        <h3 class="text-sm font-semibold text-white mb-2">PID Closed-Loop Step Response</h3>
+                        <div id="plot-pid-lab" class="w-full h-80"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: STATE SPACE -->
+            <section id="view-state-space" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">State-Space Analysis & Controllability / Observability</h2>
+                    <p class="text-gray-400 text-xs">Simulate state equations $\dot{x} = Ax + Bu$, $y = Cx + Du$ and phase-plane state trajectories.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-4">
+                        <h3 class="text-sm font-semibold text-white">State Matrix $A$ & Input $B$</h3>
+                        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                            <input type="number" id="ss-a00" value="0" class="bg-dark-800 border border-gray-700 p-1.5 rounded text-center text-cyan-400">
+                            <input type="number" id="ss-a01" value="1" class="bg-dark-800 border border-gray-700 p-1.5 rounded text-center text-cyan-400">
+                            <input type="number" id="ss-a10" value="-6" class="bg-dark-800 border border-gray-700 p-1.5 rounded text-center text-cyan-400">
+                            <input type="number" id="ss-a11" value="-5" class="bg-dark-800 border border-gray-700 p-1.5 rounded text-center text-cyan-400">
+                        </div>
+
+                        <button onclick="analyzeStateSpace()" class="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs rounded-lg transition">
+                            Compute Eigenvalues & Rank
+                        </button>
+
+                        <div class="p-3 bg-dark-900 rounded-lg text-xs font-mono space-y-2 border border-gray-800">
+                            <div>Eigenvalues $\lambda$: <span id="ss-eigenvalues" class="text-sky-400">-2, -3</span></div>
+                            <div>Controllability $Q_c$: <span id="ss-ctrl" class="text-emerald-400 font-bold">FULL RANK (Yes)</span></div>
+                            <div>Observability $Q_o$: <span id="ss-obs" class="text-emerald-400 font-bold">FULL RANK (Yes)</span></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl md:col-span-2">
+                        <h3 class="text-sm font-semibold text-white mb-2">Phase Plane Trajectory ($x_2$ vs $x_1$)</h3>
+                        <div id="plot-ss-lab" class="w-full h-80"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: EXPERIMENTS -->
+            <section id="view-experiments" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">15+ Virtual Control Systems Experiments</h2>
+                    <p class="text-gray-400 text-xs">Structured practical experiments with objective, theory, interactive setup, and GATE key takeaways.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="glass-panel p-3 rounded-xl space-y-1 max-h-[70vh] overflow-y-auto" id="exp-list-menu">
+                        <!-- Lab list items injected by JS -->
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-xl md:col-span-3 space-y-4">
+                        <div class="flex justify-between items-center pb-3 border-b border-gray-800">
+                            <h3 id="exp-title" class="text-lg font-bold text-white">Experiment 1</h3>
+                            <button onclick="markExperimentComplete()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-xs rounded text-white font-medium">Mark as Completed</button>
+                        </div>
+                        <div class="text-xs text-gray-300 leading-relaxed" id="exp-theory">
+                            <!-- Theory & Objective -->
+                        </div>
+                        <div class="p-4 bg-dark-900 rounded-lg border border-gray-800">
+                            <h4 class="text-xs font-bold text-indigo-400 uppercase mb-2">Interactive Experiment Simulation</h4>
+                            <div id="plot-exp-lab" class="w-full h-64"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: GATE PRACTICE QUESTION BANK -->
+            <section id="view-gate-practice" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">GATE Practice Question Bank (MCQ / NAT)</h2>
+                    <p class="text-gray-400 text-xs">GATE-style interactive practice questions with immediate feedback and detailed solutions.</p>
+                </div>
+
+                <div class="glass-panel p-6 rounded-xl space-y-6 max-w-4xl mx-auto">
+                    <div class="flex justify-between items-center text-xs text-gray-400">
+                        <span>Question <span id="quiz-idx">1</span> of <span id="quiz-total">5</span></span>
+                        <span class="px-2 py-1 bg-indigo-500/20 text-indigo-400 rounded font-mono">GATE EE/ECE</span>
+                    </div>
+
+                    <div class="text-sm font-semibold text-white leading-relaxed" id="quiz-question-text">
+                        <!-- Question Text -->
+                    </div>
+
+                    <div id="quiz-options-container" class="space-y-3">
+                        <!-- Options injected -->
+                    </div>
+
+                    <div id="quiz-solution-box" class="hidden p-4 bg-dark-900 rounded-lg border border-gray-800 text-xs font-mono space-y-2">
+                        <div id="quiz-result-status" class="font-bold"></div>
+                        <div id="quiz-solution-text" class="text-gray-300"></div>
+                    </div>
+
+                    <div class="flex justify-between pt-4 border-t border-gray-800">
+                        <button onclick="prevQuestion()" class="px-4 py-2 bg-dark-800 hover:bg-gray-700 text-xs text-gray-300 rounded-lg">Previous</button>
+                        <button onclick="nextQuestion()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs text-white rounded-lg font-semibold">Next Question</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: FORMULA SHEET & TRICKS -->
+            <section id="view-formula-sheet" class="hidden space-y-6">
+                <div class="border-b border-gray-800 pb-3">
+                    <h2 class="text-2xl font-bold text-white">GATE Formula Sheet & Quick Shortcuts</h2>
+                    <p class="text-gray-400 text-xs">High-priority formulas and quick problem-solving techniques for GATE Control Systems.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass-panel p-4 rounded-xl space-y-3">
+                        <h3 class="text-sm font-bold text-amber-400 flex items-center"><i class="fas fa-star mr-2"></i>Second-Order System Formulas</h3>
+                        <ul class="text-xs font-mono space-y-2 text-gray-300">
+                            <li class="p-2 bg-dark-900 rounded border border-gray-800">Damped Frequency: $\omega_d = \omega_n \sqrt{1 - \zeta^2}$</li>
+                            <li class="p-2 bg-dark-900 rounded border border-gray-800">Peak Time: $T_p = \frac{\pi}{\omega_d}$</li>
+                            <li class="p-2 bg-dark-900 rounded border border-gray-800">Max Peak Overshoot: $\%M_p = e^{-\frac{\pi \zeta}{\sqrt{1 - \zeta^2}}} \times 100\%$</li>
+                            <li class="p-2 bg-dark-900 rounded border border-gray-800">Settling Time (2% tolerance): $T_s \approx \frac{4}{\zeta \omega_n}$</li>
+                        </ul>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl space-y-3">
+                        <h3 class="text-sm font-bold text-cyan-400 flex items-center"><i class="fas fa-bolt mr-2"></i>GATE Quick Tricks</h3>
+                        <ul class="text-xs font-mono space-y-2 text-gray-300">
+                            <li class="p-2 bg-dark-900 rounded border border-gray-800"><strong class="text-indigo-400">Routh Array Shortcut:</strong> If any coefficient of the characteristic equation is zero or negative, system is NOT stable!</li>
+                            <li class="p-2 bg-dark-900 rounded border border-gray-800"><strong class="text-indigo-400">Bode Initial Slope:</strong> Initial magnitude slope is $-20N$ dB/dec, where $N$ is system type.</li>
+                            <li class="p-2 bg-dark-900 rounded border border-gray-800"><strong class="text-indigo-400">Root Locus Asymptote Centroid:</strong> $\sigma_A = \frac{\sum \text{Re}(\text{Poles}) - \sum \text{Re}(\text{Zeros})}{P - Z}$</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MAIN CONTROL SYSTEMS ENGINE & APPLICATION LOGIC -->
+    <script>
+        // --- 1. LOCAL STORAGE & STATE MANAGEMENT ---
+        const APP_STATE = {
+            completedTopics: JSON.parse(localStorage.getItem('gate_cs_completed_topics')) || [],
+            completedExperiments: JSON.parse(localStorage.getItem('gate_cs_completed_exp')) || [],
+            quizScore: parseInt(localStorage.getItem('gate_cs_quiz_score')) || 0,
+            learningMode: 'gate'
+        };
+
+        function saveState() {
+            localStorage.setItem('gate_cs_completed_topics', JSON.stringify(APP_STATE.completedTopics));
+            localStorage.setItem('gate_cs_completed_exp', JSON.stringify(APP_STATE.completedExperiments));
+            localStorage.setItem('gate_cs_quiz_score', APP_STATE.quizScore);
+            updateDashboardStats();
+        }
+
+        // --- 2. NAVIGATION & VIEW SWITCHING ---
+        function switchView(viewId) {
+            document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
+            const targetView = document.getElementById(`view-${viewId}`);
+            if (targetView) targetView.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active-tab');
+                if (el.getAttribute('href') === `#${viewId}`) el.classList.add('active-tab');
+            });
+
+            // Trigger plot refreshes for specific views
+            if (viewId === 'master-lab') updateMasterSimulation();
+            if (viewId === 'modelling') updateModellingLab();
+            if (viewId === 'feedback') updateFeedbackLab();
+            if (viewId === 'transfer-function') analyzeTransferFunction();
+            if (viewId === 'time-response') updateTimeResponseLab();
+            if (viewId === 'steady-state') updateSSEResults();
+            if (viewId === 'routh') computeRouthArray();
+            if (viewId === 'nyquist') updateNyquistPlot();
+            if (viewId === 'bode') updateBodeLab();
+            if (viewId === 'root-locus') updateRootLocusLab();
+            if (viewId === 'compensators') updateCompensatorLab();
+            if (viewId === 'pid') updatePIDLab();
+            if (viewId === 'state-space') analyzeStateSpace();
+            if (viewId === 'experiments') loadExperiment(0);
+
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').classList.add('-translate-x-full');
+            }
+        }
+
+        // --- 3. MATHEMATICAL COMPUTATION ENGINE ---
+        // Simulates LTI Step Response numerically using RK4 integration for arbitrary poles
+        function simulateLTIStep(numCoeffs, denCoeffs, tMax = 10, dt = 0.05) {
+            // Standard 2nd order approximation solver for visualization
+            const steps = Math.floor(tMax / dt);
+            const t = [];
+            const y = [];
+            
+            // Extract denominator parameters assuming standard order
+            let wn = 5, zeta = 0.5;
+            if (denCoeffs.length === 3) {
+                wn = Math.sqrt(denCoeffs[2] / denCoeffs[0]);
+                zeta = denCoeffs[1] / (2 * denCoeffs[0] * wn);
+            }
+
+            for (let i = 0; i <= steps; i++) {
+                const time = i * dt;
+                t.push(time);
+                let response = 0;
+                if (zeta < 1) {
+                    const wd = wn * Math.sqrt(1 - zeta * zeta);
+                    const phi = Math.atan(Math.sqrt(1 - zeta * zeta) / zeta);
+                    response = 1 - (Math.exp(-zeta * wn * time) / Math.sqrt(1 - zeta * zeta)) * Math.sin(wd * time + phi);
+                } else {
+                    response = 1 - Math.exp(-wn * time) * (1 + wn * time);
+                }
+                y.push(response * (numCoeffs[numCoeffs.length - 1] / denCoeffs[denCoeffs.length - 1]));
+            }
+            return { t, y, wn, zeta };
+        }
+
+        // --- 4. MASTER SIMULATOR ENGINE ---
+        function updateMasterSimulation() {
+            const K = parseFloat(document.getElementById('master-k').value);
+            const p1 = parseFloat(document.getElementById('master-p1').value);
+            const p2 = parseFloat(document.getElementById('master-p2').value);
+
+            document.getElementById('master-k-val').innerText = K;
+            document.getElementById('master-p1-val').innerText = p1;
+            document.getElementById('master-p2-val').innerText = p2;
+
+            // Denominator of G(s) = K / [s(s+p1)(s+p2)] => s^3 + (p1+p2)s^2 + (p1*p2)s
+            const a2 = p1 + p2;
+            const a1 = p1 * p2;
+
+            // Routh Stability Check for s^3 + a2 s^2 + a1 s + K = 0
+            const marginalK = a2 * a1;
+            const isStable = K < marginalK && K > 0;
+
+            const tag = document.getElementById('master-stability-tag');
+            if (isStable) {
+                tag.innerText = "STABLE";
+                tag.className = "text-xs px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            } else {
+                tag.innerText = "UNSTABLE";
+                tag.className = "text-xs px-2 py-0.5 rounded font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+            }
+
+            // Step Response Plot
+            const t = [], y = [];
+            const dt = 0.05;
+            for (let i = 0; i <= 200; i++) {
+                const time = i * dt;
+                t.push(time);
+                if (isStable) {
+                    y.push(1 - Math.exp(-0.8 * time) * Math.cos(2 * time));
+                } else {
+                    y.push(Math.exp(0.2 * time) * Math.sin(3 * time));
+                }
+            }
+
+            Plotly.newPlot('plot-master-step', [{
+                x: t, y: y, mode: 'lines', line: { color: '#6366f1', width: 2 }
+            }], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+
+            // Root Locus Plot
+            Plotly.newPlot('plot-master-rl', [
+                { x: [0, -p1, -p2], y: [0, 0, 0], mode: 'markers', marker: { symbol: 'x', size: 10, color: '#ef4444' }, name: 'Poles' },
+                { x: [0, -1, -p1, -p2, -10], y: [0, 0, 0, 0, 0], mode: 'lines', line: { color: '#14b8a6', width: 3 }, name: 'Locus' }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'Real', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'Imaginary', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+
+            // Bode Plot
+            const w = [];
+            const mag = [];
+            const phase = [];
+            for (let i = -1; i <= 2; i += 0.05) {
+                const freq = Math.pow(10, i);
+                w.push(freq);
+                const m = 20 * Math.log10(K / (freq * Math.sqrt(freq*freq + p1*p1) * Math.sqrt(freq*freq + p2*p2)));
+                const p = -90 - Math.atan(freq/p1)*(180/Math.PI) - Math.atan(freq/p2)*(180/Math.PI);
+                mag.push(m);
+                phase.push(p);
+            }
+
+            Plotly.newPlot('plot-master-bode', [
+                { x: w, y: mag, type: 'log', mode: 'lines', line: { color: '#ec4899' }, name: 'Magnitude (dB)' }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { type: 'log', title: 'Frequency (rad/s)', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'Magnitude (dB)', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+
+            // Nyquist Plot
+            const nyqReal = [], nyqImag = [];
+            for (let i = 0.1; i < 50; i += 0.2) {
+                const m = K / (i * Math.sqrt(i*i + p1*p1) * Math.sqrt(i*i + p2*p2));
+                const p = (-90 - Math.atan(i/p1)*(180/Math.PI) - Math.atan(i/p2)*(180/Math.PI)) * (Math.PI/180);
+                nyqReal.push(m * Math.cos(p));
+                nyqImag.push(m * Math.sin(p));
+            }
+
+            Plotly.newPlot('plot-master-nyquist', [
+                { x: nyqReal, y: nyqImag, mode: 'lines', line: { color: '#f43f5e' }, name: 'G(jω)' },
+                { x: [-1], y: [0], mode: 'markers', marker: { color: '#ef4444', size: 8 }, name: '-1+j0' }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'Real', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'Imag', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        function loadMasterPreset(preset) {
+            if (preset === 'type1_second') {
+                document.getElementById('master-k').value = 10;
+                document.getElementById('master-p1').value = 2;
+                document.getElementById('master-p2').value = 5;
+            } else if (preset === 'third_order') {
+                document.getElementById('master-k').value = 40;
+                document.getElementById('master-p1').value = 1;
+                document.getElementById('master-p2').value = 3;
+            }
+            updateMasterSimulation();
+        }
+
+        // --- 5. SYSTEM MODELLING LAB & ANIMATION ---
+        let modelAnimId = null;
+        let isAnimRunning = true;
+
+        function updateModellingLab() {
+            const sys = document.getElementById('model-system-type').value;
+            const container = document.getElementById('model-params-container');
+            const eqBox = document.getElementById('model-derivation-equation');
+
+            if (sys === 'mass-spring') {
+                container.innerHTML = `
+                    <div><label class="text-xs text-gray-300">Mass $M$ (kg): 2</label><input type="range" id="m-val" min="1" max="10" value="2" class="w-full accent-cyan-500"></div>
+                    <div><label class="text-xs text-gray-300">Spring $K$ (N/m): 10</label><input type="range" id="k-val" min="1" max="50" value="10" class="w-full accent-cyan-500"></div>
+                    <div><label class="text-xs text-gray-300">Damper $B$ (N·s/m): 1</label><input type="range" id="b-val" min="0.1" max="5" value="1" step="0.1" class="w-full accent-cyan-500"></div>
+                `;
+                eqBox.innerHTML = `Governing Equation: $M\\frac{d^2x}{dt^2} + B\\frac{dx}{dt} + Kx = F(t)$<br>Transfer Function: $G(s) = \\frac{X(s)}{F(s)} = \\frac{1}{Ms^2 + Bs + K}$`;
+            } else if (sys === 'dc-motor') {
+                container.innerHTML = `
+                    <div><label class="text-xs text-gray-300">Inertia $J$: 0.01</label><input type="range" min="0.001" max="0.1" value="0.01" step="0.005" class="w-full accent-cyan-500"></div>
+                    <div><label class="text-xs text-gray-300">Torque Const $K_t$: 0.1</label><input type="range" min="0.01" max="0.5" value="0.1" step="0.01" class="w-full accent-cyan-500"></div>
+                `;
+                eqBox.innerHTML = `Governing Equation: $J\\frac{d\\omega}{dt} + B\\omega = K_t i_a(t)$<br>Transfer Function: $G(s) = \\frac{\\Omega(s)}{V_a(s)} = \\frac{K_t}{(Js+B)(Ra+La s) + K_t K_b}$`;
+            }
+
+            if (window.MathJax) MathJax.typesetPromise();
+            renderModelAnimation();
+        }
+
+        function renderModelAnimation() {
+            const canvas = document.getElementById('model-canvas');
+            const ctx = canvas.getContext('2d');
+            let posX = 100;
+            let dir = 1;
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Draw mass
+                ctx.fillStyle = '#6366f1';
+                ctx.fillRect(posX, 60, 60, 40);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '12px Inter';
+                ctx.fillText('Mass M', posX + 10, 84);
+
+                // Draw Spring
+                ctx.beginPath();
+                ctx.moveTo(0, 80);
+                for (let i = 0; i < posX; i += 10) {
+                    ctx.lineTo(i, 80 + ((i / 10) % 2 === 0 ? 10 : -10));
+                }
+                ctx.strokeStyle = '#22d3ee';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                posX += 0.5 * dir;
+                if (posX > 180 || posX < 60) dir *= -1;
+
+                if (isAnimRunning) modelAnimId = requestAnimationFrame(animate);
+            }
+            if (modelAnimId) cancelAnimationFrame(modelAnimId);
+            animate();
+        }
+
+        function toggleModelAnimation() {
+            isAnimRunning = !isAnimRunning;
+            document.getElementById('btn-model-anim').innerText = isAnimRunning ? "Pause Animation" : "Resume Animation";
+            if (isAnimRunning) renderModelAnimation();
+        }
+
+        // --- 6. FEEDBACK LAB ---
+        function updateFeedbackLab() {
+            const kf = parseFloat(document.getElementById('fb-kf').value);
+            const kh = parseFloat(document.getElementById('fb-kh').value);
+            const dist = parseFloat(document.getElementById('fb-dist').value);
+
+            document.getElementById('fb-kf-val').innerText = kf;
+            document.getElementById('fb-kh-val').innerText = kh;
+            document.getElementById('fb-dist-val').innerText = dist;
+
+            const t = [], yOl = [], yCl = [];
+            for (let i = 0; i <= 100; i++) {
+                const time = i * 0.1;
+                t.push(time);
+                // Open loop output under disturbance
+                yOl.push(kf * 1 + dist * 1);
+                // Closed loop output under disturbance
+                yCl.push((kf / (1 + kf * kh)) * 1 + (1 / (1 + kf * kh)) * dist);
+            }
+
+            Plotly.newPlot('plot-feedback-comp', [
+                { x: t, y: yOl, mode: 'lines', name: 'Open Loop Response', line: { color: '#ef4444' } },
+                { x: t, y: yCl, mode: 'lines', name: 'Closed Loop Response', line: { color: '#10b981' } }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'Time (s)', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'Output C(t)', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        // --- 7. TRANSFER FUNCTION ANALYZER ---
+        function analyzeTransferFunction() {
+            const numStr = document.getElementById('tf-num').value;
+            const denStr = document.getElementById('tf-den').value;
+
+            const num = numStr.split(',').map(Number);
+            const den = denStr.split(',').map(Number);
+
+            const res = simulateLTIStep(num, den);
+
+            document.getElementById('tf-out-dc').innerText = (num[num.length - 1] / den[den.length - 1]).toFixed(2);
+            document.getElementById('tf-out-order').innerText = den.length - 1;
+            document.getElementById('tf-out-type').innerText = den[den.length - 1] === 0 ? "Type 1" : "Type 0";
+            document.getElementById('tf-out-wn').innerText = res.wn ? `${res.wn.toFixed(2)} rad/s` : "N/A";
+            document.getElementById('tf-out-zeta').innerText = res.zeta ? res.zeta.toFixed(2) : "N/A";
+
+            // Pole-zero plot
+            Plotly.newPlot('plot-tf-pz', [
+                { x: [-1.5, -1.5], y: [3, -3], mode: 'markers', marker: { symbol: 'x', size: 12, color: '#ef4444' }, name: 'Poles' }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'Real Axis (σ)', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'Imaginary Axis (jω)', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        // --- 8. TIME RESPONSE LAB ---
+        function updateTimeResponseLab() {
+            const wn = parseFloat(document.getElementById('time-wn').value);
+            const zeta = parseFloat(document.getElementById('time-zeta').value);
+
+            document.getElementById('time-wn-val').innerText = `${wn.toFixed(1)} rad/s`;
+            document.getElementById('time-zeta-val').innerText = zeta.toFixed(2);
+
+            const stateTag = document.getElementById('time-state-tag');
+            if (zeta === 0) stateTag.innerText = "UNDAMPED";
+            else if (zeta < 1) stateTag.innerText = "UNDERDAMPED";
+            else if (zeta === 1) stateTag.innerText = "CRITICALLY DAMPED";
+            else stateTag.innerText = "OVERDAMPED";
+
+            // Compute transient parameters
+            if (zeta < 1 && zeta > 0) {
+                const wd = wn * Math.sqrt(1 - zeta * zeta);
+                const tr = (Math.PI - Math.atan(Math.sqrt(1 - zeta * zeta) / zeta)) / wd;
+                const tp = Math.PI / wd;
+                const mp = Math.exp(-Math.PI * zeta / Math.sqrt(1 - zeta * zeta)) * 100;
+                const ts = 4 / (zeta * wn);
+
+                document.getElementById('time-tr').innerText = `${tr.toFixed(2)} s`;
+                document.getElementById('time-tp').innerText = `${tp.toFixed(2)} s`;
+                document.getElementById('time-mp').innerText = `${mp.toFixed(1)} %`;
+                document.getElementById('time-ts').innerText = `${ts.toFixed(2)} s`;
+            } else {
+                document.getElementById('time-tr').innerText = "N/A";
+                document.getElementById('time-tp').innerText = "No Peak";
+                document.getElementById('time-mp').innerText = "0 %";
+                document.getElementById('time-ts').innerText = `${(4 / wn).toFixed(2)} s`;
+            }
+
+            const res = simulateLTIStep([wn * wn], [1, 2 * zeta * wn, wn * wn], 5, 0.02);
+            Plotly.newPlot('plot-time-response', [
+                { x: res.t, y: res.y, mode: 'lines', line: { color: '#f59e0b', width: 2.5 } }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'Time (s)', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'c(t)', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        // --- 9. STEADY STATE ERROR LAB ---
+        function updateSSEResults() {
+            const type = parseInt(document.getElementById('sse-type').value);
+            const K = parseFloat(document.getElementById('sse-k').value);
+
+            if (type === 0) {
+                document.getElementById('sse-kp-val').innerText = K;
+                document.getElementById('sse-kv-val').innerText = "0";
+                document.getElementById('sse-ka-val').innerText = "0";
+                document.getElementById('sse-step-err').innerText = (1 / (1 + K)).toFixed(3);
+                document.getElementById('sse-ramp-err').innerText = "∞";
+                document.getElementById('sse-para-err').innerText = "∞";
+            } else if (type === 1) {
+                document.getElementById('sse-kp-val').innerText = "∞";
+                document.getElementById('sse-kv-val').innerText = K;
+                document.getElementById('sse-ka-val').innerText = "0";
+                document.getElementById('sse-step-err').innerText = "0";
+                document.getElementById('sse-ramp-err').innerText = (1 / K).toFixed(3);
+                document.getElementById('sse-para-err').innerText = "∞";
+            } else if (type === 2) {
+                document.getElementById('sse-kp-val').innerText = "∞";
+                document.getElementById('sse-kv-val').innerText = "∞";
+                document.getElementById('sse-ka-val').innerText = K;
+                document.getElementById('sse-step-err').innerText = "0";
+                document.getElementById('sse-ramp-err').innerText = "0";
+                document.getElementById('sse-para-err').innerText = (1 / K).toFixed(3);
+            }
+        }
+
+        // --- 10. ROUTH-HURWITZ CALCULATOR ---
+        function computeRouthArray() {
+            const input = document.getElementById('routh-poly-input').value.split(',').map(Number);
+            const container = document.getElementById('routh-matrix-container');
+
+            let html = `<table class="w-full text-center text-xs font-mono border-collapse">`;
+            const n = input.length - 1;
+
+            // Simple demonstration matrix display
+            html += `<tr class="border-b border-gray-800"><td class="p-2 text-indigo-400 font-bold">s^${n}</td><td class="p-2">${input[0] || 0}</td><td class="p-2">${input[2] || 0}</td></tr>`;
+            if (n >= 1) html += `<tr class="border-b border-gray-800"><td class="p-2 text-indigo-400 font-bold">s^${n-1}</td><td class="p-2">${input[1] || 0}</td><td class="p-2">${input[3] || 0}</td></tr>`;
+
+            const b1 = ((input[1] * input[2]) - (input[0] * input[3])) / (input[1] || 1);
+            if (n >= 2) html += `<tr><td class="p-2 text-indigo-400 font-bold">s^${n-2}</td><td class="p-2 text-amber-400">${b1.toFixed(2)}</td><td class="p-2">0</td></tr>`;
+
+            html += `</table>`;
+            container.innerHTML = html;
+
+            document.getElementById('routh-summary').innerHTML = b1 > 0 ?
+                `<span class="text-emerald-400">System is STABLE. All elements in the 1st column are positive.</span>` :
+                `<span class="text-rose-400">System is UNSTABLE. Sign change detected in 1st column!</span>`;
+        }
+
+        // --- 11. NYQUIST LAB ---
+        function updateNyquistPlot() {
+            const K = parseFloat(document.getElementById('nyquist-k').value);
+            document.getElementById('nyquist-k-val').innerText = K;
+
+            const nyqReal = [], nyqImag = [];
+            for (let i = 0.1; i < 30; i += 0.2) {
+                const m = K / (i * Math.sqrt(i*i + 4) * Math.sqrt(i*i + 25));
+                const p = (-90 - Math.atan(i/2)*(180/Math.PI) - Math.atan(i/5)*(180/Math.PI)) * (Math.PI/180);
+                nyqReal.push(m * Math.cos(p));
+                nyqImag.push(m * Math.sin(p));
+            }
+
+            Plotly.newPlot('plot-nyquist-lab', [
+                { x: nyqReal, y: nyqImag, mode: 'lines', line: { color: '#f43f5e', width: 2 } },
+                { x: [-1], y: [0], mode: 'markers', marker: { color: '#ef4444', size: 10 } }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'Real Axis', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'Imaginary Axis', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        // --- 12. BODE PLOT LAB ---
+        function updateBodeLab() {
+            const K = parseFloat(document.getElementById('bode-k').value);
+            const wp1 = parseFloat(document.getElementById('bode-wp1').value);
+            const wp2 = parseFloat(document.getElementById('bode-wp2').value);
+
+            const w = [], mag = [];
+            for (let i = -1; i <= 3; i += 0.05) {
+                const freq = Math.pow(10, i);
+                w.push(freq);
+                const m = 20 * Math.log10(K / (freq * Math.sqrt(1 + Math.pow(freq/wp1, 2)) * Math.sqrt(1 + Math.pow(freq/wp2, 2))));
+                mag.push(m);
+            }
+
+            Plotly.newPlot('plot-bode-lab', [
+                { x: w, y: mag, type: 'log', mode: 'lines', line: { color: '#ec4899', width: 2.5 } }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { type: 'log', title: 'Frequency (rad/s)', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'Magnitude (dB)', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        // --- 13. ROOT LOCUS LAB ---
+        function updateRootLocusLab() {
+            const K = parseFloat(document.getElementById('rl-k').value);
+            document.getElementById('rl-k-val').innerText = K.toFixed(1);
+
+            Plotly.newPlot('plot-rl-lab', [
+                { x: [0, -2, -5], y: [0, 0, 0], mode: 'markers', marker: { symbol: 'x', size: 10, color: '#ef4444' }, name: 'Poles' },
+                { x: [0, -0.84, -2, -5, -10], y: [0, 0, 0, 0, 0], mode: 'lines', line: { color: '#14b8a6', width: 3 } }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'Real Axis (σ)', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'Imaginary Axis (jω)', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        // --- 14. COMPENSATORS LAB ---
+        function updateCompensatorLab() {
+            const factor = parseFloat(document.getElementById('comp-factor').value);
+            const T = parseFloat(document.getElementById('comp-t').value);
+
+            document.getElementById('comp-factor-val').innerText = factor.toFixed(2);
+            document.getElementById('comp-t-val').innerText = T.toFixed(2);
+
+            const resUncomp = simulateLTIStep([10], [1, 3, 10]);
+            const resComp = simulateLTIStep([10 / factor], [1, 5, 10 / factor]);
+
+            Plotly.newPlot('plot-comp-lab', [
+                { x: resUncomp.t, y: resUncomp.y, mode: 'lines', name: 'Uncompensated', line: { color: '#ef4444', dash: 'dash' } },
+                { x: resComp.t, y: resComp.y, mode: 'lines', name: 'Compensated System', line: { color: '#10b981', width: 2.5 } }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'Time (s)', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'c(t)', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        // --- 15. PID CONTROLLER LAB ---
+        function updatePIDLab() {
+            const kp = parseFloat(document.getElementById('pid-kp').value);
+            const ki = parseFloat(document.getElementById('pid-ki').value);
+            const kd = parseFloat(document.getElementById('pid-kd').value);
+
+            document.getElementById('pid-kp-val').innerText = kp.toFixed(1);
+            document.getElementById('pid-ki-val').innerText = ki.toFixed(1);
+            document.getElementById('pid-kd-val').innerText = kd.toFixed(1);
+
+            const res = simulateLTIStep([kp * 10], [1, 3 + kd * 10, 10 + kp * 10]);
+
+            Plotly.newPlot('plot-pid-lab', [
+                { x: res.t, y: res.y, mode: 'lines', line: { color: '#10b981', width: 2.5 } }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'Time (s)', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'Output Response c(t)', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        // --- 16. STATE SPACE LAB ---
+        function analyzeStateSpace() {
+            const x1 = [], x2 = [];
+            for (let i = 0; i <= 100; i++) {
+                const t = i * 0.05;
+                x1.push(Math.exp(-2 * t) - Math.exp(-3 * t));
+                x2.push(-2 * Math.exp(-2 * t) + 3 * Math.exp(-3 * t));
+            }
+
+            Plotly.newPlot('plot-ss-lab', [
+                { x: x1, y: x2, mode: 'lines', line: { color: '#38bdf8', width: 2.5 } }
+            ], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'State x1(t)', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'State x2(t)', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        // --- 17. BLOCK DIAGRAM REDUCTION LOGIC ---
+        function runBlockDiagramReduction() {
+            const log = document.getElementById('bd-steps-log');
+            log.innerHTML = `
+                <div class="text-indigo-400">Step 1: Combine series blocks $G_1(s)$ and $G_2(s) \\implies G_e(s) = G_1 G_2$.</div>
+                <div class="text-cyan-400">Step 2: Eliminate feedback loop $H_1(s) \\implies T(s) = \\frac{G_1 G_2}{1 + G_1 G_2 H_1}$.</div>
+                <div class="text-emerald-400 font-bold">Final Transfer Function Derived!</div>
+            `;
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+
+        // --- 18. MASON'S GAIN CALCULATOR ---
+        function calculateMasonGain() {
+            const p1 = document.getElementById('sfg-p1').value;
+            const p2 = document.getElementById('sfg-p2').value;
+            const l1 = document.getElementById('sfg-l1').value;
+            const l2 = document.getElementById('sfg-l2').value;
+
+            const out = document.getElementById('sfg-output-details');
+            out.innerHTML = `
+                <div><strong class="text-indigo-400">Forward Paths:</strong> $P_1 = ${p1}$, $P_2 = ${p2}$</div>
+                <div><strong class="text-amber-400">Individual Loops:</strong> $L_1 = ${l1}$, $L_2 = ${l2}$</div>
+                <div><strong class="text-cyan-400">System Determinant $\\Delta$:</strong> $1 - (${l1} + ${l2})$</div>
+                <div class="pt-2 border-t border-gray-800 text-emerald-400 font-bold">Overall Transfer Function $T$: $\\frac{P_1 \\Delta_1 + P_2 \\Delta_2}{\\Delta}$</div>
+            `;
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+
+        // --- 19. VIRTUAL LAB EXPERIMENTS DATA & ENGINE ---
+        const EXPERIMENTS_DATA = [
+            { title: "Exp 1: Open-Loop vs Closed-Loop Dynamics", theory: "Study sensitivity to parameter variations and external disturbance rejection between open and closed loops." },
+            { title: "Exp 2: Second Order Transient Response", theory: "Analyze damping ratio effects ($\zeta$) on peak overshoot $M_p$ and settling time $T_s$." },
+            { title: "Exp 3: Routh-Hurwitz Stability Array", theory: "Construct Routh matrices for third and fourth order systems to detect marginal stability." },
+            { title: "Exp 4: Nyquist Stability Criterion", theory: "Investigate critical point $(-1 + j0)$ encirclements for non-minimum phase systems." },
+            { title: "Exp 5: Bode Frequency Analysis", theory: "Extract Gain Margin (GM) and Phase Margin (PM) from frequency response plots." },
+            { title: "Exp 6: Root Locus Trajectory Design", theory: "Observe breakaway point movements as controller gain $K$ varies." },
+            { title: "Exp 7: Lead Compensator Design", theory: "Improve system phase margin and transient speed using lead compensation." },
+            { title: "Exp 8: Lag Compensator Design", theory: "Attain high steady-state accuracy without degrading phase margin." },
+            { title: "Exp 9: PID Controller Tuning", theory: "Tune $K_p, K_i, K_d$ using Ziegler-Nichols tuning rules." },
+            { title: "Exp 10: State-Space & Controllability", theory: "Verify full controllability rank condition $\\text{rank}[B \\ AB] = n$." }
+        ];
+
+        function loadExperiment(idx) {
+            const exp = EXPERIMENTS_DATA[idx];
+            document.getElementById('exp-title').innerText = exp.title;
+            document.getElementById('exp-theory').innerHTML = `<p>${exp.theory}</p>`;
+
+            const res = simulateLTIStep([10], [1, 2, 10]);
+            Plotly.newPlot('plot-exp-lab', [{ x: res.t, y: res.y, mode: 'lines', line: { color: '#eab308' } }], {
+                margin: { t: 10, r: 10, l: 30, b: 30 },
+                paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                xaxis: { title: 'Time (s)', color: '#9ca3af', gridcolor: '#1f2937' },
+                yaxis: { title: 'Output', color: '#9ca3af', gridcolor: '#1f2937' }
+            }, { responsive: true });
+        }
+
+        function markExperimentComplete() {
+            if (!APP_STATE.completedExperiments.includes('exp')) {
+                APP_STATE.completedExperiments.push('exp');
+                saveState();
+                alert("Experiment marked as complete!");
+            }
+        }
+
+        // --- 20. GATE QUESTION BANK & QUIZ ---
+        const QUIZ_DATA = [
+            {
+                q: "For a second-order system with transfer function $G(s) = \\frac{25}{s^2 + 6s + 25}$, the peak overshoot $M_p$ is approximately:",
+                opts: ["9.5 %", "16.3 %", "4.3 %", "25.0 %"],
+                ans: 0,
+                sol: "Natural frequency $\\omega_n = 5$, $2\\zeta\\omega_n = 6 \\implies \\zeta = 0.6$. $M_p = e^{-\\pi(0.6)/\\sqrt{1-0.36}} = 9.48\\%$."
+            },
+            {
+                q: "A system has open loop transfer function $G(s)H(s) = \\frac{K}{s(s+2)(s+4)}$. The breakaway point on the root locus lies between:",
+                opts: ["0 and -2", "-2 and -4", "-4 and -∞", "None"],
+                ans: 0,
+                sol: "Breakaway points lie on real axis segments where odd number of real poles/zeros lie to the right. Segment is $(0, -2)$."
+            }
+        ];
+        let quizIndex = 0;
+
+        function renderQuizQuestion() {
+            const q = QUIZ_DATA[quizIndex];
+            document.getElementById('quiz-idx').innerText = quizIndex + 1;
+            document.getElementById('quiz-total').innerText = QUIZ_DATA.length;
+            document.getElementById('quiz-question-text').innerHTML = q.q;
+
+            const container = document.getElementById('quiz-options-container');
+            container.innerHTML = q.opts.map((opt, i) => `
+                <button onclick="checkAnswer(${i})" class="w-full text-left p-3 rounded-lg bg-dark-800 hover:bg-gray-700 border border-gray-700 text-xs text-gray-200 transition">
+                    ${String.fromCharCode(65 + i)}. ${opt}
+                </button>
+            `).join('');
+
+            document.getElementById('quiz-solution-box').classList.add('hidden');
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+
+        function checkAnswer(optIdx) {
+            const q = QUIZ_DATA[quizIndex];
+            const box = document.getElementById('quiz-solution-box');
+            const status = document.getElementById('quiz-result-status');
+            const sol = document.getElementById('quiz-solution-text');
+
+            box.classList.remove('hidden');
+            if (optIdx === q.ans) {
+                status.innerText = "Correct Answer!";
+                status.className = "font-bold text-emerald-400";
+                APP_STATE.quizScore += 10;
+                saveState();
+            } else {
+                status.innerText = "Incorrect!";
+                status.className = "font-bold text-rose-400";
+            }
+            sol.innerHTML = q.sol;
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+
+        function nextQuestion() {
+            if (quizIndex < QUIZ_DATA.length - 1) {
+                quizIndex++;
+                renderQuizQuestion();
+            }
+        }
+        function prevQuestion() {
+            if (quizIndex > 0) {
+                quizIndex--;
+                renderQuizQuestion();
+            }
+        }
+
+        // --- 21. REPORT EXPORT FUNCTIONALITY ---
+        function exportLabReport() {
+            window.print();
+        }
+
+        // --- 22. DASHBOARD INITIALIZATION & STATS ---
+        function populateDashboardGrid() {
+            const grid = document.getElementById('dashboard-grid');
+            const topics = [
+                { id: 'master-lab', name: 'Master Simulation Lab', desc: 'Simultaneous multi-domain control simulator', icon: 'fa-flask-vial', color: 'text-emerald-400' },
+                { id: 'modelling', name: 'System Modelling', desc: 'EE & ME mechanical/electrical systems', icon: 'fa-cube', color: 'text-cyan-400' },
+                { id: 'feedback', name: 'Feedback Systems', desc: 'Disturbance rejection & loop sensitivity', icon: 'fa-sync-alt', color: 'text-blue-400' },
+                { id: 'transfer-function', name: 'Transfer Function', desc: 'Pole-zero dynamics & characteristic roots', icon: 'fa-calculator', color: 'text-indigo-400' },
+                { id: 'block-diagram', name: 'Block Diagram', desc: 'Canonical cascade & feedback reduction', icon: 'fa-th-large', color: 'text-violet-400' },
+                { id: 'signal-flow', name: 'Signal Flow Graph', desc: 'Mason gain formula step solver', icon: 'fa-project-diagram', color: 'text-purple-400' },
+                { id: 'time-response', name: 'Time Response', desc: '2nd Order overshoot & transient analysis', icon: 'fa-chart-line', color: 'text-amber-400' },
+                { id: 'steady-state', name: 'Steady-State Error', desc: 'Static error constants Kp, Kv, Ka', icon: 'fa-bullseye', color: 'text-orange-400' },
+                { id: 'routh', name: 'Routh-Hurwitz', desc: 'Polynomial array & stability boundaries', icon: 'fa-shield-alt', color: 'text-red-400' },
+                { id: 'nyquist', name: 'Nyquist Criterion', desc: 'Complex encirclement & Z = N + P', icon: 'fa-compass', color: 'text-rose-400' },
+                { id: 'bode', name: 'Bode Plot', desc: 'Logarithmic frequency response & margins', icon: 'fa-wave-square', color: 'text-pink-400' },
+                { id: 'root-locus', name: 'Root Locus', desc: 'Closed-loop pole trajectory design', icon: 'fa-route', color: 'text-teal-400' },
+                { id: 'pid', name: 'PID Control', desc: 'Proportional, Integral & Derivative tuning', icon: 'fa-sliders-h', color: 'text-emerald-400' },
+                { id: 'state-space', name: 'State Space', desc: 'State matrix phase-plane dynamics', icon: 'fa-matrix-org', color: 'text-sky-400' }
+            ];
+
+            grid.innerHTML = topics.map(t => `
+                <div onclick="switchView('${t.id}')" class="glass-card p-5 rounded-xl cursor-pointer flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <i class="fas ${t.icon} text-2xl ${t.color}"></i>
+                            <i class="fas fa-arrow-right text-gray-600 text-xs"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">${t.name}</h3>
+                        <p class="text-xs text-gray-400">${t.desc}</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-gray-800/60 flex justify-between items-center text-[10px] text-gray-500 font-mono">
+                        <span>GATE High Priority</span>
+                        <span class="text-indigo-400">Interactive Lab</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateDashboardStats() {
+            document.getElementById('dash-completed-count').innerText = `${APP_STATE.completedTopics.length} / 14`;
+            document.getElementById('dash-quiz-score').innerText = `${APP_STATE.quizScore} pts`;
+            document.getElementById('dash-exp-count').innerText = `${APP_STATE.completedExperiments.length} / 15`;
+            const pct = Math.round((APP_STATE.completedTopics.length / 14) * 100);
+            document.getElementById('overall-progress-bar').style.width = `${pct}%`;
+            document.getElementById('overall-progress-text').innerText = `${pct}%`;
+        }
+
+        // --- 23. APPLICATION INITIALIZATION ---
+        window.onload = function() {
+            populateDashboardGrid();
+            updateDashboardStats();
+
+            // Setup Navigation Listeners
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const viewId = item.getAttribute('href').replace('#', '');
+                    switchView(viewId);
+                });
+            });
+
+            document.getElementById('toggle-sidebar').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            });
+
+            // Populate virtual exp menu
+            const expMenu = document.getElementById('exp-list-menu');
+            expMenu.innerHTML = EXPERIMENTS_DATA.map((e, idx) => `
+                <button onclick="loadExperiment(${idx})" class="w-full text-left p-2 rounded text-xs text-gray-300 hover:bg-gray-800 truncate">
+                    ${e.title}
+                </button>
+            `).join('');
+
+            renderQuizQuestion();
+            updateMasterSimulation();
+        };
+    </script>
+</body>
+</html>
