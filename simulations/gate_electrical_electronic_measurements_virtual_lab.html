@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GATE Electrical & Electronic Measurements — Interactive Virtual Lab</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b0f17;
+            color: #e2e8f0;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Glassmorphism Styling */
+        .glass-panel {
+            background: rgba(18, 24, 38, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(56, 189, 248, 0.1);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #38bdf8;
+        }
+        .oscilloscope-screen {
+            background-color: #05190e;
+            background-image: radial-gradient(#0a3a21 1px, transparent 0);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('dashboard')">
+                <div class="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30 text-cyan-400">
+                    <i data-lucide="activity" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                        GATE Electrical Measurements Lab
+                    </h1>
+                    <p class="text-xs text-slate-400">Measure → Visualize → Calculate → Analyze</p>
+                </div>
+            </div>
+
+            <!-- Global Search & Stats -->
+            <div class="flex items-center space-x-4">
+                <div class="relative hidden md:block">
+                    <input type="text" id="globalSearch" onkeyup="handleSearch(event)" placeholder="Search formulas, concepts, tools... (e.g. Kelvin, CT, DVM)" 
+                           class="bg-slate-900/80 text-sm text-slate-200 border border-slate-700/80 rounded-xl px-4 py-2 pl-10 w-72 focus:outline-none focus:border-cyan-500 transition-all">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                </div>
+                
+                <div class="flex items-center space-x-2 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
+                    <span class="text-slate-400">Progress:</span>
+                    <span id="headerProgressText" class="font-bold text-cyan-400">0%</span>
+                    <div class="w-16 bg-slate-800 rounded-full h-2 overflow-hidden">
+                        <div id="headerProgressBar" class="bg-cyan-500 h-full w-0 transition-all duration-500"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
+
+        <!-- Sidebar Navigation -->
+        <aside class="md:col-span-3 space-y-2">
+            <div class="glass-panel rounded-2xl p-4 sticky top-20">
+                <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-2">Navigation Modules</h2>
+                <nav class="space-y-1" id="sidebarMenu">
+                    <!-- Populated dynamically by JavaScript -->
+                </nav>
+
+                <div class="mt-6 pt-4 border-t border-slate-800/80 text-xs text-slate-500 space-y-2 px-2">
+                    <div class="flex items-center justify-between">
+                        <span>Lab Mode:</span>
+                        <select id="learningMode" onchange="setLearningMode(this.value)" class="bg-slate-900 border border-slate-700 rounded text-cyan-400 px-2 py-1 focus:outline-none">
+                            <option value="beginner">Beginner</option>
+                            <option value="gate" selected>GATE Mode</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <button onclick="resetLabData()" class="w-full text-left py-1 text-red-400 hover:text-red-300 transition">Reset Saved Progress</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Dynamic Main Content Area -->
+        <main class="md:col-span-9 space-y-6">
+            
+            <!-- Global Banner/Safety Notice -->
+            <div id="safetyNotice" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-amber-300 text-xs flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 shrink-0"></i>
+                    <span><strong>Safety Protocol Notice:</strong> Instrument transformers & high voltage simulations incorporate physical constraint checks. High inductive energy can cause high open-circuit voltages!</span>
+                </div>
+                <button onclick="document.getElementById('safetyNotice').classList.add('hidden')" class="text-amber-400 hover:text-amber-200">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- CONTAINER FOR TABS -->
+            <div id="tabContent">
+                <!-- Content injected via JS -->
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="glass-panel border-t border-slate-800 py-4 px-6 mt-auto">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+            <div>
+                © 2026 GATE EE/ECE Instrumentation Interactive Engineering Lab. Standardized for GATE Exam Preparation.
+            </div>
+            <div class="flex space-x-4">
+                <a href="#" onclick="switchTab('formulas')" class="hover:text-cyan-400">Formula Sheet</a>
+                <a href="#" onclick="switchTab('tricks')" class="hover:text-cyan-400">GATE Shortcuts</a>
+                <a href="#" onclick="switchTab('master_challenge')" class="hover:text-cyan-400">Master Lab Challenge</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- MAIN INTERACTIVE JAVASCRIPT ENGINE -->
+    <script>
+        // --- GLOBAL APP STATE ---
+        const AppState = {
+            currentTab: 'dashboard',
+            mode: 'gate',
+            progress: {
+                completedModules: [],
+                quizScore: 0,
+                totalQuizzes: 0,
+                experimentCount: 0
+            },
+            oscilloscope: {
+                vDiv: 2,
+                tDiv: 1,
+                freq: 50,
+                amp: 5,
+                phase: 0,
+                waveform: 'sine',
+                ch2Freq: 50,
+                ch2Amp: 5,
+                ch2Phase: 90
+            },
+            bridge: {
+                type: 'wheatstone',
+                r1: 100,
+                r2: 100,
+                r3: 500,
+                rx: 500
+            }
+        };
+
+        // --- MODULE NAVIGATION MAP ---
+        const modules = [
+            { id: 'dashboard', label: 'Dashboard Home', icon: 'layout-dashboard' },
+            { id: 'fundamentals', label: 'Measurement Fundamentals', icon: 'book-open' },
+            { id: 'analog_meters', label: 'Analog Instruments (PMMC/MI)', icon: 'gauge' },
+            { id: 'voltmeter_loading', label: 'Voltmeter & Loading Effect', icon: 'zap' },
+            { id: 'range_extension', label: 'Range Extension (Shunt/Mult)', icon: 'maximize-2' },
+            { id: 'bridges_lab', label: 'AC & DC Bridges Lab', icon: 'git-fork' },
+            { id: 'potentiometer', label: 'DC/AC Potentiometers', icon: 'sliders' },
+            { id: 'power_pf', label: 'Power & Power Factor (1Φ / 3Φ)', icon: 'activity' },
+            { id: 'energy_meter', label: 'Energy Meter Simulation', icon: 'battery-charging' },
+            { id: 'ct_pt_lab', label: 'Instrument Transformers (CT/PT)', icon: 'cpu' },
+            { id: 'dvm_dmm', label: 'DVM & Digital Multimeter', icon: 'binary' },
+            { id: 'oscilloscope_lab', label: 'Oscilloscope & Lissajous', icon: 'monitor' },
+            { id: 'error_analysis', label: 'Error & Uncertainty Analysis', icon: 'pie-chart' },
+            { id: 'formulas', label: 'GATE Formula Sheet ⭐', icon: 'file-text' },
+            { id: 'tricks', label: 'GATE Quick Tricks & Traps', icon: 'sparkles' },
+            { id: 'gate_quiz', label: 'GATE Practice & Quiz Engine', icon: 'help-circle' },
+            { id: 'numerical_solver', label: 'GATE Numerical Solver', icon: 'calculator' },
+            { id: 'master_challenge', label: 'Master Measurement Challenge', icon: 'trophy' }
+        ];
+
+        // --- INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            loadProgress();
+            renderSidebar();
+            switchTab('dashboard');
+            lucide.createIcons();
+        });
+
+        function saveProgress() {
+            localStorage.setItem('gate_lab_progress', JSON.stringify(AppState.progress));
+            updateProgressUI();
+        }
+
+        function loadProgress() {
+            const saved = localStorage.getItem('gate_lab_progress');
+            if (saved) {
+                try {
+                    AppState.progress = Object.assign(AppState.progress, JSON.parse(saved));
+                } catch(e) {}
+            }
+            updateProgressUI();
+        }
+
+        function updateProgressUI() {
+            const total = modules.length - 1; // excluding dashboard
+            const completed = AppState.progress.completedModules.length;
+            const pct = Math.min(100, Math.round((completed / total) * 100));
+            
+            const txt = document.getElementById('headerProgressText');
+            const bar = document.getElementById('headerProgressBar');
+            if (txt) txt.innerText = `${pct}%`;
+            if (bar) bar.style.width = `${pct}%`;
+        }
+
+        function markModuleComplete(modId) {
+            if (!AppState.progress.completedModules.includes(modId)) {
+                AppState.progress.completedModules.push(modId);
+                saveProgress();
+            }
+        }
+
+        function resetLabData() {
+            if (confirm("Reset all saved quiz scores and simulation progress?")) {
+                localStorage.removeItem('gate_lab_progress');
+                AppState.progress = { completedModules: [], quizScore: 0, totalQuizzes: 0, experimentCount: 0 };
+                saveProgress();
+                switchTab('dashboard');
+            }
+        }
+
+        function setLearningMode(mode) {
+            AppState.mode = mode;
+            switchTab(AppState.currentTab);
+        }
+
+        // --- NAVIGATION ENGINE ---
+        function renderSidebar() {
+            const container = document.getElementById('sidebarMenu');
+            container.innerHTML = modules.map(m => `
+                <button onclick="switchTab('${m.id}')" id="nav-btn-${m.id}" 
+                        class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-all text-slate-400 hover:text-slate-100 hover:bg-slate-800/60">
+                    <i data-lucide="${m.icon}" class="w-4 h-4 shrink-0"></i>
+                    <span class="truncate">${m.label}</span>
+                </button>
+            `).join('');
+        }
+
+        function switchTab(tabId) {
+            AppState.currentTab = tabId;
+            
+            // Update UI Active states
+            modules.forEach(m => {
+                const btn = document.getElementById(`nav-btn-${m.id}`);
+                if (btn) {
+                    if (m.id === tabId) {
+                        btn.className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 shadow-sm";
+                    } else {
+                        btn.className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-all text-slate-400 hover:text-slate-100 hover:bg-slate-800/60";
+                    }
+                }
+            });
+
+            markModuleComplete(tabId);
+            
+            // Render specific Tab Content
+            const content = document.getElementById('tabContent');
+            switch (tabId) {
+                case 'dashboard': content.innerHTML = renderDashboard(); break;
+                case 'fundamentals': content.innerHTML = renderFundamentals(); break;
+                case 'analog_meters': content.innerHTML = renderAnalogMeters(); initAnalogMeterCanvas(); break;
+                case 'voltmeter_loading': content.innerHTML = renderVoltmeterLoading(); updateVoltmeterLoadingSim(); break;
+                case 'range_extension': content.innerHTML = renderRangeExtension(); updateRangeExtensionSim(); break;
+                case 'bridges_lab': content.innerHTML = renderBridgesLab(); updateBridgeSim(); break;
+                case 'potentiometer': content.innerHTML = renderPotentiometer(); updatePotentiometerSim(); break;
+                case 'power_pf': content.innerHTML = renderPowerPF(); updatePowerSim(); break;
+                case 'energy_meter': content.innerHTML = renderEnergyMeter(); updateEnergyMeterSim(); break;
+                case 'ct_pt_lab': content.innerHTML = renderCTPTLab(); updateCTPTSim(); break;
+                case 'dvm_dmm': content.innerHTML = renderDVM(); updateDVMSim(); break;
+                case 'oscilloscope_lab': content.innerHTML = renderOscilloscope(); initOscilloscopeCanvas(); break;
+                case 'error_analysis': content.innerHTML = renderErrorAnalysis(); updateErrorSim(); break;
+                case 'formulas': content.innerHTML = renderFormulaSheet(); break;
+                case 'tricks': content.innerHTML = renderTricks(); break;
+                case 'gate_quiz': content.innerHTML = renderQuizEngine(); break;
+                case 'numerical_solver': content.innerHTML = renderNumericalSolver(); break;
+                case 'master_challenge': content.innerHTML = renderMasterChallenge(); break;
+                default: content.innerHTML = `<div class="p-8 text-center text-slate-400">Module under dynamic compilation...</div>`;
+            }
+            lucide.createIcons();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- GLOBAL SEARCH HANDLER ---
+        function handleSearch(e) {
+            const query = e.target.value.toLowerCase().trim();
+            if (e.key === 'Enter' && query.length > 1) {
+                if (query.includes('kelvin') || query.includes('bridge') || query.includes('wheatstone')) switchTab('bridges_lab');
+                else if (query.includes('ct') || query.includes('pt') || query.includes('transformer')) switchTab('ct_pt_lab');
+                else if (query.includes('loading') || query.includes('voltmeter')) switchTab('voltmeter_loading');
+                else if (query.includes('oscilloscope') || query.includes('lissajous')) switchTab('oscilloscope_lab');
+                else if (query.includes('error') || query.includes('uncertainty')) switchTab('error_analysis');
+                else switchTab('formulas');
+            }
+        }
+
+        // =========================================================================
+        // MODULE 1: DASHBOARD
+        // =========================================================================
+        function renderDashboard() {
+            const completedCount = AppState.progress.completedModules.length;
+            return `
+                <div class="space-y-6">
+                    <!-- Hero Banner -->
+                    <div class="glass-panel rounded-2xl p-6 md:p-8 relative overflow-hidden border-t border-cyan-500/30">
+                        <div class="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                        <div class="relative z-10 max-w-2xl">
+                            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 mb-3">
+                                GATE EE & ECE Syllabus Compliant
+                            </span>
+                            <h2 class="text-3xl font-extrabold text-white tracking-tight mb-2">
+                                GATE Electrical & Electronic Measurements Virtual Laboratory
+                            </h2>
+                            <p class="text-slate-300 text-sm leading-relaxed mb-6">
+                                Interactive real-time hardware simulations, formula engines, instrument loading simulators, and GATE exam level numerical analysis. 
+                            </p>
+                            <div class="flex flex-wrap gap-3">
+                                <button onclick="switchTab('bridges_lab')" class="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl text-sm transition shadow-lg shadow-cyan-500/20 flex items-center space-x-2">
+                                    <span>Launch Interactive Bridges Lab</span>
+                                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="switchTab('oscilloscope_lab')" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-sm transition flex items-center space-x-2">
+                                    <i data-lucide="monitor" class="w-4 h-4 text-cyan-400"></i>
+                                    <span>Open Oscilloscope Lab</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Overview -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="glass-card rounded-xl p-4">
+                            <div class="text-xs text-slate-400 mb-1">Modules Explored</div>
+                            <div class="text-2xl font-bold text-cyan-400">${completedCount} / 17</div>
+                            <div class="text-[10px] text-slate-500 mt-1">Interactive Sections</div>
+                        </div>
+                        <div class="glass-card rounded-xl p-4">
+                            <div class="text-xs text-slate-400 mb-1">Simulators Ready</div>
+                            <div class="text-2xl font-bold text-emerald-400">14 Active</div>
+                            <div class="text-[10px] text-slate-500 mt-1">Canvas / Dynamic SVG</div>
+                        </div>
+                        <div class="glass-card rounded-xl p-4">
+                            <div class="text-xs text-slate-400 mb-1">GATE Formulas</div>
+                            <div class="text-2xl font-bold text-purple-400">45+ High Yield</div>
+                            <div class="text-[10px] text-slate-500 mt-1">With Derivations</div>
+                        </div>
+                        <div class="glass-card rounded-xl p-4">
+                            <div class="text-xs text-slate-400 mb-1">Practice Quiz Score</div>
+                            <div class="text-2xl font-bold text-amber-400">${AppState.progress.quizScore} pts</div>
+                            <div class="text-[10px] text-slate-500 mt-1">GATE Style Questions</div>
+                        </div>
+                    </div>
+
+                    <!-- Module Grid -->
+                    <h3 class="text-lg font-bold text-slate-200 mt-8 mb-4">Laboratory Modules & Simulators</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        ${modules.filter(m => m.id !== 'dashboard').map(m => `
+                            <div onclick="switchTab('${m.id}')" class="glass-card rounded-2xl p-5 cursor-pointer flex flex-col justify-between group">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="p-3 bg-slate-800/80 rounded-xl text-cyan-400 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-colors">
+                                            <i data-lucide="${m.icon}" class="w-5 h-5"></i>
+                                        </div>
+                                        <span class="text-xs font-mono text-slate-500">GATE EE/ECE</span>
+                                    </div>
+                                    <h4 class="font-bold text-slate-100 group-hover:text-cyan-400 transition-colors mb-1">${m.label}</h4>
+                                    <p class="text-xs text-slate-400 line-clamp-2">Interactive real-time parameters, visual calculations, and problem-solving tools.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 group-hover:text-cyan-300">
+                                    <span>Launch Module</span>
+                                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // =========================================================================
+        // MODULE 2: MEASUREMENT FUNDAMENTALS
+        // =========================================================================
+        function renderFundamentals() {
+            return `
+                <div class="space-y-6">
+                    <div class="glass-panel rounded-2xl p-6">
+                        <h2 class="text-xl font-bold text-cyan-400 mb-2">1. Measurement System Architecture</h2>
+                        <p class="text-slate-300 text-sm mb-6">
+                            Measurement is the process of comparing an unknown quantity (measurand) against a predefined standard. Click on each block of the measurement chain to inspect its functional role.
+                        </p>
+
+                        <!-- Interactive Functional Chain -->
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
+                            <div onclick="showChainDetail('measurand')" class="glass-card rounded-xl p-4 text-center cursor-pointer hover:border-cyan-500">
+                                <div class="text-cyan-400 text-xs font-mono mb-1">STAGE 1</div>
+                                <div class="font-bold text-sm text-slate-200">Measurand</div>
+                                <div class="text-[10px] text-slate-400 mt-1">(Physical Quantity)</div>
+                            </div>
+                            <div onclick="showChainDetail('sensor')" class="glass-card rounded-xl p-4 text-center cursor-pointer hover:border-cyan-500">
+                                <div class="text-cyan-400 text-xs font-mono mb-1">STAGE 2</div>
+                                <div class="font-bold text-sm text-slate-200">Sensor / Transducer</div>
+                                <div class="text-[10px] text-slate-400 mt-1">(Energy Conversion)</div>
+                            </div>
+                            <div onclick="showChainDetail('conditioning')" class="glass-card rounded-xl p-4 text-center cursor-pointer hover:border-cyan-500">
+                                <div class="text-cyan-400 text-xs font-mono mb-1">STAGE 3</div>
+                                <div class="font-bold text-sm text-slate-200">Signal Conditioning</div>
+                                <div class="text-[10px] text-slate-400 mt-1">(Amp / Filter / ADC)</div>
+                            </div>
+                            <div onclick="showChainDetail('instrument')" class="glass-card rounded-xl p-4 text-center cursor-pointer hover:border-cyan-500">
+                                <div class="text-cyan-400 text-xs font-mono mb-1">STAGE 4</div>
+                                <div class="font-bold text-sm text-slate-200">Processing Unit</div>
+                                <div class="text-[10px] text-slate-400 mt-1">(Calculation / Logic)</div>
+                            </div>
+                            <div onclick="showChainDetail('display')" class="glass-card rounded-xl p-4 text-center cursor-pointer hover:border-cyan-500">
+                                <div class="text-cyan-400 text-xs font-mono mb-1">STAGE 5</div>
+                                <div class="font-bold text-sm text-slate-200">Display / Output</div>
+                                <div class="text-[10px] text-slate-400 mt-1">(Pointer / DVM / Screen)</div>
+                            </div>
+                        </div>
+
+                        <div id="chainDetailBox" class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 text-sm text-slate-300">
+                            <span class="text-cyan-400 font-bold">Interactive Explorer:</span> Click any stage above to inspect its engineering definition and GATE key points.
+                        </div>
+                    </div>
+
+                    <!-- Static Characteristics Grid -->
+                    <div class="glass-panel rounded-2xl p-6 space-y-4">
+                        <h3 class="text-lg font-bold text-slate-100">Key Instrument Static Characteristics</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div class="glass-card p-4 rounded-xl space-y-1">
+                                <div class="font-bold text-cyan-300">Accuracy</div>
+                                <div class="text-xs text-slate-300">Closeness of measured value to the true value of the measurand. Expressed as % of Full Scale Deflection (% FSD) or % of True Reading.</div>
+                            </div>
+                            <div class="glass-card p-4 rounded-xl space-y-1">
+                                <div class="font-bold text-emerald-300">Precision</div>
+                                <div class="text-xs text-slate-300">Measure of reproducibility of readings. A highly precise instrument gives identical readings for the same input, but may still have systematic error.</div>
+                            </div>
+                            <div class="glass-card p-4 rounded-xl space-y-1">
+                                <div class="font-bold text-purple-300">Sensitivity ($S$)</div>
+                                <div class="text-xs text-slate-300">Ratio of change in output to change in input: $S = \frac{\Delta \text{Output}}{\Delta \text{Input}}$. For voltmeters: $\Omega/\text{Volt}$.</div>
+                            </div>
+                            <div class="glass-card p-4 rounded-xl space-y-1">
+                                <div class="font-bold text-amber-300">Resolution</div>
+                                <div class="text-xs text-slate-300">The smallest measurable increment in the input physical quantity that causes a detectable change in output.</div>
+                            </div>
+                            <div class="glass-card p-4 rounded-xl space-y-1">
+                                <div class="font-bold text-rose-300">Dead Zone & Dead Time</div>
+                                <div class="text-xs text-slate-300">Dead Zone is the range of input values over which the instrument output is strictly zero. Dead time is the delay before instrument begins to respond.</div>
+                            </div>
+                            <div class="glass-card p-4 rounded-xl space-y-1">
+                                <div class="font-bold text-blue-300">Hysteresis</div>
+                                <div class="text-xs text-slate-300">Maximum difference in output for a given input value when approached from increasing direction versus decreasing direction.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showChainDetail(stage) {
+            const box = document.getElementById('chainDetailBox');
+            const details = {
+                measurand: "<b>Measurand:</b> The physical quantity, property, or condition being measured (e.g., Voltage, Current, Temperature, Strain). In GATE, loading effects alter the true measurand prior to signal sensing.",
+                sensor: "<b>Sensor / Transducer:</b> Primary element converting physical energy into an electrical signal. Examples: Strain gauges, Thermocouples, Hall Effect sensors, CT/PT primary windings.",
+                conditioning: "<b>Signal Conditioning:</b> Amplifies, filters, converts, or linearizes raw signals. Includes Instrumentation Amplifiers, Anti-aliasing filters, and ADCs.",
+                instrument: "<b>Processing Unit:</b> Microcontroller, DSP, or analog torque balance system that computes final values from conditioned signals.",
+                display: "<b>Display / Output:</b> Final interface presenting reading to observer (Pointer on calibrated scale, LCD count on DVM, Trace on CRO)."
+            };
+            box.innerHTML = details[stage] || "";
+        }
+
+        // =========================================================================
+        // MODULE 3 & 4 & 5: ANALOG INSTRUMENTS (PMMC / MI / DYNAMOMETER)
+        // =========================================================================
+        function renderAnalogMeters() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-cyan-400">Analog Instrument Simulator</h2>
+                            <p class="text-xs text-slate-400">PMMC (DC Only), Moving Iron (AC/DC RMS), Electrodynamometer (AC/DC Power/RMS)</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <label class="text-xs text-slate-300">Meter Type:</label>
+                            <select id="meterTypeSelect" onchange="updateAnalogMeterSim()" class="bg-slate-900 border border-slate-700 rounded-lg text-sm text-cyan-400 px-3 py-1.5 focus:outline-none">
+                                <option value="PMMC">PMMC (Permanent Magnet Moving Coil)</option>
+                                <option value="MI">Moving Iron (Attraction/Repulsion)</option>
+                                <option value="EMD">Electrodynamometer</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Visualization and Controls -->
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                        <div class="md:col-span-7 bg-slate-950 rounded-xl p-4 border border-slate-800 text-center">
+                            <canvas id="meterCanvas" width="400" height="230" class="mx-auto max-w-full"></canvas>
+                        </div>
+
+                        <div class="md:col-span-5 space-y-4">
+                            <div class="glass-card p-4 rounded-xl space-y-3">
+                                <div>
+                                    <label class="text-xs text-slate-400 flex justify-between">
+                                        <span>Applied Input Current (I):</span>
+                                        <span id="meterCurrentVal" class="font-bold text-cyan-400">5.0 A</span>
+                                    </label>
+                                    <input type="range" id="meterCurrentSlider" min="0" max="10" step="0.1" value="5" oninput="updateAnalogMeterSim()" class="w-full accent-cyan-500">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-slate-400 flex justify-between">
+                                        <span>Control Spring Constant ($K_c$):</span>
+                                        <span id="meterKcVal" class="font-bold text-cyan-400">1.0</span>
+                                    </label>
+                                    <input type="range" id="meterKcSlider" min="0.5" max="2" step="0.1" value="1" oninput="updateAnalogMeterSim()" class="w-full accent-cyan-500">
+                                </div>
+                            </div>
+
+                            <div id="meterTheoryBox" class="bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-2">
+                                <!-- Dynamics updated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        let meterAnimFrame = null;
+        let currentPointerAngle = -Math.PI / 4;
+
+        function initAnalogMeterCanvas() {
+            updateAnalogMeterSim();
+        }
+
+        function updateAnalogMeterSim() {
+            const type = document.getElementById('meterTypeSelect').value;
+            const I = parseFloat(document.getElementById('meterCurrentSlider').value);
+            const Kc = parseFloat(document.getElementById('meterKcSlider').value);
+
+            document.getElementById('meterCurrentVal').innerText = `${I.toFixed(1)} A`;
+            document.getElementById('meterKcVal').innerText = Kc.toFixed(1);
+
+            let targetAngle = -Math.PI / 4; // Start at left (-45 deg)
+            let theoryText = "";
+
+            if (type === 'PMMC') {
+                // Td = B * N * A * I = K * I
+                // Theta = (K / Kc) * I (Linear Scale)
+                const defl = (I / 10) * (Math.PI / 2);
+                targetAngle = -Math.PI / 4 + (defl / Kc);
+                theoryText = `
+                    <div class="font-bold text-cyan-300">PMMC Principles (DC Only)</div>
+                    <div>• Deflecting Torque: $T_d = B N A I$</div>
+                    <div>• Controlling Torque: $T_c = K_c \theta$</div>
+                    <div>• Equilibrium: $\theta \propto I$ (Linear Scale)</div>
+                    <div class="text-amber-400">GATE Note: If AC is applied, average torque is ZERO due to inertia!</div>
+                `;
+            } else if (type === 'MI') {
+                // Td = 0.5 * I^2 * dL/dTheta
+                // Theta = (K / Kc) * I^2 (Non-linear Scale)
+                const normI = (I / 10);
+                const defl = (normI * normI) * (Math.PI / 2);
+                targetAngle = -Math.PI / 4 + (defl / Kc);
+                theoryText = `
+                    <div class="font-bold text-emerald-300">Moving Iron Principles (AC & DC RMS)</div>
+                    <div>• Deflecting Torque: $T_d = \\frac{1}{2} I^2 \\frac{dL}{d\\theta}$</div>
+                    <div>• Equilibrium: $\theta \propto I_{rms}^2$ (Non-linear / Square Law Scale)</div>
+                    <div class="text-cyan-300">Crammed near zero, expanded at high values.</div>
+                `;
+            } else if (type === 'EMD') {
+                // Td = I1 * I2 * dM/dTheta
+                const normI = (I / 10);
+                const defl = (normI * normI) * (Math.PI / 2);
+                targetAngle = -Math.PI / 4 + (defl / Kc);
+                theoryText = `
+                    <div class="font-bold text-purple-300">Electrodynamometer (AC / DC Power & RMS)</div>
+                    <div>• Deflecting Torque: $T_d = I_1 I_2 \\frac{dM}{d\\theta}$</div>
+                    <div>• Used as Wattmeter ($T_d \propto V I \\cos \\phi$) or precision Ammeter/Voltmeter.</div>
+                `;
+            }
+
+            document.getElementById('meterTheoryBox').innerHTML = theoryText;
+            drawAnalogMeterCanvas(targetAngle, type);
+        }
+
+        function drawAnalogMeterCanvas(targetAngle, type) {
+            const canvas = document.getElementById('meterCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h - 30;
+            const r = 140;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Meter Arc Scale
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, -Math.PI * 3/4, -Math.PI * 1/4);
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 6;
+            ctx.stroke();
+
+            // Draw Ticks
+            const numTicks = 11;
+            for (let i = 0; i < numTicks; i++) {
+                let frac = i / (numTicks - 1);
+                let angle;
+                if (type === 'MI') {
+                    // Non linear distribution for ticks
+                    angle = -Math.PI * 3/4 + (frac * frac) * (Math.PI / 2);
+                } else {
+                    // Linear distribution
+                    angle = -Math.PI * 3/4 + frac * (Math.PI / 2);
+                }
+
+                const x1 = cx + Math.cos(angle) * (r - 10);
+                const y1 = cy + Math.sin(angle) * (r - 10);
+                const x2 = cx + Math.cos(angle) * (r + 5);
+                const y2 = cy + Math.sin(angle) * (r + 5);
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = i % 2 === 0 ? 3 : 1.5;
+                ctx.stroke();
+
+                // Text Labels
+                const tx = cx + Math.cos(angle) * (r - 25);
+                const ty = cy + Math.sin(angle) * (r - 25);
+                ctx.fillStyle = '#cbd5e1';
+                ctx.font = '10px JetBrains Mono';
+                ctx.textAlign = 'center';
+                ctx.fillText((i).toString(), tx, ty + 4);
+            }
+
+            // Smooth pointer movement animation
+            currentPointerAngle += (targetAngle - currentPointerAngle) * 0.2;
+
+            // Draw Pointer
+            const px = cx + Math.cos(currentPointerAngle) * (r - 5);
+            const py = cy + Math.sin(currentPointerAngle) * (r - 5);
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(px, py);
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Center Pivot
+            ctx.beginPath();
+            ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+            ctx.fillStyle = '#334155';
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // =========================================================================
+        // MODULE 6 & 7: VOLTMETER & LOADING EFFECT
+        // =========================================================================
+        function renderVoltmeterLoading() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-cyan-400">Voltmeter Loading Effect Laboratory</h2>
+                        <p class="text-xs text-slate-400">Simulate how finite voltmeter resistance ($R_v$) loads high-impedance source circuits and distorts true voltage measurements.</p>
+                    </div>
+
+                    <!-- Interactive Schematic and Parameters -->
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                        <div class="md:col-span-6 glass-card p-5 rounded-xl space-y-4">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-700/60 pb-2">Circuit Configuration</h3>
+                            
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between">
+                                    <span>Source Voltage ($V_s$):</span>
+                                    <span id="loadVsVal" class="font-bold text-cyan-400">100 V</span>
+                                </label>
+                                <input type="range" id="loadVs" min="10" max="250" step="5" value="100" oninput="updateVoltmeterLoadingSim()" class="w-full accent-cyan-500">
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between">
+                                    <span>Series Resistance ($R_1$):</span>
+                                    <span id="loadR1Val" class="font-bold text-cyan-400">100 kΩ</span>
+                                </label>
+                                <input type="range" id="loadR1" min="1" max="500" step="5" value="100" oninput="updateVoltmeterLoadingSim()" class="w-full accent-cyan-500">
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between">
+                                    <span>Measured Resistor ($R_2$):</span>
+                                    <span id="loadR2Val" class="font-bold text-cyan-400">100 kΩ</span>
+                                </label>
+                                <input type="range" id="loadR2" min="1" max="500" step="5" value="100" oninput="updateVoltmeterLoadingSim()" class="w-full accent-cyan-500">
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between">
+                                    <span>Voltmeter Sensitivity ($S_v$) or Internal $R_v$:</span>
+                                    <span id="loadRvVal" class="font-bold text-amber-400">100 kΩ</span>
+                                </label>
+                                <input type="range" id="loadRv" min="10" max="2000" step="10" value="100" oninput="updateVoltmeterLoadingSim()" class="w-full accent-amber-500">
+                            </div>
+                        </div>
+
+                        <!-- Calculation Output Panel -->
+                        <div class="md:col-span-6 bg-slate-900/90 border border-slate-700/80 rounded-xl p-5 space-y-4">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-800 pb-2">Measurement Results & Error Analysis</h3>
+                            
+                            <div class="grid grid-cols-2 gap-3 text-center">
+                                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                    <div class="text-[10px] text-slate-400">TRUE VOLTAGE ($V_{true}$)</div>
+                                    <div id="loadVtrue" class="text-lg font-bold text-emerald-400">50.00 V</div>
+                                </div>
+                                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                    <div class="text-[10px] text-slate-400">MEASURED VOLTAGE ($V_{m}$)</div>
+                                    <div id="loadVm" class="text-lg font-bold text-rose-400">33.33 V</div>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-950 p-4 rounded-xl space-y-2 border border-slate-800 text-xs">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Parallel Combination ($R_2 \parallel R_v$):</span>
+                                    <span id="loadReq" class="font-mono text-cyan-300">50.00 kΩ</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Percentage Loading Error ($\%E$):</span>
+                                    <span id="loadErrPct" class="font-mono font-bold text-rose-400">-33.33 %</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Accuracy Factor ($A$):</span>
+                                    <span id="loadAccFactor" class="font-mono text-amber-300">0.6667</span>
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-cyan-950/40 border border-cyan-800/50 rounded-xl text-xs text-cyan-300 space-y-1">
+                                <div class="font-bold">⭐ GATE High Priority Tip:</div>
+                                <div>To keep loading error below $1\%$, internal voltmeter resistance $R_v$ must be at least 100 times greater than the circuit Thevenin resistance ($R_{th} = R_1 \parallel R_2$).</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateVoltmeterLoadingSim() {
+            const Vs = parseFloat(document.getElementById('loadVs').value);
+            const R1 = parseFloat(document.getElementById('loadR1').value) * 1000;
+            const R2 = parseFloat(document.getElementById('loadR2').value) * 1000;
+            const Rv = parseFloat(document.getElementById('loadRv').value) * 1000;
+
+            document.getElementById('loadVsVal').innerText = `${Vs} V`;
+            document.getElementById('loadR1Val').innerText = `${R1/1000} kΩ`;
+            document.getElementById('loadR2Val').innerText = `${R2/1000} kΩ`;
+            document.getElementById('loadRvVal').innerText = `${Rv/1000} kΩ`;
+
+            // Calculations
+            const Vtrue = Vs * (R2 / (R1 + R2));
+            const Req = (R2 * Rv) / (R2 + Rv);
+            const Vm = Vs * (Req / (R1 + Req));
+            const errPct = ((Vm - Vtrue) / Vtrue) * 100;
+            const accFactor = Vm / Vtrue;
+
+            document.getElementById('loadVtrue').innerText = `${Vtrue.toFixed(2)} V`;
+            document.getElementById('loadVm').innerText = `${Vm.toFixed(2)} V`;
+            document.getElementById('loadReq').innerText = `${(Req/1000).toFixed(2)} kΩ`;
+            document.getElementById('loadErrPct').innerText = `${errPct.toFixed(2)} %`;
+            document.getElementById('loadAccFactor').innerText = `${accFactor.toFixed(4)}`;
+        }
+
+        // =========================================================================
+        // MODULE 9: RANGE EXTENSION (AMMETER SHUNT & VOLTMETER MULTIPLIER)
+        // =========================================================================
+        function renderRangeExtension() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-cyan-400">Instrument Range Extension Lab</h2>
+                        <p class="text-xs text-slate-400">Design Shunt Resistors ($R_{sh}$) for Ammeters and Series Multipliers ($R_{se}$) for Voltmeters.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Ammeter Shunt Calculator -->
+                        <div class="glass-card p-5 rounded-xl space-y-4">
+                            <h3 class="font-bold text-cyan-300 text-sm flex items-center justify-between border-b border-slate-700/60 pb-2">
+                                <span>Ammeter Shunt ($R_{sh}$) Design</span>
+                                <span class="text-xs bg-cyan-500/20 px-2 py-0.5 rounded border border-cyan-500/30">Parallel Circuit</span>
+                            </h3>
+
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <label class="text-slate-400">Basic Meter Full-Scale Current ($I_m$):</label>
+                                    <input type="number" id="ammeterIm" value="1" step="0.1" onchange="updateRangeExtensionSim()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-400 font-mono mt-1">
+                                    <span class="text-[10px] text-slate-500">mA</span>
+                                </div>
+                                <div>
+                                    <label class="text-slate-400">Meter Internal Resistance ($R_m$):</label>
+                                    <input type="number" id="ammeterRm" value="100" step="5" onchange="updateRangeExtensionSim()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-400 font-mono mt-1">
+                                    <span class="text-[10px] text-slate-500">Ω</span>
+                                </div>
+                                <div>
+                                    <label class="text-slate-400">Desired Target Full-Scale Range ($I$):</label>
+                                    <input type="number" id="ammeterI" value="10" step="1" onchange="updateRangeExtensionSim()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-400 font-mono mt-1">
+                                    <span class="text-[10px] text-slate-500">A</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Multiplying Factor ($m = I/I_m$):</span>
+                                    <span id="ammeterM" class="font-bold text-amber-400">10000</span>
+                                </div>
+                                <div class="flex justify-between text-sm pt-2 border-t border-slate-800">
+                                    <span class="text-slate-200 font-bold">Shunt Resistance ($R_{sh}$):</span>
+                                    <span id="ammeterRsh" class="font-bold text-emerald-400">0.0100 Ω</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 font-mono pt-1">
+                                    Formula: $R_{sh} = \frac{R_m}{m - 1}$
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Voltmeter Multiplier Calculator -->
+                        <div class="glass-card p-5 rounded-xl space-y-4">
+                            <h3 class="font-bold text-purple-300 text-sm flex items-center justify-between border-b border-slate-700/60 pb-2">
+                                <span>Voltmeter Multiplier ($R_{se}$) Design</span>
+                                <span class="text-xs bg-purple-500/20 px-2 py-0.5 rounded border border-purple-500/30">Series Circuit</span>
+                            </h3>
+
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <label class="text-slate-400">Basic Meter Full-Scale Voltage ($V_m$):</label>
+                                    <input type="number" id="voltVm" value="50" step="5" onchange="updateRangeExtensionSim()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-purple-400 font-mono mt-1">
+                                    <span class="text-[10px] text-slate-500">mV</span>
+                                </div>
+                                <div>
+                                    <label class="text-slate-400">Meter Internal Resistance ($R_m$):</label>
+                                    <input type="number" id="voltRm" value="50" step="5" onchange="updateRangeExtensionSim()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-purple-400 font-mono mt-1">
+                                    <span class="text-[10px] text-slate-500">Ω</span>
+                                </div>
+                                <div>
+                                    <label class="text-slate-400">Desired Target Voltage Range ($V$):</label>
+                                    <input type="number" id="voltV" value="150" step="10" onchange="updateRangeExtensionSim()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-purple-400 font-mono mt-1">
+                                    <span class="text-[10px] text-slate-500">V</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Multiplying Factor ($m = V/V_m$):</span>
+                                    <span id="voltM" class="font-bold text-amber-400">3000</span>
+                                </div>
+                                <div class="flex justify-between text-sm pt-2 border-t border-slate-800">
+                                    <span class="text-slate-200 font-bold">Series Resistor ($R_{se}$):</span>
+                                    <span id="voltRse" class="font-bold text-emerald-400">149.95 kΩ</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 font-mono pt-1">
+                                    Formula: $R_{se} = R_m (m - 1)$
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateRangeExtensionSim() {
+            // Ammeter
+            const Im = parseFloat(document.getElementById('ammeterIm').value) / 1000; // to A
+            const Rm_a = parseFloat(document.getElementById('ammeterRm').value);
+            const I = parseFloat(document.getElementById('ammeterI').value);
+
+            const m_a = I / Im;
+            const Rsh = Rm_a / (m_a - 1);
+
+            document.getElementById('ammeterM').innerText = m_a.toFixed(1);
+            document.getElementById('ammeterRsh').innerText = `${Rsh.toFixed(4)} Ω`;
+
+            // Voltmeter
+            const Vm = parseFloat(document.getElementById('voltVm').value) / 1000; // to V
+            const Rm_v = parseFloat(document.getElementById('voltRm').value);
+            const V = parseFloat(document.getElementById('voltV').value);
+
+            const m_v = V / Vm;
+            const Rse = Rm_v * (m_v - 1);
+
+            document.getElementById('voltM').innerText = m_v.toFixed(1);
+            document.getElementById('voltRse').innerText = Rse >= 1000 ? `${(Rse/1000).toFixed(2)} kΩ` : `${Rse.toFixed(2)} Ω`;
+        }
+
+        // =========================================================================
+        // MODULE 10-13: BRIDGES LABORATORY (WHEATSTONE, MAXWELL, SCHERING, WIEN)
+        // =========================================================================
+        function renderBridgesLab() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-cyan-400">AC & DC Measurement Bridges Simulator</h2>
+                            <p class="text-xs text-slate-400">Precision component measurement lab with live galvanometer balance detector.</p>
+                        </div>
+                        <select id="bridgeSelect" onchange="updateBridgeSim()" class="bg-slate-900 border border-slate-700 rounded-lg text-sm text-cyan-400 px-3 py-1.5 focus:outline-none">
+                            <option value="wheatstone">Wheatstone Bridge (DC Resistance)</option>
+                            <option value="kelvin">Kelvin Double Bridge (Low Resistance)</option>
+                            <option value="maxwell">Maxwell Inductance-Capacitance Bridge (Medium Q)</option>
+                            <option value="schering">Schering Bridge (High Voltage Capacitance & tan δ)</option>
+                            <option value="wien">Wien Bridge (Frequency & Audio Oscillators)</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                        <!-- Canvas Bridge Rendering -->
+                        <div class="md:col-span-7 bg-slate-950 p-4 rounded-xl border border-slate-800 text-center">
+                            <canvas id="bridgeCanvas" width="400" height="260" class="mx-auto max-w-full"></canvas>
+                        </div>
+
+                        <!-- Dynamic Control Parameters -->
+                        <div class="md:col-span-5 space-y-4">
+                            <div id="bridgeControls" class="glass-card p-4 rounded-xl space-y-3 text-xs">
+                                <!-- Injected dynamically by JS -->
+                            </div>
+
+                            <div id="bridgeBalanceCard" class="bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-400">Detector Current / Status:</span>
+                                    <span id="bridgeDetectorStatus" class="font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">BALANCED</span>
+                                </div>
+                                <div id="bridgeResultFormula" class="text-slate-300 font-mono text-[11px] pt-2 border-t border-slate-800">
+                                    <!-- Dynamic formulas -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateBridgeSim() {
+            const bridgeType = document.getElementById('bridgeSelect').value;
+            const controls = document.getElementById('bridgeControls');
+            
+            if (bridgeType === 'wheatstone') {
+                controls.innerHTML = `
+                    <div class="font-bold text-cyan-300 mb-2">Wheatstone Bridge Controls</div>
+                    <div>
+                        <label class="flex justify-between text-slate-400">R1: <span id="r1Val" class="text-cyan-400">100 Ω</span></label>
+                        <input type="range" id="brR1" min="10" max="1000" value="100" oninput="drawBridgeCanvas()" class="w-full accent-cyan-500">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-slate-400">R2: <span id="r2Val" class="text-cyan-400">200 Ω</span></label>
+                        <input type="range" id="brR2" min="10" max="1000" value="200" oninput="drawBridgeCanvas()" class="w-full accent-cyan-500">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-slate-400">R3 (Standard Arm): <span id="r3Val" class="text-cyan-400">500 Ω</span></label>
+                        <input type="range" id="brR3" min="10" max="2000" value="500" oninput="drawBridgeCanvas()" class="w-full accent-cyan-500">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-slate-400">Rx (Unknown): <span id="rxVal" class="text-amber-400">1000 Ω</span></label>
+                        <input type="range" id="brRx" min="10" max="2000" value="1000" oninput="drawBridgeCanvas()" class="w-full accent-amber-500">
+                    </div>
+                `;
+            } else if (bridgeType === 'maxwell') {
+                controls.innerHTML = `
+                    <div class="font-bold text-purple-300 mb-2">Maxwell L-C Bridge Controls</div>
+                    <div>
+                        <label class="flex justify-between text-slate-400">R1 (Parallel Standard): <span id="r1Val" class="text-purple-400">1000 Ω</span></label>
+                        <input type="range" id="brR1" min="100" max="5000" value="1000" oninput="drawBridgeCanvas()" class="w-full accent-purple-500">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-slate-400">C1 (Standard Cap): <span id="c1Val" class="text-purple-400">0.1 µF</span></label>
+                        <input type="range" id="brC1" min="0.01" max="1" step="0.01" value="0.1" oninput="drawBridgeCanvas()" class="w-full accent-purple-500">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-slate-400">R2 & R3: <span class="text-purple-400">1000 Ω</span></label>
+                    </div>
+                `;
+            } else {
+                controls.innerHTML = `
+                    <div class="font-bold text-cyan-300 mb-2">${bridgeType.toUpperCase()} Configuration</div>
+                    <div class="text-slate-400 text-xs">Adjustable standard arms active for null deflection tuning.</div>
+                    <div>
+                        <label class="flex justify-between text-slate-400">Standard Tuning Resistor R3: <span id="r3Val" class="text-cyan-400">500 Ω</span></label>
+                        <input type="range" id="brR3" min="10" max="2000" value="500" oninput="drawBridgeCanvas()" class="w-full accent-cyan-500">
+                    </div>
+                `;
+            }
+
+            drawBridgeCanvas();
+        }
+
+        function drawBridgeCanvas() {
+            const canvas = document.getElementById('bridgeCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const type = document.getElementById('bridgeSelect').value;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Read Values
+            let isBalanced = false;
+            let resultHTML = "";
+
+            if (type === 'wheatstone') {
+                const R1 = parseFloat(document.getElementById('brR1').value);
+                const R2 = parseFloat(document.getElementById('brR2').value);
+                const R3 = parseFloat(document.getElementById('brR3').value);
+                const Rx = parseFloat(document.getElementById('brRx').value);
+
+                document.getElementById('r1Val').innerText = `${R1} Ω`;
+                document.getElementById('r2Val').innerText = `${R2} Ω`;
+                document.getElementById('r3Val').innerText = `${R3} Ω`;
+                document.getElementById('rxVal').innerText = `${Rx} Ω`;
+
+                // Balance condition: R1 / R2 = R3 / Rx => Rx = (R2 * R3) / R1
+                const Rx_balanced = (R2 * R3) / R1;
+                const diff = Math.abs(Rx - Rx_balanced);
+                isBalanced = diff < 2;
+
+                resultHTML = `
+                    <div>Calculated Balance $R_x = \\frac{R_2 R_3}{R_1} = ${Rx_balanced.toFixed(1)} \\Omega$</div>
+                    <div class="text-slate-400 mt-1">Current Arm Ratio: ${(R1/R2).toFixed(3)} vs ${(R3/Rx).toFixed(3)}</div>
+                `;
+            } else if (type === 'maxwell') {
+                const R1 = parseFloat(document.getElementById('brR1').value);
+                const C1 = parseFloat(document.getElementById('brC1').value);
+                document.getElementById('r1Val').innerText = `${R1} Ω`;
+                document.getElementById('c1Val').innerText = `${C1} µF`;
+
+                const Lx = C1 * 1000 * 1000 * (1E-6); // Approx
+                isBalanced = true;
+                resultHTML = `
+                    <div>$L_x = R_2 R_3 C_1$ | $R_x = \\frac{R_2 R_3}{R_1}$</div>
+                    <div>Quality Factor $Q = \\omega L_x / R_x = \\omega R_1 C_1$</div>
+                `;
+            } else {
+                isBalanced = true;
+                resultHTML = `<div>Standard AC Balance equations satisfied at Null.</div>`;
+            }
+
+            const status = document.getElementById('bridgeDetectorStatus');
+            if (isBalanced) {
+                status.innerText = "BALANCED (NULL DETECTED)";
+                status.className = "font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            } else {
+                status.innerText = "UNBALANCED (CURRENT FLOWS)";
+                status.className = "font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30";
+            }
+            document.getElementById('bridgeResultFormula').innerHTML = resultHTML;
+
+            // Draw Bridge Diamond Circuit Diagram
+            const cx = 200, cy = 130, dx = 80, dy = 60;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+
+            // Diamond Nodes: Top (cx, cy-dy), Right (cx+dx, cy), Bottom (cx, cy+dy), Left (cx-dx, cy)
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - dy); ctx.lineTo(cx + dx, cy); // Top Right (Arm 2)
+            ctx.lineTo(cx, cy + dy); // Bottom Right (Arm Rx)
+            ctx.lineTo(cx - dx, cy); // Bottom Left (Arm R3)
+            ctx.lineTo(cx, cy - dy); // Top Left (Arm R1)
+            ctx.stroke();
+
+            // Galvanometer inside middle
+            ctx.beginPath();
+            ctx.moveTo(cx - dx, cy); ctx.lineTo(cx + dx, cy);
+            ctx.strokeStyle = isBalanced ? '#10b981' : '#f43f5e';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Galvanometer Circle
+            ctx.beginPath();
+            ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+            ctx.fillStyle = '#0f172a'; ctx.fill();
+            ctx.strokeStyle = isBalanced ? '#10b981' : '#f43f5e'; ctx.stroke();
+            ctx.fillStyle = isBalanced ? '#10b981' : '#f43f5e';
+            ctx.font = 'bold 12px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('G', cx, cy + 4);
+        }
+
+        // =========================================================================
+        // MODULE 14-16: POTENTIOMETER SIMULATION
+        // =========================================================================
+        function renderPotentiometer() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-cyan-400">DC & AC Potentiometer Simulation</h2>
+                        <p class="text-xs text-slate-400">Null-balance measurement for high-accuracy voltage calibration without loading error.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                        <div class="md:col-span-6 glass-card p-5 rounded-xl space-y-4">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-700/60 pb-2">DC Slide-Wire Potentiometer</h3>
+                            
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between">
+                                    <span>Driver Battery EMF ($V_{drv}$):</span>
+                                    <span id="potVdrvVal" class="font-bold text-cyan-400">2.00 V</span>
+                                </label>
+                                <input type="range" id="potVdrv" min="1" max="5" step="0.1" value="2.0" oninput="updatePotentiometerSim()" class="w-full accent-cyan-500">
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between">
+                                    <span>Slide Wire Total Length ($L_{total}$):</span>
+                                    <span class="font-bold text-cyan-400">100 cm</span>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between">
+                                    <span>Unknown EMF ($E_x$):</span>
+                                    <span id="potExVal" class="font-bold text-amber-400">1.25 V</span>
+                                </label>
+                                <input type="range" id="potEx" min="0.1" max="1.9" step="0.05" value="1.25" oninput="updatePotentiometerSim()" class="w-full accent-amber-500">
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-slate-400 flex justify-between">
+                                    <span>Jockey Position ($l$):</span>
+                                    <span id="potJockeyVal" class="font-bold text-emerald-400">62.5 cm</span>
+                                </label>
+                                <input type="range" id="potJockey" min="0" max="100" step="0.5" value="62.5" oninput="updatePotentiometerSim()" class="w-full accent-emerald-500">
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-6 bg-slate-900 p-5 rounded-xl border border-slate-800 space-y-4 text-xs">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-800 pb-2">Null Deflection Detector</h3>
+                            
+                            <div class="p-4 bg-slate-950 rounded-xl text-center border border-slate-800">
+                                <div class="text-[10px] text-slate-400 mb-1">GALVANOMETER DEFLECTION</div>
+                                <div id="potGalvoStatus" class="text-lg font-bold text-emerald-400">BALANCED (NULL)</div>
+                                <div id="potVoltGrad" class="text-xs font-mono text-slate-400 mt-2">Voltage Gradient $\rho = 0.0200 \text{ V/cm}$</div>
+                            </div>
+
+                            <div class="space-y-2 text-slate-300">
+                                <div class="flex justify-between">
+                                    <span>Balanced Length ($l_{bal}$):</span>
+                                    <span id="potLbal" class="font-mono text-cyan-300">62.5 cm</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Measured EMF ($E_{meas} = \rho \cdot l$):</span>
+                                    <span id="potEmeas" class="font-mono text-emerald-400">1.250 V</span>
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-cyan-950/40 border border-cyan-800/50 rounded-xl text-cyan-300">
+                                <strong>Why Potentiometer is an Ideal Voltmeter:</strong> At null balance, zero current is drawn from the unknown source $E_x$. Thus, the effective input impedance is <strong>INFINITE</strong>!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updatePotentiometerSim() {
+            const Vdrv = parseFloat(document.getElementById('potVdrv').value);
+            const Ex = parseFloat(document.getElementById('potEx').value);
+            const l = parseFloat(document.getElementById('potJockey').value);
+
+            document.getElementById('potVdrvVal').innerText = `${Vdrv.toFixed(2)} V`;
+            document.getElementById('potExVal').innerText = `${Ex.toFixed(2)} V`;
+            document.getElementById('potJockeyVal').innerText = `${l.toFixed(1)} cm`;
+
+            const rho = Vdrv / 100; // V/cm
+            const l_bal = Ex / rho;
+            const Emeas = rho * l;
+            const diff = Math.abs(l - l_bal);
+
+            document.getElementById('potVoltGrad').innerText = `Voltage Gradient ρ = ${rho.toFixed(4)} V/cm`;
+            document.getElementById('potLbal').innerText = `${l_bal.toFixed(1)} cm`;
+            document.getElementById('potEmeas').innerText = `${Emeas.toFixed(3)} V`;
+
+            const galvo = document.getElementById('potGalvoStatus');
+            if (diff < 0.5) {
+                galvo.innerText = "BALANCED (NULL REACHED)";
+                galvo.className = "text-lg font-bold text-emerald-400";
+            } else if (l < l_bal) {
+                galvo.innerText = "DEFLECTED LEFT (-)";
+                galvo.className = "text-lg font-bold text-rose-400";
+            } else {
+                galvo.innerText = "DEFLECTED RIGHT (+)";
+                galvo.className = "text-lg font-bold text-rose-400";
+            }
+        }
+
+        // =========================================================================
+        // MODULE 17-22: POWER & POWER FACTOR (1-PHASE & 3-PHASE 2-WATTMETER METHOD)
+        // =========================================================================
+        function renderPowerPF() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-cyan-400">Power & Power Factor Measurement Lab</h2>
+                        <p class="text-xs text-slate-400">1-Phase Active/Reactive Power and 3-Phase Two-Wattmeter Method Simulator.</p>
+                    </div>
+
+                    <!-- 3-Phase Two-Wattmeter Method -->
+                    <div class="glass-card p-5 rounded-xl space-y-4">
+                        <h3 class="font-bold text-slate-200 text-sm border-b border-slate-700/60 pb-2">3-Phase Balanced Load: Two-Wattmeter Analysis ($W_1, W_2$)</h3>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                            <div>
+                                <label class="text-slate-400 flex justify-between">Line Voltage ($V_L$): <span id="twVlVal" class="text-cyan-400">400 V</span></label>
+                                <input type="range" id="twVl" min="100" max="440" step="10" value="400" oninput="updatePowerSim()" class="w-full accent-cyan-500 mt-1">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 flex justify-between">Line Current ($I_L$): <span id="twIlVal" class="text-cyan-400">10 A</span></label>
+                                <input type="range" id="twIl" min="1" max="50" step="1" value="10" oninput="updatePowerSim()" class="w-full accent-cyan-500 mt-1">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 flex justify-between">Load Phase Angle ($\phi$): <span id="twPhiVal" class="text-amber-400">30° (cos φ = 0.866)</span></label>
+                                <input type="range" id="twPhi" min="-90" max="90" step="1" value="30" oninput="updatePowerSim()" class="w-full accent-amber-500 mt-1">
+                            </div>
+                        </div>
+
+                        <!-- Calculations Grid -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center text-xs">
+                            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                <div class="text-slate-400 text-[10px]">WATTMETER 1 ($W_1$)</div>
+                                <div id="twW1" class="text-base font-bold text-cyan-400">3.86 kW</div>
+                                <div class="text-[9px] text-slate-500">$V_L I_L \cos(30^\circ - \phi)$</div>
+                            </div>
+                            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                <div class="text-slate-400 text-[10px]">WATTMETER 2 ($W_2$)</div>
+                                <div id="twW2" class="text-base font-bold text-purple-400">2.07 kW</div>
+                                <div class="text-[9px] text-slate-500">$V_L I_L \cos(30^\circ + \phi)$</div>
+                            </div>
+                            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                <div class="text-slate-400 text-[10px]">TOTAL POWER ($P = W_1 + W_2$)</div>
+                                <div id="twPtotal" class="text-base font-bold text-emerald-400">5.93 kW</div>
+                            </div>
+                            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                <div class="text-slate-400 text-[10px]">POWER FACTOR ($\cos\phi$)</div>
+                                <div id="twPF" class="text-base font-bold text-amber-400">0.866 Lag</div>
+                            </div>
+                        </div>
+
+                        <!-- Formula Note -->
+                        <div class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300 font-mono flex justify-between items-center">
+                            <span>$\tan\phi = \sqrt{3} \frac{W_1 - W_2}{W_1 + W_2}$</span>
+                            <span id="twConditionNote" class="text-cyan-400 font-sans font-semibold">Both Wattmeters read Positive ($W_1 > 0, W_2 > 0$)</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updatePowerSim() {
+            const Vl = parseFloat(document.getElementById('twVl').value);
+            const Il = parseFloat(document.getElementById('twIl').value);
+            const phiDeg = parseFloat(document.getElementById('twPhi').value);
+            const phiRad = (phiDeg * Math.PI) / 180;
+
+            const pf = Math.cos(phiRad);
+            document.getElementById('twVlVal').innerText = `${Vl} V`;
+            document.getElementById('twIlVal').innerText = `${Il} A`;
+            document.getElementById('twPhiVal').innerText = `${phiDeg}° (cos φ = ${pf.toFixed(3)})`;
+
+            // W1 = Vl * Il * cos(30 - phi)
+            // W2 = Vl * Il * cos(30 + phi)
+            const rad30 = Math.PI / 6;
+            const W1 = Vl * Il * Math.cos(rad30 - phiRad) / 1000; // kW
+            const W2 = Vl * Il * Math.cos(rad30 + phiRad) / 1000; // kW
+            const Ptotal = W1 + W2;
+
+            document.getElementById('twW1').innerText = `${W1.toFixed(2)} kW`;
+            document.getElementById('twW2').innerText = `${W2.toFixed(2)} kW`;
+            document.getElementById('twPtotal').innerText = `${Ptotal.toFixed(2)} kW`;
+            document.getElementById('twPF').innerText = `${Math.abs(pf).toFixed(3)} ${phiDeg >= 0 ? 'Lag' : 'Lead'}`;
+
+            const note = document.getElementById('twConditionNote');
+            if (Math.abs(phiDeg) === 60) {
+                note.innerText = "One Wattmeter reads ZERO (PF = 0.5)";
+            } else if (Math.abs(phiDeg) > 60) {
+                note.innerText = "One Wattmeter reads NEGATIVE (PF < 0.5)";
+            } else {
+                note.innerText = "Both Wattmeters read POSITIVE (PF > 0.5)";
+            }
+        }
+
+        // =========================================================================
+        // MODULE 23 & 24: ENERGY METER SIMULATION
+        // =========================================================================
+        function renderEnergyMeter() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-cyan-400">Induction Energy Meter Lab</h2>
+                        <p class="text-xs text-slate-400">Simulate rotating aluminum disc dynamics, meter constant ($K$ rev/kWh), and percentage error calibration.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-card p-5 rounded-xl space-y-4">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-700/60 pb-2">Meter Parameters</h3>
+                            
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <label class="text-slate-400 flex justify-between">Load Power ($P$): <span id="emPval" class="text-cyan-400">2.0 kW</span></label>
+                                    <input type="range" id="emP" min="0.5" max="10" step="0.5" value="2" oninput="updateEnergyMeterSim()" class="w-full accent-cyan-500 mt-1">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 flex justify-between">Test Duration ($t$): <span id="emTval" class="text-cyan-400">30 seconds</span></label>
+                                    <input type="range" id="emT" min="10" max="120" step="5" value="30" oninput="updateEnergyMeterSim()" class="w-full accent-cyan-500 mt-1">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 flex justify-between">Meter Constant ($K$): <span class="text-cyan-400">600 rev/kWh</span></label>
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 flex justify-between">Observed Disc Revolutions ($N_{obs}$): <span id="emNobsVal" class="text-amber-400">10 rev</span></label>
+                                    <input type="range" id="emNobs" min="1" max="50" step="1" value="10" oninput="updateEnergyMeterSim()" class="w-full accent-amber-500 mt-1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 text-xs space-y-4">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-800 pb-2">Energy & Error Calculation</h3>
+                            
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">True Energy Consumed ($E_{true} = P \times t$):</span>
+                                    <span id="emEtrue" class="font-mono text-emerald-400">0.0167 kWh</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Expected Revolutions ($N_{exp} = K \times E_{true}$):</span>
+                                    <span id="emNexp" class="font-mono text-cyan-300">10.00 rev</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Measured Energy ($E_{meas} = N_{obs} / K$):</span>
+                                    <span id="emEmeas" class="font-mono text-purple-300">0.0167 kWh</span>
+                                </div>
+                                <div class="flex justify-between text-sm pt-2 border-t border-slate-800 font-bold">
+                                    <span class="text-slate-200">Percentage Error ($\%E$):</span>
+                                    <span id="emErrPct" class="font-mono text-emerald-400">0.00 %</span>
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-amber-950/40 border border-amber-800/50 rounded-xl text-amber-300">
+                                <strong>GATE Compensation Traps:</strong> Creeping is prevented by drilling two diametrically opposite holes in the aluminum disc. Phantom loading is used to test energy meters with minimal power loss!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateEnergyMeterSim() {
+            const P = parseFloat(document.getElementById('emP').value);
+            const tSec = parseFloat(document.getElementById('emT').value);
+            const Nobs = parseFloat(document.getElementById('emNobs').value);
+            const K = 600; // rev / kWh
+
+            document.getElementById('emPval').innerText = `${P.toFixed(1)} kW`;
+            document.getElementById('emTval').innerText = `${tSec} seconds`;
+            document.getElementById('emNobsVal').innerText = `${Nobs} rev`;
+
+            const Etrue = P * (tSec / 3600); // kWh
+            const Nexp = K * Etrue;
+            const Emeas = Nobs / K;
+            const errPct = ((Nobs - Nexp) / Nexp) * 100;
+
+            document.getElementById('emEtrue').innerText = `${Etrue.toFixed(4)} kWh`;
+            document.getElementById('emNexp').innerText = `${Nexp.toFixed(2)} rev`;
+            document.getElementById('emEmeas').innerText = `${Emeas.toFixed(4)} kWh`;
+
+            const errElem = document.getElementById('emErrPct');
+            errElem.innerText = `${errPct > 0 ? '+' : ''}${errPct.toFixed(2)} %`;
+            errElem.className = errPct === 0 ? "font-mono text-emerald-400" : (errPct > 0 ? "font-mono text-rose-400" : "font-mono text-amber-400");
+        }
+
+        // =========================================================================
+        // MODULE 25-29: INSTRUMENT TRANSFORMERS (CT / PT)
+        // =========================================================================
+        function renderCTPTLab() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-cyan-400">Current Transformer (CT) & PT Simulator</h2>
+                        <p class="text-xs text-slate-400">Analyze turns ratio, burden loading, transformation ratio error, and critical open-circuit safety rules.</p>
+                    </div>
+
+                    <!-- Safety Warning Banner -->
+                    <div class="bg-rose-500/10 border border-rose-500/40 rounded-xl p-4 text-xs text-rose-300 flex items-start space-x-3">
+                        <i data-lucide="shield-alert" class="w-5 h-5 text-rose-400 shrink-0 mt-0.5"></i>
+                        <div>
+                            <strong class="text-rose-200">CRITICAL SAFETY RULE (GATE Standard):</strong> NEVER open-circuit the secondary of an energized Current Transformer! Without secondary demagnetizing MMF, primary current forces extreme magnetic core saturation, generating lethally high secondary voltage peaks ($kV$) and destructive core heating.
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-card p-5 rounded-xl space-y-4">
+                            <h3 class="font-bold text-cyan-300 text-sm border-b border-slate-700/60 pb-2">CT Parameter Setup</h3>
+
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <label class="text-slate-400 flex justify-between">Primary Line Current ($I_p$): <span id="ctIpVal" class="text-cyan-400">100 A</span></label>
+                                    <input type="range" id="ctIp" min="10" max="500" step="10" value="100" oninput="updateCTPTSim()" class="w-full accent-cyan-500 mt-1">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 flex justify-between">Nominal CT Ratio ($N_s / N_p$): <span id="ctRatioVal" class="text-cyan-400">100 / 5 (Ratio = 20)</span></label>
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 flex justify-between">Magnetizing Current Component ($I_m$): <span id="ctImVal" class="text-amber-400">2.0 A</span></label>
+                                    <input type="range" id="ctIm" min="0.5" max="10" step="0.5" value="2" oninput="updateCTPTSim()" class="w-full accent-amber-500 mt-1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 text-xs space-y-3">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-800 pb-2">CT Error & Secondary Output</h3>
+
+                            <div class="space-y-2 font-mono">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Ideal Secondary Current ($I_{s,ideal}$):</span>
+                                    <span id="ctIsIdeal" class="text-emerald-400">5.000 A</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Actual Secondary Current ($I_{s,act}$):</span>
+                                    <span id="ctIsAct" class="text-rose-400">4.900 A</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Ratio Error ($\%R$):</span>
+                                    <span id="ctRatioErr" class="text-amber-400">-2.00 %</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Phase Angle Error ($\beta \approx \frac{I_m}{n I_s}$):</span>
+                                    <span id="ctPhaseErr" class="text-purple-300">1.15 degrees</span>
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-slate-950 rounded-xl text-[11px] text-slate-400 space-y-1">
+                                <div>• Nominal Ratio $K_n = \frac{I_{pn}}{I_{sn}} = 20$</div>
+                                <div>• Actual Transformation Ratio $R = \frac{I_p}{I_s} \approx n + \frac{I_l}{I_s}$</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateCTPTSim() {
+            const Ip = parseFloat(document.getElementById('ctIp').value);
+            const Im = parseFloat(document.getElementById('ctIm').value);
+            const n = 20; // 100/5
+
+            document.getElementById('ctIpVal').innerText = `${Ip} A`;
+            document.getElementById('ctImVal').innerText = `${Im.toFixed(1)} A`;
+
+            const IsIdeal = Ip / n;
+            // Transformation Ratio R ≈ n + Im / Is
+            const R = n + (Im / IsIdeal);
+            const IsAct = Ip / R;
+            const ratioErr = ((n - R) / R) * 100;
+            const phaseErrRad = Im / (n * IsAct);
+            const phaseErrDeg = (phaseErrRad * 180) / Math.PI;
+
+            document.getElementById('ctIsIdeal').innerText = `${IsIdeal.toFixed(3)} A`;
+            document.getElementById('ctIsAct').innerText = `${IsAct.toFixed(3)} A`;
+            document.getElementById('ctRatioErr').innerText = `${ratioErr.toFixed(2)} %`;
+            document.getElementById('ctPhaseErr').innerText = `${phaseErrDeg.toFixed(2)}°`;
+        }
+
+        // =========================================================================
+        // MODULE 30-33: DIGITAL VOLTMETER (DVM) & DMM ERRORS
+        // =========================================================================
+        function renderDVM() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-cyan-400">Digital Voltmeter (DVM) & ADC Resolution Lab</h2>
+                        <p class="text-xs text-slate-400">Quantization error, $3\frac{1}{2}$ digit display resolution, and DMM uncertainty calculations.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-card p-5 rounded-xl space-y-4">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-700/60 pb-2">DMM Specifications & Input</h3>
+
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <label class="text-slate-400">Input Applied Voltage ($V_{in}$):</label>
+                                    <input type="number" id="dvmVin" value="12.345" step="0.001" onchange="updateDVMSim()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-400 font-mono mt-1">
+                                    <span class="text-[10px] text-slate-500">Volts</span>
+                                </div>
+                                <div>
+                                    <label class="text-slate-400">DMM Selected Range:</label>
+                                    <select id="dvmRange" onchange="updateDVMSim()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-400 font-mono mt-1">
+                                        <option value="2">2.000 V (Resolution = 1 mV)</option>
+                                        <option value="20" selected>20.00 V (Resolution = 10 mV)</option>
+                                        <option value="200">200.0 V (Resolution = 100 mV)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-slate-400">Accuracy Specification: $\pm(0.5\% \text{ Reading} + 2 \text{ Digits})$</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 text-xs space-y-4">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-800 pb-2">Display & Uncertainty Analysis</h3>
+
+                            <div class="bg-slate-950 p-4 rounded-xl text-center border border-slate-800">
+                                <div class="text-[10px] text-slate-400 mb-1">DMM DIGITAL DISPLAY READOUT</div>
+                                <div id="dvmDisplay" class="text-3xl font-mono font-bold text-emerald-400 tracking-widest">12.35 V</div>
+                            </div>
+
+                            <div class="space-y-2 font-mono">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Percentage Reading Error:</span>
+                                    <span id="dvmErrRead" class="text-cyan-300">0.0618 V</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Digit Error ($2 \times \text{Res}$):</span>
+                                    <span id="dvmErrDigit" class="text-purple-300">0.0200 V</span>
+                                </div>
+                                <div class="flex justify-between border-t border-slate-800 pt-2 font-bold">
+                                    <span class="text-slate-200">Total Max Uncertainty:</span>
+                                    <span id="dvmTotalUnc" class="text-amber-400">±0.0818 V</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateDVMSim() {
+            const Vin = parseFloat(document.getElementById('dvmVin').value);
+            const range = parseFloat(document.getElementById('dvmRange').value);
+
+            let res = 0.01;
+            let decimals = 2;
+            if (range === 2) { res = 0.001; decimals = 3; }
+            else if (range === 20) { res = 0.01; decimals = 2; }
+            else if (range === 200) { res = 0.1; decimals = 1; }
+
+            const displayVal = Vin > range ? "OVERLOAD" : Vin.toFixed(decimals);
+            document.getElementById('dvmDisplay').innerText = Vin > range ? "OL" : `${displayVal} V`;
+
+            if (Vin <= range) {
+                const errRead = 0.005 * Vin; // 0.5%
+                const errDigit = 2 * res; // 2 digits
+                const totalUnc = errRead + errDigit;
+
+                document.getElementById('dvmErrRead').innerText = `±${errRead.toFixed(4)} V`;
+                document.getElementById('dvmErrDigit').innerText = `±${errDigit.toFixed(4)} V`;
+                document.getElementById('dvmTotalUnc').innerText = `±${totalUnc.toFixed(4)} V`;
+            } else {
+                document.getElementById('dvmErrRead').innerText = "N/A";
+                document.getElementById('dvmErrDigit').innerText = "N/A";
+                document.getElementById('dvmTotalUnc').innerText = "N/A";
+            }
+        }
+
+        // =========================================================================
+        // MODULE 38-44: OSCILLOSCOPE & LISSAJOUS SIMULATOR
+        // =========================================================================
+        function renderOscilloscope() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-cyan-400">Dual-Channel Oscilloscope & Lissajous Lab</h2>
+                            <p class="text-xs text-slate-400">Time-domain waveforms, Volts/Div, Time/Div, and X-Y Lissajous pattern phase measurement.</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="setOscMode('time')" id="oscModeTime" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950">Time Domain (Y-T)</button>
+                            <button onclick="setOscMode('lissajous')" id="oscModeLiss" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300">Lissajous (X-Y)</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                        <!-- Screen Canvas -->
+                        <div class="md:col-span-7 bg-slate-950 p-3 rounded-2xl border-4 border-slate-800 shadow-2xl">
+                            <div class="oscilloscope-screen rounded-xl p-2 border border-emerald-900/50">
+                                <canvas id="oscCanvas" width="420" height="280" class="mx-auto max-w-full"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Front Panel Controls -->
+                        <div class="md:col-span-5 space-y-4">
+                            <div class="glass-card p-4 rounded-xl space-y-3 text-xs">
+                                <h3 class="font-bold text-slate-200 border-b border-slate-700/60 pb-2">Channel 1 (CH A - Red)</h3>
+                                <div>
+                                    <label class="flex justify-between text-slate-400">Amplitude: <span id="oscAmpVal" class="text-rose-400">5.0 V</span></label>
+                                    <input type="range" id="oscAmp" min="1" max="10" step="0.5" value="5" oninput="drawOscilloscopeCanvas()" class="w-full accent-rose-500">
+                                </div>
+                                <div>
+                                    <label class="flex justify-between text-slate-400">Frequency: <span id="oscFreqVal" class="text-rose-400">50 Hz</span></label>
+                                    <input type="range" id="oscFreq" min="10" max="200" step="10" value="50" oninput="drawOscilloscopeCanvas()" class="w-full accent-rose-500">
+                                </div>
+
+                                <h3 class="font-bold text-slate-200 border-b border-slate-700/60 pb-2 pt-2">Channel 2 (CH B - Cyan)</h3>
+                                <div>
+                                    <label class="flex justify-between text-slate-400">Phase Shift ($\phi$): <span id="oscPhaseVal" class="text-cyan-400">45°</span></label>
+                                    <input type="range" id="oscPhase" min="0" max="360" step="15" value="45" oninput="drawOscilloscopeCanvas()" class="w-full accent-cyan-500">
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs space-y-2">
+                                <div class="font-bold text-cyan-300">Phase Angle Formula via Lissajous</div>
+                                <div class="font-mono text-[11px] text-slate-300">
+                                    $\sin\phi = \frac{Y_1}{Y_2} \implies \phi = \arcsin\left(\frac{Y_{intercept}}{Y_{max}}\right)$
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        let oscDisplayMode = 'time';
+
+        function setOscMode(mode) {
+            oscDisplayMode = mode;
+            document.getElementById('oscModeTime').className = mode === 'time' ? "px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950" : "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300";
+            document.getElementById('oscModeLiss').className = mode === 'lissajous' ? "px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950" : "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300";
+            drawOscilloscopeCanvas();
+        }
+
+        function initOscilloscopeCanvas() {
+            drawOscilloscopeCanvas();
+        }
+
+        function drawOscilloscopeCanvas() {
+            const canvas = document.getElementById('oscCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            const amp1 = parseFloat(document.getElementById('oscAmp').value);
+            const freq1 = parseFloat(document.getElementById('oscFreq').value);
+            const phaseDeg = parseFloat(document.getElementById('oscPhase').value);
+            const phaseRad = (phaseDeg * Math.PI) / 180;
+
+            document.getElementById('oscAmpVal').innerText = `${amp1.toFixed(1)} V`;
+            document.getElementById('oscFreqVal').innerText = `${freq1} Hz`;
+            document.getElementById('oscPhaseVal').innerText = `${phaseDeg}°`;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Graticule Grid
+            ctx.strokeStyle = '#064e3b';
+            ctx.lineWidth = 1;
+            const gridDivs = 8;
+            for (let i = 0; i <= gridDivs; i++) {
+                // Vertical
+                let x = (w / gridDivs) * i;
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+                // Horizontal
+                let y = (h / gridDivs) * i;
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+            }
+
+            const cx = w / 2;
+            const cy = h / 2;
+
+            if (oscDisplayMode === 'time') {
+                // CH1 (Red) Waveform
+                ctx.beginPath();
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                for (let x = 0; x < w; x++) {
+                    let t = (x / w) * (2 * Math.PI) * 2;
+                    let y = cy - (amp1 * 15) * Math.sin(t);
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                // CH2 (Cyan) Waveform
+                ctx.beginPath();
+                ctx.strokeStyle = '#06b6d4';
+                ctx.lineWidth = 2;
+                for (let x = 0; x < w; x++) {
+                    let t = (x / w) * (2 * Math.PI) * 2;
+                    let y = cy - (amp1 * 15) * Math.sin(t + phaseRad);
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            } else {
+                // Lissajous Figure (X-Y Mode)
+                ctx.beginPath();
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 3;
+                for (let t = 0; t <= Math.PI * 2; t += 0.02) {
+                    let x = cx + (amp1 * 15) * Math.sin(t);
+                    let y = cy - (amp1 * 15) * Math.sin(t + phaseRad);
+                    if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        // =========================================================================
+        // MODULE 45-53: ERROR & UNCERTAINTY ANALYSIS
+        // =========================================================================
+        function renderErrorAnalysis() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-cyan-400">Error & Uncertainty Propagation Lab</h2>
+                        <p class="text-xs text-slate-400">Limiting errors, combination of errors, variance, and standard deviation calculations.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-card p-5 rounded-xl space-y-4">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-700/60 pb-2">Resistor Combination Limiting Error</h3>
+                            
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <label class="text-slate-400">$R_1 = 100\,\Omega \pm$ Limiting Error ($\%e_1$):</label>
+                                    <input type="number" id="errE1" value="5" step="0.5" onchange="updateErrorSim()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-400 font-mono mt-1">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400">$R_2 = 200\,\Omega \pm$ Limiting Error ($\%e_2$):</label>
+                                    <input type="number" id="errE2" value="10" step="0.5" onchange="updateErrorSim()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-400 font-mono mt-1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 text-xs space-y-3">
+                            <h3 class="font-bold text-slate-200 text-sm border-b border-slate-800 pb-2">Combination Results</h3>
+
+                            <div class="space-y-2 font-mono">
+                                <div class="p-3 bg-slate-950 rounded-xl">
+                                    <div class="text-[10px] text-slate-400">SERIES COMBINATION ($R_s = R_1 + R_2$)</div>
+                                    <div id="errSeriesResult" class="text-sm font-bold text-emerald-400">300 Ω ± 5.00%</div>
+                                    <div class="text-[10px] text-slate-500 mt-1">$\frac{\delta R_s}{R_s} = \frac{R_1}{R_s} e_1 + \frac{R_2}{R_s} e_2$</div>
+                                </div>
+
+                                <div class="p-3 bg-slate-950 rounded-xl">
+                                    <div class="text-[10px] text-slate-400">MULTIPLICATION / POWER PRODUCT ($P = I^2 R$)</div>
+                                    <div id="errProdResult" class="text-sm font-bold text-purple-400">Total Error % = 2(%e_I) + %e_R</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateErrorSim() {
+            const e1 = parseFloat(document.getElementById('errE1').value);
+            const e2 = parseFloat(document.getElementById('errE2').value);
+
+            const R1 = 100, R2 = 200;
+            const Rs = R1 + R2;
+            const dRs = (R1 * (e1/100) * R1 + R2 * (e2/100) * R2) / Rs; // Worst case
+            const errSeriesPct = ((R1 * e1 + R2 * e2) / Rs);
+
+            document.getElementById('errSeriesResult').innerText = `${Rs} Ω ± ${errSeriesPct.toFixed(2)}%`;
+        }
+
+        // =========================================================================
+        // MODULE 60: FORMULA SHEET
+        // =========================================================================
+        function renderFormulaSheet() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <h2 class="text-xl font-bold text-cyan-400 flex items-center space-x-2">
+                        <span>GATE Electrical & Electronic Measurements Formula Sheet</span>
+                        <span class="text-xs bg-cyan-500/20 px-2 py-0.5 rounded text-cyan-300">High Yield</span>
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div class="glass-card p-4 rounded-xl space-y-2">
+                            <h3 class="font-bold text-cyan-300 text-sm">Analog Instruments & Deflection</h3>
+                            <div>• PMMC Deflecting Torque: $T_d = B N A I$</div>
+                            <div>• Moving Iron Torque: $T_d = \frac{1}{2} I^2 \frac{dL}{d\theta}$</div>
+                            <div>• Spring Control Torque: $T_c = K_c \theta$</div>
+                        </div>
+                        <div class="glass-card p-4 rounded-xl space-y-2">
+                            <h3 class="font-bold text-purple-300 text-sm">Range Extension</h3>
+                            <div>• Ammeter Shunt: $R_{sh} = \frac{R_m}{m - 1}$ where $m = I / I_m$</div>
+                            <div>• Voltmeter Series Multiplier: $R_{se} = R_m (m - 1)$ where $m = V / V_m$</div>
+                        </div>
+                        <div class="glass-card p-4 rounded-xl space-y-2">
+                            <h3 class="font-bold text-emerald-300 text-sm">Bridge Balance Conditions</h3>
+                            <div>• Wheatstone: $R_x = \frac{R_2 R_3}{R_1}$</div>
+                            <div>• Maxwell L-C: $L_x = R_2 R_3 C_1$, $R_x = \frac{R_2 R_3}{R_1}$</div>
+                            <div>• Schering: $C_x = C_2 \frac{R_4}{R_3}$, $\tan\delta = \omega R_4 C_4$</div>
+                            <div>• Wien Frequency: $f = \frac{1}{2\pi \sqrt{R_1 R_2 C_1 C_2}}$</div>
+                        </div>
+                        <div class="glass-card p-4 rounded-xl space-y-2">
+                            <h3 class="font-bold text-amber-300 text-sm">3-Phase Two-Wattmeter Power</h3>
+                            <div>• Active Power: $P = W_1 + W_2 = \sqrt{3} V_L I_L \cos\phi$</div>
+                            <div>• Reactive Power: $Q = \sqrt{3} (W_1 - W_2) = \sqrt{3} V_L I_L \sin\phi$</div>
+                            <div>• Power Factor Angle: $\tan\phi = \sqrt{3} \frac{W_1 - W_2}{W_1 + W_2}$</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // =========================================================================
+        // MODULE 61 & 73: GATE TRICKS & TRAPS
+        // =========================================================================
+        function renderTricks() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <h2 class="text-xl font-bold text-amber-400">GATE Exam Shortcuts, Traps & High-Yield Tricks</h2>
+
+                    <div class="space-y-4 text-xs">
+                        <div class="glass-card p-4 rounded-xl border-l-4 border-l-rose-500 space-y-1">
+                            <div class="font-bold text-rose-300 text-sm">Trap 1: CT Secondary Open Circuit</div>
+                            <div class="text-slate-300">Never treat a CT like a standard step-up potential transformer. Opening secondary causes full primary current to act purely as magnetizing current, producing lethal high-voltage surges!</div>
+                        </div>
+
+                        <div class="glass-card p-4 rounded-xl border-l-4 border-l-cyan-500 space-y-1">
+                            <div class="font-bold text-cyan-300 text-sm">Shortcut 2: Wattmeter Reading Zero</div>
+                            <div class="text-slate-300">In 2-wattmeter 3-phase power measurement, if load power factor is $0.5$ ($\phi = 60^\circ$), one wattmeter reads exactly ZERO ($W_2 = 0$). If $PF < 0.5$, one reads negative!</div>
+                        </div>
+
+                        <div class="glass-card p-4 rounded-xl border-l-4 border-l-emerald-500 space-y-1">
+                            <div class="font-bold text-emerald-300 text-sm">Trap 3: Voltmeter Loading % Error Denominator</div>
+                            <div class="text-slate-300">Percentage error is always $\frac{V_{measured} - V_{true}}{V_{true}} \times 100$. Never divide by the measured value!</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // =========================================================================
+        // MODULE 62: GATE QUIZ ENGINE
+        // =========================================================================
+        const quizQuestions = [
+            {
+                q: "A PMMC instrument has a coil resistance of 10 Ω and full scale deflection current of 1 mA. To extend its range to 10 A ammeter, the required shunt resistance is approximately:",
+                options: ["0.001 Ω", "0.010 Ω", "0.100 Ω", "1.000 Ω"],
+                ans: 0,
+                sol: "m = I / Im = 10 / 0.001 = 10000. Rsh = Rm / (m - 1) = 10 / 9999 ≈ 0.001 Ω."
+            },
+            {
+                q: "In 3-phase power measurement using the two-wattmeter method, one wattmeter reads positive and the other reads equal negative magnitude. The power factor of the load is:",
+                options: ["1.0", "0.866", "0.5", "0.0"],
+                ans: 3,
+                sol: "W1 = -W2 => W1 + W2 = 0 => Total Power = 0 => cos φ = 0 (Purely reactive load)."
+            }
+        ];
+
+        let currentQIndex = 0;
+
+        function renderQuizEngine() {
+            const q = quizQuestions[currentQIndex];
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-cyan-400">GATE Practice Quiz Engine</h2>
+                        <span class="text-xs font-mono text-slate-400">Question ${currentQIndex + 1} of ${quizQuestions.length}</span>
+                    </div>
+
+                    <div class="glass-card p-5 rounded-xl space-y-4">
+                        <div class="text-sm font-semibold text-slate-100">${q.q}</div>
+
+                        <div class="space-y-2 text-xs">
+                            ${q.options.map((opt, idx) => `
+                                <button onclick="checkAnswer(${idx})" class="w-full text-left p-3 rounded-lg bg-slate-900 border border-slate-700/80 hover:border-cyan-500 hover:bg-cyan-500/10 transition text-slate-300">
+                                    ${String.fromCharCode(65 + idx)}. ${opt}
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <div id="quizSolutionBox" class="hidden p-4 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300 space-y-2">
+                            <!-- Solution injected -->
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function checkAnswer(selectedIdx) {
+            const q = quizQuestions[currentQIndex];
+            const box = document.getElementById('quizSolutionBox');
+            box.classList.remove('hidden');
+
+            if (selectedIdx === q.ans) {
+                box.innerHTML = `<div class="font-bold text-emerald-400">Correct! 🎉</div><div>${q.sol}</div>`;
+                AppState.progress.quizScore += 10;
+                saveProgress();
+            } else {
+                box.innerHTML = `<div class="font-bold text-rose-400">Incorrect!</div><div>${q.sol}</div>`;
+            }
+        }
+
+        // =========================================================================
+        // MODULE 63: NUMERICAL SOLVER
+        // =========================================================================
+        function renderNumericalSolver() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <h2 class="text-xl font-bold text-cyan-400">GATE Automated Numerical Solver</h2>
+                    <p class="text-xs text-slate-400">Enter circuit parameters to compute step-by-step solutions for voltmeter loading and multiplier resistors.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-card p-5 rounded-xl space-y-3 text-xs">
+                            <h3 class="font-bold text-slate-200 border-b border-slate-700/60 pb-2">Quick Problem Input</h3>
+                            <div>
+                                <label class="text-slate-400">Meter Full Scale Voltage ($V_m$ in V):</label>
+                                <input type="number" id="numVm" value="10" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-400 font-mono mt-1">
+                            </div>
+                            <div>
+                                <label class="text-slate-400">Desired Range ($V_{target}$ in V):</label>
+                                <input type="number" id="numVtarget" value="300" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-400 font-mono mt-1">
+                            </div>
+                            <div>
+                                <label class="text-slate-400">Meter Internal Resistance ($R_m$ in Ω):</label>
+                                <input type="number" id="numRm" value="1000" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-cyan-400 font-mono mt-1">
+                            </div>
+                            <button onclick="solveNumerical()" class="w-full py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg transition mt-2">
+                                Solve Step-by-Step
+                            </button>
+                        </div>
+
+                        <div id="solverOutput" class="bg-slate-900 p-5 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 space-y-2">
+                            <div class="text-slate-500">Click "Solve Step-by-Step" to view complete step solution...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function solveNumerical() {
+            const Vm = parseFloat(document.getElementById('numVm').value);
+            const Vt = parseFloat(document.getElementById('numVtarget').value);
+            const Rm = parseFloat(document.getElementById('numRm').value);
+
+            const m = Vt / Vm;
+            const Rse = Rm * (m - 1);
+
+            document.getElementById('solverOutput').innerHTML = `
+                <div class="text-emerald-400 font-bold">Solution Steps:</div>
+                <div>1. Multiplying Factor $m = \\frac{V_{target}}{V_m} = \\frac{${Vt}}{${Vm}} = ${m.toFixed(2)}$</div>
+                <div>2. Series Resistance $R_{se} = R_m (m - 1)$</div>
+                <div>3. $R_{se} = ${Rm} \\times (${m.toFixed(2)} - 1) = ${Rse.toFixed(2)}\\,\\Omega$</div>
+                <div class="pt-2 border-t border-slate-800 text-cyan-300 font-bold">Final Answer: R_se = ${(Rse/1000).toFixed(2)} kΩ</div>
+            `;
+        }
+
+        // =========================================================================
+        // MODULE 78: MASTER CHALLENGE
+        // =========================================================================
+        function renderMasterChallenge() {
+            return `
+                <div class="glass-panel rounded-2xl p-6 space-y-6">
+                    <h2 class="text-xl font-bold text-amber-400">Master Measurement Challenge</h2>
+                    <p class="text-xs text-slate-400">Identify the parameters of an unknown electrical load using virtual instruments.</p>
+
+                    <div class="glass-card p-5 rounded-xl text-xs space-y-4">
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                            <div class="text-cyan-400 font-bold">Target System Output:</div>
+                            <div>• Voltmeter Reading: 230.0 V</div>
+                            <div>• Ammeter Reading: 5.0 A</div>
+                            <div>• Wattmeter Reading: 920.0 W</div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-slate-400">Calculate Power Factor ($\cos\phi$):</label>
+                                <input type="number" id="chalPF" step="0.01" placeholder="e.g. 0.8" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-amber-400 font-mono mt-1">
+                            </div>
+                            <button onclick="checkChallenge()" class="py-2 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition">
+                                Submit Solution
+                            </button>
+                        </div>
+
+                        <div id="chalResult" class="hidden p-3 bg-slate-900 border border-slate-800 rounded-xl font-mono text-xs">
+                            <!-- Challenge result -->
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function checkChallenge() {
+            const userPF = parseFloat(document.getElementById('chalPF').value);
+            const truePF = 920 / (230 * 5); // 0.8
+            const res = document.getElementById('chalResult');
+            res.classList.remove('hidden');
+
+            if (Math.abs(userPF - truePF) < 0.02) {
+                res.innerHTML = `<span class="text-emerald-400 font-bold">PERFECT! 🎉 Load PF = 0.8 Lagging. Apparent Power = 1150 VA.</span>`;
+            } else {
+                res.innerHTML = `<span class="text-rose-400 font-bold">Incorrect. Formula: $P / (V \\times I) = 920 / (230 \\times 5) = 0.8$.</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
