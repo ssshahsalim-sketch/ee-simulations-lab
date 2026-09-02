@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Substation Busbar & Switching Scheme Interactive Simulator</title>
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #131b2e;
+            --bg-tertiary: #1d293d;
+            --card-bg: #162238;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-amber: #f59e0b;
+            --accent-purple: #a855f7;
+            --border-color: #334155;
+            --bus-energized: #22c55e;
+            --bus-deenergized: #64748b;
+            --bus-faulted: #ef4444;
+            --bus-maint: #f59e0b;
+            --cb-closed: #22c55e;
+            --cb-open: #e2e8f0;
+            --cb-tripped: #ef4444;
+        }
+
+        .light-mode {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #f1f5f9;
+            --bg-tertiary: #e2e8f0;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent-blue: #0284c7;
+            --accent-green: #16a34a;
+            --accent-red: #dc2626;
+            --accent-amber: #d97706;
+            --accent-purple: #9333ea;
+            --border-color: #cbd5e1;
+            --bus-energized: #16a34a;
+            --bus-deenergized: #94a3b8;
+            --bus-faulted: #dc2626;
+            --bus-maint: #d97706;
+            --cb-closed: #16a34a;
+            --cb-open: #0f172a;
+            --cb-tripped: #dc2626;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* HEADER */
+        header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+        .app-title { display: flex; align-items: center; gap: 12px; }
+        .app-title h1 { font-size: 1.2rem; font-weight: 700; color: var(--accent-blue); letter-spacing: 0.5px; }
+        .app-title span { font-size: 0.8rem; color: var(--text-muted); background: var(--bg-tertiary); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border-color); }
+        .header-controls { display: flex; gap: 12px; align-items: center; }
+
+        .btn {
+            background: var(--bg-tertiary);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .btn:hover { background: var(--border-color); color: var(--accent-blue); }
+        .btn-primary { background: var(--accent-blue); color: #000; border: none; }
+        .btn-primary:hover { opacity: 0.9; color: #000; }
+        .btn-danger { background: var(--accent-red); color: #fff; border: none; }
+        .btn-danger:hover { opacity: 0.9; }
+
+        /* MAIN LAYOUT */
+        .main-container {
+            display: grid;
+            grid-template-columns: 280px 1fr 340px;
+            grid-template-rows: 1fr 180px;
+            height: calc(100vh - 60px);
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: var(--bg-secondary);
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--accent-blue);
+        }
+
+        /* LEFT SIDEBAR - SCHEMES & MODES */
+        .sidebar-left { grid-column: 1; grid-row: 1 / 3; display: flex; flex-direction: column; gap: 10px; }
+        .nav-list { list-style: none; overflow-y: auto; flex: 1; }
+        .nav-item {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .nav-item:hover { background: var(--bg-tertiary); }
+        .nav-item.active { background: var(--bg-tertiary); border-left: 4px solid var(--accent-blue); font-weight: 600; color: var(--accent-blue); }
+        .nav-item .badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; background: var(--bg-secondary); border: 1px solid var(--border-color); }
+
+        /* CENTER - SLD CANVAS */
+        .sld-container { grid-column: 2; grid-row: 1; position: relative; background: var(--bg-primary); display: flex; flex-direction: column; }
+        .sld-toolbar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            display: flex;
+            gap: 6px;
+            background: rgba(19, 27, 46, 0.85);
+            backdrop-filter: blur(4px);
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+        .sld-toolbar button { padding: 4px 10px; font-size: 0.75rem; }
+
+        .sld-canvas-wrapper {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        svg.sld-svg {
+            width: 100%;
+            height: 100%;
+            user-select: none;
+        }
+
+        /* SVG COMPONENT STYLES */
+        .busbar { stroke-width: 6; stroke-linecap: round; transition: stroke 0.3s; }
+        .conductor { stroke-width: 2.5; fill: none; transition: stroke 0.3s; }
+        .conductor-energized { stroke: var(--bus-energized); }
+        .conductor-deenergized { stroke: var(--bus-deenergized); stroke-dasharray: 4,4; }
+        .conductor-faulted { stroke: var(--bus-faulted); animation: flash 0.5s infinite alternate; }
+
+        @keyframes flash { from { opacity: 1; } to { opacity: 0.3; } }
+
+        .cb-symbol { cursor: pointer; transition: transform 0.1s; }
+        .cb-symbol:hover { transform: scale(1.15); transform-origin: center; }
+        .isolator-symbol { cursor: pointer; transition: transform 0.1s; }
+        .isolator-symbol:hover { transform: scale(1.2); transform-origin: center; }
+
+        /* RIGHT SIDEBAR - INSPECTOR & CONTROLS */
+        .sidebar-right { grid-column: 3; grid-row: 1 / 3; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+        .tab-buttons { display: flex; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); }
+        .tab-btn { flex: 1; padding: 8px; font-size: 0.75rem; background: none; border: none; color: var(--text-muted); cursor: pointer; font-weight: 600; }
+        .tab-btn.active { color: var(--accent-blue); border-bottom: 2px solid var(--accent-blue); background: var(--card-bg); }
+        .tab-content { padding: 12px; overflow-y: auto; flex: 1; display: none; }
+        .tab-content.active { display: block; }
+
+        /* BOTTOM PANEL - LOGS & SEQUENCE */
+        .bottom-panel { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; }
+        .log-container {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.75rem;
+            padding: 8px 12px;
+            overflow-y: auto;
+            flex: 1;
+            background: var(--bg-primary);
+        }
+        .log-entry { margin-bottom: 4px; display: flex; gap: 8px; }
+        .log-time { color: var(--text-muted); }
+        .log-INFO { color: var(--accent-blue); }
+        .log-SUCCESS { color: var(--accent-green); }
+        .log-WARN { color: var(--accent-amber); }
+        .log-ALARM { color: var(--accent-red); font-weight: bold; }
+
+        /* STATUS BADGES & INFO TABLES */
+        .info-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.8rem; }
+        .info-table td, .info-table th { padding: 6px 8px; border: 1px solid var(--border-color); text-align: left; }
+        .info-table th { background: var(--bg-secondary); color: var(--text-muted); font-size: 0.7rem; }
+
+        .status-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .status-energized { background: rgba(34, 197, 94, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .status-deenergized { background: rgba(100, 116, 139, 0.2); color: var(--text-muted); border: 1px solid var(--bus-deenergized); }
+        .status-fault { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        .status-maint { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
+
+        /* MODAL STYLES */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(3px);
+            display: none; justify-content: center; align-items: center; z-index: 100;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; width: 80%; max-width: 900px; max-height: 85vh;
+            display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        .modal-header { padding: 14px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 16px; overflow-y: auto; flex: 1; font-size: 0.9rem; line-height: 1.5; }
+
+        /* FLOW ANIMATION */
+        .flow-line { stroke-dasharray: 8, 8; animation: flow 1s linear infinite; }
+        @keyframes flow { from { stroke-dashoffset: 16; } to { stroke-dashoffset: 0; } }
+
+        /* INTERLOCK WARNING BANNER */
+        .interlock-banner {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            background: rgba(239, 68, 68, 0.95); color: white; padding: 8px 16px;
+            border-radius: 20px; font-weight: bold; font-size: 0.85rem;
+            display: none; align-items: center; gap: 8px; z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .step-card {
+            background: var(--bg-secondary); border: 1px solid var(--border-color);
+            padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 0.8rem;
+        }
+        .step-card.active { border-left: 4px solid var(--accent-blue); background: var(--bg-tertiary); }
+        .step-card.completed { border-left: 4px solid var(--accent-green); opacity: 0.7; }
+
+        /* TOOLTIP */
+        .tooltip {
+            position: absolute; background: rgba(15, 23, 42, 0.95); color: #fff;
+            padding: 6px 10px; border-radius: 4px; font-size: 0.75rem; pointer-events: none;
+            display: none; z-index: 1000; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="app-title">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-blue)">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <div>
+                <h1>Substation Busbar & Switching Scheme Simulator</h1>
+                <div style="font-size:0.7rem; color:var(--text-muted)">Visual learning & design engineering tool for HV/MV switching arrangements</div>
+            </div>
+            <span>v2.5 HV-Design</span>
+        </div>
+        <div class="header-controls">
+            <button class="btn" id="btn-mode-toggle" onclick="toggleAppMode()">
+                <span id="mode-icon">🎓</span> <span id="mode-text">Learning Mode</span>
+            </button>
+            <button class="btn" onclick="openMatrixModal()">📊 Comparison Matrix</button>
+            <button class="btn" onclick="openDecisionTreeModal()">🌳 Design Tree</button>
+            <button class="btn" onclick="openQuizModal()">❓ Quiz & Challenges</button>
+            <button class="btn" onclick="toggleTheme()">🌓 Theme</button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <div class="main-container">
+
+        <!-- LEFT SIDEBAR: SCHEMES SELECTOR -->
+        <div class="panel sidebar-left">
+            <div class="panel-header">
+                <span>Substation Schemes</span>
+                <span style="font-size: 0.65rem; color: var(--text-muted)">IEC 61850</span>
+            </div>
+            <ul class="nav-list" id="scheme-list">
+                <li class="nav-item active" onclick="loadScheme('singleBus')">
+                    <div>
+                        <div>Single Busbar</div>
+                        <div style="font-size:0.65rem; color:var(--text-muted)">Level 1 • Basic</div>
+                    </div>
+                    <span class="badge">1.0 CB/Ckt</span>
+                </li>
+                <li class="nav-item" onclick="loadScheme('sectionalizedBus')">
+                    <div>
+                        <div>Sectionalized Single Bus</div>
+                        <div style="font-size:0.65rem; color:var(--text-muted)">Level 2 • Bus Coupler</div>
+                    </div>
+                    <span class="badge">1.0 CB/Ckt</span>
+                </li>
+                <li class="nav-item" onclick="loadScheme('mainTransfer')">
+                    <div>
+                        <div>Main & Transfer Bus</div>
+                        <div style="font-size:0.65rem; color:var(--text-muted)">Level 3 • CB Maintenance</div>
+                    </div>
+                    <span class="badge">1.25 CB/Ckt</span>
+                </li>
+                <li class="nav-item" onclick="loadScheme('doubleBusSingleBreaker')">
+                    <div>
+                        <div>Double Bus Single Breaker</div>
+                        <div style="font-size:0.65rem; color:var(--text-muted)">Level 4 • Flexible Bus Selection</div>
+                    </div>
+                    <span class="badge">1.0 CB/Ckt</span>
+                </li>
+                <li class="nav-item" onclick="loadScheme('ringBus')">
+                    <div>
+                        <div>Ring Bus Scheme</div>
+                        <div style="font-size:0.65rem; color:var(--text-muted)">Level 5 • Closed Loop Ring</div>
+                    </div>
+                    <span class="badge">1.0 CB/Ckt</span>
+                </li>
+                <li class="nav-item" onclick="loadScheme('oneAndHalf')">
+                    <div>
+                        <div>1½ Breaker Scheme ⭐</div>
+                        <div style="font-size:0.65rem; color:var(--text-muted)">Level 6 • High Reliability EHV</div>
+                    </div>
+                    <span class="badge">1.5 CB/Ckt</span>
+                </li>
+                <li class="nav-item" onclick="loadScheme('doubleBreaker')">
+                    <div>
+                        <div>Double Bus Double Breaker</div>
+                        <div style="font-size:0.65rem; color:var(--text-muted)">Level 7 • Maximum Redundancy</div>
+                    </div>
+                    <span class="badge">2.0 CB/Ckt</span>
+                </li>
+            </ul>
+
+            <div class="panel-header" style="border-top:1px solid var(--border-color)">
+                <span>System Controls</span>
+            </div>
+            <div style="padding:10px; display:flex; flex-direction:column; gap:6px;">
+                <button class="btn btn-primary" style="justify-content:center" onclick="resetSystemState()">🔄 Reset Scheme State</button>
+                <button class="btn btn-danger" style="justify-content:center" onclick="triggerAutoFault()">⚡ Inject Random Fault</button>
+                <div style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;">
+                    <label><input type="checkbox" id="chk-interlocks" checked onchange="toggleInterlocks(this.checked)"> Safety Interlocks Active</label><br>
+                    <label><input type="checkbox" id="chk-zones" onchange="toggleProtectionZones(this.checked)"> Show Protection Zones / CTs</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER: SLD CANVAS -->
+        <div class="panel sld-container">
+            <div class="sld-toolbar">
+                <button class="btn" onclick="zoomSLD(1.1)">🔍 In</button>
+                <button class="btn" onclick="zoomSLD(0.9)">🔍 Out</button>
+                <button class="btn" onclick="resetSLDView()">🎯 Fit</button>
+                <span style="border-left:1px solid var(--border-color); margin:0 4px;"></span>
+                <span id="scheme-title-display" style="font-weight:bold; font-size:0.85rem; color:var(--accent-blue); align-self:center;">Single Busbar Scheme</span>
+            </div>
+
+            <div class="sld-canvas-wrapper" id="canvas-wrapper">
+                <svg id="sld-svg" class="sld-svg" xmlns="http://www.w3.org/2000/svg">
+                    <g id="sld-root-group"></g>
+                </svg>
+            </div>
+
+            <div class="interlock-banner" id="interlock-banner">
+                🔒 INTERLOCK BLOCKED: Operation prohibited by substation interlocking rules!
+            </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR: INSPECTOR & DETAILS -->
+        <div class="panel sidebar-right">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('tab-inspector')">Inspector</button>
+                <button class="tab-btn" onclick="switchTab('tab-faults')">Faults & Protection</button>
+                <button class="tab-btn" onclick="switchTab('tab-transfer')">Sequencer</button>
+                <button class="tab-btn" onclick="switchTab('tab-design')">Design Checklist</button>
+            </div>
+
+            <!-- TAB 1: INSPECTOR -->
+            <div class="tab-content active" id="tab-inspector">
+                <div id="inspector-default">
+                    <h3 style="font-size:0.9rem; color:var(--accent-blue); margin-bottom:8px;">Component Inspector</h3>
+                    <p style="font-size:0.8rem; color:var(--text-muted)">Click on any Circuit Breaker, Isolator, Busbar, or Feeder in the SLD diagram to inspect its status and operational parameters.</p>
+                </div>
+                <div id="inspector-details" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3 id="comp-name" style="font-size:1rem; color:var(--accent-blue);">CB-01</h3>
+                        <span id="comp-status-badge" class="status-pill status-energized">CLOSED</span>
+                    </div>
+                    <table class="info-table">
+                        <tr><th>Type</th><td id="comp-type">Circuit Breaker</td></tr>
+                        <tr><th>Function</th><td id="comp-func">Feeder Interruption / Protection</td></tr>
+                        <tr><th>Voltage Rating</th><td id="comp-voltage">132 kV</td></tr>
+                        <tr><th>Associated Protection</th><td id="comp-prot">Distance / Overcurrent Relay</td></tr>
+                    </table>
+
+                    <div style="margin-top:12px; display:flex; gap:6px;">
+                        <button class="btn btn-primary" id="btn-toggle-comp" style="flex:1;" onclick="toggleSelectedComponent()">Toggle State</button>
+                        <button class="btn btn-danger" id="btn-fault-comp" style="flex:1;" onclick="faultSelectedComponent()">Inject Fault</button>
+                    </div>
+
+                    <div style="margin-top:14px; font-size:0.8rem; line-height:1.4;">
+                        <h4 style="color:var(--accent-amber); margin-bottom:4px;">Engineering Note:</h4>
+                        <p id="comp-engineering-note" style="color:var(--text-muted)">Circuit breakers are rated to break full load as well as short-circuit fault currents. They operate via protection relay commands or manual remote control.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: FAULTS & PROTECTION -->
+            <div class="tab-content" id="tab-faults">
+                <h3 style="font-size:0.85rem; color:var(--accent-blue); margin-bottom:8px;">Fault Injection Control</h3>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <button class="btn btn-danger" onclick="injectFaultType('feeder1')">⚡ Feeder-1 Short Circuit Fault</button>
+                    <button class="btn btn-danger" onclick="injectFaultType('busbar1')">⚡ Busbar-1 Differential Fault</button>
+                    <button class="btn btn-danger" onclick="injectFaultType('breaker_fail')">💥 Circuit Breaker Failure Scenario</button>
+                </div>
+
+                <hr style="border-color:var(--border-color); margin:12px 0;">
+
+                <h3 style="font-size:0.85rem; color:var(--accent-blue); margin-bottom:8px;">Active Protection Relays</h3>
+                <div id="relay-status-list" style="font-size:0.75rem; display:flex; flex-direction:column; gap:4px;">
+                    <div style="padding:6px; background:var(--bg-secondary); border-radius:4px; border:1px solid var(--border-color);">
+                        <b>87B - Bus Differential:</b> <span style="color:var(--accent-green)">HEALTHY / ARMED</span>
+                    </div>
+                    <div style="padding:6px; background:var(--bg-secondary); border-radius:4px; border:1px solid var(--border-color);">
+                        <b>50/51 - Overcurrent/EF:</b> <span style="color:var(--accent-green)">HEALTHY / ARMED</span>
+                    </div>
+                    <div style="padding:6px; background:var(--bg-secondary); border-radius:4px; border:1px solid var(--border-color);">
+                        <b>50BF - Breaker Failure:</b> <span style="color:var(--accent-green)">HEALTHY / ARMED</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: TRANSFER SEQUENCER -->
+            <div class="tab-content" id="tab-transfer">
+                <h3 style="font-size:0.85rem; color:var(--accent-blue); margin-bottom:8px;">Switching Sequence Trainer</h3>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:10px;">
+                    Interactive switching sequence wizard for equipment isolation and maintenance transfer.
+                </div>
+                <div id="sequence-steps-container">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- TAB 4: DESIGN CHECKLIST -->
+            <div class="tab-content" id="tab-design">
+                <h3 style="font-size:0.85rem; color:var(--accent-blue); margin-bottom:8px;">Design Engineer Checklist</h3>
+                <div id="design-checklist-content" style="font-size:0.8rem; color:var(--text-muted); line-height:1.4;">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM PANEL: EVENT LOG -->
+        <div class="panel bottom-panel">
+            <div class="panel-header">
+                <span>SCADA Live Sequence & Event Log</span>
+                <div>
+                    <button class="btn" style="padding:2px 6px; font-size:0.7rem" onclick="clearEventLog()">Clear</button>
+                    <button class="btn" style="padding:2px 6px; font-size:0.7rem" onclick="exportLog()">Export CSV</button>
+                </div>
+            </div>
+            <div class="log-container" id="event-log">
+                <!-- Log entries added dynamically -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- TOOLTIP -->
+    <div id="app-tooltip" class="tooltip"></div>
+
+    <!-- MODAL: COMPARISON MATRIX -->
+    <div class="modal-overlay" id="modal-matrix">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 style="color:var(--accent-blue)">Substation Switching Scheme Comparison Matrix</h3>
+                <button class="btn" onclick="closeModal('modal-matrix')">✕</button>
+            </div>
+            <div class="modal-body">
+                <table class="info-table" style="font-size:0.75rem;">
+                    <thead>
+                        <tr>
+                            <th>Scheme Name</th>
+                            <th>CB Count / Ckt</th>
+                            <th>Reliability</th>
+                            <th>Flexibility</th>
+                            <th>Bus Fault Impact</th>
+                            <th>CB Maint Outage</th>
+                            <th>Relative Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><b>Single Bus</b></td>
+                            <td>1.0</td>
+                            <td><span style="color:var(--accent-red)">LOW</span></td>
+                            <td><span style="color:var(--accent-red)">LOW</span></td>
+                            <td>Total Outage</td>
+                            <td>Circuit Outage Required</td>
+                            <td>1.0x (Base)</td>
+                        </tr>
+                        <tr>
+                            <td><b>Sectionalized Bus</b></td>
+                            <td>1.0 + Coupler</td>
+                            <td>MEDIUM</td>
+                            <td>MEDIUM</td>
+                            <td>50% Bus Outage</td>
+                            <td>Circuit Outage Required</td>
+                            <td>1.2x</td>
+                        </tr>
+                        <tr>
+                            <td><b>Main & Transfer</b></td>
+                            <td>1.25</td>
+                            <td>MEDIUM</td>
+                            <td>HIGH (Maint)</td>
+                            <td>Total Outage</td>
+                            <td><b>NO Outage</b> (Via Transfer)</td>
+                            <td>1.4x</td>
+                        </tr>
+                        <tr>
+                            <td><b>Double Bus Single CB</b></td>
+                            <td>1.0 + Coupler</td>
+                            <td>HIGH</td>
+                            <td>HIGH</td>
+                            <td>Isolatable to 1 Bus</td>
+                            <td>Circuit Outage Required</td>
+                            <td>1.5x</td>
+                        </tr>
+                        <tr>
+                            <td><b>Ring Bus</b></td>
+                            <td>1.0</td>
+                            <td>HIGH</td>
+                            <td>HIGH</td>
+                            <td>No Circuit Outage</td>
+                            <td><b>NO Outage</b></td>
+                            <td>1.6x</td>
+                        </tr>
+                        <tr>
+                            <td><b>1½ Breaker Scheme</b></td>
+                            <td><b>1.5</b></td>
+                            <td><b>VERY HIGH</b></td>
+                            <td><b>VERY HIGH</b></td>
+                            <td><b>No Circuit Outage</b></td>
+                            <td><b>NO Outage</b></td>
+                            <td>1.8x</td>
+                        </tr>
+                        <tr>
+                            <td><b>Double Bus Double CB</b></td>
+                            <td>2.0</td>
+                            <td>MAXIMUM</td>
+                            <td>MAXIMUM</td>
+                            <td>No Circuit Outage</td>
+                            <td><b>NO Outage</b></td>
+                            <td>2.2x</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: DESIGN DECISION TREE -->
+    <div class="modal-overlay" id="modal-tree">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 style="color:var(--accent-blue)">Conceptual Design Decision Assistant</h3>
+                <button class="btn" onclick="closeModal('modal-tree')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="display:flex; flex-direction:column; gap:12px;" id="tree-step-container">
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:4px;">1. Substation System Voltage Level:</label>
+                        <select id="dt-voltage" class="btn" style="width:100%;">
+                            <option value="11">11kV - 33kV (Distribution)</option>
+                            <option value="132" selected>132kV - 220kV (Transmission / Sub-Transmission)</option>
+                            <option value="400">400kV - 765kV (EHV Bulk Transmission)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:4px;">2. Load Criticality & Reliability Requirement:</label>
+                        <select id="dt-criticality" class="btn" style="width:100%;">
+                            <option value="low">Standard / Normal Distribution</option>
+                            <option value="med">High Industrial / Sub-transmission Node</option>
+                            <option value="high" selected>Critical Bulk Grid Tie / Main Power Plant</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:4px;">3. Is Circuit Outage Acceptable During Breaker Maintenance?</label>
+                        <select id="dt-maint" class="btn" style="width:100%;">
+                            <option value="yes">Yes (Can schedule temporary outage)</option>
+                            <option value="no" selected>No (Uninterrupted supply mandatory)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="evaluateDesignTree()">Evaluate Conceptual Scheme Recommendation</button>
+
+                    <div id="dt-result" style="margin-top:14px; padding:12px; background:var(--bg-secondary); border-radius:6px; border:1px solid var(--accent-blue); display:none;">
+                        <h4 style="color:var(--accent-blue); margin-bottom:6px;" id="dt-recommendation-title">Recommended Scheme: 1.5 Breaker Scheme</h4>
+                        <p style="font-size:0.85rem; color:var(--text-main)" id="dt-recommendation-desc">For EHV transmission with zero tolerance for breaker maintenance outages, 1.5 Breaker Scheme offers maximum operational security.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: QUIZ -->
+    <div class="modal-overlay" id="modal-quiz">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 style="color:var(--accent-blue)">Substation Engineering Knowledge Test</h3>
+                <button class="btn" onclick="closeModal('modal-quiz')">✕</button>
+            </div>
+            <div class="modal-body" id="quiz-container">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           STATE MANAGEMENT & GLOBAL VARIABLES
+           ========================================================================== */
+        let currentSchemeKey = 'singleBus';
+        let appMode = 'learning'; // 'learning' or 'engineer'
+        let selectedComponentId = null;
+        let isInterlockActive = true;
+        let showProtectionZones = false;
+        let svgZoomScale = 1.0;
+
+        // Dynamic State Storage for current scheme
+        let schemeState = {
+            components: {}, // id -> { type, state, status, name, energized }
+            busbars: {},    // id -> { status: 'energized'|'deenergized'|'faulted'|'maint' }
+        };
+
+        /* ==========================================================================
+           SCHEME DEFINITIONS (DATA MODELS & SLD LAYOUTS)
+           ========================================================================== */
+        const SCHEMES = {
+            singleBus: {
+                title: "Single Busbar Scheme",
+                voltage: "33 kV / 110 kV",
+                desc: "All incoming and outgoing feeders are connected to a single common busbar. Simple and low cost, but lacks flexibility; a busbar fault causes a complete blackout.",
+                components: [
+                    { id: "BUS-1", type: "busbar", x1: 100, y1: 180, x2: 700, y2: 180, name: "Main Busbar 1" },
+                    
+                    // Incomer 1
+                    { id: "INC-1", type: "feeder", x: 200, y: 40, label: "INCOMER 1 (Grid)", direction: "down" },
+                    { id: "IS-101", type: "isolator", x: 200, y: 80, state: "closed", name: "Line Isolator IS-101" },
+                    { id: "CB-101", type: "breaker", x: 200, y: 120, state: "closed", name: "Incomer CB-101" },
+                    { id: "IS-102", type: "isolator", x: 200, y: 150, state: "closed", name: "Bus Isolator IS-102" },
+
+                    // Outgoing Feeder 1
+                    { id: "IS-201", type: "isolator", x: 400, y: 210, state: "closed", name: "Bus Isolator IS-201" },
+                    { id: "CB-201", type: "breaker", x: 400, y: 250, state: "closed", name: "Feeder CB-201" },
+                    { id: "IS-202", type: "isolator", x: 400, y: 290, state: "closed", name: "Line Isolator IS-202" },
+                    { id: "FDR-1", type: "feeder", x: 400, y: 330, label: "FEEDER 1 (Industrial Load)", direction: "up" },
+
+                    // Outgoing Feeder 2
+                    { id: "IS-301", type: "isolator", x: 600, y: 210, state: "closed", name: "Bus Isolator IS-301" },
+                    { id: "CB-301", type: "breaker", x: 600, y: 250, state: "closed", name: "Feeder CB-301" },
+                    { id: "IS-302", type: "isolator", x: 600, y: 290, state: "closed", name: "Line Isolator IS-302" },
+                    { id: "FDR-2", type: "feeder", x: 600, y: 330, label: "FEEDER 2 (City Load)", direction: "up" },
+                ],
+                connections: [
+                    { from: "INC-1", to: "IS-101" }, { from: "IS-101", to: "CB-101" }, { from: "CB-101", to: "IS-102" }, { from: "IS-102", to: "BUS-1" },
+                    { from: "BUS-1", to: "IS-201" }, { from: "IS-201", to: "CB-201" }, { from: "CB-201", to: "IS-202" }, { from: "IS-202", to: "FDR-1" },
+                    { from: "BUS-1", to: "IS-301" }, { from: "IS-301", to: "CB-301" }, { from: "CB-301", to: "IS-302" }, { from: "IS-302", to: "FDR-2" }
+                ],
+                checklist: [
+                    "✓ Minimal initial capital expenditure",
+                    "✓ Simple protection & control relaying scheme",
+                    "❌ Bus outage required for busbar extension or maintenance",
+                    "❌ Circuit breaker failure results in total loss of substation"
+                ]
+            },
+
+            sectionalizedBus: {
+                title: "Sectionalized Single Busbar Scheme",
+                voltage: "33 kV / 132 kV",
+                desc: "Divided busbar connected by a Bus Sectionalizer Circuit Breaker. A fault on one section isolates only that section, keeping the other section energized.",
+                components: [
+                    { id: "BUS-A", type: "busbar", x1: 100, y1: 180, x2: 360, y2: 180, name: "Busbar Section A" },
+                    { id: "BUS-B", type: "busbar", x1: 440, y1: 180, x2: 700, y2: 180, name: "Busbar Section B" },
+
+                    // Sectionalizer Coupler Bay
+                    { id: "IS-C1", type: "isolator", x: 370, y: 180, state: "closed", orientation: "horizontal", name: "Coupler Isolator C1" },
+                    { id: "CB-COUPLER", type: "breaker", x: 400, y: 180, state: "closed", orientation: "horizontal", name: "Bus Coupler CB-00" },
+                    { id: "IS-C2", type: "isolator", x: 430, y: 180, state: "closed", orientation: "horizontal", name: "Coupler Isolator C2" },
+
+                    // Section A Incomer & Feeder
+                    { id: "INC-A", type: "feeder", x: 180, y: 40, label: "GRID INCOMER A", direction: "down" },
+                    { id: "CB-101", type: "breaker", x: 180, y: 120, state: "closed", name: "Incomer A CB" },
+                    { id: "FDR-A", type: "feeder", x: 280, y: 320, label: "FEEDER A1", direction: "up" },
+                    { id: "CB-201", type: "breaker", x: 280, y: 240, state: "closed", name: "Feeder A1 CB" },
+
+                    // Section B Incomer & Feeder
+                    { id: "INC-B", type: "feeder", x: 520, y: 40, label: "GRID INCOMER B", direction: "down" },
+                    { id: "CB-301", type: "breaker", x: 520, y: 120, state: "closed", name: "Incomer B CB" },
+                    { id: "FDR-B", type: "feeder", x: 620, y: 320, label: "FEEDER B1", direction: "up" },
+                    { id: "CB-401", type: "breaker", x: 620, y: 240, state: "closed", name: "Feeder B1 CB" },
+                ],
+                connections: [
+                    { from: "INC-A", to: "CB-101" }, { from: "CB-101", to: "BUS-A" },
+                    { from: "BUS-A", to: "CB-201" }, { from: "CB-201", to: "FDR-A" },
+                    { from: "BUS-A", to: "IS-C1" }, { from: "IS-C1", to: "CB-COUPLER" }, { from: "CB-COUPLER", to: "IS-C2" }, { from: "IS-C2", to: "BUS-B" },
+                    { from: "INC-B", to: "CB-301" }, { from: "CB-301", to: "BUS-B" },
+                    { from: "BUS-B", to: "CB-401" }, { from: "CB-401", to: "FDR-B" }
+                ],
+                checklist: [
+                    "✓ Continuity of supply maintained on unaffected section during bus fault",
+                    "✓ Reduces short-circuit fault level when operated with open bus coupler",
+                    "❌ Maintenance of a section still requires shutting down connected circuits"
+                ]
+            },
+
+            mainTransfer: {
+                title: "Main & Transfer Busbar Scheme",
+                voltage: "132 kV / 220 kV",
+                desc: "Features a Main Bus and a Transfer Bus connected via a Transfer Breaker. Allows any circuit breaker to be taken out of service for maintenance without interrupting power flow.",
+                components: [
+                    { id: "BUS-MAIN", type: "busbar", x1: 100, y1: 120, x2: 700, y2: 120, name: "MAIN BUSBAR" },
+                    { id: "BUS-TRANS", type: "busbar", x1: 100, y1: 280, x2: 700, y2: 280, name: "TRANSFER BUSBAR" },
+
+                    // Transfer Coupler Bay
+                    { id: "IS-TC1", type: "isolator", x: 200, y: 150, state: "open", name: "Transfer Bus Isolator" },
+                    { id: "CB-TRANS", type: "breaker", x: 200, y: 200, state: "open", name: "TRANSFER BREAKER" },
+                    { id: "IS-TC2", type: "isolator", x: 200, y: 250, state: "open", name: "Main Bus Isolator" },
+
+                    // Feeder Bay 1
+                    { id: "IS-M1", type: "isolator", x: 400, y: 150, state: "closed", name: "Main Bus Isolator M1" },
+                    { id: "CB-F1", type: "breaker", x: 400, y: 200, state: "closed", name: "Feeder CB-1" },
+                    { id: "IS-T1", type: "isolator", x: 450, y: 250, state: "open", name: "Transfer Bus Bypass Isolator T1" },
+                    { id: "FDR-1", type: "feeder", x: 400, y: 350, label: "FEEDER 1", direction: "up" },
+
+                    // Feeder Bay 2
+                    { id: "IS-M2", type: "isolator", x: 600, y: 150, state: "closed", name: "Main Bus Isolator M2" },
+                    { id: "CB-F2", type: "breaker", x: 600, y: 200, state: "closed", name: "Feeder CB-2" },
+                    { id: "IS-T2", type: "isolator", x: 650, y: 250, state: "open", name: "Transfer Bus Bypass Isolator T2" },
+                    { id: "FDR-2", type: "feeder", x: 600, y: 350, label: "FEEDER 2", direction: "up" }
+                ],
+                connections: [
+                    { from: "BUS-MAIN", to: "IS-TC1" }, { from: "IS-TC1", to: "CB-TRANS" }, { from: "CB-TRANS", to: "IS-TC2" }, { from: "IS-TC2", to: "BUS-TRANS" },
+                    { from: "BUS-MAIN", to: "IS-M1" }, { from: "IS-M1", to: "CB-F1" }, { from: "CB-F1", to: "FDR-1" },
+                    { from: "BUS-TRANS", to: "IS-T1" }, { from: "IS-T1", to: "FDR-1" },
+                    { from: "BUS-MAIN", to: "IS-M2" }, { from: "IS-M2", to: "CB-F2" }, { from: "CB-F2", to: "FDR-2" },
+                    { from: "BUS-TRANS", to: "IS-T2" }, { from: "IS-T2", to: "FDR-2" }
+                ],
+                checklist: [
+                    "✓ Any breaker can be isolated for overhaul without feeder shutdown",
+                    "✓ Cost-effective breaker redundancy solution",
+                    "❌ Main busbar fault trips all connected feeder circuits"
+                ]
+            },
+
+            doubleBusSingleBreaker: {
+                title: "Double Busbar Single Breaker Scheme",
+                voltage: "132 kV / 220 kV",
+                desc: "Two main busbars (Bus-1 & Bus-2) with each feeder connected via two selector isolators and one circuit breaker. Provides high operational flexibility for load balancing.",
+                components: [
+                    { id: "BUS-1", type: "busbar", x1: 100, y1: 100, x2: 700, y2: 100, name: "BUSBAR 1" },
+                    { id: "BUS-2", type: "busbar", x1: 100, y1: 160, x2: 700, y2: 160, name: "BUSBAR 2" },
+
+                    // Bus Coupler Bay
+                    { id: "IS-C1", type: "isolator", x: 200, y: 120, state: "closed", name: "Coupler Bus-1 Isolator" },
+                    { id: "CB-COUPLER", type: "breaker", x: 200, y: 210, state: "closed", name: "BUS COUPLER CB" },
+                    { id: "IS-C2", type: "isolator", x: 200, y: 140, state: "closed", name: "Coupler Bus-2 Isolator" },
+
+                    // Feeder Bay 1
+                    { id: "IS-11", type: "isolator", x: 400, y: 120, state: "closed", name: "Feeder 1 Bus-1 Selector" },
+                    { id: "IS-12", type: "isolator", x: 440, y: 140, state: "open", name: "Feeder 1 Bus-2 Selector" },
+                    { id: "CB-F1", type: "breaker", x: 420, y: 220, state: "closed", name: "Feeder CB-1" },
+                    { id: "FDR-1", type: "feeder", x: 420, y: 320, label: "FEEDER 1", direction: "up" },
+
+                    // Feeder Bay 2
+                    { id: "IS-21", type: "isolator", x: 600, y: 120, state: "open", name: "Feeder 2 Bus-1 Selector" },
+                    { id: "IS-22", type: "isolator", x: 640, y: 140, state: "closed", name: "Feeder 2 Bus-2 Selector" },
+                    { id: "CB-F2", type: "breaker", x: 620, y: 220, state: "closed", name: "Feeder CB-2" },
+                    { id: "FDR-2", type: "feeder", x: 620, y: 320, label: "FEEDER 2", direction: "up" }
+                ],
+                connections: [
+                    { from: "BUS-1", to: "IS-C1" }, { from: "IS-C1", to: "CB-COUPLER" }, { from: "BUS-2", to: "IS-C2" }, { from: "IS-C2", to: "CB-COUPLER" },
+                    { from: "BUS-1", to: "IS-11" }, { from: "BUS-2", to: "IS-12" }, { from: "IS-11", to: "CB-F1" }, { from: "IS-12", to: "CB-F1" }, { from: "CB-F1", to: "FDR-1" },
+                    { from: "BUS-1", to: "IS-21" }, { from: "BUS-2", to: "IS-22" }, { from: "IS-21", to: "CB-F2" }, { from: "IS-22", to: "CB-F2" }, { from: "CB-F2", to: "FDR-2" }
+                ],
+                checklist: [
+                    "✓ Circuits can be easily transferred from one bus to another",
+                    "✓ Busbar maintenance can be carried out without total outage",
+                    "❌ Breaker maintenance still requires feeder shutdown"
+                ]
+            },
+
+            ringBus: {
+                title: "Ring Busbar Scheme",
+                voltage: "220 kV / 400 kV",
+                desc: "Circuit breakers are arranged in a closed ring loop. Opening any single breaker does not interrupt power flow to any outgoing feeder.",
+                components: [
+                    // Ring Nodes & Breakers
+                    { id: "CB-R1", type: "breaker", x: 250, y: 120, state: "closed", name: "Ring Breaker CB-12" },
+                    { id: "CB-R2", type: "breaker", x: 550, y: 120, state: "closed", name: "Ring Breaker CB-23" },
+                    { id: "CB-R3", type: "breaker", x: 550, y: 280, state: "closed", name: "Ring Breaker CB-34" },
+                    { id: "CB-R4", type: "breaker", x: 250, y: 280, state: "closed", name: "Ring Breaker CB-41" },
+
+                    // Feeders connected between breakers
+                    { id: "FDR-1", type: "feeder", x: 400, y: 50, label: "GRID LINE 1", direction: "down" },
+                    { id: "FDR-2", type: "feeder", x: 670, y: 200, label: "FEEDER 2", direction: "left" },
+                    { id: "FDR-3", type: "feeder", x: 400, y: 350, label: "TRANSFORMER 1", direction: "up" },
+                    { id: "FDR-4", type: "feeder", x: 130, y: 200, label: "FEEDER 4", direction: "right" }
+                ],
+                connections: [
+                    { from: "CB-R1", to: "FDR-1" }, { from: "FDR-1", to: "CB-R2" },
+                    { from: "CB-R2", to: "FDR-2" }, { from: "FDR-2", to: "CB-R3" },
+                    { from: "CB-R3", to: "FDR-3" }, { from: "FDR-3", to: "CB-R4" },
+                    { from: "CB-R4", to: "FDR-4" }, { from: "FDR-4", to: "CB-R1" }
+                ],
+                checklist: [
+                    "✓ High reliability with only 1 breaker per circuit",
+                    "✓ Any breaker can be removed for maintenance without circuit outage",
+                    "❌ If ring opens, fault on another section causes split system"
+                ]
+            },
+
+            oneAndHalf: {
+                title: "One-and-a-Half (1½) Breaker Scheme",
+                voltage: "400 kV / 765 kV EHV Grid",
+                desc: "Three circuit breakers are used for every two circuits (1.5 breakers/circuit). Maximum operational security: bus faults or breaker maintenance do not affect feeder continuity.",
+                components: [
+                    { id: "BUS-1", type: "busbar", x1: 100, y1: 80, x2: 700, y2: 80, name: "BUSBAR 1 (Main EHV)" },
+                    { id: "BUS-2", type: "busbar", x1: 100, y1: 340, x2: 700, y2: 340, name: "BUSBAR 2 (Main EHV)" },
+
+                    // Bay 1: 3 Breakers, 2 Feeders
+                    { id: "IS-B11", type: "isolator", x: 300, y: 100, state: "closed", name: "Bus-1 Isolator" },
+                    { id: "CB-1", type: "breaker", x: 300, y: 130, state: "closed", name: "Outer Breaker CB-1" },
+                    { id: "FDR-1", type: "feeder", x: 180, y: 180, label: "LINE 1 (Incomer)", direction: "right" },
+
+                    { id: "CB-TIE", type: "breaker", x: 300, y: 210, state: "closed", name: "SHARED TIE BREAKER CB-T" },
+                    { id: "FDR-2", type: "feeder", x: 420, y: 240, label: "LINE 2 (Feeder)", direction: "left" },
+
+                    { id: "CB-2", type: "breaker", x: 300, y: 290, state: "closed", name: "Outer Breaker CB-2" },
+                    { id: "IS-B22", type: "isolator", x: 300, y: 320, state: "closed", name: "Bus-2 Isolator" }
+                ],
+                connections: [
+                    { from: "BUS-1", to: "IS-B11" }, { from: "IS-B11", to: "CB-1" },
+                    { from: "CB-1", to: "FDR-1" }, { from: "CB-1", to: "CB-TIE" },
+                    { from: "CB-TIE", to: "FDR-2" }, { from: "CB-TIE", to: "CB-2" },
+                    { from: "CB-2", to: "IS-B22" }, { from: "IS-B22", to: "BUS-2" }
+                ],
+                checklist: [
+                    "✓ Standard choice for major 400kV/765kV transmission substations",
+                    "✓ Busbar fault isolated with ZERO interruption to any circuit",
+                    "✓ Tie breaker shared efficiently between two adjacent bays"
+                ]
+            },
+
+            doubleBreaker: {
+                title: "Double Busbar Double Breaker Scheme",
+                voltage: "400 kV / Nuclear Power Plants",
+                desc: "Two full busbars with two dedicated circuit breakers per feeder circuit. Ultra-high reliability and complete redundancy, but highest cost and equipment footprint.",
+                components: [
+                    { id: "BUS-1", type: "busbar", x1: 100, y1: 80, x2: 700, y2: 80, name: "BUSBAR 1" },
+                    { id: "BUS-2", type: "busbar", x1: 100, y1: 340, x2: 700, y2: 340, name: "BUSBAR 2" },
+
+                    // Feeder 1 Bay
+                    { id: "CB-11", type: "breaker", x: 300, y: 130, state: "closed", name: "Feeder-1 Bus-1 CB" },
+                    { id: "CB-12", type: "breaker", x: 300, y: 290, state: "closed", name: "Feeder-1 Bus-2 CB" },
+                    { id: "FDR-1", type: "feeder", x: 180, y: 210, label: "CRITICAL LINE 1", direction: "right" },
+
+                    // Feeder 2 Bay
+                    { id: "CB-21", type: "breaker", x: 550, y: 130, state: "closed", name: "Feeder-2 Bus-1 CB" },
+                    { id: "CB-22", type: "breaker", x: 550, y: 290, state: "closed", name: "Feeder-2 Bus-2 CB" },
+                    { id: "FDR-2", type: "feeder", x: 670, y: 210, label: "CRITICAL LINE 2", direction: "left" }
+                ],
+                connections: [
+                    { from: "BUS-1", to: "CB-11" }, { from: "CB-11", to: "FDR-1" },
+                    { from: "BUS-2", to: "CB-12" }, { from: "CB-12", to: "FDR-1" },
+                    { from: "BUS-1", to: "CB-21" }, { from: "CB-21", to: "FDR-2" },
+                    { from: "BUS-2", to: "CB-22" }, { from: "CB-22", to: "FDR-2" }
+                ],
+                checklist: [
+                    "✓ Absolute maximum operational redundancy and safety",
+                    "✓ Breaker maintenance performed with zero impact",
+                    "❌ High cost (2 CBs per circuit) and heavy protection complexity"
+                ]
+            }
+        };
+
+        /* ==========================================================================
+           SLD RENDERING ENGINE (SVG DYNAMIC GRAPHICS)
+           ========================================================================== */
+        function renderSLD() {
+            const scheme = SCHEMES[currentSchemeKey];
+            const rootG = document.getElementById("sld-root-group");
+            rootG.innerHTML = ""; // Clear canvas
+
+            document.getElementById("scheme-title-display").innerText = scheme.title;
+
+            // Render Connections (Lines)
+            scheme.connections.forEach(conn => {
+                const source = findComponent(conn.from);
+                const target = findComponent(conn.to);
+                if (source && target) {
+                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    const p1 = getCompAnchor(source, target);
+                    const p2 = getCompAnchor(target, source);
+
+                    line.setAttribute("x1", p1.x);
+                    line.setAttribute("y1", p1.y);
+                    line.setAttribute("x2", p2.x);
+                    line.setAttribute("y2", p2.y);
+
+                    const isEnergized = isPathEnergized(conn.from, conn.to);
+                    line.setAttribute("class", `conductor ${isEnergized ? 'conductor-energized flow-line' : 'conductor-deenergized'}`);
+                    rootG.appendChild(line);
+                }
+            });
+
+            // Render Components
+            scheme.components.forEach(comp => {
+                if (comp.type === "busbar") {
+                    renderBusbar(rootG, comp);
+                } else if (comp.type === "breaker") {
+                    renderBreaker(rootG, comp);
+                } else if (comp.type === "isolator") {
+                    renderIsolator(rootG, comp);
+                } else if (comp.type === "feeder") {
+                    renderFeeder(rootG, comp);
+                }
+            });
+
+            // Optional Protection Zones Overlay
+            if (showProtectionZones) {
+                renderProtectionZonesOverlay(rootG);
+            }
+        }
+
+        function findComponent(id) {
+            return SCHEMES[currentSchemeKey].components.find(c => c.id === id);
+        }
+
+        function getCompAnchor(comp, other) {
+            if (comp.type === "busbar") {
+                // Find closest point along busbar
+                const px = Math.max(comp.x1, Math.min(comp.x2, other.x || ((other.x1 + other.x2)/2)));
+                return { x: px, y: comp.y1 };
+            }
+            return { x: comp.x || (comp.x1 + comp.x2)/2, y: comp.y || comp.y1 };
+        }
+
+        function renderBusbar(parent, comp) {
+            const state = schemeState.components[comp.id] || { status: 'energized' };
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", comp.x1);
+            line.setAttribute("y1", comp.y1);
+            line.setAttribute("x2", comp.x2);
+            line.setAttribute("y2", comp.y2);
+            line.setAttribute("class", "busbar");
+            
+            let color = "var(--bus-energized)";
+            if (state.status === "deenergized") color = "var(--bus-deenergized)";
+            if (state.status === "faulted") color = "var(--bus-faulted)";
+            if (state.status === "maint") color = "var(--bus-maint)";
+
+            line.setAttribute("stroke", color);
+            line.onclick = () => inspectComponent(comp.id);
+            parent.appendChild(line);
+
+            // Label
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", comp.x1);
+            text.setAttribute("y", comp.y1 - 10);
+            text.setAttribute("fill", "var(--text-main)");
+            text.setAttribute("font-size", "11px");
+            text.setAttribute("font-weight", "bold");
+            text.textContent = comp.name;
+            parent.appendChild(text);
+        }
+
+        function renderBreaker(parent, comp) {
+            const state = schemeState.components[comp.id] || { state: comp.state };
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.setAttribute("class", "cb-symbol");
+            g.setAttribute("transform", `translate(${comp.x}, ${comp.y})`);
+            g.onclick = () => onComponentClick(comp.id);
+
+            // Outer Square Box
+            const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            rect.setAttribute("x", -12);
+            rect.setAttribute("y", -12);
+            rect.setAttribute("width", 24);
+            rect.setAttribute("height", 24);
+            rect.setAttribute("fill", "var(--card-bg)");
+            rect.setAttribute("stroke", state.state === "closed" ? "var(--cb-closed)" : (state.state === "tripped" ? "var(--cb-tripped)" : "var(--cb-open)"));
+            rect.setAttribute("stroke-width", "2.5");
+            rect.setAttribute("rx", "3");
+            g.appendChild(rect);
+
+            // Inside Cross if open/closed symbol
+            if (state.state === "closed") {
+                const fillRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                fillRect.setAttribute("x", -7);
+                fillRect.setAttribute("y", -7);
+                fillRect.setAttribute("width", 14);
+                fillRect.setAttribute("height", 14);
+                fillRect.setAttribute("fill", "var(--cb-closed)");
+                g.appendChild(fillRect);
+            }
+
+            // Label
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", 16);
+            text.setAttribute("y", 4);
+            text.setAttribute("fill", "var(--text-muted)");
+            text.setAttribute("font-size", "10px");
+            text.textContent = comp.id;
+            g.appendChild(text);
+
+            parent.appendChild(g);
+        }
+
+        function renderIsolator(parent, comp) {
+            const state = schemeState.components[comp.id] || { state: comp.state };
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.setAttribute("class", "isolator-symbol");
+            g.setAttribute("transform", `translate(${comp.x}, ${comp.y})`);
+            g.onclick = () => onComponentClick(comp.id);
+
+            // Switch blade line
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", -10);
+            line.setAttribute("y1", 0);
+            line.setAttribute("x2", 10);
+            line.setAttribute("y2", state.state === "closed" ? 0 : -12);
+            line.setAttribute("stroke", state.state === "closed" ? "var(--accent-green)" : "var(--text-muted)");
+            line.setAttribute("stroke-width", "2.5");
+            g.appendChild(line);
+
+            // Contacts
+            const c1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            c1.setAttribute("cx", -10); c1.setAttribute("cy", 0); c1.setAttribute("r", 3); c1.setAttribute("fill", "var(--text-main)");
+            const c2 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            c2.setAttribute("cx", 10); c2.setAttribute("cy", 0); c2.setAttribute("r", 3); c2.setAttribute("fill", "var(--text-main)");
+            g.appendChild(c1); g.appendChild(c2);
+
+            parent.appendChild(g);
+        }
+
+        function renderFeeder(parent, comp) {
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.setAttribute("transform", `translate(${comp.x}, ${comp.y})`);
+
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("r", "10");
+            circle.setAttribute("fill", "var(--bg-tertiary)");
+            circle.setAttribute("stroke", "var(--accent-blue)");
+            circle.setAttribute("stroke-width", "2");
+            g.appendChild(circle);
+
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", comp.direction === "right" ? 16 : -40);
+            text.setAttribute("y", comp.direction === "up" ? 22 : -15);
+            text.setAttribute("fill", "var(--accent-blue)");
+            text.setAttribute("font-size", "10px");
+            text.setAttribute("font-weight", "bold");
+            text.textContent = comp.label;
+            g.appendChild(text);
+
+            parent.appendChild(g);
+        }
+
+        function renderProtectionZonesOverlay(parent) {
+            // Draw visual transparent protection boundary shapes
+            const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            rect.setAttribute("x", 80); rect.setAttribute("y", 60);
+            rect.setAttribute("width", 640); rect.setAttribute("height", 300);
+            rect.setAttribute("fill", "rgba(56, 189, 248, 0.05)");
+            rect.setAttribute("stroke", "var(--accent-purple)");
+            rect.setAttribute("stroke-width", "1.5");
+            rect.setAttribute("stroke-dasharray", "6,6");
+            parent.appendChild(rect);
+        }
+
+        /* ==========================================================================
+           INTERACTION & LOGIC CONTROL
+           ========================================================================== */
+        function onComponentClick(id) {
+            const comp = findComponent(id);
+            if (!comp) return;
+
+            inspectComponent(id);
+
+            // Interlock Safety Logic Check
+            if (isInterlockActive && comp.type === "isolator") {
+                // Prevent operating isolator under load
+                if (isIsolatorUnderLoad(id)) {
+                    triggerInterlockWarning("INTERLOCK BLOCKED: Cannot operate Isolator while Circuit Breaker is CLOSED!");
+                    return;
+                }
+            }
+
+            toggleComponentState(id);
+            recalculatePowerFlow();
+            renderSLD();
+        }
+
+        function isIsolatorUnderLoad(isolatorId) {
+            // Simple educational interlock: check if adjacent breaker is closed
+            const currentState = schemeState.components[isolatorId]?.state;
+            // If opening an isolator, check if associated CB in same bay is closed
+            return currentState === "closed"; 
+        }
+
+        function triggerInterlockWarning(msg) {
+            const banner = document.getElementById("interlock-banner");
+            banner.innerText = "🔒 " + msg;
+            banner.style.display = "flex";
+            addLogEntry("WARN", msg);
+            setTimeout(() => { banner.style.display = "none"; }, 3500);
+        }
+
+        function toggleComponentState(id) {
+            if (!schemeState.components[id]) {
+                const comp = findComponent(id);
+                schemeState.components[id] = { state: comp.state };
+            }
+            const current = schemeState.components[id].state;
+            const next = current === "closed" ? "open" : "closed";
+            schemeState.components[id].state = next;
+            addLogEntry("INFO", `${id} operated to ${next.toUpperCase()}`);
+        }
+
+        function inspectComponent(id) {
+            selectedComponentId = id;
+            const comp = findComponent(id);
+            if (!comp) return;
+
+            document.getElementById("inspector-default").style.display = "none";
+            document.getElementById("inspector-details").style.display = "block";
+
+            document.getElementById("comp-name").innerText = comp.name || comp.id;
+            document.getElementById("comp-type").innerText = comp.type.toUpperCase();
+
+            const st = schemeState.components[id]?.state || "closed";
+            const badge = document.getElementById("comp-status-badge");
+            badge.innerText = st.toUpperCase();
+            badge.className = `status-pill ${st === 'closed' ? 'status-energized' : 'status-deenergized'}`;
+        }
+
+        /* ==========================================================================
+           POWER FLOW & SIMULATION ENGINE
+           ========================================================================== */
+        function isPathEnergized(fromId, toId) {
+            // Simplified electrical connectivity check
+            const fromComp = schemeState.components[fromId]?.state || "closed";
+            const toComp = schemeState.components[toId]?.state || "closed";
+            return fromComp === "closed" && toComp === "closed";
+        }
+
+        function recalculatePowerFlow() {
+            // Evaluates energization state across busbars & feeders
+            addLogEntry("INFO", "Power flow network topology recalculated.");
+        }
+
+        function loadScheme(key) {
+            currentSchemeKey = key;
+            schemeState.components = {};
+            
+            // Highlight sidebar item
+            document.querySelectorAll("#scheme-list .nav-item").forEach(el => el.classList.remove("active"));
+            event.currentTarget.classList.add("active");
+
+            // Populate Design Checklist
+            const checklistContainer = document.getElementById("design-checklist-content");
+            const checklistItems = SCHEMES[key].checklist.map(item => `<div style="margin-bottom:6px;">${item}</div>`).join('');
+            checklistContainer.innerHTML = checklistItems;
+
+            // Load Sequencer Steps
+            loadSequencerSteps(key);
+
+            resetSLDView();
+            renderSLD();
+            addLogEntry("SUCCESS", `Loaded ${SCHEMES[key].title}`);
+        }
+
+        /* ==========================================================================
+           FAULTS & PROTECTION SIMULATION
+           ========================================================================== */
+        function injectFaultType(type) {
+            if (type === "busbar1") {
+                const bus = findComponent("BUS-1") || findComponent("BUS-A");
+                if (bus) {
+                    schemeState.components[bus.id] = { status: "faulted" };
+                    addLogEntry("ALARM", `⚡ 87B BUSBAR DIFFERENTIAL PROTECTION OPERATED ON ${bus.id}!`);
+                    
+                    // Auto Trip associated breakers
+                    setTimeout(() => {
+                        SCHEMES[currentSchemeKey].components.forEach(c => {
+                            if (c.type === "breaker") {
+                                schemeState.components[c.id] = { state: "tripped" };
+                            }
+                        });
+                        addLogEntry("ALARM", "TRIP SIGNAL SENT TO ALL BUS BREAKERS. FAULT ISOLATED.");
+                        renderSLD();
+                    }, 800);
+                }
+            } else {
+                addLogEntry("ALARM", `⚡ FEEDER FAULT DETECTED! OVERCURRENT RELAY 50/51 TRIP OPERATED.`);
+            }
+            renderSLD();
+        }
+
+        function triggerAutoFault() {
+            injectFaultType("busbar1");
+        }
+
+        /* ==========================================================================
+           SEQUENCER / SWITCHING TRAINER
+           ========================================================================== */
+        function loadSequencerSteps(schemeKey) {
+            const container = document.getElementById("sequence-steps-container");
+            if (schemeKey === "mainTransfer") {
+                container.innerHTML = `
+                    <div class="step-card active">
+                        <b>Step 1: Close Transfer Bus Isolators</b>
+                        <p>Close IS-TC1 & IS-TC2 to energize Transfer Busbar.</p>
+                    </div>
+                    <div class="step-card">
+                        <b>Step 2: Close Transfer Breaker</b>
+                        <p>Close CB-TRANS to verify Transfer Bus health.</p>
+                    </div>
+                    <div class="step-card">
+                        <b>Step 3: Close Feeder Bypass Isolator</b>
+                        <p>Close IS-T1 to parallel Feeder-1 with Transfer Bus.</p>
+                    </div>
+                    <div class="step-card">
+                        <b>Step 4: Open Feeder Circuit Breaker</b>
+                        <p>Open CB-F1. Supply transferred seamlessly!</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `<p style="font-size:0.8rem; color:var(--text-muted)">Select Main & Transfer Bus Scheme to practice automated breaker transfer sequence.</p>`;
+            }
+        }
+
+        /* ==========================================================================
+           MODALS & QUIZ LOGIC
+           ========================================================================== */
+        function openMatrixModal() { document.getElementById("modal-matrix").classList.add("active"); }
+        function openDecisionTreeModal() { document.getElementById("modal-tree").classList.add("active"); }
+        function openQuizModal() { 
+            document.getElementById("modal-quiz").classList.add("active");
+            loadQuizQuestion();
+        }
+        function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+        function evaluateDesignTree() {
+            const v = document.getElementById("dt-voltage").value;
+            const c = document.getElementById("dt-criticality").value;
+            const m = document.getElementById("dt-maint").value;
+
+            const resDiv = document.getElementById("dt-result");
+            const title = document.getElementById("dt-recommendation-title");
+            const desc = document.getElementById("dt-recommendation-desc");
+
+            resDiv.style.display = "block";
+
+            if (v === "400" || c === "high") {
+                title.innerText = "Recommended: One-and-a-Half (1½) Breaker Scheme";
+                desc.innerText = "For critical high-voltage grid nodes where breaker failure or maintenance cannot compromise circuit availability, 1.5 CB/circuit provides optimal security.";
+            } else if (m === "no") {
+                title.innerText = "Recommended: Main & Transfer Bus Scheme";
+                desc.innerText = "Provides breaker maintenance capability without incurring the high cost of double breaker arrangements.";
+            } else {
+                title.innerText = "Recommended: Sectionalized Single Busbar Scheme";
+                desc.innerText = "Cost-effective solution for standard sub-transmission and primary distribution substations.";
+            }
+        }
+
+        function loadQuizQuestion() {
+            const qBox = document.getElementById("quiz-container");
+            qBox.innerHTML = `
+                <div style="font-size:0.9rem; margin-bottom:12px;">
+                    <b>Question 1 of 3:</b> Why is an Isolator (Disconnector) prohibited from opening under load current?
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <button class="btn" style="text-align:left;" onclick="answerQuiz(false)">A. Because isolators do not have remote motor drives.</button>
+                    <button class="btn" style="text-align:left;" onclick="answerQuiz(true)">B. Isolators lack arc-quenching media and will sustain a catastrophic flashover arc.</button>
+                    <button class="btn" style="text-align:left;" onclick="answerQuiz(false)">C. Isolators are designed only for earth fault detection.</button>
+                </div>
+                <div id="quiz-feedback" style="margin-top:12px; font-weight:bold;"></div>
+            `;
+        }
+
+        function answerQuiz(isCorrect) {
+            const fb = document.getElementById("quiz-feedback");
+            if (isCorrect) {
+                fb.style.color = "var(--accent-green)";
+                fb.innerText = "Correct! Isolators have no arc-quenching capability and must only be operated off-load.";
+            } else {
+                fb.style.color = "var(--accent-red)";
+                fb.innerText = "Incorrect. Try again!";
+            }
+        }
+
+        /* ==========================================================================
+           UTILITY FUNCTIONS & EVENT LOGGING
+           ========================================================================== */
+        function addLogEntry(type, msg) {
+            const logBox = document.getElementById("event-log");
+            const timeStr = new Date().toLocaleTimeString();
+            const entry = document.createElement("div");
+            entry.className = "log-entry";
+            entry.innerHTML = `<span class="log-time">[${timeStr}]</span> <span class="log-${type}">[${type}] ${msg}</span>`;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function clearEventLog() { document.getElementById("event-log").innerHTML = ""; }
+
+        function toggleAppMode() {
+            appMode = appMode === "learning" ? "engineer" : "learning";
+            document.getElementById("mode-text").innerText = appMode === "learning" ? "Learning Mode" : "Engineer Mode";
+            addLogEntry("INFO", `Switched to ${appMode.toUpperCase()} mode.`);
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle("light-mode");
+        }
+
+        function toggleInterlocks(val) {
+            isInterlockActive = val;
+            addLogEntry("WARN", `Safety Interlocks ${val ? "ENABLED" : "DISABLED"}`);
+        }
+
+        function toggleProtectionZones(val) {
+            showProtectionZones = val;
+            renderSLD();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+            event.currentTarget.classList.add("active");
+            document.getElementById(tabId).classList.add("active");
+        }
+
+        function zoomSLD(factor) {
+            svgZoomScale *= factor;
+            document.getElementById("sld-root-group").setAttribute("transform", `scale(${svgZoomScale})`);
+        }
+
+        function resetSLDView() {
+            svgZoomScale = 1.0;
+            document.getElementById("sld-root-group").setAttribute("transform", "scale(1)");
+        }
+
+        function resetSystemState() {
+            schemeState.components = {};
+            addLogEntry("SUCCESS", "System topology reset to normal operational state.");
+            renderSLD();
+        }
+
+        // Initialize on Load
+        window.onload = function() {
+            addLogEntry("INFO", "Substation Simulator Initialized.");
+            loadScheme('singleBus');
+        };
+    </script>
+</body>
+</html>
