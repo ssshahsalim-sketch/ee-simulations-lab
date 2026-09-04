@@ -5,9 +5,11 @@ Compatible with Render.com cloud hosting
 
 from flask import (Flask, render_template, jsonify, request,
                    send_from_directory, redirect, session)
-import os, json, hashlib, datetime
+import os, json, hashlib, datetime, re
 from pathlib import Path
 from functools import wraps
+from twilio.rest import Client as TwilioClient
+from twilio.base.exceptions import TwilioRestException
 
 app        = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "ee_sim_secret_2024_xyz")
@@ -91,6 +93,69 @@ def api_content(): return jsonify(load_content())
 
 @app.route("/sim/<filename>")
 def view_simulation(filename): return send_from_directory(SIM_DIR, filename)
+
+# ══════════════════════════════════════════════════
+# TWILIO SMS — for the electrical-services.html tool.
+# Credentials come ONLY from Render environment variables
+# (TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM), never from the repo
+# or the browser. Twilio is called server-to-server here, so
+# there's no CORS proxy needed at all.
+# ══════════════════════════════════════════════════
+TWILIO_ERROR_HINTS = {
+    20003: "Authentication failed — double-check TWILIO_SID and TWILIO_TOKEN in Render's Environment settings.",
+    21211: "Invalid 'To' phone number — make sure it includes the country code, e.g. +919876543210.",
+    21606: "Your Twilio 'From' number (TWILIO_FROM) isn't a valid, SMS-enabled number on this account.",
+    21608: "This is a Trial account — Twilio can only send to numbers verified under Phone Numbers → Verified Caller IDs in your Twilio console. Verify this number, or upgrade the account.",
+    21614: "The 'To' number isn't a valid mobile number that can receive SMS.",
+    21617: "Message body is too long.",
+}
+
+def to_e164(raw):
+    if not raw:
+        return None
+    cleaned = re.sub(r"[^\d+]", "", str(raw).strip())
+    if cleaned.find("+") > 0:
+        cleaned = cleaned.replace("+", "")
+    if not cleaned.startswith("+"):
+        return None
+    digits = cleaned[1:]
+    if not re.fullmatch(r"\d{8,15}", digits):
+        return None
+    return "+" + digits
+
+@app.route("/api/sms-status")
+def api_sms_status():
+    sid = os.environ.get("TWILIO_SID")
+    token = os.environ.get("TWILIO_TOKEN")
+    from_num = to_e164(os.environ.get("TWILIO_FROM", ""))
+    return jsonify({"configured": bool(sid and token and from_num)})
+
+@app.route("/api/send-sms", methods=["POST"])
+def api_send_sms():
+    sid = os.environ.get("TWILIO_SID")
+    token = os.environ.get("TWILIO_TOKEN")
+    from_num = to_e164(os.environ.get("TWILIO_FROM", ""))
+    if not (sid and token and from_num):
+        return jsonify({"success": False, "error": "Server is missing TWILIO_SID / TWILIO_TOKEN / TWILIO_FROM environment variables. Set them in Render → Environment."}), 500
+
+    data = request.get_json(silent=True) or {}
+    to_num = to_e164(data.get("to"))
+    body = (data.get("body") or "").strip()
+    if not to_num:
+        return jsonify({"success": False, "error": "The engineer's phone number is missing a country code. Update it in the Admin Panel (e.g. +919876543210)."}), 400
+    if not body:
+        return jsonify({"success": False, "error": "Message body is empty."}), 400
+
+    try:
+        client = TwilioClient(sid, token)
+        msg = client.messages.create(to=to_num, from_=from_num, body=body)
+        return jsonify({"success": True, "messageSid": msg.sid})
+    except TwilioRestException as e:
+        hint = TWILIO_ERROR_HINTS.get(e.code)
+        message = f"{hint} (Twilio error {e.code})" if hint else f"{e.msg or 'Twilio rejected the request.'} (error {e.code})"
+        return jsonify({"success": False, "error": message}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/admin/login", methods=["GET","POST"])
 def admin_login():
